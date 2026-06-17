@@ -1,7 +1,7 @@
 # 知识发布管道 — 函数级调用链
 
 > 代码基准：`handler/knowledge.go` → `service/knowledge_service.go` → `rag/chunker.go` / `rag/embedder.go` / `adapter/vector_store.go`
-> 更新于 2026-06-12 — EmbeddingConfig 死代码已移除，EmbeddingModel 从 KnowledgeBase 读取
+> 更新于 2026-06-17 — 新增 KB 删除流程（§4-5），文章状态机含 Disable→Draft 重启用路径
 
 ## 1. 文章生命周期（创建→审核→发布→停用）
 
@@ -130,11 +130,76 @@ stateDiagram-v2
     Draft --> Reviewing : SubmitForReview()
     Reviewing --> Published : Approve()
     Reviewing --> Rejected : Reject()
-    Published --> Disabled : Disable()<br/>(status = ArticleStatusDisabled=4)
-    Disabled --> Draft : Enable()<br/>(校验 Status==4 才可启用)
+    Published --> Disabled : Disable()<br/>(status = ArticleStatusDisabled=0)
+    Disabled --> Draft : Enable()<br/>(校验 Status==ArticleStatusDisabled(0) 才可启用)
 
     note right of Published
         Publish() 执行分块→Embedding→pgvector
         embeddingModel 从 KB.EmbeddingModel 读取
     end note
+```
+
+## 4. 知识库删除流程（🆕 2026-06-17）
+
+```mermaid
+sequenceDiagram
+    actor A as 管理员
+    participant KH as KnowledgeHandler.DeleteKB<br/>handler/knowledge.go
+    participant KS as KnowledgeService.DeleteKB<br/>service/knowledge_service.go:129
+    participant KR as KnowledgeRepo<br/>repository/knowledge_repo.go
+    participant VS as VectorStore.DeleteByKB<br/>adapter/vector_store.go:234
+    participant DB as PostgreSQL+pgvector
+
+    A->>KH: DELETE /api/v1/admin/knowledge-bases/:id
+    KH->>KH: parseID(c, "id")
+    KH->>KS: DeleteKB(id)
+
+    Note over KS: === 1. 存在性校验 ===
+    KS->>KR: FindKBByID(id)
+    KR->>DB: SELECT * FROM knowledge_bases WHERE id=?
+    alt 不存在
+        KR-->>KS: gorm.ErrRecordNotFound
+        KS-->>KH: AppError{10004, "知识库不存在"}
+        KH-->>A: 404
+    end
+
+    Note over KS,DB: === 2. 删除 pgvector 向量分块 ===
+    KS->>VS: DeleteByKB(ctx, kbID)
+    VS->>DB: DELETE FROM knowledge_chunks WHERE kb_id=?
+    Note over VS: 幂等操作——无分块也不报错
+
+    Note over KS,DB: === 3. 级联删除文章+KB（事务） ===
+    KS->>KR: DeleteKB(id)
+    KR->>DB: BEGIN
+    KR->>DB: DELETE FROM knowledge_articles WHERE kb_id=?
+    KR->>DB: DELETE FROM knowledge_bases WHERE id=?
+    KR->>DB: COMMIT
+
+    KS-->>KH: nil
+    KH-->>A: 200 {code:0}
+```
+
+## 5. KB 删除决策流程图
+
+```mermaid
+flowchart TD
+    Start([DeleteKB 请求]) --> Auth{JWTAuth<br/>+ RBAC?}
+    Auth -->|NO| E401[401/403]
+    Auth -->|OK| Parse[parseID → kbID]
+    Parse --> FindKB{FindKBByID<br/>KB 存在?}
+    FindKB -->|NO| E404["404<br/>AppError{10004, '知识库不存在'}"]
+    FindKB -->|OK| DelVec{store != nil?}
+    DelVec -->|YES| VecDel[VectorStore.DeleteByKB<br/>DELETE knowledge_chunks<br/>WHERE kb_id=?]
+    DelVec -->|NO| DelDB
+    VecDel -->|OK| DelDB[KnowledgeRepo.DeleteKB]
+    VecDel -->|fail| Warn["slog.Warn<br/>向量删除失败<br/>不阻塞DB删除"]
+    Warn --> DelDB
+    DelDB --> TX[事务: DELETE articles<br/>+ DELETE knowledge_bases]
+    TX -->|OK| OK["200 {code:0}"]
+    TX -->|fail| E500[500 数据库错误]
+
+    style E401 fill:#ef444420,stroke:#ef4444
+    style E404 fill:#ef444420,stroke:#ef4444
+    style E500 fill:#ef444420,stroke:#ef4444
+    style OK fill:#22c55e20,stroke:#22c55e
 ```

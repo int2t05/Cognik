@@ -74,6 +74,9 @@ go build ./cmd/...
 # 运行（本地开发，依赖 Docker 中的 postgres(pgvector)/minio）
 go run ./cmd/main.go
 
+# 静态检查
+go vet ./...
+
 # 运行全部测试（不含集成测试）
 go test ./tests/config/... -v
 
@@ -163,10 +166,10 @@ make seed
 | 目录/文件 | 职责 |
 | --- | --- |
 | `docs/` | 项目文档（PRD、TECH、API、设计系统、图表） |
-| `docs/v2/PRDv2.md` | v2 产品需求文档 — 自建 RAG 引擎、文档上传、统一文章模型 |
-| `docs/v2/TECHv2.md` | v2 技术架构文档 — 模块接口、ADR、数据库 DDL、部署配置 |
-| `docs/API/` | API 文档 — 认证/问答/知识库/LLM配置/申告/用户/角色/看板/审计 |
-| `docs/v1/` | v1 文档归档（AnythingLLM 架构，仅作历史参考） |
+| `docs/PRD.md` | 产品需求文档 — 自建 RAG 引擎、文档上传、统一文章模型 |
+| `docs/TECH.md` | 技术架构文档 — 模块接口、ADR、数据库 DDL、部署配置 |
+| `docs/API/` | API 文档 — 认证/问答/知识库/LLM配置/申告/用户/角色/看板/审计（9 份） |
+| `docs/diagrams/` | Mermaid 架构与业务流程图（13 个模块 + README，含全业务数据流总览） |
 | `docs/prompts/DESIGN-linear.app.md` | Linear Design 系统约束 |
 | `server/cmd/main.go` | 后端入口，初始化配置、数据库、路由、RAG 模块、调度器 |
 | `server/internal/config/` | Viper 配置管理（config.go + config.yaml） |
@@ -182,7 +185,7 @@ make seed
 | `server/pkg/` | 公共工具包（response / errcode / jwt / hash） |
 | `server/migrations/` | 数据库迁移和演示数据 |
 | `server/tests/` | 全部测试代码（外部测试包：config/database/model/service/handler/middleware/adapter/rag） |
-| `web/src/api/` | 前端 API 请求封装（auth/chat/ticket/knowledge/user/dashboard/message/llm_config） |
+| `web/src/api/` | 前端 API 请求封装（auth/chat/ticket/knowledge/user/dashboard/message/llm_config/role/config/audit/admin） |
 | `web/src/views/portal/` | 门户端页面（智能问答、申告提交、进度查询） |
 | `web/src/views/admin/` | 后台管理页面（看板、申告、知识库、文档上传、LLM配置、用户、配置） |
 | `web/src/views/auth/` | 认证页面（登录、修改密码） |
@@ -211,6 +214,8 @@ make seed
 - **前端遵循 Linear Design：** 使用暗色主题 CSS 变量（`--bg-base: #08090a`、`--accent: #5e6ad2` 等），字体 Inter Variable。
 - **LLM/Embedding 通过适配层访问：** 后端只能通过 `LLMClient` / `EmbeddingClient` 接口调用 LLM 和 Embedding 服务，禁止直接 HTTP 调用。向量存储只能通过 `VectorStore` 接口访问 pgvector。
 - **使用中文 git commit message：** 格式为 `类型: 简短描述`，如 `feat: 实现 BM25 混合检索`、`fix: 修复 pgvector 批量写入事务`。
+- **测试写在 `tests/` 目录下，使用 `_test` 外部测试包：** 禁止在源码文件中写 `_test.go`，禁止 mock——测试代码要跟实际运行一样，依赖完整模块。
+- **消费者接口模式：** Service 层定义它所需依赖的接口（而非引用具体 Repo 类型），遵循 Go "accept interfaces, return structs" 惯例。
 
 ### 绝不要做 (Never do)
 
@@ -218,13 +223,14 @@ make seed
 - **绝不绕过适配层直接调用外部服务：** 禁止在 Service/Handler 中直接调用 LLM HTTP API（OpenAI-compatible）、MinIO API 或 pgvector 原始 SQL，必须通过 `LLMClient` / `EmbeddingClient` / `StorageClient` / `VectorStore` 接口。
 - **绝不跳过 RAG 管道降级逻辑：** 管道单步骤失败不应阻塞后续步骤（向量检索和 LLM 生成除外——它们是核心路径，失败需返回错误）。降级矩阵见 `docs/API/chat.md`。
 - **绝不在 Repository 层写业务逻辑：** Repository 只负责数据访问，业务规则（如审核人≠创建人、补充信息≤3 次、LLM 配置热替换）必须在 Service 层。RAG 算法逻辑（BM25、RRF、分块）在 `rag/` 包中，不在 Service 层。
-- **绝不跳过状态机校验：** 申告状态转换必须在 `TicketService.UpdateStatus` 中严格校验前置状态，禁止直接 `UPDATE status`。
+- **绝不跳过状态机校验：** 申告状态转换必须在 `TicketService.UpdateStatus` 中严格校验前置状态，禁止直接 `UPDATE status`。知识库文章状态转换同理。
 - **绝不硬编码配置值：** LLM Base URL、API Key、模型名称、向量维度、数据库连接、JWT 密钥等必须从配置文件或环境变量读取。LLM 配置修改通过 `atomic.Value` 热替换，无需重启。
 - **绝不使用 localhost 访问 Docker 内部服务：** 容器内访问 llama.cpp 使用 `http://llama-cpp:8080/v1`，访问 PostgreSQL 使用 `postgres:5432`，访问 MinIO 使用 `minio:9000`。
 - **绝不省略错误处理：** 外部服务调用（LLMClient、EmbeddingClient、VectorStore、StorageClient）必须处理超时、不可达、返回错误三种情况。
 - **绝不跳过降级逻辑：** AI 服务不可用时必须返回明确提示（code=20001），RAG 向量检索失败时返回 code=20002，不能静默失败。
 - **不要完全覆盖 .gitignore：** 如需添加规则，从文件末尾追加，不要替换已有内容。
-- **禁止mock测试** 测试代码要跟实际运行一样，依赖完整的模块
+- **禁止 mock 测试：** 测试代码要跟实际运行一样，依赖完整的模块。测试目录为 `server/tests/`，使用外部测试包 `_test`。
+
 ---
 
 ## 7. 注释规范
@@ -293,8 +299,15 @@ func HashPassword(password string) (string, error) {
 | `docs/prompts/DESIGN-linear.app.md` | Linear Design 系统约束 — 暗色主题色值、字体配置、组件样式 |
 | `docs/API/README.md` | API 文档索引 — 9 份接口文档，覆盖全部端点 |
 | `docs/API/chat.md` | 智能问答 API — SSE 流式 + RAG 管道步骤事件 + 降级规则 |
-| `docs/API/knowledge.md` | 知识库管理 API — KB/文章/审核/发布 + 文档上传/状态查询 |
+| `docs/API/knowledge.md` | 知识库管理 API — KB/文章/审核/发布 + 文档上传/状态查询 + KB 删除 |
 | `docs/API/llm-config.md` | LLM 配置 API — llama.cpp / OpenAI-compatible 双支持 + 热替换 |
+| `docs/API/tickets.md` | 申告管理 API — 门户提交 + 后台处理 + 状态机 |
+| `docs/API/users.md` | 用户管理 API — CRUD + 冻结/恢复 |
+| `docs/API/roles.md` | 角色与菜单管理 API |
+| `docs/API/dashboard.md` | 数据看板 API — 统计 + 趋势 |
+| `docs/API/audit-log.md` | 审计日志 + 系统配置 + 站内消息 |
+| `docs/diagrams/README.md` | 架构图索引 — 13 份 Mermaid 图，含全业务数据流总览 |
+| `docs/diagrams/master-data-flow.md` | 🆕 全业务数据流总览 — 62 端点全景 + 10 模块端到端 + API 完整性矩阵 |
 
 ### 外部依赖文档
 
@@ -351,7 +364,9 @@ func HashPassword(password string) (string, error) {
 | 10003 | 400 | 参数校验失败 |
 | 10004 | 404 | 资源不存在 |
 | 10005 | 409 | 资源冲突（如账号名重复） |
-| 20001 | 500 | AI 服务不可用（LLM/Embedding 调用失败） |
-| 20002 | 500 | RAG 服务不可用（pgvector 检索失败） |
-| 20003 | 500 | 存储服务不可用（MinIO 操作失败） |
+| 10006 | 400 | 用户已被冻结 (ErrAlreadyFrozen) |
+| 10007 | 400 | 用户已处于正常状态 (ErrAlreadyActive) |
+| 20001 | 503 | AI 服务不可用（LLM/Embedding 调用失败） |
+| 20002 | 503 | RAG 服务不可用（pgvector 检索失败） |
+| 20003 | 503 | 存储服务不可用（MinIO 操作失败） |
 | 99999 | 500 | 未知错误 |

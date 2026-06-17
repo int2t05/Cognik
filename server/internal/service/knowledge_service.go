@@ -49,6 +49,7 @@ type knowledgeRepo interface {
 	UpdateArticleMetrics(id int64, wordCount, chunkCount int) error
 	CreateKB(kb *model.KnowledgeBase) error
 	UpdateKB(kb *model.KnowledgeBase) error
+	DeleteKB(id int64) error
 	ListKBs() ([]model.KnowledgeBase, error)
 	ListArticles(kbID int64, status int, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
 	FindChunksByArticleID(articleID int64) ([]model.KnowledgeChunk, error)
@@ -123,6 +124,34 @@ func (s *KnowledgeService) UpdateKB(id int64, req request.UpdateKBRequest) error
 		kb.VectorDimension = req.VectorDimension
 	}
 	return s.repo.UpdateKB(kb)
+}
+
+// DeleteKB 删除知识库及其下所有内容。
+//
+// 执行顺序：pgvector 向量删除 → 文章 + KB 数据库记录删除。
+// 为什么先删向量再删数据库：VectorStore 删除可能失败（DB 连接问题），
+// 如果先删数据库记录再失败则向量成为孤儿数据。
+// MinIO 文档文件和 BM25 缓存在后续迭代中完善。
+func (s *KnowledgeService) DeleteKB(id int64) error {
+	// 1. 校验知识库存在
+	_, err := s.repo.FindKBByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
+		}
+		return err
+	}
+
+	// 2. 删除 pgvector 中该知识库的所有向量分块
+	if s.store != nil {
+		if err := s.store.DeleteByKB(context.Background(), id); err != nil {
+			slog.Warn("删除知识库向量分块失败", "kb_id", id, "error", err)
+			// 向量删除失败不阻塞数据库删除，由后续清理任务处理孤儿向量
+		}
+	}
+
+	// 3. 级联删除文章和知识库
+	return s.repo.DeleteKB(id)
 }
 
 // ListKBs 列出全部知识库。

@@ -167,6 +167,26 @@ func (r *KnowledgeRepo) UpdateArticleMetrics(id int64, wordCount, chunkCount int
 	}).Error
 }
 
+// DeleteKB 删除知识库及其下所有文章（级联删除）。
+//
+// 为什么在事务中先删文章再删 KB：knowledge_articles 有 kb_id 外键约束，
+// 必须先删除子记录才能删除父记录。GORM 不会自动级联 DELETE。
+// 向量分块的删除由上层 KnowledgeService 通过 VectorStore.DeleteByKB 完成，
+// Repository 层不持有 VectorStore 引用。
+func (r *KnowledgeRepo) DeleteKB(id int64) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. 删除知识库下所有文章（GORM 按 kb_id 批量删除）
+		if err := tx.Where("kb_id = ?", id).Delete(&model.KnowledgeArticle{}).Error; err != nil {
+			return err
+		}
+		// 2. 删除知识库记录
+		if err := tx.Where("id = ?", id).Delete(&model.KnowledgeBase{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 // =============================================================================
 // KnowledgeChunk
 // =============================================================================

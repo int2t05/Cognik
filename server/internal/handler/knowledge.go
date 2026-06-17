@@ -94,6 +94,23 @@ func (h *KnowledgeHandler) UpdateKB(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// DeleteKB 删除知识库。
+//
+// DELETE /api/v1/admin/knowledge-bases/:id
+func (h *KnowledgeHandler) DeleteKB(c *gin.Context) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	if svcErr := h.svc.DeleteKB(id); svcErr != nil {
+		handleServiceError(c, svcErr)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // ListKBs 列出全部知识库。
 //
 // GET /api/v1/admin/knowledge-bases

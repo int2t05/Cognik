@@ -1,14 +1,15 @@
 # OpsMind 架构与业务流程图
 
-> 基于实际代码函数调用链绘制，与 `server/` 源码保持同步。最后更新：2026-06-12
+> 基于实际代码函数调用链绘制，与 `server/` 源码保持同步。最后更新：2026-06-17
 
 ## 图表索引
 
 | 文件 | 核心文件 | 图表数 | 说明 |
 |------|----------|--------|------|
+| [master-data-flow.md](master-data-flow.md) | 全部模块 | 10 | 🆕 **全业务数据流总览** — 62 个端点全景 + 10 个模块端到端流程 + API 完整性矩阵 |
 | [architecture.md](architecture.md) | `main.go`, `router/`, `middleware/` | 3 | 系统架构总览 — 分层全景 + 请求生命周期 + 模块依赖 |
 | [chat-rag-flow.md](chat-rag-flow.md) | `handler/chat.go` → `rag/pipeline.go` → `adapter/llm_client.go` | 3 | 智能问答 RAG 管道 — SSE 流式(writeSSEEvent) + 非流式 + 降级矩阵 |
-| [knowledge-publish-flow.md](knowledge-publish-flow.md) | `handler/knowledge.go` → `rag/chunker.go` → `adapter/vector_store.go` | 3 | 知识发布管道 — EmbeddingModel 从 KB 读取 + pgvector halfvec 写入 |
+| [knowledge-publish-flow.md](knowledge-publish-flow.md) | `handler/knowledge.go` → `rag/chunker.go` → `adapter/vector_store.go` | 5 | 知识发布管道 — 文章生命周期 + Publish + 🆕DeleteKB 流程 |
 | [document-upload-flow.md](document-upload-flow.md) | `handler/knowledge.go` → `rag/document_parser.go` → `rag/processor.go` | 3 | 文档上传 — Service 层校验 + io.LimitReader(100MB) + 异步处理 |
 | [ticket-lifecycle.md](ticket-lifecycle.md) | `handler/ticket.go` → `service/ticket_service.go` → `service/scheduler.go` | 3 | 申告完整生命周期 — AutoClose Service 编排 + TxManager 事务 |
 | [ticket-state-machine.md](ticket-state-machine.md) | `service/ticket_service.go` | 1 | 申告状态机 — 5 态转换规则 + supplement_count 原子检查 |
@@ -35,6 +36,7 @@ Middleware   →  middleware/xxx.go           Recovery / RequestID / CORS / Logg
 |------|-------------|-------------|---------------------|
 | 智能问答 | `ChatHandler.StreamChatSession` | `ChatService.CreateChatSession` → `Pipeline.Execute` | `OpenAIClient.ChatCompletionStream` + `writeSSEEvent` |
 | 知识发布 | `KnowledgeHandler.Publish` | `KnowledgeService.Publish` → `Chunker.Split` → `Embedder.Embed` | `VectorStore.BatchInsert` (halfvec) |
+| 知识库删除 | `KnowledgeHandler.DeleteKB` | `KnowledgeService.DeleteKB` → `VectorStore.DeleteByKB` → `repo.DeleteKB` | `PgvectorStore.DeleteByKB` + 事务级联 |
 | 文档上传 | `KnowledgeHandler.UploadDocuments` | `KnowledgeService.UploadDocuments` (含格式/大小校验) | `DocParser.Parse` → `Processor.Submit` |
 | 申告管理 | `TicketHandler.UpdateStatus` | `TicketService.UpdateStatus` (状态机) | `TicketRepo` + `MessageService.NotifySupplement` |
 | 自动关闭 | `Scheduler.runAutoCloseLoop` | `TicketService.AutoClose` (TxManager 事务) | `TicketRepo.AutoCloseTickets` (纯数据) |

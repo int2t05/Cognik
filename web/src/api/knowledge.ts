@@ -46,6 +46,11 @@ export function updateKnowledgeBase(id: number, data: UpdateKBParams) {
   return request.put<ApiResponse<KnowledgeBaseItem>>(`/api/v1/admin/knowledge-bases/${id}`, data)
 }
 
+/** 删除知识库（级联删除文章和向量分块） */
+export function deleteKnowledgeBase(id: number) {
+  return request.delete<ApiResponse<null>>(`/api/v1/admin/knowledge-bases/${id}`)
+}
+
 // =============================================================================
 // 知识文章 (KnowledgeArticle)
 // =============================================================================
