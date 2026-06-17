@@ -362,7 +362,7 @@ func TestKnowledgeService_Publish(t *testing.T) {
 	kb := createTestKB(t, svc, "发布测试库")
 	article := createTestArticle(t, svc, kb.ID, 3) // 已通过
 
-	err := svc.Publish(article.ID, 2)
+	err := svc.Publish(context.Background(), article.ID, 2)
 	if err == nil {
 		// 有真实管道时验证状态
 		var updated model.KnowledgeArticle
@@ -386,9 +386,9 @@ func TestKnowledgeService_Disable(t *testing.T) {
 	kb := createTestKB(t, svc, "停用测试库")
 	article := createTestArticle(t, svc, kb.ID, 4) // 已发布
 
-	err := svc.Disable(article.ID)
+	err := svc.Disable(context.Background(), article.ID)
 	if err == nil {
-		// 成功停用时验证 status=ArticleStatusDisabled(4)
+		// 成功停用时验证 status=ArticleStatusDisabled(0)
 		var updated model.KnowledgeArticle
 		knowledgeSvcDB.First(&updated, article.ID)
 		if updated.Status != int16(model.ArticleStatusDisabled) {

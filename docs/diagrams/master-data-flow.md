@@ -199,20 +199,23 @@ sequenceDiagram
     end
 
     rect rgb(40,50,60)
-        Note over A,DB: === Publish管道（输入 article_id → 分块→Embedding→pgvector写入） ===
+        Note over A,DB: === Publish管道（ctx 传递；先写后删防丢失；失败记录 process_status） ===
         A->>KH: Publish(c) — POST /admin/articles/:id/publish
-        KH->>KS: Publish(id, publisherID)
-        KS->>KR: FindArticleByID(id) → FindKBByID(kbID)
+        KH->>KS: Publish(c.Request.Context(), id, publisherID)
+        KS->>KS: chunker/embedder/store nil? → ErrRAGUnavailable(20002)
+        KS->>KR: FindArticleByID(id) — status==Approved(3) 校验
         KS->>KS: embeddingModel = kb.EmbeddingModel（非硬编码）
-        KS->>CH: Split(article.Content)
-        CH->>CH: RecursiveCharacterTextSplitter(chunkSize=1000, overlap=200)
+        KS->>CH: Split(article.Content) — chunkSize=1000, overlap=200
         CH-->>KS: []string chunks
-        KS->>EM: Embed(ctx, chunks)
-        EM->>EM: EmbeddingClient.CreateEmbeddings(ctx, {Model, Input:chunks}) — /v1/embeddings
+        KS->>EM: Embed(ctx, chunks) — /v1/embeddings
+        alt Embed/BatchInsert 失败
+            KS->>KR: recordPublishFailure → process_status=failed
+        end
         EM-->>KS: [][]float32 vectors
-        KS->>VS: BatchInsert(ctx, chunkRecords)
+        KS->>VS: BatchInsert(ctx, chunkRecords) — 先写
         VS->>DB: INSERT INTO knowledge_chunks (embedding::halfvec)
-        KS->>KR: UpdateArticleStatus(id, ArticleStatusPublished=4)
+        KS->>VS: DeleteByArticle(ctx, id) — 后删旧向量（失败不阻塞）
+        KS->>KR: UpdateArticle(&KnowledgeArticle{Status: Published=4})
         KS-->>KH: nil
         KH-->>A: 200
     end

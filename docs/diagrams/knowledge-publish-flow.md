@@ -68,57 +68,67 @@ sequenceDiagram
 
 ## 2. 发布管道（pgvector 向量写入）
 
+> 更新于 2026-06-17 — ctx 传递、先写后删、失败记录 process_status
+
 ```mermaid
 sequenceDiagram
     actor A as 管理员
     participant KH as KnowledgeHandler.Publish<br/>handler/knowledge.go
-    participant KS as KnowledgeService.Publish<br/>service/knowledge_service.go:269
+    participant KS as KnowledgeService.Publish<br/>service/knowledge_service.go:290
     participant KR as KnowledgeRepo<br/>repository/knowledge_repo.go
     participant CH as Chunker.Split<br/>rag/chunker.go:37
     participant EM as Embedder.Embed<br/>rag/embedder.go:56
     participant EC as EmbeddingClient.CreateEmbeddings<br/>adapter/embedding_client.go:106
-    participant VS as VectorStore.BatchInsert<br/>adapter/vector_store.go
+    participant VS as VectorStore<br/>adapter/vector_store.go
     participant DB as PostgreSQL(pgvector)
 
-    A->>KH: POST /api/v1/admin/knowledge-bases/:id/articles/:aid/publish
-    KH->>KH: parseID(c, "id") + parseID(c, "aid")
-    KH->>KS: Publish(articleID, kbID)
+    A->>KH: POST /api/v1/admin/articles/:id/publish
+    KH->>KH: parseID(c, "id") → getCurrentUserID(c)
+    KH->>KS: Publish(c.Request.Context(), articleID, userID)
 
-    Note over KS: === 1. 获取文章和知识库 ===
+    Note over KS: === 0. 管道非空校验 ===
+    KS->>KS: chunker/embedder/store == nil?<br/>→ ErrRAGUnavailable(20002)
+
+    Note over KS,DB: === 1. 获取文章和知识库 ===
     KS->>KR: FindArticleByID(articleID)
     KR->>DB: SELECT * FROM knowledge_articles WHERE id=?
-    DB-->>KR: *KnowledgeArticle{Status, Answer}
-    KS->>KR: FindKBByID(kbID)
-    KR->>DB: SELECT * FROM knowledge_bases WHERE id=?<br/>.Preload("KnowledgeBase")
-    DB-->>KR: *KnowledgeBase{EmbeddingModel, VectorDimension}
+    DB-->>KR: *KnowledgeArticle{Status, Content}
+    KS->>KS: 状态校验: 仅 ArticleStatusApproved(3) 可发布
 
     Note over KS,DB: === 2. 分块 ===
-    KS->>KS: 校验: Status == Published(3) 或 Reviewing(2)
-    KS->>KS: embeddingModel = article.KnowledgeBase.EmbeddingModel
-    Note over KS: 注意：从 KB 读取，不再硬编码 "bge-m3"
-    KS->>CH: Split(article.Answer)
-    CH->>CH: 校验 chunkSize 大于 0, 默认 1000
-    CH->>CH: 校验 chunkOverlap 大于 0
+    KS->>CH: Split(article.Content)
+    CH->>CH: RecursiveCharacterTextSplitter(chunkSize=1000, overlap=200)
     CH-->>KS: []string chunks
 
     Note over KS,DB: === 3. Embedding ===
     KS->>EM: Embed(ctx, chunks)
-    EM->>EC: CreateEmbeddings(ctx, EmbeddingRequest{Model: embeddingModel, Input: chunks})
-    EC->>EC: doHTTPRequest(ctx, baseURL, apiKey, /v1/embeddings, body)
-    Note over EC: 429/503 指数退避重试 (maxRetries=3)
-    EC-->>EM: EmbeddingResponse{Embeddings [][]float32, Dimension}
+    EM->>EC: CreateEmbeddings(ctx, {Model: embeddingModel, Input: chunks})
+    EC-->>EM: EmbeddingResponse{Embeddings, Dimension}
     EM-->>KS: [][]float32 vectors
+    alt Embed 失败
+        KS->>KR: UpdateArticleProcessStatus(id, "failed", error)
+        Note over KS,KR: process_status=failed 持久化，前端可展示重试
+    end
 
-    Note over KS,DB: === 4. 写入 pgvector ===
+    Note over KS,DB: === 4. 先写入新向量（BatchInsert）===
     KS->>VS: BatchInsert(ctx, chunkRecords)
-    VS->>DB: INSERT INTO knowledge_chunks<br/>(article_id, kb_id, content, chunk_index, embedding)<br/>VALUES ($1, $2, $3, $4, $5::halfvec)
-    DB-->>VS: ok
+    VS->>DB: INSERT INTO knowledge_chunks (embedding::halfvec)
+    alt BatchInsert 失败
+        KS->>KR: UpdateArticleProcessStatus(id, "failed", error)
+        Note over KS: 旧向量仍在（未被删除），文章仍可检索
+    end
 
-    Note over KS: === 5. 更新文章状态 ===
-    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusPublished)
-    KR->>DB: UPDATE knowledge_articles SET status=3 WHERE id=?
+    Note over KS,DB: === 5. 新向量写入成功后删除旧向量 ===
+    KS->>VS: DeleteByArticle(ctx, articleID)
+    alt 删除失败
+        Note over KS: slog.Warn（新向量已生效，旧向量残留可后续清理）
+    end
+
+    Note over KS: === 6. 更新文章状态 ===
+    KS->>KR: UpdateArticle(&KnowledgeArticle{Status: Published=4})
+    KR->>DB: UPDATE knowledge_articles SET status=4
     KS-->>KH: nil
-    KH-->>A: 200
+    KH-->>A: 200 {code:0}
 ```
 
 ## 3. 文章状态机

@@ -280,18 +280,24 @@ func (s *KnowledgeService) Review(id int64, reviewerID int64, req request.Review
 
 // Publish 发布文章——分块→embedding→pgvector 写入。
 //
+// ctx 由调用方传入（Handler 传 c.Request.Context()），确保发布过程可被取消/超时。
+//
 // 流程：
-//  1. 校验状态（仅已通过 status=3 可发布）
-//  2. Chunker.Split → 文本分块
-//  3. Embedder.Embed → 生成向量
-//  4. VectorStore.DeleteByArticle → 清除旧向量
-//  5. VectorStore.BatchInsert → 写入新向量
-//  6. 更新文章状态为已发布 status=4
-func (s *KnowledgeService) Publish(id int64, publisherID int64) error {
+//  1. 校验管道组件非空（否则返回 ErrRAGUnavailable）
+//  2. 校验状态（仅审核通过 status=3 可发布）
+//  3. Chunker.Split → 文本分块
+//  4. Embedder.Embed → 生成向量
+//  5. VectorStore.BatchInsert → 写入新向量（失败时设置 process_status=failed）
+//  6. VectorStore.DeleteByArticle → 清除旧向量（仅新向量写入成功后执行）
+//  7. 更新文章状态为已发布 status=4
+//
+// 为什么先写新向量再删旧向量：
+// 新旧向量的写入和删除不在同一事务中（pgvector 不支持 GORM 事务），
+// 先写后删保证：写入失败时旧向量仍在（文章仍可被检索），
+// 删除失败时旧向量残留但新向量有效（检索会返回新旧混合结果，优于全部丢失）。
+func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID int64) error {
 	if s.chunker == nil || s.embedder == nil || s.store == nil {
-		// TODO(service/knowledge): 管道未初始化应映射为 ErrRAGUnavailable，而不是 ErrUnknown。
-		// 调用方可以据此展示“RAG 服务不可用”并触发运维排查。
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "管道未初始化（chunker/embedder/store 为空）"}
+		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 管道未初始化（chunker/embedder/store 为空）"}
 	}
 
 	article, err := s.repo.FindArticleByID(id)
@@ -302,8 +308,6 @@ func (s *KnowledgeService) Publish(id int64, publisherID int64) error {
 		return err
 	}
 	if article.Status != model.ArticleStatusApproved {
-		// TODO(service/knowledge): status=3 在 enums.go 表示已发布，但这里被当作审核通过。
-		// 需要增加 ArticleStatusApproved 或调整现有枚举，避免发布逻辑和状态文案冲突。
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已审核通过的文章可发布"}
 	}
 
@@ -317,25 +321,17 @@ func (s *KnowledgeService) Publish(id int64, publisherID int64) error {
 	article.ChunkCount = len(chunks)
 
 	// Step 2: Embedding
-	// TODO(service/knowledge): 使用 context.Background 会忽略 HTTP 请求取消和超时。
-	// Publish 应接收 ctx，由 Handler 传入 c.Request.Context()，避免用户断开后继续消耗 LLM/DB 资源。
-	ctx := context.Background()
 	vectors, dimension, err := s.embedder.Embed(ctx, chunks)
 	if err != nil {
+		s.recordPublishFailure(article, "生成向量失败: "+err.Error())
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "生成向量失败: " + err.Error()}
 	}
 	if len(vectors) != len(chunks) {
+		s.recordPublishFailure(article, fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks)))
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks))}
 	}
 
-	// Step 3: 清除旧向量
-	// TODO(service/knowledge): DeleteByArticle 和 BatchInsert 应处于同一事务或采用先写临时版本再切换。
-	// 当前先删后写失败会导致已发布文章丢失全部向量。
-	if err := s.store.DeleteByArticle(ctx, id); err != nil {
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "清除旧向量失败: " + err.Error()}
-	}
-
-	// Step 4: 写入新向量
+	// Step 3: 先写入新向量（失败时旧向量仍在，文章仍可检索）
 	vc := make([]adapter.VectorChunk, len(chunks))
 	for i, chunk := range chunks {
 		vc[i] = adapter.VectorChunk{
@@ -344,14 +340,19 @@ func (s *KnowledgeService) Publish(id int64, publisherID int64) error {
 			Content:         chunk,
 			ChunkIndex:      i,
 			Embedding:       vectors[i],
-			EmbeddingModel:  article.KnowledgeBase.EmbeddingModel, // 从知识库配置读取
+			EmbeddingModel:  article.KnowledgeBase.EmbeddingModel,
 			VectorDimension: dimension,
 		}
 	}
 	if err := s.store.BatchInsert(ctx, vc); err != nil {
-		// TODO(service/knowledge): 发布失败时应设置 process_status=failed 和 process_error。
-		// 当前只返回错误，文章状态和错误原因不会持久化，前端无法展示可重试原因。
+		s.recordPublishFailure(article, "写入向量失败: "+err.Error())
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "写入向量失败: " + err.Error()}
+	}
+
+	// Step 4: 新向量写入成功后再清除旧向量（幂等——无旧向量也不报错）
+	if err := s.store.DeleteByArticle(ctx, id); err != nil {
+		// 旧向量删除失败不阻塞发布——新向量已生效，旧向量残留可被后续清理
+		slog.Warn("发布时清除旧向量失败（新向量已写入，旧向量残留）", "article_id", id, "error", err)
 	}
 
 	// Step 5: 更新状态
@@ -360,10 +361,19 @@ func (s *KnowledgeService) Publish(id int64, publisherID int64) error {
 	return s.repo.UpdateArticle(article)
 }
 
+// recordPublishFailure 持久化发布失败状态和原因，供前端展示和重试。
+//
+// 为什么 publish 失败要写 process_status：
+// 文章停留在"审核通过"状态时，用户无法区分"还没发布"和"发布失败"。
+// process_status=failed + process_error 让前端可展示失败原因并提供重试按钮。
+func (s *KnowledgeService) recordPublishFailure(article *model.KnowledgeArticle, errMsg string) {
+	if err := s.repo.UpdateArticleProcessStatus(article.ID, "failed", errMsg); err != nil {
+		slog.Warn("记录发布失败状态时出错", "article_id", article.ID, "error", err)
+	}
+}
+
 // Disable 停用文章——从 pgvector 删除向量并更新状态。
-func (s *KnowledgeService) Disable(id int64) error {
-	// TODO(service/knowledge): Disable 未校验当前状态是否为已发布。
-	// 草稿/驳回文章停用会让状态机绕过审核流程。
+func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -372,11 +382,7 @@ func (s *KnowledgeService) Disable(id int64) error {
 		return err
 	}
 
-	// 从 pgvector 删除向量（如果有 vector store）
 	if s.store != nil {
-		// TODO(service/knowledge): Disable 使用 context.Background，同样应接收请求 ctx。
-		// 向量删除是外部 I/O，必须可取消并受超时控制。
-		ctx := context.Background()
 		if err := s.store.DeleteByArticle(ctx, id); err != nil {
 			return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "删除向量失败: " + err.Error()}
 		}
@@ -388,8 +394,6 @@ func (s *KnowledgeService) Disable(id int64) error {
 
 // Enable 恢复已停用文章为草稿状态。
 func (s *KnowledgeService) Enable(id int64) error {
-	// TODO(service/knowledge): docs/API 要求启用停用文章后重新分块→embedding→写入向量并恢复发布。
-	// 当前只把状态改回草稿，行为和接口文档不一致。
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

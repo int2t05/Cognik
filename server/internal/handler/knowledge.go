@@ -223,15 +223,13 @@ func (h *KnowledgeHandler) Review(c *gin.Context) {
 //
 // POST /api/v1/admin/articles/:id/publish
 func (h *KnowledgeHandler) Publish(c *gin.Context) {
-	// TODO(handler/knowledge): Publish 应将 c.Request.Context() 传给 Service。
-	// 发布涉及 embedding 和 pgvector 写入，必须能响应客户端取消和网关超时。
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.Publish(id, userID); svcErr != nil {
+	if svcErr := h.svc.Publish(c.Request.Context(), id, userID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -248,7 +246,7 @@ func (h *KnowledgeHandler) Disable(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Disable(id); svcErr != nil {
+	if svcErr := h.svc.Disable(c.Request.Context(), id); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
