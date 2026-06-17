@@ -2,7 +2,7 @@
 
 ## 审计日志
 
-> 基础路径：`/api/v1/admin/audit-logs` | 认证：JWT + RBAC
+> 基础路径：`/api/v1/admin/audit-logs` | 认证：JWT + RBAC（权限：`audit:read`）
 
 ### 查询审计日志
 
@@ -13,18 +13,33 @@ Authorization: Bearer <token>
 
 **查询参数：**
 
-| 参数 | 类型 | 默认 | 说明 |
-|------|------|------|------|
-| page | int | 1 | 页码 |
-| page_size | int | 10 | 每页条数（最大 100） |
-| operator_id | int | 0 | 操作人 ID（0=全部） |
-| action | string | "" | 操作类型（空=全部） |
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| page | int | 否 | 1 | 页码 |
+| page_size | int | 否 | 10 | 每页条数（最大 100） |
+| operator_id | int | 否 | 0 | 操作人 ID（0=全部） |
+| action | string | 否 | "" | 操作类型（空=全部） |
 
-**响应：**
+**响应体字段（AuditLogItem）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int64 | 审计日志 ID |
+| operator_id | int64 | 操作人 ID |
+| operator_name | string | 操作人姓名（JOIN users 表） |
+| action | string | 操作类型 |
+| target_type | string | 操作对象类型 |
+| target_id | int64 | 操作对象 ID |
+| detail | string | 操作详情（JSON 字符串） |
+| ip_address | string | 操作人 IP 地址 |
+| created_at | string | 操作时间（格式：2006-01-02 15:04:05） |
+
+**响应示例：**
 
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": [
     {
       "id": 1,
@@ -44,6 +59,13 @@ Authorization: Bearer <token>
 }
 ```
 
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败（page、page_size 等参数格式错误） |
+| 99999 | 500 | 服务器内部错误 |
+
 **记录的操作类型：**
 
 | action | 说明 |
@@ -61,7 +83,7 @@ Authorization: Bearer <token>
 
 ## 系统配置
 
-> 基础路径：`/api/v1/admin/configs` | 认证：JWT + RBAC
+> 基础路径：`/api/v1/admin/configs` | 认证：JWT + RBAC（权限：`system:config`）
 
 ### 获取配置
 
@@ -70,17 +92,23 @@ GET /api/v1/admin/configs/:key
 Authorization: Bearer <token>
 ```
 
-**响应：**
+**URL 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| key | string | 是 | 配置键名 |
+
+**响应示例：**
 
 ```json
 {
   "code": 0,
-  "data": {
-    "key": "ai_confidence_threshold",
-    "value": "0.6"
-  }
+  "message": "success",
+  "data": "0.6"
 }
 ```
+
+> `data` 字段返回配置值的原始 JSON 解析结果（string、number、boolean、object 等类型取决于配置项）。
 
 **可用配置键：**
 
@@ -90,20 +118,59 @@ Authorization: Bearer <token>
 
 > `ai_confidence_threshold` 和 `ai_default_top_k` 在 [llm-configs API](llm-config.md) 中统一管理。LLM 配置热替换生效，无需重启。
 
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败（key 为空） |
+| 10004 | 404 | 配置项不存在 |
+| 99999 | 500 | 服务器内部错误 |
+
 ### 更新配置
 
 ```http
 PUT /api/v1/admin/configs/:key
 Authorization: Bearer <token>
+Content-Type: application/json
 ```
 
+**URL 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| key | string | 是 | 配置键名 |
+
 **请求体：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| value | any | 是 | 配置值（会被序列化为 JSONB 存储；不能为 null） |
+
+**请求示例：**
 
 ```json
 {
   "value": "OpsMind"
 }
 ```
+
+**响应示例：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败（key 为空、value 为 null 或格式错误） |
+| 10004 | 404 | 配置项不存在（更新不存在配置时创建新配置，通常不会返回此错误） |
+| 99999 | 500 | 服务器内部错误 |
 
 ---
 
@@ -114,21 +181,48 @@ Authorization: Bearer <token>
 ### 消息列表
 
 ```http
-GET /api/v1/portal/messages?page=1&page_size=10
+GET /api/v1/portal/messages?page=1&page_size=10&is_read=false&type=ticket_supplement
 Authorization: Bearer <token>
 ```
 
-**响应：**
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| page | int | 否 | 1 | 页码 |
+| page_size | int | 否 | 10 | 每页条数（最大 100） |
+| is_read | bool | 否 | — | 是否已读（true/false，不传不过滤） |
+| type | string | 否 | — | 消息类型（不传不过滤，可选值：`ticket_supplement` / `ticket_resolved` / `system_notice`） |
+
+**响应体字段（Message）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int64 | 消息 ID |
+| user_id | int64 | 接收用户 ID |
+| title | string | 消息标题 |
+| content | string | 消息正文 |
+| type | string | 消息类型：`ticket_supplement` / `ticket_resolved` / `system_notice` |
+| related_type | string | 关联对象类型（如 `ticket`） |
+| related_id | int64 | 关联对象 ID |
+| is_read | bool | 是否已读 |
+| created_at | string | 创建时间 |
+
+**响应示例：**
 
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": [
     {
       "id": 1,
+      "user_id": 3,
       "title": "申告「公司邮箱无法登录」需补充信息",
       "content": "请提供错误截图和发生时间",
       "type": "ticket_supplement",
+      "related_type": "ticket",
+      "related_id": 5,
       "is_read": false,
       "created_at": "2026-06-11 15:30:00"
     }
@@ -139,10 +233,12 @@ Authorization: Bearer <token>
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| type | string | 消息类型：`ticket_supplement` / `ticket_resolved` / `system_notice` |
-| is_read | bool | 是否已读 |
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败（page、page_size 格式错误） |
+| 99999 | 500 | 服务器内部错误 |
 
 ### 标记已读
 
@@ -151,7 +247,13 @@ PUT /api/v1/portal/messages/:id/read
 Authorization: Bearer <token>
 ```
 
-**成功响应：**
+**URL 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | int64 | 是 | 消息 ID |
+
+**响应示例：**
 
 ```json
 {
@@ -165,6 +267,14 @@ Authorization: Bearer <token>
 
 > 标记已读后返回当前未读消息总数，便于前端同步 badge 计数。
 
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败（ID 格式无效） |
+| 10004 | 404 | 消息不存在或不属于当前用户 |
+| 99999 | 500 | 服务器内部错误 |
+
 ### 未读计数
 
 ```http
@@ -172,16 +282,24 @@ GET /api/v1/portal/messages/unread-count
 Authorization: Bearer <token>
 ```
 
-**响应：**
+**响应示例：**
 
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": {
     "count": 5
   }
 }
 ```
+
+**错误码：**
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| 10003 | 400 | 参数校验失败 |
+| 99999 | 500 | 服务器内部错误 |
 
 ---
 
@@ -193,7 +311,7 @@ Authorization: Bearer <token>
 GET /health
 ```
 
-**响应：**
+**响应示例：**
 
 ```json
 {

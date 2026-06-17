@@ -85,6 +85,7 @@ Authorization: Bearer <token>
 
 | code | 说明 |
 |------|------|
+| 10003 | 参数校验失败（含密码策略不满足） |
 | 10005 | 用户名已存在 |
 
 ---
@@ -95,6 +96,39 @@ Authorization: Bearer <token>
 GET /api/v1/admin/users/:id
 Authorization: Bearer <token>
 ```
+
+**响应：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "username": "admin",
+    "real_name": "系统管理员",
+    "phone": "13800000001",
+    "email": "admin@opsmind.local",
+    "status": 1,
+    "first_login": false,
+    "roles": ["系统管理员"],
+    "created_at": "2026-06-11 19:27:43",
+    "updated_at": "2026-06-11 19:27:43"
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| status | int16 | 1=正常, 2=冻结 |
+| first_login | bool | 是否首次登录（首次需强制改密） |
+| roles | string[] | 已分配的角色名列表 |
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10004 | 用户不存在 |
 
 ---
 
@@ -116,7 +150,23 @@ Authorization: Bearer <token>
 }
 ```
 
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| real_name | string | ✓ | 真实姓名 |
+| phone | string | ✓ | 手机号 |
+| email | string | | 邮箱（可选） |
+| role_ids | int64[] | | 重新分配的角色 ID 列表（全量替换） |
+
 > 仅更新基本信息，不修改密码。密码修改走 `/api/v1/auth/change-password`。
+>
+> 角色分配采用全量替换策略：传入 `role_ids` 将覆盖用户现有的角色关联。
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败（real_name/phone 未提供） |
+| 10004 | 用户不存在 |
 
 ---
 
@@ -130,6 +180,13 @@ Authorization: Bearer <token>
 > 状态：正常(1) → 冻结(2)
 >
 > 冻结后用户无法登录，已有 token 在后续请求中被拒绝。
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10004 | 用户不存在 |
+| 10006 | 用户已被冻结（重复冻结） |
 
 **成功响应：**
 
@@ -151,3 +208,10 @@ Authorization: Bearer <token>
 ```
 
 > 状态：冻结(2) → 正常(1)
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10004 | 用户不存在 |
+| 10007 | 用户已处于正常状态（重复恢复） |

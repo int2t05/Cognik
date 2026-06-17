@@ -1,6 +1,6 @@
 # LLM 配置接口
 
-> 基础路径：`/api/v1/admin` | 认证：JWT + `config:manage` 权限
+> 基础路径：`/api/v1/admin` | 认证：JWT + `system:config` 权限
 
 LLM 配置管理 llama.cpp server 和 OpenAI-compatible API 的连接参数。配置修改后通过 `atomic.Value` 热替换**即时生效**，无需重启服务。
 
@@ -29,6 +29,7 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": [
     {
       "id": 1,
@@ -131,13 +132,44 @@ Authorization: Bearer <token>
 | api_key | string | | API 密钥（llama.cpp 通常为空；数据库 AES-256 加密存储） |
 | llm_model | string | ✓ | 文本生成模型名称 |
 | embedding_model | string | ✓ | Embedding 模型名称 |
-| max_tokens | int | ✓ | 最大生成 Token 数（建议 4096-32768） |
-| vector_dimension | int | ✓ | 向量维度（bge-m3=1024, text-embedding-3-small=1536） |
+| max_tokens | int | | 最大生成 Token 数，默认 8192（建议 4096-32768） |
+| vector_dimension | int | | 向量维度，默认 1024（bge-m3=1024, text-embedding-3-small=1536） |
 | is_default | bool | | 是否设为默认配置（设为 true 时自动将旧默认改为 false） |
 
 **业务规则：**
 - 系统最多一个默认配置。设为 `is_default=true` 时，旧的默认配置自动改为 `false`。
-- `api_key` 在数据库中以 AES-256 加密存储，API 响应中掩码显示（仅显示前 3 位和后 4 位，如 `sk-****Ab12`）。
+- `api_key` 在数据库中以 AES-256 加密存储，API 响应中掩码显示（仅显示前 4 位和后 4 位，如 `sk-****Ab12`）。
+
+**响应：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "name": "本地 llama.cpp",
+    "provider_type": 1,
+    "base_url": "http://llama-cpp:8080/v1",
+    "embedding_base_url": "",
+    "api_key": "",
+    "llm_model": "qwen3-4b",
+    "embedding_model": "bge-m3",
+    "max_tokens": 8192,
+    "vector_dimension": 1024,
+    "is_default": true,
+    "created_at": "2026-06-11T19:00:00Z",
+    "updated_at": "2026-06-11T19:00:00Z"
+  }
+}
+```
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败（name/provider/model 未提供） |
+| 10005 | 配置名称已存在 |
 
 ---
 
@@ -150,6 +182,13 @@ Authorization: Bearer <token>
 
 **响应：** 同列表项结构
 
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 无效的配置 ID |
+| 10004 | 配置不存在 |
+
 ---
 
 ## 4. 更新 LLM 配置
@@ -159,9 +198,17 @@ PUT /api/v1/admin/llm-configs/:id
 Authorization: Bearer <token>
 ```
 
-**请求体：** 同创建（全量替换）
+**请求体：** 同创建（全量替换），其中 `max_tokens` 默认 8192，`vector_dimension` 默认 1024，不传时使用默认值。
 
 > 修改后通过 `atomic.Value` 热替换内存中配置，**即时生效**，无需重启。注意 `api_key` 不传时保留原有密钥（不传 ≠ 清空）。
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败或无效 ID |
+| 10004 | 配置不存在 |
+| 10005 | 配置名称已存在 |
 
 ---
 
@@ -177,9 +224,16 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 10003,
-  "message": "无法删除默认配置，请先将其他配置设为默认"
+  "message": "不能删除默认配置，请先设置其他配置为默认"
 }
 ```
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 不能删除默认配置 |
+| 10004 | 配置不存在 |
 
 > 不允许删除当前 `is_default=true` 的配置。需先将其他配置设为默认后再删除。
 
@@ -199,9 +253,11 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": {
     "success": true,
     "latency_ms": 120,
+    "tokens_used": 15,
     "model": "qwen3-4b",
     "test_message": "Hello, this is a test."
   }
@@ -212,16 +268,20 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "code": 0,
-  "data": {
-    "success": false,
-    "latency_ms": 5000,
-    "error": "dial tcp: i/o timeout"
-  }
+  "code": 20001,
+  "message": "AI 服务不可用：dial tcp: i/o timeout"
 }
 ```
 
-> 测试连接超时 5 秒。失败时 `code=0`（业务成功），通过 `success` 字段判断。
+> 测试连接超时 10 秒。失败时返回 `code=20001`（AI 服务不可用）。
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 无效的配置 ID |
+| 20001 | 连接测试失败（超时、不可达或模型无响应） |
+| 99999 | 服务未初始化 |
 
 ---
 

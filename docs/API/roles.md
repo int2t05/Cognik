@@ -22,11 +22,14 @@ GET /api/v1/admin/roles?page=1&page_size=10
 Authorization: Bearer <token>
 ```
 
+> page 默认为 1，page_size 默认为 10（最大 100）。
+
 **响应：**
 
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": [
     {
       "id": 1,
@@ -60,10 +63,17 @@ Authorization: Bearer <token>
 }
 ```
 
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | ✓ | 角色名（唯一） |
+| description | string | | 角色描述 |
+| permissions | string[] | | 权限列表 |
+
 **错误：**
 
 | code | 说明 |
 |------|------|
+| 10003 | 缺少必填字段（name）或格式错误 |
 | 10005 | 角色名已存在 |
 
 ### 3. 角色详情
@@ -73,6 +83,30 @@ GET /api/v1/admin/roles/:id
 Authorization: Bearer <token>
 ```
 
+**响应：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "name": "系统管理员",
+    "description": "系统全局管理",
+    "permissions": ["user:manage", "ticket:manage", "knowledge:manage"],
+    "created_at": "2026-06-11T19:27:43Z",
+    "updated_at": "2026-06-11T19:27:43Z"
+  }
+}
+```
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 无效的角色 ID |
+| 10004 | 角色不存在 |
+
 ### 4. 更新角色
 
 ```http
@@ -80,7 +114,23 @@ PUT /api/v1/admin/roles/:id
 Authorization: Bearer <token>
 ```
 
-**请求体：** 同创建（`permissions` 为全量替换）
+**请求体：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | ✓ | 角色名（唯一） |
+| description | string | | 角色描述 |
+| permissions | string[] | | 权限列表（全量替换） |
+
+> `permissions` 为全量替换：新列表将完全取代原有权限。
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败（name 未提供）或无效 ID |
+| 10004 | 角色不存在 |
+| 10005 | 角色名已存在（与其他角色冲突） |
 
 ### 5. 删除角色
 
@@ -94,6 +144,7 @@ Authorization: Bearer <token>
 | code | 说明 |
 |------|------|
 | 10004 | 角色不存在 |
+| 10005 | 角色下存在关联用户，无法删除 |
 
 ---
 
@@ -111,6 +162,7 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": [
     {
       "id": 1,
@@ -159,6 +211,10 @@ Authorization: Bearer <token>
 }
 ```
 
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| menu_ids | int64[] | ✓ | 菜单 ID 列表（全量替换） |
+
 > 采用全量替换策略：先清空角色的所有菜单关联，再插入新关联。
 
 **成功响应：**
@@ -170,3 +226,10 @@ Authorization: Bearer <token>
   "data": null
 }
 ```
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败（menu_ids 未提供）或无效 ID |
+| 10004 | 角色不存在 |

@@ -1,6 +1,6 @@
 # 数据看板接口
 
-> 基础路径：`/api/v1/admin/dashboard` | 认证：JWT + RBAC
+> 基础路径：`/api/v1/admin/dashboard` | 认证：JWT + RBAC | 权限：`audit:read`
 
 ## 1. 统计数据
 
@@ -37,6 +37,12 @@ Authorization: Bearer <token>
 | avg_confidence | float64 | 今日平均置信度 |
 | knowledge_count | int64 | 知识条目总数 |
 
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 99999 | 服务器内部错误（数据库查询失败） |
+
 ---
 
 ## 2. 趋势数据
@@ -54,11 +60,14 @@ Authorization: Bearer <token>
 | end_date | string | ✓ | 结束日期（YYYY-MM-DD） |
 | granularity | string | | 粒度：`day`（默认）或 `week` |
 
+> granularity 参数当前保留但未生效，Service 始终按日聚合。
+
 **响应：**
 
 ```json
 {
   "code": 0,
+  "message": "success",
   "data": {
     "data_points": [
       {
@@ -81,3 +90,10 @@ Authorization: Bearer <token>
 | date | string | 日期 YYYY-MM-DD |
 | ticket_count | int64 | 该日新增申告数 |
 | chat_count | int64 | 该日问答数 |
+
+**错误：**
+
+| code | 说明 |
+|------|------|
+| 10003 | 参数校验失败（日期格式错误、结束日期早于开始日期） |
+| 99999 | 服务器内部错误（数据库查询失败） |

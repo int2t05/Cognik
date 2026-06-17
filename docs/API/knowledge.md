@@ -66,10 +66,10 @@ Authorization: Bearer <token>
 **响应：**
 
 ```json
-{ "code": 0, "data": [{ "id": 1, "name": "IT 运维 FAQ", "description": "常见的 IT 运维问题和解决方案" }] }
+{ "code": 0, "message": "success", "data": [{ "id": 1, "name": "IT 运维 FAQ", "description": "常见的 IT 运维问题和解决方案" }] }
 ```
 
-> 仅返回 `id` 和 `name`，不暴露 embedding 配置等管理字段。
+> 仅返回 `id`、`name`、`description`，不暴露 embedding 配置等管理字段。
 
 ### 1. 知识库列表
 
@@ -83,22 +83,21 @@ Authorization: Bearer <token>
 ```json
 {
     "code": 0,
-    "data": {
-        "items": [
-            {
-                "id": 1,
-                "name": "IT 运维 FAQ",
-                "description": "常见的 IT 运维问题和解决方案",
-                "embedding_model": "bge-m3",
-                "vector_dimension": 1024,
-                "llm_config_id": 1,
-                "article_count": 25,
-                "created_by": 1,
-                "created_at": "2026-06-11 19:27:43",
-                "updated_at": "2026-06-11 19:27:43"
-            }
-        ]
-    }
+    "message": "success",
+    "data": [
+        {
+            "id": 1,
+            "name": "运维知识库",
+            "description": "运维标准操作流程",
+            "embedding_model": "bge-m3",
+            "vector_dimension": 1024,
+            "llm_config_id": 1,
+            "article_count": 120,
+            "created_by": "admin",
+            "created_at": "2026-06-11T19:27:43Z",
+            "updated_at": "2026-06-11T19:27:43Z"
+        }
+    ]
 }
 ```
 
@@ -111,6 +110,9 @@ Authorization: Bearer <token>
 | vector_dimension | int    | 向量维度                  |
 | llm_config_id    | int64  | 关联的 LLM 配置 ID        |
 | article_count    | int    | 文章数量                  |
+| created_by       | string | 创建者用户名              |
+| created_at       | string | 创建时间（RFC3339 格式）  |
+| updated_at       | string | 更新时间（RFC3339 格式）  |
 
 ### 2. 创建知识库
 
@@ -141,6 +143,19 @@ Authorization: Bearer <token>
 
 > 知识库创建仅写入 PostgreSQL 记录，向量存储通过 pgvector 表 `knowledge_chunks` 管理。
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": { "id": 2 } }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                             |
+| ------ | --------- | -------------------------------- |
+| 10003  | 400       | 参数校验失败（名称/模型必填）     |
+| 10005  | 409       | 同名知识库已存在                 |
+
 ### 3. 更新知识库
 
 ```http
@@ -154,6 +169,19 @@ Authorization: Bearer <token>
 { "name": "网络运维知识库", "description": "更新后的描述" }
 ```
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10003  | 400       | 参数校验失败             |
+| 10004  | 404       | 知识库不存在             |
+
 ---
 
 ## 知识文章 CRUD
@@ -161,84 +189,88 @@ Authorization: Bearer <token>
 ### 4. 文章列表
 
 ```http
-GET /api/v1/admin/knowledge-bases/:kb_id/articles?page=1&page_size=10&status=0
+GET /api/v1/admin/knowledge-bases/:kb_id/articles?page=1&page_size=10&status=-1
 Authorization: Bearer <token>
 ```
 
 **查询参数：**
 
-| 参数        | 类型 | 默认 | 说明                                 |
-| ----------- | ---- | ---- | ------------------------------------ |
-| page        | int  | 1    | 页码                                 |
-| page_size   | int  | 10   | 每页条数（最大 100）                 |
-| status      | int  | 0    | 按状态筛选（0=全部）                 |
-| source_type | int  | 0    | 按来源筛选（0=全部, 1=手动, 2=上传） |
+| 参数          | 类型   | 默认 | 说明                                                  |
+| ------------- | ------ | ---- | ----------------------------------------------------- |
+| page          | int    | 1    | 页码                                                  |
+| page_size     | int    | 10   | 每页条数（最大 100）                                  |
+| status        | int    | -1   | 按状态筛选（-1=全部）                                 |
+| source_type   | int    | 0    | 按来源筛选（0=全部, 1=手动, 2=上传）                  |
+| process_status | string | —    | 按处理状态筛选（pending/parsing/chunking/embedding/indexing/completed/failed/disabled） |
 
 **响应：**
 
 ```json
 {
     "code": 0,
-    "data": {
-        "articles": [
-            {
-                "id": 1,
-                "kb_id": 1,
-                "kb_name": "IT 运维 FAQ",
-                "title": "如何重置 VPN 密码？",
-                "content": "请登录 VPN 自助服务平台...",
-                "source_type": 1,
-                "source_type_text": "手动输入",
-                "category": "网络与VPN",
-                "tags": ["VPN", "密码", "自助"],
-                "status": 4,
-                "status_text": "已发布",
-                "word_count": 156,
-                "chunk_count": 2,
-                "file_type": null,
-                "process_status": "completed",
-                "created_by": 1,
-                "created_by_name": "admin",
-                "created_at": "2026-06-11T19:27:43Z",
-                "updated_at": "2026-06-11T19:27:43Z"
-            },
-            {
-                "id": 2,
-                "kb_id": 1,
-                "kb_name": "IT 运维 FAQ",
-                "title": "账号冻结处理流程.pdf",
-                "content": "一、账号冻结场景说明...（解析后的文本全文）",
-                "source_type": 2,
-                "source_type_text": "文档上传",
-                "category": "",
-                "tags": [],
-                "status": 1,
-                "status_text": "草稿",
-                "word_count": 3200,
-                "chunk_count": 0,
-                "file_type": "pdf",
-                "process_status": "parsing",
-                "process_error": null,
-                "created_by": 1,
-                "created_by_name": "admin",
-                "created_at": "2026-06-11T20:00:00Z",
-                "updated_at": "2026-06-11T20:00:00Z"
-            }
-        ],
-        "total": 5
-    }
+    "message": "success",
+    "data": [
+        {
+            "id": 1,
+            "kb_id": 1,
+            "kb_name": "IT 运维 FAQ",
+            "title": "如何重置 VPN 密码？",
+            "content": "请登录 VPN 自助服务平台...",
+            "source_type": 1,
+            "source_type_text": "手动输入",
+            "category": "网络与VPN",
+            "tags": ["VPN", "密码", "自助"],
+            "status": 4,
+            "status_text": "已发布",
+            "word_count": 156,
+            "chunk_count": 2,
+            "file_type": "pdf",
+            "process_status": "completed",
+            "process_error": "",
+            "created_by": 1,
+            "created_by_name": "admin",
+            "created_at": "2026-06-11T19:27:43Z",
+            "updated_at": "2026-06-11T19:27:43Z"
+        },
+        {
+            "id": 2,
+            "kb_id": 1,
+            "kb_name": "IT 运维 FAQ",
+            "title": "账号冻结处理流程.pdf",
+            "content": "一、账号冻结场景说明...（解析后的文本全文）",
+            "source_type": 2,
+            "source_type_text": "文档上传",
+            "category": "",
+            "tags": [],
+            "status": 1,
+            "status_text": "草稿",
+            "word_count": 3200,
+            "chunk_count": 0,
+            "file_type": "pdf",
+            "process_status": "parsing",
+            "process_error": "",
+            "created_by": 1,
+            "created_by_name": "admin",
+            "created_at": "2026-06-11T20:00:00Z",
+            "updated_at": "2026-06-11T20:00:00Z"
+        }
+    ],
+    "total": 5,
+    "page": 1,
+    "page_size": 10
 }
 ```
 
-| 字段           | 类型         | 说明                                                              |
-| -------------- | ------------ | ----------------------------------------------------------------- |
-| title          | string       | 文章标题（手动输入时填写，文档上传时取文件名）                    |
-| content        | string       | 文章正文全文                                                      |
-| source_type    | int          | 1=手动输入, 2=文档上传                                            |
-| word_count     | int          | 正文字数                                                          |
-| chunk_count    | int          | 分块数（发布后填充）                                              |
-| file_type      | string\|null | 文档类型：pdf/docx/md/txt，仅 source_type=2                       |
-| process_status | string       | 文档处理状态：pending/parsing/chunking/embedding/completed/failed |
+| 字段           | 类型   | 说明                                                              |
+| -------------- | ------ | ----------------------------------------------------------------- |
+| title          | string | 文章标题（手动输入时填写，文档上传时取文件名）                    |
+| content        | string | 文章正文全文                                                      |
+| source_type    | int    | 1=手动输入, 2=文档上传                                            |
+| word_count     | int    | 正文字数                                                          |
+| chunk_count    | int    | 分块数（发布后填充）                                              |
+| file_type      | string | 文档类型：pdf/docx/md/txt，仅 source_type=2                       |
+| process_status | string | 文档处理状态：pending/parsing/chunking/embedding/indexing/completed/failed/disabled |
+| process_error  | string | 处理失败原因（成功时为空字符串）                                   |
 
 ### 5. 创建文章
 
@@ -269,6 +301,19 @@ Authorization: Bearer <token>
 
 > 创建后状态初始为「草稿(1)」。
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": { "id": 3 } }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                           |
+| ------ | --------- | ------------------------------ |
+| 10003  | 400       | 参数校验失败（标题/内容必填）   |
+| 10004  | 404       | 知识库不存在                   |
+
 ### 6. 更新文章
 
 ```http
@@ -287,7 +332,20 @@ Authorization: Bearer <token>
 }
 ```
 
-> 仅草稿(1)和驳回(6)状态可编辑。已发布文章修改后状态自动回退为草稿。
+> 仅草稿(1)和驳回(5)状态可编辑。已发布文章修改后状态自动回退为草稿。
+
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10003  | 400       | 参数校验失败             |
+| 10004  | 404       | 文章不存在               |
 
 ### 7. 文章详情
 
@@ -301,6 +359,7 @@ Authorization: Bearer <token>
 ```json
 {
     "code": 0,
+    "message": "success",
     "data": {
         "id": 1,
         "kb_id": 1,
@@ -315,10 +374,10 @@ Authorization: Bearer <token>
         "status_text": "已发布",
         "word_count": 87,
         "chunk_count": 1,
-        "file_type": null,
-        "minio_path": null,
+        "file_type": "",
+        "minio_path": "",
         "process_status": "completed",
-        "process_error": null,
+        "process_error": "",
         "chunks": [
             {
                 "id": 1,
@@ -335,8 +394,8 @@ Authorization: Bearer <token>
         "reviewed_by": null,
         "published_by": 1,
         "published_by_name": "admin",
-        "created_at": "2026-06-11 19:27:43",
-        "updated_at": "2026-06-11 20:30:00"
+        "created_at": "2026-06-11T19:27:43Z",
+        "updated_at": "2026-06-11T20:30:00Z"
     }
 }
 ```
@@ -348,9 +407,9 @@ Authorization: Bearer <token>
 | chunks[].chunk_index      | int          | 分块序号（从 0 开始）               |
 | chunks[].embedding_model  | string       | embedding 模型名称                  |
 | chunks[].vector_dimension | int          | 向量维度                            |
-| minio_path                | string\|null | MinIO 对象路径（仅文档上传）        |
-| process_status            | string       | 文档处理状态                        |
-| process_error             | string\|null | 处理失败原因                        |
+| minio_path                | string | MinIO 对象路径（仅文档上传，无文档时为空字符串） |
+| process_status            | string | 文档处理状态                                           |
+| process_error             | string | 处理失败原因（成功时为空字符串）                       |
 
 > chunks 含 `kb_id`/`chunk_index` 字段。embedding 向量不通过 JSON 返回（过大），仅在数据库中存储。
 
@@ -379,6 +438,7 @@ Content-Type: multipart/form-data
 ```json
 {
     "code": 0,
+    "message": "success",
     "data": {
         "documents": [
             {
@@ -408,11 +468,19 @@ Content-Type: multipart/form-data
 | file_type      | string | 文件类型（pdf/docx/md/txt）        |
 | process_status | string | 初始状态为 `pending`，后台异步处理 |
 
-**错误响应：**
+**错误响应示例：**
 
 ```json
 { "code": 10003, "message": "不支持的文件格式: exe（仅支持 PDF、DOCX、MD、TXT）" }
 ```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                                           |
+| ------ | --------- | ---------------------------------------------- |
+| 10003  | 400       | 参数校验失败（文件格式不支持、文件过大超过 50MB） |
+| 10004  | 404       | 知识库不存在                                   |
+| 20003  | 503       | MinIO 存储服务不可用                           |
 
 **处理流程：**
 
@@ -426,8 +494,10 @@ Content-Type: multipart/form-data
        (chunk_size=1000, overlap=200)
     3. process_status = "embedding"
        → 调用 Embedding API 批量生成向量（每批 20 块）
-    4. process_status = "completed"
+    4. process_status = "indexing"
        → 向量写入 pgvector (knowledge_chunks 表)
+    5. process_status = "completed"
+       → 处理完成
     失败 → process_status = "failed"，记录 process_error
 ```
 
@@ -443,12 +513,12 @@ Authorization: Bearer <token>
 ```json
 {
     "code": 0,
+    "message": "success",
     "data": {
         "article_id": 101,
         "file_name": "账号管理FAQ.pdf",
         "process_status": "embedding",
-        "process_error": null,
-        "progress": { "stage": "embedding", "stage_label": "生成向量", "current": 15, "total": 20 }
+        "process_error": ""
     }
 }
 ```
@@ -459,8 +529,10 @@ Authorization: Bearer <token>
 | `parsing`      | 正在解析文档文本             |
 | `chunking`     | 正在分块                     |
 | `embedding`    | 正在生成向量                 |
+| `indexing`     | 正在写入 pgvector            |
 | `completed`    | 处理完成                     |
 | `failed`       | 处理失败（见 process_error） |
+| `disabled`     | 文档已停用                   |
 
 ### 10. 重试失败的文档
 
@@ -474,8 +546,15 @@ Authorization: Bearer <token>
 **响应：**
 
 ```json
-{ "code": 0, "message": "已重新加入处理队列", "data": null }
+{ "code": 0, "message": "success", "data": null }
 ```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10003  | 400       | 当前状态不为 `failed`    |
+| 10004  | 404       | 文档不存在               |
 
 ---
 
@@ -490,6 +569,19 @@ Authorization: Bearer <token>
 
 > 状态：草稿(1) → 已提交审核(2)
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10003  | 400       | 当前状态不为草稿(1)      |
+| 10004  | 404       | 文章不存在               |
+
 ### 12. 审核操作
 
 ```http
@@ -503,9 +595,22 @@ Authorization: Bearer <token>
 { "approved": true, "review_comment": "内容准确，通过审核" }
 ```
 
-> `approved=true` → 审核通过(3)，否则 → 审核驳回(6)
+> `approved=true` → 审核通过(3)，否则 → 审核驳回(5)
 >
 > **业务规则：** 审核人不能是文章创建人。驳回时 `review_comment` 必填。
+
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                           |
+| ------ | --------- | ------------------------------ |
+| 10003  | 400       | 参数校验失败、状态不允许、驳回时 `review_comment` 必填 |
+| 10004  | 404       | 文章不存在                     |
 
 ---
 
@@ -527,6 +632,20 @@ Authorization: Bearer <token>
 > 3. 将分块和向量写入 `knowledge_chunks` 表（VectorStore.BatchInsert）
 > 4. 失效该知识库的 BM25 缓存（BM25Retriever.Invalidate）
 > 5. 记录审计日志
+
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                           |
+| ------ | --------- | ------------------------------ |
+| 10003  | 400       | 当前状态不为待审核或 embed 失败 |
+| 10004  | 404       | 文章不存在                     |
+| 20001  | 503       | AI 服务不可用（Embedding 调用失败） |
 
 **发布失败处理：**
 
@@ -551,6 +670,19 @@ Authorization: Bearer <token>
 >
 > 停用后文章不再参与 RAG 检索。
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10003  | 400       | 当前状态不为已发布(4)     |
+| 10004  | 404       | 文章不存在               |
+
 ### 15. 启用文章
 
 ```http
@@ -571,9 +703,23 @@ Authorization: Bearer <token>
 >
 > 启用是发布管道的完整重跑（不停用时向量已删除，必须重建才能再次被 RAG 检索到）。
 
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                           |
+| ------ | --------- | ------------------------------ |
+| 10003  | 400       | 当前状态不为已停用(0)           |
+| 10004  | 404       | 文章不存在                     |
+| 20001  | 503       | AI 服务不可用（Embedding 调用失败） |
+
 ## 知识库删除
 
-### 17. 删除知识库
+### 16. 删除知识库
 
 ```http
 DELETE /api/v1/admin/knowledge-bases/:id
@@ -590,3 +736,15 @@ Authorization: Bearer <token>
 > 4. 删除 `knowledge_bases` 记录
 > 5. 失效 BM25 缓存
 > 6. 记录审计日志
+
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                     |
+| ------ | --------- | ------------------------ |
+| 10004  | 404       | 知识库不存在             |
