@@ -6,6 +6,7 @@
 ## 0. 全景路由映射
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 flowchart TB
     subgraph Client["客户端层"]
         Browser["Vue 3 浏览器<br/>/portal/* /admin/*"]
@@ -40,6 +41,7 @@ flowchart TB
 ## 1. 认证数据流（AuthService → JWT → Middleware）
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor U as 用户
     participant AH as AuthHandler<br/>handler/auth.go
@@ -78,6 +80,7 @@ sequenceDiagram
 ## 2. 智能问答 RAG 数据流（ChatService → Pipeline → SSE）
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor U as 用户
     participant CH as ChatHandler<br/>handler/chat.go
@@ -146,6 +149,7 @@ sequenceDiagram
 ## 3. 知识库全生命周期（KB CRUD → 文章状态机 → Publish管道 → DeleteKB）
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor A as 管理员/审核人
     participant KH as KnowledgeHandler<br/>handler/knowledge.go
@@ -175,7 +179,7 @@ sequenceDiagram
         KS->>KR: FindKBByID(id) — 校验存在
         KS->>VS: DeleteByKB(ctx, kbID) — 删除 pgvector 向量
         KS->>KR: DeleteKB(id) — 事务: DELETE articles + DELETE kb
-        KR->>DB: BEGIN; DELETE FROM knowledge_articles WHERE kb_id=?; DELETE FROM knowledge_bases WHERE id=?; COMMIT
+        KR->>DB: BEGIN → DELETE articles WHERE kb_id=? → DELETE kb WHERE id=? → COMMIT
         KS-->>KH: nil
         KH-->>A: 200
     end
@@ -224,6 +228,7 @@ sequenceDiagram
 ## 4. 文档上传异步处理（Upload → Parse → Chunk → Embed → Store）
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor U as 管理员
     participant KH as KnowledgeHandler<br/>handler/knowledge.go:306
@@ -269,6 +274,7 @@ sequenceDiagram
 ## 5. 申告全生命周期（Create → StateMachine → Supplement → AutoClose）
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor R as 报障人
     actor O as 运维人员
@@ -339,6 +345,7 @@ sequenceDiagram
 ## 6. 用户与角色权限数据流
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor A as 系统管理员
     participant UH as UserHandler<br/>handler/user.go
@@ -397,6 +404,7 @@ sequenceDiagram
 ## 7. LLM 配置热替换数据流
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor A as 系统管理员
     participant LH as LLMConfigHandler<br/>handler/llm_config.go
@@ -438,6 +446,7 @@ sequenceDiagram
 ## 8. 看板统计与审计日志数据流
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 sequenceDiagram
     actor A as 管理员
     participant DH as DashboardHandler<br/>handler/dashboard.go
@@ -502,6 +511,7 @@ sequenceDiagram
 ## 9. 跨模块事件驱动关系
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 flowchart LR
     subgraph Inputs["用户输入"]
         I1["登录/刷新<br/>AuthHandler.Login/Refresh"]
