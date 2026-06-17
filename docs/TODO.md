@@ -124,10 +124,7 @@
 
 ### 文档上传与异步处理
 
-- 🔴 [adapter/storage_client.go](/server/internal/adapter/storage_client.go) — `ensureBucket` 失败只 warn 继续启动，后续上传操作失败时错误信息令人困惑
-- 🟡 [rag/document_parser.go](/server/internal/rag/document_parser.go) — `io.LimitReader` 到 100MB 上限不报错，静默截断文档内容
-- 🟡 [handler/knowledge.go](/server/internal/handler/knowledge.go) — 文档上传应结合 MIME sniffing 判断文件类型，而非仅信任扩展名
-- 📝 [handler/knowledge.go](/server/internal/handler/knowledge.go) — **上传 API 字段名与文档不一致**：[API/knowledge.md](API/knowledge.md) 指定 multipart 字段名 `files`（复数，多文件），代码读取 `c.FormFile("file")`（单数，仅单文件）。已修复 gin.H→DTO，多文件支持仍待实现。
+> 4 项全部于 2026-06-17 修复，见下方"已修复"。
 
 ### 文档响应形状对齐
 
@@ -173,9 +170,13 @@
 - ✅ **[2026-06-17]** UpdateArticleStatus 检查 RowsAffected — 不存在的 ID 返回 `gorm.ErrRecordNotFound`，Service 可向上层返回 404
 - ✅ **[2026-06-17]** 删除重复 `/articles/:id/retry-sync` 路由 — 统一走 `/knowledge-bases/:kb_id/documents/:id/retry`
 - ✅ **[2026-06-17]** kbID 校验下沉 Service — `GetDocumentStatus`/`RetryDocument`/`UploadDocuments` 均在 Service 层校验 kbID
-- ✅ **[2026-06-17]** 文档响应 DTO 化 — `DocumentUploadItem`/`DocumentStatusResponse` 替换全部 `gin.H`
+- ✅ **[2026-06-17]** 文档响应 DTO 化 + 多文件字段名对齐 — `DocumentUploadItem`/`DocumentUploadResponse`/`DocumentStatusResponse` 替换全部 `gin.H`；`file`→`files`
 - ✅ **[2026-06-17]** `MaxDocumentSize` 包级常量 — 删除局部 `const maxSize`，统一引用 `service.MaxDocumentSize`
 - ✅ **[2026-06-17]** `mapProcessStatus` 死代码删除 — 无调用方，状态机已解耦
+- ✅ **[2026-06-17]** `ensureBucket` 静默失败 — `NewMinIOClient` 改为返回 error，bucket 不可用时阻止启动
+- ✅ **[2026-06-17]** `io.LimitReader` 静默截断 — `parsePDF`/`parseDocx` 增加上限检测，超大文件明确报错
+- ✅ **[2026-06-17]** MIME sniffing 文件类型检测 — 用 `http.DetectContentType` 嗅探替代仅信任扩展名
+- ✅ **[2026-06-17]** 多文件上传 + 字段名对齐 — `file`→`files`，循环处理多文件，响应 `documents` 数组 + `file_size`
 
 ---
 

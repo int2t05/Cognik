@@ -4,6 +4,11 @@
 package handler
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -316,7 +321,7 @@ func (h *KnowledgeHandler) GetArticleDetail(c *gin.Context) {
 // 文档上传/状态/重试
 // =============================================================================
 
-// UploadDocuments 上传文档到知识库（multipart form）。
+// UploadDocuments 上传文档到知识库（multipart form，字段名 files，最多 10 个文件）。
 //
 // POST /api/v1/admin/knowledge-bases/:kb_id/documents/upload
 func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
@@ -325,40 +330,101 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		return
 	}
 
-	// TODO(handler/knowledge): 应支持 multipart 字段名 files 多文件上传，当前仅处理单个 file。
-	// 应改为 MultipartForm.File["files"] 循环处理，并返回 documents 数组。
-	file, err := c.FormFile("file")
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "文件上传失败: "+err.Error())
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		response.Error(c, errcode.ErrParam, "文件上传解析失败: "+err.Error())
 		return
 	}
-
-	fileType := strings.TrimPrefix(strings.ToLower(filepath.Ext(file.Filename)), ".")
-	// TODO(handler/knowledge): 不能只信任扩展名，应结合 MIME sniffing 和解析器校验。
-	// 否则恶意文件改扩展名后会进入 PDF/DOCX 解析路径。
-
-	src, err := file.Open()
-	if err != nil {
-		handleServiceError(c, err)
+	files := c.Request.MultipartForm.File["files"]
+	if len(files) == 0 {
+		response.Error(c, errcode.ErrParam, "未选择文件（字段名: files）")
 		return
 	}
-	defer src.Close()
+	if len(files) > 10 {
+		response.Error(c, errcode.ErrParam, "单次最多上传 10 个文件")
+		return
+	}
 
 	userID, _ := getCurrentUserID(c)
+	items := make([]dto.DocumentUploadItem, 0, len(files))
 
-	// 文件格式和大小校验在 Service 层完成
-	article, err := h.svc.UploadDocuments(kbID, userID, file.Filename, fileType, file.Size, src)
-	if err != nil {
-		handleServiceError(c, err)
-		return
+	for _, fh := range files {
+		fileType, reader, err := sniffFileType(fh)
+		if err != nil {
+			response.Error(c, errcode.ErrParam, fh.Filename+": "+err.Error())
+			return
+		}
+		defer reader.Close()
+
+		article, err := h.svc.UploadDocuments(kbID, userID, fh.Filename, fileType, fh.Size, reader)
+		if err != nil {
+			handleServiceError(c, err)
+			return
+		}
+
+		items = append(items, dto.DocumentUploadItem{
+			ArticleID:     article.ID,
+			FileName:      fh.Filename,
+			FileSize:      fh.Size,
+			FileType:      fileType,
+			ProcessStatus: article.ProcessStatus,
+		})
 	}
 
-	response.Success(c, dto.DocumentUploadItem{
-		ArticleID:     article.ID,
-		FileName:      file.Filename,
-		FileType:      fileType,
-		ProcessStatus: article.ProcessStatus,
-	})
+	response.Success(c, dto.DocumentUploadResponse{Documents: items})
+}
+
+// sniffFileType 通过 MIME sniffing 检测文件类型。
+//
+// 为什么用 MIME sniffing 而非仅信任扩展名：恶意文件可通过改扩展名绕过格式白名单。
+// http.DetectContentType 读取前 512 字节进行内容嗅探，比扩展名更可靠。
+// 文本类型（md/txt）MIME 无法区分，回退到扩展名判断。
+// 返回的 reader 包含完整文件内容（嗅探字节 + 剩余部分），调用方负责关闭。
+func sniffFileType(fh *multipart.FileHeader) (string, io.ReadCloser, error) {
+	src, err := fh.Open()
+	if err != nil {
+		return "", nil, fmt.Errorf("打开文件失败: %w", err)
+	}
+
+	sniff := make([]byte, 512)
+	n, _ := io.ReadFull(src, sniff)
+	sniff = sniff[:n]
+
+	combined := io.NopCloser(io.MultiReader(bytes.NewReader(sniff), src))
+
+	fileType := detectFileType(sniff, fh.Filename)
+	if fileType == "" {
+		combined.Close()
+		return "", nil, fmt.Errorf("不支持的文件类型（MIME 检测失败）")
+	}
+	return fileType, combined, nil
+}
+
+// detectFileType 根据 MIME 嗅探结果和扩展名判断文件类型。
+func detectFileType(sniff []byte, filename string) string {
+	mime := http.DetectContentType(sniff)
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	switch {
+	case mime == "application/pdf":
+		return "pdf"
+	case strings.HasPrefix(mime, "application/vnd.openxmlformats-officedocument"):
+		return "docx"
+	case mime == "application/zip":
+		if ext == ".docx" {
+			return "docx"
+		}
+		return ""
+	default:
+		// text/plain 等文本类型回退扩展名
+		switch ext {
+		case ".md", ".markdown":
+			return "md"
+		case ".txt":
+			return "txt"
+		default:
+			return ""
+		}
+	}
 }
 
 // GetDocumentStatus 查询文档处理状态。

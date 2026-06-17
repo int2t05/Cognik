@@ -168,8 +168,10 @@ func main() {
 		})
 		if err != nil {
 			slog.Error("MinIO 客户端创建失败，文档上传将降级", "error", err)
+		} else if mc, err := adapter.NewMinIOClient(minioClient, "opsmind-attachments", "opsmind-documents"); err != nil {
+			slog.Error("MinIO bucket 初始化失败，文档上传将降级", "error", err)
 		} else {
-			storageClient = adapter.NewMinIOClient(minioClient, "opsmind-attachments", "opsmind-documents")
+			storageClient = mc
 			slog.Info("MinIO 对象存储已连接", "endpoint", minioEndpoint)
 		}
 	}

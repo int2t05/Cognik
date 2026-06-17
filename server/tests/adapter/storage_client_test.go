@@ -50,7 +50,7 @@ func tryConnectMinIO(t *testing.T) *minio.Client {
 
 func TestStorageClient_Upload(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
 
 	content := strings.Repeat("测试文件内容\n", 100)
 	reader := bytes.NewReader([]byte(content))
@@ -76,7 +76,7 @@ func TestStorageClient_Upload(t *testing.T) {
 
 func TestStorageClient_Upload_EmptyContent(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
 
 	reader := bytes.NewReader([]byte{})
 	ctx := context.Background()
@@ -96,7 +96,7 @@ func TestStorageClient_Upload_EmptyContent(t *testing.T) {
 
 func TestStorageClient_GetPresignedURL(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-presigned")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-presigned")
 
 	// 先上传文件
 	content := []byte("预签名测试")
@@ -128,7 +128,7 @@ func TestStorageClient_GetPresignedURL(t *testing.T) {
 
 func TestStorageClient_Delete(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
 
 	// 先上传文件
 	content := []byte("待删除文件")
@@ -153,11 +153,11 @@ func TestStorageClient_Delete(t *testing.T) {
 
 func TestStorageClient_Delete_NotFound(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
 
 	// 删除不存在的对象不应报错（幂等性）
 	// MinIO RemoveObject 对不存在的 key 返回 204，不会报错
-	err := client.Delete(context.Background(), "opsmind-test-delete", "nonexistent/file.txt")
+	err = client.Delete(context.Background(), "opsmind-test-delete", "nonexistent/file.txt")
 	if err != nil {
 		t.Fatalf("删除不存在的对象不应报错（幂等）, got %v", err)
 	}
@@ -169,7 +169,7 @@ func TestStorageClient_Delete_NotFound(t *testing.T) {
 
 func TestStorageClient_UploadDownloadRoundTrip(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client := adapter.NewMinIOClient(rawClient, "opsmind-test-roundtrip")
+	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-roundtrip")
 
 	original := []byte("端到端测试数据: 你好，世界！")
 	ctx := context.Background()

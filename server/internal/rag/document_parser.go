@@ -79,6 +79,9 @@ func (p *DocParser) parsePDF(reader io.Reader) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("读取 PDF 文件失败: %w", err)
 	}
+	if len(b) >= maxDocumentSize {
+		return "", fmt.Errorf("PDF 超过大小上限 %dMB", maxDocumentSize/(1024*1024))
+	}
 
 	pdfReader, err := pdf.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
@@ -121,6 +124,9 @@ func (p *DocParser) parseDocx(reader io.Reader) (string, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return "", fmt.Errorf("读取 DOCX 文件失败: %w", err)
+	}
+	if len(b) >= maxDocumentSize {
+		return "", fmt.Errorf("DOCX 超过大小上限 %dMB", maxDocumentSize/(1024*1024))
 	}
 	return parseDocxFromBytes(b)
 }

@@ -282,7 +282,7 @@ async function handleUpload() {
   uploadResult.value = null
   try {
     const fd = new FormData()
-    for (const f of uploadFiles.value) fd.append('file', f)
+    for (const f of uploadFiles.value) fd.append('files', f)
     await uploadDocuments(form.value.kb_id, fd)
     uploadResult.value = { success: true, message: `${uploadFiles.value.length} 个文件上传成功，将在后台异步处理` }
     uploadFiles.value = []

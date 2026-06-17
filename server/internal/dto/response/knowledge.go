@@ -65,10 +65,16 @@ type ArticleDetailResponse struct {
 	Chunks []ChunkResponse `json:"chunks"`
 }
 
-// DocumentUploadItem 文档上传响应项，替换原先的 gin.H 临时结构。
+// DocumentUploadResponse 文档上传响应（多文件）。
+type DocumentUploadResponse struct {
+	Documents []DocumentUploadItem `json:"documents"`
+}
+
+// DocumentUploadItem 单个文档上传响应项。
 type DocumentUploadItem struct {
 	ArticleID     int64  `json:"article_id"`
 	FileName      string `json:"file_name"`
+	FileSize      int64  `json:"file_size"`
 	FileType      string `json:"file_type"`
 	ProcessStatus string `json:"process_status"`
 }

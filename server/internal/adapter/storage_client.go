@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/url"
 	"time"
 
@@ -65,18 +64,17 @@ type MinIOClient struct {
 //
 // buckets 参数为需确保存在的 bucket 列表（如 "opsmind-attachments", "opsmind-documents"）。
 // 为什么在构造函数中确保 bucket 存在：应用启动时一次性创建，避免每个请求都检查。
-func NewMinIOClient(client *minio.Client, buckets ...string) *MinIOClient {
+// ensureBucket 任一失败则返回 error，阻止不带存储能力的服务启动。
+func NewMinIOClient(client *minio.Client, buckets ...string) (*MinIOClient, error) {
 	mc := &MinIOClient{client: client}
 
 	for _, bucket := range buckets {
-			// TODO(adapter/storage): ensureBucket 失败只 warn，启动仍继续。
-			// 如果文档上传是核心能力，应把错误返回给 main，避免运行时才发现 bucket 不可用。
-			if err := mc.ensureBucket(context.Background(), bucket); err != nil {
-				slog.Warn("ensureBucket 失败", "bucket", bucket, "error", err)
-			}
+		if err := mc.ensureBucket(context.Background(), bucket); err != nil {
+			return nil, fmt.Errorf("ensureBucket %s 失败: %w", bucket, err)
+		}
 	}
 
-	return mc
+	return mc, nil
 }
 
 // ensureBucket 确保 bucket 存在，不存在则创建。

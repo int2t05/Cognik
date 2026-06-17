@@ -133,9 +133,9 @@ export function enableArticle(id: number) {
 // 文档上传与处理
 // =============================================================================
 
-/** 上传文档到知识库（multipart form） */
+/** 上传文档到知识库（multipart form，字段名 files，多文件） */
 export function uploadDocuments(kbID: number, formData: FormData) {
-  return request.post<ApiResponse<KnowledgeArticleItem>>(`/api/v1/admin/knowledge-bases/${kbID}/documents/upload`, formData, {
+  return request.post<ApiResponse<{ documents: Array<{ article_id: number; file_name: string; file_size: number; file_type: string; process_status: string }> }>>(`/api/v1/admin/knowledge-bases/${kbID}/documents/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
