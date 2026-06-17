@@ -72,7 +72,19 @@ make up
 | http://localhost:8080 | 后端 API |
 | http://localhost:9001 | MinIO 控制台 |
 
-LLM/Embedding 服务是可选的——基础功能（认证、用户管理、申告管理）不依赖 AI 模型。在 `.env` 中配置 `LLM_BASE_URL` 或在后台「LLM 配置」页面管理。
+LLM/Embedding 服务是可选的——基础功能不依赖 AI 模型。如需本地 AI：
+
+```bash
+# 下载模型（首次约 3.2GB）
+pip install huggingface_hub
+hf download Qwen/Qwen3-4B-GGUF Qwen3-4B-Q4_K_M.gguf --local-dir ./models
+hf download Qwen/Qwen3-Embedding-0.6B-GGUF Qwen3-Embedding-0.6B-Q8_0.gguf --local-dir ./models
+
+# 启动含 AI 的完整环境
+docker compose --profile ai-local up -d --build
+```
+
+> `docker compose --profile ai-local` 首次启动也会自动下载模型，以上命令供手动/离线场景使用。
 
 ```bash
 # 加载演示数据（含预置账号）
