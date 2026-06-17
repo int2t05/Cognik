@@ -409,22 +409,22 @@
 
 ### 审计日志 — P1 查询性能与数据质量
 
-- 🟡 [service/audit_service.go](/server/internal/service/audit_service.go) — N+1 查询模式：先查 `audit_logs`，再批量查 `users`（两条 SQL），应改为单条 LEFT JOIN
+- ✅ [service/audit_service.go](/server/internal/service/audit_service.go) — N+1 查询模式：先查 `audit_logs`，再批量查 `users`（两条 SQL），应改为单条 LEFT JOIN
 - ✅ [service/audit_service.go](/server/internal/service/audit_service.go) — `operatorID=0`（系统操作）未映射为"系统"显示名，前端展示空字符串
-- 🟡 [dto/request/audit.go](/server/internal/dto/request/audit.go) — `action` 仅支持精确匹配，不支持前缀/模糊搜索（如 `user.*` 查看所有用户操作）
-- 🟡 [service/audit_service.go](/server/internal/service/audit_service.go) — `batchGetOperatorNames` 中 `userRepo.FindByIDs` 失败时静默返回空 map，丢失错误信息
+- ✅ [dto/request/audit.go](/server/internal/dto/request/audit.go) — `action` 仅支持精确匹配，不支持前缀/模糊搜索（如 `user.*` 查看所有用户操作）
+- ✅ [service/audit_service.go](/server/internal/service/audit_service.go) — `batchGetOperatorNames` 中 `userRepo.FindByIDs` 失败时静默返回空 map，丢失错误信息
 
 ### 审计日志 — P2 测试与文档
 
 - 🟡 [tests/repository/audit_repo_test.go](/server/tests/repository/audit_repo_test.go) — 测试使用 `init()` 直接 panic + 硬编码数据库凭据，不符合其他测试模块的标准模式
 - 🟡 缺少 Service 层集成测试（验证各 Service 的审计写入正确性）
-- 📝 [API/audit-log.md](/docs/API/audit-log.md) — action 分隔符不一致：文档用 `:`（`user:create`），代码用 `.`（`user.create`）
-- 📝 [API/audit-log.md](/docs/API/audit-log.md) — 缺少新增查询参数（`target_type`/`target_id`/`date_from`/`date_to`）
-- 📝 [diagrams/dashboard-audit-flow.md](/docs/diagrams/dashboard-audit-flow.md) — 审计查询流程图显示 JOIN 查询，但代码实际用两条 SQL + Go 层拼接
+- ✅ [API/audit-log.md](/docs/API/audit-log.md) — action 分隔符不一致：文档用 `:`（`user:create`），代码用 `.`（`user.create`）
+- ✅ [API/audit-log.md](/docs/API/audit-log.md) — 缺少新增查询参数（`target_type`/`target_id`/`date_from`/`date_to`）
+- ✅ [diagrams/dashboard-audit-flow.md](/docs/diagrams/dashboard-audit-flow.md) — 审计查询流程图显示 JOIN 查询，但代码实际用两条 SQL + Go 层拼接
 
 ### 审计 Repo 代码 TODO
 
-- 📌 [repository/audit_repo.go:33](/server/internal/repository/audit_repo.go) — 审计写入失败是否阻断主流程需要统一策略
+- ✅ [repository/audit_repo.go](/server/internal/repository/audit_repo.go) — 审计写入失败是否阻断主流程需要统一策略
 
 ---
 
@@ -696,12 +696,12 @@
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
-| 7. 数据看板与审计 | 0 | 3 | 2+3📝 | 2 | 10 |
+| 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **49** | **72** | **26+9📝** | **38** | **~207** |
+| **合计** | **49** | **69** | **26+6📝** | **37** | **~200** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

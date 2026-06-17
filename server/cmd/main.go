@@ -260,7 +260,7 @@ func main() {
 	slog.Info("ChatService 已初始化（含 RAG Pipeline + LLMService）")
 
 	// AuditService
-	auditService := service.NewAuditService(auditRepo, userRepo)
+	auditService := service.NewAuditService(auditRepo)
 
 	// 7. 初始化 Handler 层
 	authHandler := handler.NewAuthHandler(authService)

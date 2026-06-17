@@ -157,15 +157,15 @@ sequenceDiagram
     participant AR as AuditRepo<br/>repository/audit_repo.go
     participant DB as PostgreSQL
 
-    A->>AH: GET /api/v1/admin/audit-logs<br/>?operator_id=1&action=freeze&page=1&page_size=20
+    A->>AH: GET /api/v1/admin/audit-logs<br/>?operator_id=1&action=user.*&target_type=ticket&date_from=2026-06-01
     AH->>AH: c.Get("currentUser") → 仅系统管理员可访问<br/>(中间件: RequirePermission "audit:read")
     
-    AH->>AR: List(operatorID, action, page, pageSize)
-    AR->>DB: SELECT al.*, u.real_name as operator_name<br/>FROM audit_logs al<br/>LEFT JOIN users u ON al.operator_id = u.id<br/>WHERE al.operator_id = ?<br/>  AND al.action = ?<br/>ORDER BY al.created_at DESC<br/>LIMIT ? OFFSET ?
+    AH->>AR: List(AuditFilter{OperatorID, Action, TargetType, TargetID, DateFrom, DateTo, Page, PageSize})
+    AR->>DB: SELECT al.*, COALESCE(u.real_name,'') AS operator_name<br/>FROM audit_logs al<br/>LEFT JOIN users u ON al.operator_id = u.id<br/>WHERE al.operator_id = ?<br/>  AND al.action LIKE ?  (action 以 * 结尾时)<br/>  AND al.target_type = ?<br/>  AND al.created_at >= ?::date<br/>ORDER BY al.created_at DESC<br/>LIMIT ? OFFSET ?
     
-    DB-->>AR: []AuditLog (含 operator_name), total
-    AR-->>AH: ([]AuditLog, total)
-    AH-->>A: {"code": 0, "data": {logs, total, page, page_size}}
+    DB-->>AR: []AuditLogRow (含 operator_name), total
+    AR-->>AH: ([]AuditLogRow, total)
+    AH-->>A: {"code": 0, "data": {items, total, page, page_size}}
 ```
 
 ---
