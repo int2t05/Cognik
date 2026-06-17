@@ -102,9 +102,8 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 		FirstLogin:   true,
 	}
 
-	// 包裹在事务中：Create + AssignRoles 原子执行
-	// TODO(service/user): AssignRoles 内部自己再开事务，当前外层 tx + 内层 r.db.Transaction 容易形成嵌套事务。
-	// 应提供 AssignRolesTx 或让 Repository 接收当前 tx，保证事务边界清晰。
+	// 包裹在事务中：Create + AssignRoles 原子执行。
+	// AssignRoles 不再自开事务，直接使用当前 tx 保证同一事务边界。
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
 			return err
@@ -124,6 +123,7 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 // Update 更新用户基本信息。
 //
 // 仅更新 RealName/Phone/Email 和角色分配，密码修改走独立接口。
+// 使用 UpdateColumns 只写三列，避免并发 ChangePassword 的密码哈希被 Save 全字段覆盖。
 // 包裹在事务中保证 Update + AssignRoles 原子性。
 func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 	user, err := s.repo.GetByID(id)
@@ -134,16 +134,14 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 		return err
 	}
 
-	user.RealName = req.RealName
-	user.Phone = req.Phone
-	user.Email = req.Email
-
 	// 包裹在事务中：Update + AssignRoles 原子执行
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// TODO(service/user): GetByID → 修改字段 → Save 存在丢失更新竞态。
-		// 并发的 ChangePassword（仅更新 password_hash 列）可能被此处的 Save（全字段覆盖）冲掉。
-		// 应改用 UpdateColumns 只写 RealName/Phone/Email 三列，避免覆盖未修改字段。
-		if err := tx.Save(user).Error; err != nil {
+		// 使用 UpdateColumns 只写目标列，避免 Save 全字段覆盖（特别是 password_hash）
+		if err := tx.Model(user).UpdateColumns(map[string]interface{}{
+			"real_name": req.RealName,
+			"phone":     req.Phone,
+			"email":     req.Email,
+		}).Error; err != nil {
 			return err
 		}
 
@@ -158,11 +156,14 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 
 // Freeze 冻结用户。
 //
-// 冻结前校验当前状态：已冻结的用户不能重复冻结（返回 10006）。
-func (s *UserService) Freeze(id int64) error {
-	// TODO(service/user): 禁止冻结最后一个系统管理员。
-	// 否则误操作可能导致后台无人能恢复用户和权限。
-	user, err := s.repo.GetByID(id)
+// 冻结前校验：目标存在、非自己、非最后一个系统管理员。
+func (s *UserService) Freeze(id int64, operatorID int64) error {
+	// 禁止冻结自己
+	if id == operatorID {
+		return AppError{Code: errcode.ErrParam, Message: "不能冻结自己的账号"}
+	}
+
+	target, err := s.repo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "用户不存在"}
@@ -170,8 +171,13 @@ func (s *UserService) Freeze(id int64) error {
 		return err
 	}
 
-	if user.Status == 2 {
+	if target.Status == 2 {
 		return AppError{Code: errcode.ErrAlreadyFrozen, Message: "用户已被冻结"}
+	}
+
+	// 检查目标是否为最后一个系统管理员
+	if err := s.assertNotLastAdmin(id); err != nil {
+		return err
 	}
 
 	return s.repo.UpdateStatus(id, 2)
@@ -179,7 +185,7 @@ func (s *UserService) Freeze(id int64) error {
 
 // Restore 恢复已冻结用户。
 //
-// 恢复前校验当前状态：正常用户不能重复恢复（返回 10007）。
+// 恢复前校验：目标存在、已处于冻结状态。
 func (s *UserService) Restore(id int64) error {
 	user, err := s.repo.GetByID(id)
 	if err != nil {
@@ -194,6 +200,38 @@ func (s *UserService) Restore(id int64) error {
 	}
 
 	return s.repo.UpdateStatus(id, 1)
+}
+
+// assertNotLastAdmin 检查目标用户是否为最后一个系统管理员。
+//
+// 系统管理员角色 id=1（name="系统管理员"），冻结或移除该角色前必须确保至少
+// 还有另一个活跃管理员可操作系统。
+func (s *UserService) assertNotLastAdmin(targetUserID int64) error {
+	// 检查目标是否拥有系统管理员角色
+	roles, err := s.repo.GetUserRoles(targetUserID)
+	if err != nil {
+		return err
+	}
+	isAdmin := false
+	for _, r := range roles {
+		if r.Name == "系统管理员" {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		return nil
+	}
+
+	// 统计其他活跃系统管理员数量
+	adminCount, err := s.repo.CountActiveAdmins(targetUserID)
+	if err != nil {
+		return err
+	}
+	if adminCount == 0 {
+		return AppError{Code: errcode.ErrParam, Message: "不能冻结/移除最后一个系统管理员"}
+	}
+	return nil
 }
 
 // toDetailResponse 将 User 模型转换为 UserDetailResponse。

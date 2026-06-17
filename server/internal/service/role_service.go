@@ -109,27 +109,38 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 }
 
 // Delete 删除角色。
+//
+// 使用事务包裹存在性检查+删除，防止 TOCTOU 竞态：
+// 并发 AssignRoles 可能在 CountUsersByRole 检查通过后分配用户到此角色。
 func (s *RoleService) Delete(id int64) error {
-	// TODO(service/role): 禁止删除系统内置角色或最后一个系统管理员角色。
-	// 这些角色是权限体系的根，删除后可能导致系统无法管理。
-	_, err := s.repo.GetByID(id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
+	// 禁止删除内置角色
+	if isBuiltin, err := s.repo.IsBuiltinRole(id); err != nil {
+		return err
+	} else if isBuiltin {
+		return AppError{Code: errcode.ErrForbidden, Message: "不能删除系统内置角色"}
+	}
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.NewRoleRepo(tx)
+		txUserRepo := repository.NewUserRepo(tx)
+
+		if _, err := txRepo.GetByID(id); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
+			}
+			return err
 		}
-		return err
-	}
 
-	// 检查关联用户：有关联用户则拒绝删除，避免产生孤儿 user_roles 记录。
-	count, err := s.userRepo.CountUsersByRole(id)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		return AppError{Code: errcode.ErrConflict, Message: "角色下存在关联用户，无法删除"}
-	}
+		count, err := txUserRepo.CountUsersByRole(id)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return AppError{Code: errcode.ErrConflict, Message: "角色下存在关联用户，无法删除"}
+		}
 
-	return s.repo.Delete(id)
+		return txRepo.Delete(id)
+	})
 }
 
 // ListMenus 获取全部菜单列表（树形结构）。

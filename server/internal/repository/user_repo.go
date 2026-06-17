@@ -158,6 +158,21 @@ func (r *UserRepo) GetUserRoles(userID int64) ([]model.Role, error) {
 	return roles, err
 }
 
+// CountActiveAdmins 统计除指定用户外的活跃系统管理员数量。
+//
+// 用于冻结/降级管理员前的安全检查：确保至少还有一个活跃管理员可操作系统。
+func (r *UserRepo) CountActiveAdmins(excludeUserID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.UserRole{}).
+		Joins("JOIN users ON users.id = user_roles.user_id").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("roles.name = ?", "系统管理员").
+		Where("users.status = 1").
+		Where("users.id != ?", excludeUserID).
+		Count(&count).Error
+	return count, err
+}
+
 // CountUsersByRole 统计拥有指定角色的用户数。
 //
 // 用于角色删除前校验：若关联用户 > 0 则拒绝删除，避免产生孤儿 user_roles 记录。
@@ -167,21 +182,28 @@ func (r *UserRepo) CountUsersByRole(roleID int64) (int64, error) {
 	return count, err
 }
 
-// AssignRoles 分配用户角色（先删后插，保证幂等）。
+// AssignRoles 分配用户角色（先删后插，无内部事务，由调用方管理事务边界）。
+//
+// 自动过滤 roleID ≤ 0 的非法值并去重，避免重复主键和无效外键。
 func (r *UserRepo) AssignRoles(userID int64, roleIDs []int64) error {
-	// TODO(repository/user): AssignRoles 未验证 roleIDs 存在，也没有去重。
-	// 重复 roleID 会依赖复合主键报错，不存在 roleID 的错误也不够友好。
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
+	seen := make(map[int64]bool)
+	valid := make([]int64, 0, len(roleIDs))
+	for _, rid := range roleIDs {
+		if rid > 0 && !seen[rid] {
+			seen[rid] = true
+			valid = append(valid, rid)
+		}
+	}
+
+	if err := r.db.Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
+		return err
+	}
+	for _, roleID := range valid {
+		if err := r.db.Create(&model.UserRole{UserID: userID, RoleID: roleID}).Error; err != nil {
 			return err
 		}
-		for _, roleID := range roleIDs {
-			if err := tx.Create(&model.UserRole{UserID: userID, RoleID: roleID}).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // ListMenus 查询全部菜单（按排序字段升序）。
@@ -218,18 +240,20 @@ func (r *UserRepo) BatchGetRoleMenus(roleIDs []int64) ([]model.Menu, error) {
 	return menus, err
 }
 
-// UpdateRoleMenus 更新角色菜单关联（先删后插）。
+// UpdateRoleMenus 更新角色菜单关联（先删后批量插入，单事务保证原子性）。
 func (r *UserRepo) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", roleID).Delete(&model.RoleMenu{}).Error; err != nil {
 			return err
 		}
-		for _, menuID := range menuIDs {
-			if err := tx.Create(&model.RoleMenu{RoleID: roleID, MenuID: menuID}).Error; err != nil {
-				return err
-			}
+		if len(menuIDs) == 0 {
+			return nil
 		}
-		return nil
+		menus := make([]model.RoleMenu, len(menuIDs))
+		for i, mid := range menuIDs {
+			menus[i] = model.RoleMenu{RoleID: roleID, MenuID: mid}
+		}
+		return tx.Create(&menus).Error
 	})
 }
 

@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"errors"
 	"opsmind/internal/model"
 
 	"gorm.io/gorm"
@@ -76,10 +77,28 @@ func (r *RoleRepo) Update(role *model.Role) error {
 
 // Delete 删除角色。
 //
-// GORM 零值陷阱：当 id == 0 时 Delete(&Role{}, 0) 会忽略主键条件，删除全部角色。
-// 必须在调用前检查 id <= 0，Service 层已做存在性校验但未防御 id=0 边界。
+// 添加 id <= 0 守卫防止 GORM 零值陷阱（Delete(&Role{}, 0) 会删除全部角色）。
+// 返回 ErrDeleteFailed 当 RowsAffected == 0（已被并发删除或 id 不存在）。
 func (r *RoleRepo) Delete(id int64) error {
-	// TODO(repository/role): 增加 id <= 0 守卫防止 GORM 零值陷阱误删全表。
-	// 同时应检查 RowsAffected——Service 虽先查存在，但并发删除时仍可能静默成功。
-	return r.db.Delete(&model.Role{}, id).Error
+	if id <= 0 {
+		return gorm.ErrRecordNotFound
+	}
+	result := r.db.Where("id = ?", id).Delete(&model.Role{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// IsBuiltinRole 判断角色是否为系统内置角色（不可删除）。
+func (r *RoleRepo) IsBuiltinRole(id int64) (bool, error) {
+	var role model.Role
+	err := r.db.Where("id = ? AND is_system = ?", id, true).First(&role).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return err == nil, err
 }

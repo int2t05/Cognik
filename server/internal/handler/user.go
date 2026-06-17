@@ -123,7 +123,9 @@ func (h *UserHandler) Freeze(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Freeze(id); svcErr != nil {
+	operatorID, _ := getCurrentUserID(c)
+
+	if svcErr := h.svc.Freeze(id, operatorID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}

@@ -34,8 +34,7 @@ type Role struct {
 	Name        string          `gorm:"type:varchar(64);uniqueIndex;not null" json:"name"`
 	Description string          `gorm:"type:varchar(255)" json:"description"`
 	Permissions datatypes.JSON  `gorm:"type:jsonb" json:"permissions"`
-	// TODO(model/user): 角色应增加 immutable/system 字段标识内置角色。
-	// 系统管理员、报障人等基础角色需要防止误删或错误改名。
+	IsSystem    bool            `gorm:"not null;default:false;column:is_system" json:"is_system"`
 	CreatedAt   time.Time       `gorm:"not null" json:"created_at"`
 	UpdatedAt   time.Time       `gorm:"not null" json:"updated_at"`
 }
