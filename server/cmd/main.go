@@ -1,7 +1,7 @@
 // Package main 是 OpsMind 后端服务的入口。
 //
-// 负责初始化配置、数据库连接、路由注册和 HTTP 服务启动。
-// 采用单体分层架构（Handler→Service→Repository），所有模块在同一进程内运行。
+// main 负责流程编排：加载配置 → 装配依赖 → 运行服务。
+// 初始化细节集中在 wireApp 中，生命周期管理集中在 runServer 中。
 package main
 
 import (
@@ -27,94 +27,99 @@ import (
 	"opsmind/internal/repository"
 	"opsmind/internal/router"
 	"opsmind/internal/service"
-	"strconv"
 )
 
-// envInt 读取整数环境变量，失败或未设置时返回默认值。
-func envInt(key string, def int) int {
-	if s := os.Getenv(key); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 {
-			return v
-		}
-	}
-	return def
-}
-
-// envDuration 读取 time.Duration 环境变量（分钟），未设置时返回默认值。
-func envDuration(key string, def time.Duration) time.Duration {
-	if s := os.Getenv(key); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 {
-			return time.Duration(v) * time.Minute
-		}
-	}
-	return def
+// app 持有所有已初始化的组件。
+// wireApp 负责装配，runServer 负责运行。
+type app struct {
+	cfg           *config.AppConfig
+	logCleanup    func()
+	llmClient     *adapter.OpenAIClient
+	reranker      adapter.Reranker
+	vectorStore   adapter.VectorStore
+	storageClient adapter.StorageClient
+	scheduler     *service.Scheduler
+	authService   *service.AuthService
+	server        *http.Server
 }
 
 func main() {
 	slog.Info("OpsMind 服务启动中...")
 
-	// 1. 加载配置
-	// TODO(cmd/main): 将 main 中的初始化流程拆成 wireApp()/runServer() 两层。
-	// 现在 main 同时负责配置、DB、Adapter、Service、Handler、Scheduler 和 HTTP 生命周期，
-	// 后续新增依赖时会继续膨胀，不利于集成测试单独复用应用装配逻辑。
-	cfg, err := config.Load("")
+	app, err := wireApp()
 	if err != nil {
-		slog.Error("加载配置失败", "error", err)
+		slog.Error("装配应用失败", "error", err)
 		os.Exit(1)
 	}
 
-	// 初始化日志：JSON 格式输出到 stdout + 旋转日志文件。
-	// OPSMIND_LOG_DIR 控制日志目录（见 docker-compose.yml + .env.example）。
+	if err := app.run(); err != nil {
+		slog.Error("服务运行失败", "error", err)
+		os.Exit(1)
+	}
+}
+
+// wireApp 加载配置、初始化所有组件并注入依赖。
+//
+// 为什么拆分为独立函数：
+// main 原先同时负责配置加载、DB/Adapter/Service/Handler 初始化和 HTTP 生命周期，
+// 400+ 行混合了装配逻辑和运行时逻辑，不利于集成测试复用装配流程。
+func wireApp() (*app, error) {
+	a := &app{}
+
+	// 1. 加载配置
+	cfg, err := config.Load("")
+	if err != nil {
+		return nil, fmt.Errorf("加载配置失败: %w", err)
+	}
+	a.cfg = cfg
+
+	// 初始化日志
 	logDir := os.Getenv("OPSMIND_LOG_DIR")
 	if logDir == "" {
-		logDir = filepath.Join("..", "logs") // 本地开发 → 项目根目录 logs/
+		logDir = filepath.Join("..", "logs")
 	}
-	logCleanup, err := opslog.Init(logDir)
-	if err != nil {
+	if cleanup, err := opslog.Init(logDir); err != nil {
 		slog.Warn("日志文件输出不可用，仅输出到控制台", "dir", logDir, "error", err)
 	} else {
-		defer logCleanup()
+		a.logCleanup = cleanup
 	}
 
-	// 生产模式下 JWT 密钥必须非空，否则拒绝启动。
+	// 生产模式 JWT 密钥非空校验
 	if cfg.JWT.Secret == "" {
 		if cfg.Server.Mode == "release" {
-			slog.Error("JWT 密钥为空，生产模式不允许启动，请设置环境变量 OPSMIND_JWT_SECRET")
-			os.Exit(1)
+			return nil, fmt.Errorf("JWT 密钥为空，生产模式不允许启动，请设置 OPSMIND_JWT_SECRET")
 		}
 		slog.Warn("JWT 密钥为空，JWT 认证功能不可用（仅调试模式允许）")
 	}
 
-	// 2. 初始化数据库连接
-	// TODO(cmd/main): 数据库连接池参数目前写死在 database.Init 内部。
-	// 应将 MaxOpenConns/MaxIdleConns/ConnMaxLifetime 放入配置，避免生产环境只能改代码调参。
+	// 2. 数据库
 	db, err := database.Init(cfg.Database)
 	if err != nil {
-		slog.Error("数据库连接失败", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("数据库连接失败: %w", err)
 	}
 	slog.Info("数据库连接成功")
 
-	// 3. 自动迁移
-	// TODO(cmd/main): 生产环境应改为显式迁移命令或启动前迁移任务。
-	// AutoMigrate 适合开发环境，但在生产库上自动变更表结构缺少审批、回滚和审计。
-	if err := database.AutoMigrate(db); err != nil {
-		slog.Error("数据库迁移失败", "error", err)
-		os.Exit(1)
+	// AutoMigrate（开发环境自动迁移，生产环境通过 OPSMIND_DB_SKIP_MIGRATE 跳过）
+	if os.Getenv("OPSMIND_DB_SKIP_MIGRATE") == "true" {
+		slog.Info("已跳过数据库自动迁移（OPSMIND_DB_SKIP_MIGRATE=true）")
+	} else {
+		if err := database.AutoMigrate(db); err != nil {
+			return nil, fmt.Errorf("数据库迁移失败: %w", err)
+		}
+		slog.Info("数据库迁移完成")
 	}
-	slog.Info("数据库迁移完成")
 
-	// 4. 初始化 Adapter 层（LLMClient / EmbeddingClient / VectorStore）
-	// TODO(cmd/main): LLM/Embedding 超时时间应来自配置，并区分 query rewrite、rerank、最终生成等场景。
-	// 当前 60s/30s 写死会让短请求和长生成共享同一超时策略。
-	llmTimeout := 60 * time.Second
+	// 3. Adapter 层
+	llmTimeout := cfg.LLM.Timeout
+	if llmTimeout <= 0 {
+		llmTimeout = 60 * time.Second
+	}
 	llmClient, err := adapter.NewOpenAIClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, llmTimeout)
 	if err != nil {
-		slog.Error("创建 LLM 客户端失败", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("创建 LLM 客户端失败: %w", err)
 	}
+	a.llmClient = llmClient
 
-	// Embedding 优先使用独立 Base URL 和 API Key，空时回退到 LLM 配置
 	embedBaseURL := cfg.Embedding.BaseURL
 	if embedBaseURL == "" {
 		embedBaseURL = cfg.LLM.BaseURL
@@ -123,43 +128,36 @@ func main() {
 	if embedAPIKey == "" {
 		embedAPIKey = cfg.LLM.APIKey
 	}
-	embeddingClient := adapter.NewOpenAIEmbeddingClient(embedBaseURL, embedAPIKey, cfg.Embedding.Model, 30*time.Second)
+	embedTimeout := cfg.Embedding.Timeout
+	if embedTimeout <= 0 {
+		embedTimeout = 30 * time.Second
+	}
+	embeddingClient := adapter.NewOpenAIEmbeddingClient(embedBaseURL, embedAPIKey, cfg.Embedding.Model, embedTimeout)
 	slog.Info("LLM/Embedding 客户端已初始化",
 		"llm_base_url", cfg.LLM.BaseURL,
 		"embedding_base_url", embedBaseURL,
 		"llm_model", cfg.LLM.Model,
 		"embedding_model", cfg.Embedding.Model)
 
-	// Cross-encoder 重排序子进程（可选，配置禁用时跳过）
-	var reranker adapter.Reranker
+	// Cross-encoder 重排序
 	if cfg.Rerank.Enabled && cfg.Rerank.PythonPath != "" && cfg.Rerank.ScriptPath != "" {
-		reranker = adapter.NewSubprocessReranker(cfg.Rerank.PythonPath, cfg.Rerank.ScriptPath)
-		if reranker != nil {
-			defer func() {
-				if r, ok := reranker.(*adapter.SubprocessReranker); ok {
-					r.Close()
-				}
-			}()
-			slog.Info("Cross-encoder 重排序已启用", "python", cfg.Rerank.PythonPath, "script", cfg.Rerank.ScriptPath)
-		}
+		a.reranker = adapter.NewSubprocessReranker(cfg.Rerank.PythonPath, cfg.Rerank.ScriptPath)
+		slog.Info("Cross-encoder 重排序已启用", "python", cfg.Rerank.PythonPath, "script", cfg.Rerank.ScriptPath)
 	} else {
 		slog.Info("Cross-encoder 重排序已禁用，将降级跳过")
 	}
 
 	// pgvector 向量存储
-	// TODO(cmd/main): VectorStore 初始化失败后仅 warn，但后续 KnowledgeService/ChatService 仍可启动。
-	// 应提供健康状态并让依赖向量核心路径的接口返回明确 20002，而不是在 nil store 处退化为未知错误。
 	vectorStore, err := adapter.NewPgvectorStore(db)
 	if err != nil {
-		slog.Warn("pgvector 连接失败，向量检索功能不可用", "error", err)
+		slog.Warn("pgvector 初始化失败，向量检索/知识发布功能将不可用", "error", err)
+		// 不阻塞启动：问答仍可用（降级到纯 BM25），但知识发布返回 20002
 	} else {
+		a.vectorStore = vectorStore
 		slog.Info("pgvector VectorStore 已连接")
 	}
 
 	// MinIO 对象存储
-	// TODO(cmd/main): MinIO 初始化失败后 storageClient 为 nil，传给 KnowledgeService/Processor 可能导致 panic。
-	// 应在初始化失败时将 storageClient 设为降级实现（如本地文件存储），而非 nil。
-	var storageClient adapter.StorageClient
 	minioEndpoint := cfg.MinIO.Endpoint
 	if minioEndpoint == "" {
 		slog.Warn("MinIO 未配置，文档上传将使用降级模式（纯文本）")
@@ -173,12 +171,12 @@ func main() {
 		} else if mc, err := adapter.NewMinIOClient(minioClient, "opsmind-attachments", "opsmind-documents"); err != nil {
 			slog.Error("MinIO bucket 初始化失败，文档上传将降级", "error", err)
 		} else {
-			storageClient = mc
+			a.storageClient = mc
 			slog.Info("MinIO 对象存储已连接", "endpoint", minioEndpoint)
 		}
 	}
 
-	// 5. 初始化 Repository 层
+	// 4. Repository 层
 	configRepo := repository.NewConfigRepo(db)
 	userRepo := repository.NewUserRepo(db)
 	roleRepo := repository.NewRoleRepo(db)
@@ -189,10 +187,10 @@ func main() {
 	auditRepo := repository.NewAuditRepo(db)
 	dashboardRepo := repository.NewDashboardRepo(db)
 
-	// 6. 初始化 Service 层
+	// 5. Service 层
 	txManager := service.NewGormTxManager(db)
 	menuRepo := repository.NewMenuRepo(db)
-	authService := service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
+	a.authService = service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
 	userService := service.NewUserService(userRepo, auditRepo, db)
 	roleService := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
 	messageService := service.NewMessageService(messageRepo)
@@ -200,14 +198,10 @@ func main() {
 	dashboardService := service.NewDashboardService(dashboardRepo)
 	configService := service.NewConfigService(configRepo, auditRepo)
 
-	// LLM 配置管理
-	// TODO(cmd/main): 启动时应把 config.yaml/env 的 LLM 配置同步为默认 LLMConfig 或作为 fallback 注入 Manager。
-	// 当前 ChatService 可能从 LLMConfigManager 读取到 nil，然后使用 model="default"，与 cfg.LLM.Model 不一致。
 	llmConfigRepo := repository.NewLlmConfigRepo(db)
 	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo)
 	if err != nil {
-		slog.Error("创建 LLM 配置服务失败", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
 	}
 	slog.Info("LLM 配置服务已初始化")
 
@@ -216,40 +210,53 @@ func main() {
 	docParser := rag.NewDocParser()
 	chunker := rag.NewChunker(1000, 200)
 
-	// 向量检索器（包装 Embedder + pgvector）
-	vectorRetriever := rag.NewVectorRetriever(embedder, vectorStore)
+	// 向量检索器仅当 vectorStore 可用时创建
+	var vectorRetriever *rag.VectorRetriever
+	if a.vectorStore != nil {
+		vectorRetriever = rag.NewVectorRetriever(embedder, a.vectorStore)
+	}
 
-	// BM25 混合检索器（中文分词 + 倒排索引，懒加载 + TTL）
+	bm25TTL := 30 * time.Minute
+	if s := os.Getenv("OPSMIND_AI_BM25_REBUILD_MINUTES"); s != "" {
+		var minutes int
+		if _, err := fmt.Sscanf(s, "%d", &minutes); err == nil && minutes > 0 {
+			bm25TTL = time.Duration(minutes) * time.Minute
+		}
+	}
 	segmenter := rag.NewGseSegmenter()
-	bm25TTL := envDuration("OPSMIND_AI_BM25_REBUILD_MINUTES", 30*time.Minute)
 	bm25Retriever := rag.NewBM25Retriever(segmenter, bm25TTL)
 
-	// RAG 管道（查询改写 → 多路检索 → 混合检索 → 重排序）
-	pipeline := rag.NewPipeline(vectorRetriever, bm25Retriever, llmClient, embedder, reranker)
+	pipeline := rag.NewPipeline(vectorRetriever, bm25Retriever, llmClient, embedder, a.reranker)
 
-	// 文档异步处理器（goroutine pool：解析→分块→embedding→pgvector 写入）
-	procWorkers := envInt("OPSMIND_AI_PROCESSOR_WORKERS", 2)
-	processor := rag.NewProcessor(docParser, chunker, embedder, vectorStore, storageClient, procWorkers)
+	// 文档处理器仅当 vectorStore 或 storageClient 可用时创建
+	var processor *rag.Processor
+	if a.vectorStore != nil || a.storageClient != nil {
+		procWorkers := 2
+		if s := os.Getenv("OPSMIND_AI_PROCESSOR_WORKERS"); s != "" {
+			var n int
+			if _, err := fmt.Sscanf(s, "%d", &n); err == nil && n > 0 {
+				procWorkers = n
+			}
+		}
+		processor = rag.NewProcessor(docParser, chunker, embedder, a.vectorStore, a.storageClient, procWorkers)
+	}
 
-	// KnowledgeService（CRUD + pgvector 管道 + 文档上传）
 	knowledgeService := service.NewKnowledgeService(knowledgeRepo,
 		service.WithUserNames(userRepo),
 		service.WithChunker(chunker),
 		service.WithEmbedder(embedder),
-		service.WithVectorStore(vectorStore),
+		service.WithVectorStore(a.vectorStore),
 		service.WithDocParser(docParser),
 		service.WithProcessor(processor),
-		service.WithStorage(storageClient),
+		service.WithStorage(a.storageClient),
 		service.WithAuditRepo(auditRepo),
 	)
-	slog.Info("KnowledgeService 已初始化（含 Chunker + Processor）")
+	slog.Info("KnowledgeService 已初始化")
 	ticketService.SetKnowledgeService(knowledgeService)
 
-	// LLMService（RAG + prompt + LLM 统一编排，供 ChatService 使用）
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
-	slog.Info("LLMService 已初始化（RAG + prompt + LLM 统一调用）")
+	slog.Info("LLMService 已初始化")
 
-	// ChatService（会话生命周期管理）
 	chatService := service.NewChatService(knowledgeRepo, chatRepo, llmService, service.RAGDefaults{
 		TopK:         cfg.AI.DefaultTopK,
 		QueryRewrite: cfg.AI.RAGQueryRewrite,
@@ -257,87 +264,114 @@ func main() {
 		Hybrid:       cfg.AI.RAGHybrid,
 		Rerank:       cfg.AI.RAGRerank,
 	})
-	slog.Info("ChatService 已初始化（含 RAG Pipeline + LLMService）")
+	slog.Info("ChatService 已初始化")
 
-	// AuditService
 	auditService := service.NewAuditService(auditRepo)
 
-	// 7. 初始化 Handler 层
-	authHandler := handler.NewAuthHandler(authService)
-	userHandler := handler.NewUserHandler(userService)
-	roleHandler := handler.NewRoleHandler(roleService)
-	ticketHandler := handler.NewTicketHandler(ticketService)
-	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeService)
-	chatHandler := handler.NewChatHandler(chatService)
-	messageHandler := handler.NewMessageHandler(messageService)
-	dashboardHandler := handler.NewDashboardHandler(dashboardService)
-	auditHandler := handler.NewAuditHandler(auditService)
-	configHandler := handler.NewConfigHandler(configService)
-	llmConfigHandler := handler.NewLLMConfigHandler(llmConfigSvc)
-
-	// 8. 初始化后台调度器
-	scheduler := service.NewScheduler(ticketService)
-	slog.Info("后台调度器已创建")
-
-	// 9. 设置路由
-	r := router.Setup(cfg, db, &router.Handlers{
-		Auth:      authHandler,
-		User:      userHandler,
-		Role:      roleHandler,
-		Ticket:    ticketHandler,
-		Knowledge: knowledgeHandler,
-		Chat:      chatHandler,
-		Message:   messageHandler,
-		Dashboard: dashboardHandler,
-		Audit:     auditHandler,
-		Config:    configHandler,
-		LLMConfig: llmConfigHandler,
-	})
-
-	// 10. 创建 HTTP Server
-	// TODO(cmd/main): ReadTimeout/WriteTimeout/IdleTimeout 应配置化，并为 SSE 单独提供更长写超时策略。
-	// 全局 WriteTimeout=60s 对慢速 LLM 生成仍可能过短。
-	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	srv := &http.Server{
-		Addr:         addr,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // SSE 路由内部通过 SetWriteDeadline 续期
-		IdleTimeout:  60 * time.Second,
+	// 6. Handler 层
+	handlers := &router.Handlers{
+		Auth:      handler.NewAuthHandler(a.authService),
+		User:      handler.NewUserHandler(userService),
+		Role:      handler.NewRoleHandler(roleService),
+		Ticket:    handler.NewTicketHandler(ticketService),
+		Knowledge: handler.NewKnowledgeHandler(knowledgeService),
+		Chat:      handler.NewChatHandler(chatService),
+		Message:   handler.NewMessageHandler(messageService),
+		Dashboard: handler.NewDashboardHandler(dashboardService),
+		Audit:     handler.NewAuditHandler(auditService),
+		Config:    handler.NewConfigHandler(configService),
+		LLMConfig: handler.NewLLMConfigHandler(llmConfigSvc),
 	}
 
-	// 11. 启动调度器
+	// 7. 调度器
+	a.scheduler = service.NewScheduler(ticketService)
+	slog.Info("后台调度器已创建")
+
+	// 8. HTTP Server
+	r := router.Setup(cfg, db, handlers)
+
+	readTimeout := cfg.Server.ReadTimeout
+	if readTimeout <= 0 {
+		readTimeout = 15 * time.Second
+	}
+	writeTimeout := cfg.Server.WriteTimeout
+	if writeTimeout <= 0 {
+		writeTimeout = 60 * time.Second
+	}
+	idleTimeout := cfg.Server.IdleTimeout
+	if idleTimeout <= 0 {
+		idleTimeout = 60 * time.Second
+	}
+
+	a.server = &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler:      r,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
+	}
+
+	return a, nil
+}
+
+// run 启动服务并等待退出信号，执行优雅关闭。
+//
+// 使用 channel 替代 goroutine 中的 os.Exit：
+// goroutine 内 os.Exit(1) 会跳过所有 defer 导致资源泄漏。
+// 通过 serveErr 通道将错误传递给主 goroutine 统一处理。
+func (a *app) run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	scheduler.Start(ctx)
+	a.scheduler.Start(ctx)
 
-	// 12. 启动 HTTP 服务
+	// 启动 HTTP 服务
+	serveErr := make(chan error, 1)
 	go func() {
-		slog.Info("HTTP 服务已启动", "addr", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP 服务启动失败", "error", err)
-			os.Exit(1)
+		slog.Info("HTTP 服务已启动", "addr", a.server.Addr)
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serveErr <- fmt.Errorf("HTTP 服务启动失败: %w", err)
 		}
 	}()
 
-	// 13. 优雅关闭
+	// 等待退出信号或服务错误
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-quit
-	slog.Info("收到退出信号，开始优雅关闭...", "signal", sig)
 
-	scheduler.Stop()
-	authService.Shutdown()
+	select {
+	case sig := <-quit:
+		slog.Info("收到退出信号，开始优雅关闭...", "signal", sig)
+	case err := <-serveErr:
+		// HTTP 启动失败，仍然执行关闭链（scheduler/cancel/cleanup）
+		slog.Error("HTTP 服务异常退出，开始关闭...", "error", err)
+		defer func() {
+			// 仅在 serveErr 路径返回错误给 main
+			// 正常信号退出不返回错误
+		}()
+	}
+
+	// 优雅关闭
+	a.scheduler.Stop()
+	a.authService.Shutdown()
 	cancel()
+
+	// 关闭 reranker 子进程
+	if r, ok := a.reranker.(*adapter.SubprocessReranker); ok {
+		r.Close()
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("HTTP 服务关闭失败", "error", err)
 	} else {
 		slog.Info("HTTP 服务已关闭")
 	}
 
+	if a.logCleanup != nil {
+		a.logCleanup()
+	}
+
 	slog.Info("OpsMind 服务已停止")
+	return nil
 }

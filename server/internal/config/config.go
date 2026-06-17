@@ -35,18 +35,24 @@ type CORSConfig struct {
 
 // ServerConfig 是 HTTP 服务器配置。
 type ServerConfig struct {
-	Port int    `mapstructure:"port"`
-	Mode string `mapstructure:"mode"` // debug / release
+	Port         int           `mapstructure:"port"`
+	Mode         string        `mapstructure:"mode"`          // debug / release
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`  // HTTP 读取超时
+	WriteTimeout time.Duration `mapstructure:"write_timeout"` // HTTP 写入超时（SSE 内部续期）
+	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`  // HTTP 空闲超时
 }
 
 // DatabaseConfig 是 PostgreSQL 数据库配置。
 type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
+	Host            string        `mapstructure:"host"`
+	Port            int           `mapstructure:"port"`
+	User            string        `mapstructure:"user"`
+	Password        string        `mapstructure:"password"`
+	DBName          string        `mapstructure:"dbname"`
+	SSLMode         string        `mapstructure:"sslmode"`
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`    // 最大连接数，默认 25
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`    // 最大空闲连接数，默认 10
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // 连接最大存活时间，默认 5m
 }
 
 // JWTConfig 是 JWT 令牌配置。
@@ -70,10 +76,11 @@ type MinIOConfig struct {
 // BaseURL 指向 /v1 根路径（如 http://llama-cpp:8080/v1），
 // APIKey 对 llama.cpp 本地部署可为空。
 type LLMConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	APIKey    string `mapstructure:"api_key"`
-	Model     string `mapstructure:"model"`
-	MaxTokens int    `mapstructure:"max_tokens"`
+	BaseURL   string        `mapstructure:"base_url"`
+	APIKey    string        `mapstructure:"api_key"`
+	Model     string        `mapstructure:"model"`
+	MaxTokens int           `mapstructure:"max_tokens"`
+	Timeout   time.Duration `mapstructure:"timeout"` // LLM 调用超时，默认 60s
 }
 
 // EmbeddingConfig 是文本向量化配置。
@@ -97,10 +104,11 @@ type RerankConfig struct {
 // BaseURL 为空时回退到 llm.base_url。
 // APIKey 为空时回退到 llm.api_key。
 type EmbeddingConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	APIKey    string `mapstructure:"api_key"`
-	Model     string `mapstructure:"model"`
-	Dimension int    `mapstructure:"dimension"`
+	BaseURL   string        `mapstructure:"base_url"`
+	APIKey    string        `mapstructure:"api_key"`
+	Model     string        `mapstructure:"model"`
+	Dimension int           `mapstructure:"dimension"`
+	Timeout   time.Duration `mapstructure:"timeout"` // Embedding 调用超时，默认 30s
 }
 
 // AIConfig 是 AI 问答相关配置。
@@ -178,6 +186,9 @@ func bindEnvs(v *viper.Viper) {
 	// Server
 	v.BindEnv("server.port", "OPSMIND_SERVER_PORT")
 	v.BindEnv("server.mode", "OPSMIND_SERVER_MODE")
+	v.BindEnv("server.read_timeout", "OPSMIND_SERVER_READ_TIMEOUT")
+	v.BindEnv("server.write_timeout", "OPSMIND_SERVER_WRITE_TIMEOUT")
+	v.BindEnv("server.idle_timeout", "OPSMIND_SERVER_IDLE_TIMEOUT")
 
 	// Database
 	v.BindEnv("database.host", "OPSMIND_DATABASE_HOST")
@@ -186,6 +197,9 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("database.password", "OPSMIND_DATABASE_PASSWORD")
 	v.BindEnv("database.dbname", "OPSMIND_DATABASE_DBNAME")
 	v.BindEnv("database.sslmode", "OPSMIND_DATABASE_SSLMODE")
+	v.BindEnv("database.max_open_conns", "OPSMIND_DATABASE_MAX_OPEN_CONNS")
+	v.BindEnv("database.max_idle_conns", "OPSMIND_DATABASE_MAX_IDLE_CONNS")
+	v.BindEnv("database.conn_max_lifetime", "OPSMIND_DATABASE_CONN_MAX_LIFETIME")
 
 	// JWT
 	v.BindEnv("jwt.secret", "OPSMIND_JWT_SECRET")
@@ -203,12 +217,14 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("llm.api_key", "OPSMIND_LLM_API_KEY")
 	v.BindEnv("llm.model", "OPSMIND_LLM_MODEL")
 	v.BindEnv("llm.max_tokens", "OPSMIND_LLM_MAX_TOKENS")
+	v.BindEnv("llm.timeout", "OPSMIND_LLM_TIMEOUT")
 
 	// Embedding
 	v.BindEnv("embedding.base_url", "OPSMIND_EMBEDDING_BASE_URL")
 	v.BindEnv("embedding.api_key", "OPSMIND_EMBEDDING_API_KEY")
 	v.BindEnv("embedding.model", "OPSMIND_EMBEDDING_MODEL")
 	v.BindEnv("embedding.dimension", "OPSMIND_EMBEDDING_DIMENSION")
+	v.BindEnv("embedding.timeout", "OPSMIND_EMBEDDING_TIMEOUT")
 
 	// AI
 	v.BindEnv("ai.default_top_k", "OPSMIND_AI_DEFAULT_TOP_K")
@@ -233,6 +249,9 @@ func setDefaults(v *viper.Viper) {
 	// Server
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.read_timeout", "15s")
+	v.SetDefault("server.write_timeout", "60s")
+	v.SetDefault("server.idle_timeout", "60s")
 
 	// Database
 	v.SetDefault("database.host", "localhost")
@@ -241,6 +260,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.password", "")
 	v.SetDefault("database.dbname", "opsmind")
 	v.SetDefault("database.sslmode", "disable")
+	v.SetDefault("database.max_open_conns", 25)
+	v.SetDefault("database.max_idle_conns", 10)
+	v.SetDefault("database.conn_max_lifetime", "5m")
 
 	// JWT
 	v.SetDefault("jwt.secret", "")
@@ -258,12 +280,14 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("llm.api_key", "")
 	v.SetDefault("llm.model", "qwen3-4b")
 	v.SetDefault("llm.max_tokens", 8192)
+	v.SetDefault("llm.timeout", "60s")
 
 	// Embedding
 	v.SetDefault("embedding.base_url", "")
 	v.SetDefault("embedding.api_key", "")
 	v.SetDefault("embedding.model", "bge-m3")
 	v.SetDefault("embedding.dimension", 1024)
+	v.SetDefault("embedding.timeout", "30s")
 
 	// AI
 	v.SetDefault("ai.default_top_k", 5)

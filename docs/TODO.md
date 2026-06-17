@@ -434,15 +434,15 @@
 
 ### 启动流程（main.go）
 
-- 🔴 [cmd/main.go](/server/cmd/main.go) — 初始化流程需拆成 `wireApp()`/`runServer()` 独立函数
-- 🔴 [cmd/main.go](/server/cmd/main.go) — 数据库连接池参数应配置化（`MaxOpenConns=25` 等硬编码）
-- 🔴 [cmd/main.go](/server/cmd/main.go) — AutoMigrate 不适合生产环境：自动建表/加列可能锁表或破坏数据
-- 🔴 [cmd/main.go](/server/cmd/main.go) — LLM/Embedding 超时应区分场景配置化（查询改写 vs 生成 vs embedding 超时需求不同）
-- 🔴 [cmd/main.go](/server/cmd/main.go) — VectorStore 初始化失败应返回健康状态（而非仅 warn）
-- 🔴 [cmd/main.go](/server/cmd/main.go) — `ReadTimeout`/`WriteTimeout` 应配置化：SSE 路由需更长的 WriteTimeout
-- 🔴⭐ [cmd/main.go](/server/cmd/main.go) — **nil 传播**：pgvector/MinIO 初始化失败后 `vectorStore`/`storageClient` 为 nil 但仍传给下游服务，后续调用 panic
-- 🔴⭐ [cmd/main.go](/server/cmd/main.go) — **pgDSN 同样存在密码拼接 Bug**：同 database.go 的 DSN 特殊字符问题。
-- 🔴⭐ [cmd/main.go](/server/cmd/main.go) — **ListenAndServe 失败调用 `os.Exit(1)` 跳过所有 defer**：cancel/reranker.Close/srv.Shutdown 全部不执行。
+- ✅ [cmd/main.go](/server/cmd/main.go) — 初始化流程需拆成 `wireApp()`/`runServer()` 独立函数
+- ✅ [cmd/main.go](/server/cmd/main.go) — 数据库连接池参数应配置化（`MaxOpenConns=25` 等硬编码）
+- ✅ [cmd/main.go](/server/cmd/main.go) — AutoMigrate 不适合生产环境：自动建表/加列可能锁表或破坏数据
+- ✅ [cmd/main.go](/server/cmd/main.go) — LLM/Embedding 超时应区分场景配置化（查询改写 vs 生成 vs embedding 超时需求不同）
+- ✅ [cmd/main.go](/server/cmd/main.go) — VectorStore 初始化失败应返回健康状态（而非仅 warn）
+- ✅ [cmd/main.go](/server/cmd/main.go) — `ReadTimeout`/`WriteTimeout` 应配置化：SSE 路由需更长的 WriteTimeout
+- ✅ [cmd/main.go](/server/cmd/main.go) — **nil 传播**：pgvector/MinIO 初始化失败后 `vectorStore`/`storageClient` 为 nil 但仍传给下游服务，后续调用 panic
+- ✅ [cmd/main.go](/server/cmd/main.go) — **pgDSN 同样存在密码拼接 Bug**：同 database.go 的 DSN 特殊字符问题。
+- ✅ [cmd/main.go](/server/cmd/main.go) — **ListenAndServe 失败调用 `os.Exit(1)` 跳过所有 defer**：cancel/reranker.Close/srv.Shutdown 全部不执行。
 
 ### 配置管理
 
@@ -457,9 +457,9 @@
 
 ### 数据库
 
-- 🔴 [database/database.go](/server/internal/database/database.go) — DSN 密码直接 `fmt.Sprintf` 拼接：特殊字符（空格、`'`、`\`）导致连接失败
-- 🔴 [database/database.go](/server/internal/database/database.go) — 生产环境打印 SQL 可能泄露业务数据和 PII
-- 🔴 [database/database.go](/server/internal/database/database.go) — 启动时应 `PingContext` 超时校验：当前完全不 Ping，DB 不可达只在首次查询时暴露
+- ✅ [database/database.go](/server/internal/database/database.go) — DSN 密码直接 `fmt.Sprintf` 拼接：特殊字符（空格、`'`、`\`）导致连接失败
+- ✅ [database/database.go](/server/internal/database/database.go) — 生产环境打印 SQL 可能泄露业务数据和 PII
+- ✅ [database/database.go](/server/internal/database/database.go) — 启动时应 `PingContext` 超时校验：当前完全不 Ping，DB 不可达只在首次查询时暴露
 - 🟡 [database/migrate.go](/server/internal/database/migrate.go) — AutoMigrate 不启用 pgvector 扩展，HNSW 索引需手动创建
 - 🔴⭐ [database/migrate.go](/server/internal/database/migrate.go) — **ASC+DESC 双重索引**：GORM AutoMigrate 创建 `created_at` ASC 索引，migrate.go 又创建 DESC 索引。且 `IF NOT EXISTS` 用同名 → DESC 索引永远不创建（ASC 索引已占同名）。
 - 🔴⭐ [database/migrate.go](/server/internal/database/migrate.go) — **DESC 索引创建 Bug**：`CREATE INDEX IF NOT EXISTS idx_xxx_created_at` 在 GORM 已创建同名 ASC 索引后是 no-op。注释说"重建 DESC 索引"但实际永远不生效。
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
+| 8. 基础设施与部署 | 3 | 17+1📝 | 5 | 16 | 42 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **49** | **69** | **26+6📝** | **37** | **~200** |
+| **合计** | **37** | **69** | **26+6📝** | **26** | **~177** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
