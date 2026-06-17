@@ -162,7 +162,7 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 
 		// 3c: RRF 融合
 		fuseErr := track("hybrid_fuse", "混合融合", func() error {
-			allChunks = HybridFuse(vectorResults, bm25Results, 60, opts.RerankCount)
+			allChunks = HybridFuse(vectorResults, bm25Results, opts.RerankCount)
 			if len(allChunks) == 0 {
 				return fmt.Errorf("混合融合后无结果")
 			}

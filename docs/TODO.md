@@ -96,7 +96,7 @@
 - ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — 超量 `recordLargeIndex` warn / building 并发守卫 / LoadDict 错误 / `isValidToken` 过滤 / topK 默认 10
 - ✅ [rag/embedder.go](/server/internal/rag/embedder.go) — fail-fast / 维度一致性校验 / nil client 守卫
 - ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — 多路向量检索结果含重复 ChunkID，纯向量模式或混合融合失败回退时不做去重。
-- 🟡 [rag/hybrid.go](/server/internal/rag/hybrid.go) — `rrfK` 常量定义但零引用；k 值硬编码在调用方。应删除常量或改用常量替代形参。
+- ✅ [rag/hybrid.go](/server/internal/rag/hybrid.go) — `rrfK` 常量定义但零引用；k 值硬编码在调用方。应删除常量或改用常量替代形参。
 
 ### SSE 流式输出
 

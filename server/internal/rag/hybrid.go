@@ -32,9 +32,7 @@ const (
 //
 // 两路均有结果时计算 RRF 分数，降序排列后截取 topK。
 // 仅单路有结果时直接截断到 topK 后返回。
-//
-// k 为 RRF 平滑参数，通常设为 60。
-func HybridFuse(vectorResults, bm25Results []RetrievalResult, k int, topK int) []RetrievalResult {
+func HybridFuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult {
 	if len(vectorResults) == 0 && len(bm25Results) == 0 {
 		return nil
 	}
@@ -69,7 +67,7 @@ func HybridFuse(vectorResults, bm25Results []RetrievalResult, k int, topK int) [
 
 	// 向量路径贡献
 	for rank, r := range vectorResults {
-		rrfScore := 1.0 / (float64(k) + float64(rank+1))
+		rrfScore := 1.0 / (float64(rrfK) + float64(rank+1))
 		if entry, exists := fused[r.ChunkID]; exists {
 			entry.score += rrfScore
 		} else {
@@ -82,7 +80,7 @@ func HybridFuse(vectorResults, bm25Results []RetrievalResult, k int, topK int) [
 
 	// BM25 路径贡献
 	for rank, r := range bm25Results {
-		rrfScore := 1.0 / (float64(k) + float64(rank+1))
+		rrfScore := 1.0 / (float64(rrfK) + float64(rank+1))
 		if entry, exists := fused[r.ChunkID]; exists {
 			entry.score += rrfScore
 			// 合并内容（优先保留向量结果的内容，通常更完整）
