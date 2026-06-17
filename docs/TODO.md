@@ -287,15 +287,15 @@
 
 ### 数据安全
 
-- 🔴⭐ [repository/role_repo.go](/server/internal/repository/role_repo.go) — **GORM 零值陷阱**：`Delete(&Role{}, 0)` 删除全部角色。需加 `if id <= 0` 守卫或改用 `Where("id = ?", id).Delete()`
-- 🔴 [service/user_service.go](/server/internal/service/user_service.go) — `AssignRoles` 内层再开事务（嵌套事务风险：外层事务回滚不包含 AssignRoles 的变更）
-- 🟡⭐ [service/user_service.go](/server/internal/service/user_service.go) — **丢失更新竞态**：`Update` 用 `GetByID` → 修改内存 → `Save`，并发 `ChangePassword` 的密码哈希会被 `Save` 覆盖
-- 🟡⭐ [service/role_service.go](/server/internal/service/role_service.go) — **TOCTOU 竞态**：`Delete` 先 `CountUsersByRole` 检查再 `Delete`，并发 `AssignRoles` 可在检查后分配用户到此角色
-- 🟡⭐ [repository/user_repo.go](/server/internal/repository/user_repo.go) — **TOCTOU 竞态**：`UpdateRoleMenus` 删除-插入非原子，并发更新同角色菜单可致部分关联永久丢失
-- 🟡 [service/role_service.go](/server/internal/service/role_service.go) — 禁止删除系统内置角色（当前无 built-in 标记，无删除保护）
-- 🟡 [service/user_service.go](/server/internal/service/user_service.go) — 无「最后一个管理员」保护：冻结/修改最后的管理员角色会使系统无法管理
-- 🟡⭐ [service/user_service.go](/server/internal/service/user_service.go) — 无自我保护：用户可以冻结自己、降级自己的角色权限
-- 🟡 [repository/user_repo.go](/server/internal/repository/user_repo.go) — `AssignRoles` 不校验 roleID 是否存在、不排重、不过滤 ≤0 的非法值
+- ✅ **[2026-06-17]** [repository/role_repo.go](/server/internal/repository/role_repo.go) — **GORM 零值陷阱**：`id <= 0` 守卫 + `Where("id = ?", id).Delete()` + RowsAffected 检查
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — `AssignRoles` 移除内层事务，调用方管理事务边界
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **丢失更新竞态**：`Update` 改用 `UpdateColumns` 只写 RealName/Phone/Email，防 Save 覆盖 password_hash
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **TOCTOU 竞态**：`Delete` 包裹事务(存在检查+CountUsersByRole+删除)，防并发 AssignRoles
+- ✅ **[2026-06-17]** [repository/user_repo.go](/server/internal/repository/user_repo.go) — **TOCTOU 竞态**：`UpdateRoleMenus` 批量插入替代循环，单事务原子性
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **禁止删除内置角色**：Role 新增 `IsSystem` 字段，Delete 前置检查
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **最后管理员保护**：`assertNotLastAdmin` 检查 + `CountActiveAdmins` Repo 方法
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **防自冻结**：`Freeze(id, operatorID)` 校验 `id != operatorID`
+- ✅ **[2026-06-17]** [repository/user_repo.go](/server/internal/repository/user_repo.go) — `AssignRoles` 去重 + 过滤 `≤0` 非法值
 
 ### 查询性能
 
@@ -309,14 +309,14 @@
 - 🟡 [service/role_service.go](/server/internal/service/role_service.go) — 角色权限无白名单校验：任意字符串可作为权限写入 JSONB
 - 🟡 [repository/role_repo.go](/server/internal/repository/role_repo.go) — `Delete` 不检查 `RowsAffected`
 - 🟡 [repository/user_repo.go](/server/internal/repository/user_repo.go) — 角色权限 JSON 解析失败静默跳过 `continue`，数据损坏被掩盖
-- 🟡⭐ [service/role_service.go](/server/internal/service/role_service.go) — **`db *gorm.DB` 字段注入但从未使用**：死依赖。应删除字段和构造函数参数。
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **`db *gorm.DB` 字段已启用**：`Delete` 方法使用 `s.db.Transaction` 包裹 TOCTOU 防护事务。
 - 🟡⭐ [service/role_service.go](/server/internal/service/role_service.go) — 菜单操作通过 `UserRepo` 委托而非 `MenuRepo`，层职责不清。`RoleService.ListMenus()`/`UpdateRoleMenus()` 跨层调用 `s.userRepo`。
 
 ### 输入校验与 Model
 
 - 🟢 [service/user_service.go](/server/internal/service/user_service.go) — 缺少对 phone/email/realName 的格式/trim 校验
 - 🟢 [model/user.go](/server/internal/model/user.go) — phone 字段缺少唯一索引
-- 🟢 [model/user.go](/server/internal/model/user.go) — Role 缺少 `is_system` 不可变标记字段
+- ✅ **[2026-06-17]** [model/user.go](/server/internal/model/user.go) — Role 新增 `IsSystem bool` 不可变标记字段
 
 ### 代码 TODO
 
@@ -694,14 +694,14 @@
 | 2. 智能问答 RAG | 4⭐ | 7+3📝 | 5 | 0 | 19 |
 | 3. 知识库与文档管理 | 1⭐ | 4 | 1 | 0 | 6 |
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
-| 5. 用户与角色管理 | 2 | 12 | 3 | 4 | 21 |
+| 5. 用户与角色管理 | 0 | 5 | 2 | 4 | 11 |
 | 6. LLM 配置与适配层 | 14+2📝 | 12 | 0 | 0 | 28 |
 | 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **75** | **89** | **30+9📝** | **49** | **~263** |
+| **合计** | **73** | **82** | **29+9📝** | **49** | **~253** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
@@ -714,7 +714,7 @@
 3. TestConnection 测试错误端点 📝
 4. UpdateConfig 清空 api_key 📝
 5. 事务用错 DB 句柄（`llm_config_service.go` Create/Update 双空壳事务）
-6. `role_repo.Delete(0)` 删除全部角色
+6. ~~role_repo.Delete(0) 删除全部角色~~ ✅ 已修复
 7. pgvector/MinIO nil 传播 → panic
 8. 配置 YAML 格式错误静默吞掉
 9. ASC+DESC 双重索引 + DESC 创建 no-op
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§3 知识库 5 项修复：UploadDocuments 双倍内存→bytes.NewReader + CountArticlesByKB 错误日志 + allowedTypes 包级常量 + ProcessTask 回调方法化 + 构造函数 functional options 重构。）
+**最后更新**：2026-06-17（§5 数据安全 9 项修复：GORM 零值陷阱 + 嵌套事务 + 丢失更新竞态 + TOCTOU ×2 + 内置角色保护 + 最后管理员 + 防自冻结 + AssignRoles 校验 + IsSystem 字段 + db 字段启用。）
