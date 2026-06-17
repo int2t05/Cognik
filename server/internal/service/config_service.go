@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"opsmind/internal/model"
 	"opsmind/internal/repository"
 	"opsmind/pkg/errcode"
 
@@ -21,12 +22,13 @@ import (
 
 // ConfigService 系统配置管理服务。
 type ConfigService struct {
-	repo *repository.ConfigRepo
+	repo      *repository.ConfigRepo
+	auditRepo *repository.AuditRepo
 }
 
 // NewConfigService 创建 ConfigService 实例。
-func NewConfigService(repo *repository.ConfigRepo) *ConfigService {
-	return &ConfigService{repo: repo}
+func NewConfigService(repo *repository.ConfigRepo, auditRepo *repository.AuditRepo) *ConfigService {
+	return &ConfigService{repo: repo, auditRepo: auditRepo}
 }
 
 // GetConfig 获取指定 key 的配置值。
@@ -70,5 +72,13 @@ func (s *ConfigService) UpdateConfig(key string, value interface{}, updatedBy in
 		return fmt.Errorf("序列化配置值失败: %w", err)
 	}
 
-	return s.repo.Upsert(key, datatypes.JSON(jsonBytes), updatedBy)
+	if err := s.repo.Upsert(key, datatypes.JSON(jsonBytes), updatedBy); err != nil {
+		return err
+	}
+	s.auditRepo.Create(&model.AuditLog{
+		OperatorID: updatedBy, Action: "config.update",
+		TargetType: "config", TargetID: 0,
+		Detail: datatypes.JSON(jsonBytes),
+	})
+	return nil
 }

@@ -259,7 +259,15 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 			Action:     recordAction,
 			Content:    req.Result,
 		}
-		return txRepo.CreateRecord(record)
+		if err := txRepo.CreateRecord(record); err != nil {
+			return err
+		}
+		txAuditRepo := repository.NewAuditRepo(tx)
+		txAuditRepo.Create(&model.AuditLog{
+			OperatorID: operatorID, Action: "ticket." + req.Action,
+			TargetType: "ticket", TargetID: id,
+		})
+		return nil
 	})
 	if err != nil {
 		return err
@@ -500,6 +508,11 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 			if err := tx.Create(record).Error; err != nil {
 				return err
 			}
+			txAuditRepo := repository.NewAuditRepo(tx)
+			txAuditRepo.Create(&model.AuditLog{
+				OperatorID: 0, Action: "ticket.auto_close",
+				TargetType: "ticket", TargetID: id,
+			})
 		}
 
 		closedCount = int64(len(ids))

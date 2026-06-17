@@ -251,7 +251,8 @@ func (h *KnowledgeHandler) Disable(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Disable(c.Request.Context(), id); svcErr != nil {
+	userID, _ := getCurrentUserID(c)
+	if svcErr := h.svc.Disable(c.Request.Context(), id, userID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}

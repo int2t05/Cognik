@@ -7,7 +7,7 @@
 ### 查询审计日志
 
 ```http
-GET /api/v1/admin/audit-logs?page=1&page_size=10&operator_id=0&action=
+GET /api/v1/admin/audit-logs?page=1&page_size=10&operator_id=0&action=&target_type=&target_id=0&date_from=&date_to=
 Authorization: Bearer <token>
 ```
 
@@ -17,8 +17,12 @@ Authorization: Bearer <token>
 |------|------|------|------|------|
 | page | int | 否 | 1 | 页码 |
 | page_size | int | 否 | 10 | 每页条数（最大 100） |
-| operator_id | int | 否 | 0 | 操作人 ID（0=全部） |
-| action | string | 否 | "" | 操作类型（空=全部） |
+| operator_id | int | 否 | 0 | 操作人 ID（0=全部，包括系统自动操作） |
+| action | string | 否 | "" | 操作类型，精确匹配（空=全部） |
+| target_type | string | 否 | "" | 操作对象类型（空=全部，可选：user/role/ticket/knowledge_article/llm_config） |
+| target_id | int64 | 否 | 0 | 操作对象 ID（0=全部） |
+| date_from | string | 否 | "" | 起始日期（格式：YYYY-MM-DD，含当日） |
+| date_to | string | 否 | "" | 结束日期（格式：YYYY-MM-DD，含当日） |
 
 **响应体字段（AuditLogItem）：**
 
@@ -45,7 +49,7 @@ Authorization: Bearer <token>
       "id": 1,
       "operator_id": 1,
       "operator_name": "admin",
-      "action": "knowledge:publish",
+      "action": "knowledge.publish",
       "target_type": "knowledge_article",
       "target_id": 5,
       "detail": "{\"title\":\"VPN 密码重置 FAQ\"}",
@@ -70,14 +74,22 @@ Authorization: Bearer <token>
 
 | action | 说明 |
 |--------|------|
-| `user:create` | 创建用户 |
-| `user:update` | 更新用户 |
-| `user:freeze` | 冻结用户 |
-| `user:unfreeze` | 恢复用户 |
-| `knowledge:create` | 创建知识文章 |
-| `knowledge:publish` | 发布知识 |
-| `knowledge:disable` | 停用知识 |
-| `ticket:status_change` | 申告状态变更 |
+| `user.create` | 创建用户 |
+| `user.update` | 更新用户 |
+| `user.freeze` | 冻结用户 |
+| `user.restore` | 恢复用户 |
+| `role.create` | 创建角色 |
+| `role.update` | 更新角色 |
+| `role.delete` | 删除角色 |
+| `ticket.start` | 开始处理申告 |
+| `ticket.request_info` | 请求补充信息 |
+| `ticket.resolve` | 解决申告 |
+| `ticket.close` | 关闭申告 |
+| `ticket.auto_close` | 系统自动关闭超期申告 |
+| `knowledge.publish` | 发布知识文章 |
+| `knowledge.disable` | 停用知识文章 |
+| `config.update` | 更新系统配置 |
+| `llm_config.update` | 更新 LLM 配置 |
 
 ---
 

@@ -55,10 +55,11 @@ type txRepoFactory func(tx *gorm.DB) llmConfigRepo
 
 // LLMConfigService LLM 配置管理服务。
 type LLMConfigService struct {
-	repo       llmConfigRepo
-	newRepo    txRepoFactory
-	manager    *LLMConfigManager
-	db         *gorm.DB
+	repo      llmConfigRepo
+	newRepo   txRepoFactory
+	manager   *LLMConfigManager
+	auditRepo *repository.AuditRepo
+	db        *gorm.DB
 }
 
 // NewLLMConfigService 创建 LLMConfigService 实例。
@@ -73,9 +74,8 @@ func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
 	case *repository.LlmConfigRepo:
 		svc.repo = r
 		svc.db = r.DB()
-		svc.newRepo = func(tx *gorm.DB) llmConfigRepo {
-			return repository.NewLlmConfigRepo(tx)
-		}
+		svc.newRepo = func(tx *gorm.DB) llmConfigRepo { return repository.NewLlmConfigRepo(tx) }
+		svc.auditRepo = repository.NewAuditRepo(r.DB())
 	case llmConfigRepo:
 		svc.repo = r
 	default:
@@ -179,6 +179,13 @@ func (s *LLMConfigService) UpdateConfig(cfg *model.LlmConfig) error {
 
 	if cfg.IsDefault {
 		s.manager.store(cfg)
+	}
+	// 审计：更新 LLM 配置
+	if s.auditRepo != nil {
+		s.auditRepo.Create(&model.AuditLog{
+			OperatorID: 0, Action: "llm_config.update",
+			TargetType: "llm_config", TargetID: cfg.ID,
+		})
 	}
 	return nil
 }

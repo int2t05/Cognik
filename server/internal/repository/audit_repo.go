@@ -1,12 +1,7 @@
 // Package repository 提供审计日志的数据访问层。
 //
 // AuditRepo 封装 audit_logs 表的写入和查询操作。
-// 审计日志的写入由各 Service 层（用户管理、申告管理、知识管理等）调用，
-// 本 Repo 同时提供服务内部的 Create 方法和面向 API 的 List 方法。
-//
-// 为什么没有独立的 AuditService：
-// 审计日志是纯数据记录，无复杂业务逻辑（无状态机、无校验规则），
-// 查询和展示直接在 Repository 层完成即可，避免过度分层。
+// 审计日志写入由各 Service 层在关键操作完成后同步调用。
 package repository
 
 import (
@@ -14,6 +9,18 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// AuditFilter 审计日志查询过滤条件。
+type AuditFilter struct {
+	OperatorID int64
+	Action     string
+	TargetType string
+	TargetID   int64
+	DateFrom   string
+	DateTo     string
+	Page       int
+	PageSize   int
+}
 
 // AuditRepo 审计日志数据访问。
 type AuditRepo struct {
@@ -25,42 +32,43 @@ func NewAuditRepo(db *gorm.DB) *AuditRepo {
 	return &AuditRepo{db: db}
 }
 
-// Create 写入一条审计日志。
-//
-// 由各 Service 层在关键操作（创建/修改/删除）完成后调用。
-// 写入失败会返回 error，调用方应决定是否将写入失败视为业务错误。
+// Create 写入一条审计日志。写入失败返回 error。
 func (r *AuditRepo) Create(log *model.AuditLog) error {
-	// TODO(repository/audit): 审计写入失败是否阻断主流程需要统一策略。
-	// 关键操作（用户/角色/知识发布）通常应在同一事务中写审计，避免成功操作无审计。
 	return r.db.Create(log).Error
 }
 
-// List 分页查询审计日志，支持按操作人和操作类型筛选。
-//
-// operatorID 为 0 时不筛选操作人，action 为空字符串时不筛选操作类型。
-// 结果按 created_at DESC 排序（最新在前）。
-func (r *AuditRepo) List(operatorID int64, action string, page, pageSize int) ([]model.AuditLog, int64, error) {
+// List 分页查询审计日志，支持多维过滤。
+func (r *AuditRepo) List(f AuditFilter) ([]model.AuditLog, int64, error) {
 	var logs []model.AuditLog
 	var total int64
 
 	query := r.db.Model(&model.AuditLog{})
-
-	if operatorID > 0 {
-		query = query.Where("operator_id = ?", operatorID)
+	if f.OperatorID > 0 {
+		query = query.Where("operator_id = ?", f.OperatorID)
 	}
-	if action != "" {
-		query = query.Where("action = ?", action)
+	if f.Action != "" {
+		query = query.Where("action = ?", f.Action)
+	}
+	if f.TargetType != "" {
+		query = query.Where("target_type = ?", f.TargetType)
+	}
+	if f.TargetID > 0 {
+		query = query.Where("target_id = ?", f.TargetID)
+	}
+	if f.DateFrom != "" {
+		query = query.Where("created_at >= ?::date", f.DateFrom)
+	}
+	if f.DateTo != "" {
+		query = query.Where("created_at < (?::date + INTERVAL '1 day')", f.DateTo)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).
-		Order("created_at DESC").Find(&logs).Error; err != nil {
+	offset := (f.Page - 1) * f.PageSize
+	if err := query.Offset(offset).Limit(f.PageSize).Order("created_at DESC").Find(&logs).Error; err != nil {
 		return nil, 0, err
 	}
-
 	return logs, total, nil
 }

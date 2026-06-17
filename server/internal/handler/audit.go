@@ -6,8 +6,8 @@ package handler
 
 import (
 	"opsmind/internal/dto/request"
+	"opsmind/internal/repository"
 	"opsmind/internal/service"
-	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -23,21 +23,30 @@ func NewAuditHandler(svc *service.AuditService) *AuditHandler {
 	return &AuditHandler{svc: svc}
 }
 
-// List 查询审计日志列表（分页，支持按操作人和操作类型筛选）。
+// List 查询审计日志列表（支持多维过滤和日期范围）。
 //
-// GET /api/v1/admin/audit-logs?operator_id=1&action=user.create&page=1&page_size=10
+// GET /api/v1/admin/audit-logs?operator_id=1&action=user.create&target_type=user&target_id=42&date_from=2026-01-01&date_to=2026-06-30
 func (h *AuditHandler) List(c *gin.Context) {
-	// TODO(handler/audit): 支持 target_type/target_id/date_range 过滤。
-	// 审计排障常按资源维度检索，只有 operator/action 不足以定位具体对象历史。
 	var req request.AuditLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 
 	page, pageSize := parsePagination(c)
 
-	items, total, err := h.svc.List(req.OperatorID, req.Action, page, pageSize)
+	f := repository.AuditFilter{
+		OperatorID: req.OperatorID,
+		Action:     req.Action,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		DateFrom:   req.DateFrom,
+		DateTo:     req.DateTo,
+		Page:       page,
+		PageSize:   pageSize,
+	}
+
+	items, total, err := h.svc.List(f)
 	if err != nil {
 		handleServiceError(c, err)
 		return

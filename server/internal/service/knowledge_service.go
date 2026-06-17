@@ -19,6 +19,7 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/rag"
+	"opsmind/internal/repository"
 	"opsmind/pkg/errcode"
 
 	"gorm.io/datatypes"
@@ -80,6 +81,7 @@ type KnowledgeService struct {
 	docParser knowledgeDocParser
 	processor *rag.Processor
 	storage   adapter.StorageClient
+	auditRepo *repository.AuditRepo
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -118,6 +120,11 @@ func WithProcessor(p *rag.Processor) KnowledgeServiceOption {
 // WithStorage 设置对象存储客户端（上传时写入 MinIO）。
 func WithStorage(sc adapter.StorageClient) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.storage = sc }
+}
+
+// WithAuditRepo 设置审计日志仓库（Publish/Disable 时写入审计记录）。
+func WithAuditRepo(ar *repository.AuditRepo) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.auditRepo = ar }
 }
 
 // NewKnowledgeService 创建 KnowledgeService 实例。
@@ -440,7 +447,17 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	// Step 5: 更新状态
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
-	return s.repo.UpdateArticle(article)
+	if err := s.repo.UpdateArticle(article); err != nil {
+		return err
+	}
+	// 审计：发布文章
+	if s.auditRepo != nil {
+		s.auditRepo.Create(&model.AuditLog{
+			OperatorID: publisherID, Action: "knowledge.publish",
+			TargetType: "knowledge_article", TargetID: id,
+		})
+	}
+	return nil
 }
 
 // recordPublishFailure 持久化发布失败状态和原因，供前端展示和重试。
@@ -458,7 +475,7 @@ func (s *KnowledgeService) recordPublishFailure(article *model.KnowledgeArticle,
 //
 // 状态机：仅 Published → Disabled。停用前必须先经过审核发布流程，
 // 草稿/待审核/审核通过/已驳回状态不应直接 Disable（应通过驳回或回退路径处理）。
-func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
+func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int64) error {
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -477,7 +494,17 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
 	}
 
 	article.Status = model.ArticleStatusDisabled
-	return s.repo.UpdateArticle(article)
+	if err := s.repo.UpdateArticle(article); err != nil {
+		return err
+	}
+	// 审计：停用文章
+	if s.auditRepo != nil {
+		s.auditRepo.Create(&model.AuditLog{
+			OperatorID: operatorID, Action: "knowledge.disable",
+			TargetType: "knowledge_article", TargetID: id,
+		})
+	}
+	return nil
 }
 
 // Enable 启用已停用文章——重新执行分块→embedding→pgvector 写入并发布。
@@ -668,13 +695,13 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		}
 		article.MinioPath = fmt.Sprintf("%s/%s", bucket, key)
 		task = rag.ProcessTask{
-			ArticleID: article.ID,
-			KBID:      kbID,
-			Bucket:    bucket,
-			Key:       key,
-			FileType:  fileType,
+			ArticleID:      article.ID,
+			KBID:           kbID,
+			Bucket:         bucket,
+			Key:            key,
+			FileType:       fileType,
 			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics: s.onProcessMetrics,
+			OnMetrics:      s.onProcessMetrics,
 		}
 	} else {
 		// 无 StorageClient 时降级：同步解析文本，processor 直接分块
@@ -690,11 +717,11 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		}
 		article.Content = text
 		task = rag.ProcessTask{
-			ArticleID: article.ID,
-			KBID:      kbID,
-			Content:   text,
+			ArticleID:      article.ID,
+			KBID:           kbID,
+			Content:        text,
 			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics: s.onProcessMetrics,
+			OnMetrics:      s.onProcessMetrics,
 		}
 	}
 
@@ -764,21 +791,21 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 	if article.MinioPath != "" {
 		bucket, key := splitMinioPath(article.MinioPath)
 		task = rag.ProcessTask{
-			ArticleID: articleID,
-			KBID:      article.KBID,
-			Bucket:    bucket,
-			Key:       key,
-			FileType:  article.FileType,
+			ArticleID:      articleID,
+			KBID:           article.KBID,
+			Bucket:         bucket,
+			Key:            key,
+			FileType:       article.FileType,
 			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics: s.onProcessMetrics,
+			OnMetrics:      s.onProcessMetrics,
 		}
 	} else {
 		task = rag.ProcessTask{
-			ArticleID: articleID,
-			KBID:      article.KBID,
-			Content:   article.Content,
+			ArticleID:      articleID,
+			KBID:           article.KBID,
+			Content:        article.Content,
 			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics: s.onProcessMetrics,
+			OnMetrics:      s.onProcessMetrics,
 		}
 	}
 	if err := s.processor.Submit(task); err != nil {

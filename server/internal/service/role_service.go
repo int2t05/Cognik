@@ -18,14 +18,15 @@ import (
 
 // RoleService 角色管理服务。
 type RoleService struct {
-	repo     *repository.RoleRepo
-	menuRepo *repository.MenuRepo
-	db       *gorm.DB
+	repo      *repository.RoleRepo
+	menuRepo  *repository.MenuRepo
+	auditRepo *repository.AuditRepo
+	db        *gorm.DB
 }
 
 // NewRoleService 创建 RoleService 实例。
-func NewRoleService(repo *repository.RoleRepo, menuRepo *repository.MenuRepo, db *gorm.DB) *RoleService {
-	return &RoleService{repo: repo, menuRepo: menuRepo, db: db}
+func NewRoleService(repo *repository.RoleRepo, menuRepo *repository.MenuRepo, auditRepo *repository.AuditRepo, db *gorm.DB) *RoleService {
+	return &RoleService{repo: repo, menuRepo: menuRepo, auditRepo: auditRepo, db: db}
 }
 
 // validPermissions 权限白名单。
@@ -82,7 +83,13 @@ func (s *RoleService) Create(name, description string, permissions []string) err
 		Permissions: datatypes.JSON(permsJSON),
 	}
 
-	return s.repo.Create(role)
+	if err := s.repo.Create(role); err != nil {
+		return err
+	}
+	s.auditRepo.Create(&model.AuditLog{
+		OperatorID: 0, Action: "role.create", TargetType: "role", TargetID: role.ID,
+	})
+	return nil
 }
 
 // GetByID 根据 ID 获取角色。
@@ -138,7 +145,13 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 	role.Description = description
 	role.Permissions = datatypes.JSON(permsJSON)
 
-	return s.repo.Update(role)
+	if err := s.repo.Update(role); err != nil {
+		return err
+	}
+	s.auditRepo.Create(&model.AuditLog{
+		OperatorID: 0, Action: "role.update", TargetType: "role", TargetID: id,
+	})
+	return nil
 }
 
 // Delete 删除角色。
@@ -172,7 +185,14 @@ func (s *RoleService) Delete(id int64) error {
 			return AppError{Code: errcode.ErrConflict, Message: "角色下存在关联用户，无法删除"}
 		}
 
-		return txRepo.Delete(id)
+		if err := txRepo.Delete(id); err != nil {
+			return err
+		}
+		txAuditRepo := repository.NewAuditRepo(tx)
+		txAuditRepo.Create(&model.AuditLog{
+			OperatorID: 0, Action: "role.delete", TargetType: "role", TargetID: id,
+		})
+		return nil
 	})
 }
 

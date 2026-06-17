@@ -193,12 +193,12 @@ func main() {
 	txManager := service.NewGormTxManager(db)
 	menuRepo := repository.NewMenuRepo(db)
 	authService := service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
-	userService := service.NewUserService(userRepo, db)
-	roleService := service.NewRoleService(roleRepo, menuRepo, db)
+	userService := service.NewUserService(userRepo, auditRepo, db)
+	roleService := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
 	messageService := service.NewMessageService(messageRepo)
 	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, nil)
 	dashboardService := service.NewDashboardService(dashboardRepo)
-	configService := service.NewConfigService(configRepo)
+	configService := service.NewConfigService(configRepo, auditRepo)
 
 	// LLM 配置管理
 	// TODO(cmd/main): 启动时应把 config.yaml/env 的 LLM 配置同步为默认 LLMConfig 或作为 fallback 注入 Manager。
@@ -240,6 +240,7 @@ func main() {
 		service.WithDocParser(docParser),
 		service.WithProcessor(processor),
 		service.WithStorage(storageClient),
+		service.WithAuditRepo(auditRepo),
 	)
 	slog.Info("KnowledgeService 已初始化（含 Chunker + Processor）")
 	ticketService.SetKnowledgeService(knowledgeService)
@@ -301,7 +302,7 @@ func main() {
 		Addr:         addr,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
-			WriteTimeout: 60 * time.Second, // SSE 路由内部通过 SetWriteDeadline 续期
+		WriteTimeout: 60 * time.Second, // SSE 路由内部通过 SetWriteDeadline 续期
 		IdleTimeout:  60 * time.Second,
 	}
 

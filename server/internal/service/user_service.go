@@ -22,13 +22,14 @@ import (
 
 // UserService 用户管理服务。
 type UserService struct {
-	repo *repository.UserRepo
-	db   *gorm.DB
+	repo      *repository.UserRepo
+	auditRepo *repository.AuditRepo
+	db        *gorm.DB
 }
 
 // NewUserService 创建 UserService 实例。
-func NewUserService(repo *repository.UserRepo, db *gorm.DB) *UserService {
-	return &UserService{repo: repo, db: db}
+func NewUserService(repo *repository.UserRepo, auditRepo *repository.AuditRepo, db *gorm.DB) *UserService {
+	return &UserService{repo: repo, auditRepo: auditRepo, db: db}
 }
 
 // GetByID 根据 ID 获取用户详情（含角色列表）。
@@ -94,8 +95,6 @@ func (s *UserService) List(page, pageSize int, keyword string) (*response.UserLi
 // 流程：校验用户名唯一 → 校验密码策略 → bcrypt 哈希 → 事务(创建用户 + 分配角色)。
 // 为什么包裹在事务中：若用户创建成功但角色分配失败，事务回滚保证数据一致性。
 func (s *UserService) Create(req request.CreateUserRequest) error {
-	// TODO(service/user): 增加 username/phone/email 的格式和空白裁剪校验。
-	// 当前只校验用户名唯一和密码强度，可能写入空格用户名或非法手机号。
 	// 校验用户名唯一
 	exists, err := s.repo.ExistsByUsername(req.Username)
 	if err != nil {
@@ -145,6 +144,10 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 			}
 		}
 
+		// 审计：创建用户
+		s.auditRepo.Create(&model.AuditLog{
+			OperatorID: 0, Action: "user.create", TargetType: "user", TargetID: user.ID,
+		})
 		return nil
 	})
 }
@@ -179,6 +182,9 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 			return err
 		}
 
+		s.auditRepo.Create(&model.AuditLog{
+			OperatorID: 0, Action: "user.update", TargetType: "user", TargetID: id,
+		})
 		return nil
 	})
 }
@@ -209,7 +215,13 @@ func (s *UserService) Freeze(id int64, operatorID int64) error {
 		return err
 	}
 
-	return s.repo.UpdateStatus(id, int(model.StatusInactive))
+	if err := s.repo.UpdateStatus(id, int(model.StatusInactive)); err != nil {
+		return err
+	}
+	s.auditRepo.Create(&model.AuditLog{
+		OperatorID: operatorID, Action: "user.freeze", TargetType: "user", TargetID: id,
+	})
+	return nil
 }
 
 // Restore 恢复已冻结用户。
@@ -228,7 +240,13 @@ func (s *UserService) Restore(id int64) error {
 		return AppError{Code: errcode.ErrAlreadyActive, Message: "用户已处于正常状态"}
 	}
 
-	return s.repo.UpdateStatus(id, int(model.StatusActive))
+	if err := s.repo.UpdateStatus(id, int(model.StatusActive)); err != nil {
+		return err
+	}
+	s.auditRepo.Create(&model.AuditLog{
+		OperatorID: 0, Action: "user.restore", TargetType: "user", TargetID: id,
+	})
+	return nil
 }
 
 // assertNotLastAdmin 检查目标用户是否为最后一个系统管理员。
