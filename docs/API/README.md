@@ -1,18 +1,18 @@
 # OpsMind API 文档
 
-> 基础路径：`/api/v1` | 最后更新：2026-06-12
+> **Base URL:** `/api/v1`
 
-## 概述
+## Overview
 
 OpsMind 后端提供 RESTful JSON API，分为三组路由：
 
-| 路由组 | 前缀 | 认证要求 | 说明 |
+| Route Group | Prefix | Auth | Description |
 |--------|------|----------|------|
 | 公开 | `/api/v1/auth` | 无 | 登录、刷新令牌 |
 | 门户端 | `/api/v1/portal` | JWT | 智能问答（SSE 流式 + RAG 管道）、申告提交、进度查询、站内消息 |
 | 后台管理 | `/api/v1/admin` | JWT + RBAC | 申告处理、知识库管理（含文档上传）、LLM 配置、用户/角色、看板、审计 |
 
-## 统一响应格式
+## Response Format
 
 所有 API 响应使用统一 JSON 结构：
 
@@ -37,22 +37,26 @@ OpsMind 后端提供 RESTful JSON API，分为三组路由：
 }
 ```
 
-## 错误码
+## Error Codes
 
-| code | HTTP 状态 | 说明 |
-|------|-----------|------|
-| 0 | 200 | 成功 |
+所有 API 响应通过 `code` 字段标识业务结果，HTTP 状态码反映传输层状态。
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| 0 | 200 | Success |
 | 10001 | 401 | 未登录或令牌过期 |
 | 10002 | 403 | 无权限 |
 | 10003 | 400 | 参数校验失败 |
 | 10004 | 404 | 资源不存在 |
 | 10005 | 409 | 资源冲突（如账号名重复） |
-| 20001 | 500 | AI 服务不可用 |
-| 20002 | 500 | RAG 服务不可用 |
-| 20003 | 500 | 存储服务不可用 |
+| 10006 | 400 | 用户已被冻结 |
+| 10007 | 400 | 用户已处于正常状态 |
+| 20001 | 503 | AI 服务不可用 |
+| 20002 | 503 | RAG 服务不可用 |
+| 20003 | 503 | 存储服务不可用 |
 | 99999 | 500 | 未知错误 |
 
-## 认证
+## Authentication
 
 所有需要认证的接口需携带 JWT 令牌：
 
@@ -62,7 +66,7 @@ Authorization: Bearer <access_token>
 
 令牌通过 `/api/v1/auth/login` 获取，有效期 2 小时。过期后使用 `/api/v1/auth/refresh` 刷新。
 
-## 分页
+## Pagination
 
 支持分页的接口接受以下查询参数：
 
@@ -71,7 +75,7 @@ Authorization: Bearer <access_token>
 | `page` | int | 1 | 页码（从 1 开始） |
 | `page_size` | int | 10 | 每页条数（最大 100） |
 
-## 文档索引
+## API Reference
 
 | 文档 | 说明 |
 |------|------|

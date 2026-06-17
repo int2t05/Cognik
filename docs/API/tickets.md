@@ -1,6 +1,6 @@
 # 申告管理接口
 
-> 基础路径：`/api/v1/portal` + `/api/v1/admin` | 认证：门户端仅 JWT，后台 JWT + RBAC
+> **Base URL:** `/api/v1/portal` + `/api/v1/admin` | **Auth:** Portal: JWT only, Admin: JWT + RBAC
 
 ## 申告状态机
 
@@ -47,7 +47,7 @@ Authorization: Bearer <token>
 | title | string | ✓ | 申告标题 |
 | description | string | ✓ | 详细描述 |
 | urgency | int | ✓ | 紧急程度：1=低, 2=中, 3=高 |
-| impact_scope | int | | 影响范围：1=个人, 2=部门, 3=全公司（对齐 model/enums.go） |
+| impact_scope | int | | 影响范围：1=个人, 2=部门, 3=全公司（对应 model/enums.go 中的枚举定义） |
 | affected_systems | string[] | | 受影响系统列表 |
 | contact_phone | string | ✓ | 联系电话 |
 | contact_email | string | | 联系邮箱 |
@@ -166,7 +166,7 @@ PATCH /api/v1/portal/tickets/:id/supplement
 Authorization: Bearer <token>
 ```
 
-> 仅在状态为「需补充信息(3)」时可操作。补充完成后状态恢复为「处理中(2)」。
+> 仅在状态为「需补充信息(3)」时可执行补充操作。补充完成后状态恢复为「处理中(2)」。
 
 **请求体：**
 
@@ -220,7 +220,7 @@ Authorization: Bearer <token>
 ```
 
 > 后台详情接口与门户端（3. 申告详情）使用相同 Handler，响应格式一致。
-> 差异点：后台不限制所有权，可查看任意申告的详情；门户端仅限查看本人的申告。
+> 主要区别在于：后台不限制所有权，可查看任意申告的详情；门户端仅限查看本人的申告。
 
 **错误码：**
 
@@ -249,7 +249,7 @@ Authorization: Bearer <token>
 | action | 状态转换 | 说明 |
 |--------|----------|------|
 | `start` | 待处理(1) → 处理中(2) | 开始处理 |
-| `request_info` | 处理中(2) → 需补充信息(3) | 向报障人索要更多信息（同一申告最多 3 次） |
+| `request_info` | 处理中(2) → 需补充信息(3) | 向报障人请求补充信息（同一申告最多 3 次） |
 | `resolve` | 处理中(2) → 已解决(4) | 标记已解决 |
 | `close` | 待处理(1) / 处理中(2) / 需补充信息(3) → 已关闭(5) | 关闭申告（已解决和已关闭状态不允许关闭） |
 

@@ -1,6 +1,6 @@
 # 角色与菜单管理接口
 
-> 基础路径：`/api/v1/admin` | 认证：JWT + `user:manage` 权限
+> **Base URL:** `/api/v1/admin` | **Auth:** JWT + `user:manage` | **Module:** Roles & Menus
 
 ## 预设角色
 
@@ -13,9 +13,7 @@
 
 ---
 
-## 角色 CRUD
-
-### 1. 角色列表
+## 1. 角色列表
 
 ```http
 GET /api/v1/admin/roles?page=1&page_size=10&keyword=admin
@@ -29,8 +27,6 @@ Authorization: Bearer <token>
 | page | int | 1 | 页码 |
 | page_size | int | 10 | 每页条数（最大 100） |
 | keyword | string | — | 按角色名/描述模糊搜索（可选） |
-
-> page 默认为 1，page_size 默认为 10（最大 100）。
 
 **响应：**
 
@@ -54,7 +50,7 @@ Authorization: Bearer <token>
 }
 ```
 
-### 2. 创建角色
+## 2. 创建角色
 
 ```http
 POST /api/v1/admin/roles
@@ -79,12 +75,12 @@ Authorization: Bearer <token>
 
 **错误：**
 
-| code | 说明 |
-|------|------|
-| 10003 | 缺少必填字段（name）或格式错误 |
-| 10005 | 角色名已存在 |
+| code | HTTP | 说明 |
+|------|------|------|
+| 10003 | 400 | 缺少必填字段（name）或格式错误 |
+| 10005 | 409 | 角色名已存在 |
 
-### 3. 角色详情
+## 3. 角色详情
 
 ```http
 GET /api/v1/admin/roles/:id
@@ -110,12 +106,12 @@ Authorization: Bearer <token>
 
 **错误：**
 
-| code | 说明 |
-|------|------|
-| 10003 | 无效的角色 ID |
-| 10004 | 角色不存在 |
+| code | HTTP | 说明 |
+|------|------|------|
+| 10003 | 400 | 无效的角色 ID |
+| 10004 | 404 | 角色不存在 |
 
-### 4. 更新角色
+## 4. 更新角色
 
 ```http
 PUT /api/v1/admin/roles/:id
@@ -134,13 +130,13 @@ Authorization: Bearer <token>
 
 **错误：**
 
-| code | 说明 |
-|------|------|
-| 10003 | 参数校验失败（name 未提供）或无效 ID |
-| 10004 | 角色不存在 |
-| 10005 | 角色名已存在（与其他角色冲突） |
+| code | HTTP | 说明 |
+|------|------|------|
+| 10003 | 400 | 参数校验失败（name 未提供）或无效 ID |
+| 10004 | 404 | 角色不存在 |
+| 10005 | 409 | 角色名已存在（与其他角色冲突） |
 
-### 5. 删除角色
+## 5. 删除角色
 
 ```http
 DELETE /api/v1/admin/roles/:id
@@ -149,17 +145,15 @@ Authorization: Bearer <token>
 
 **错误：**
 
-| code | 说明 |
-|------|------|
-| 10002 | 不能删除系统内置角色 |
-| 10004 | 角色不存在 |
-| 10005 | 角色下存在关联用户，无法删除 |
+| code | HTTP | 说明 |
+|------|------|------|
+| 10002 | 403 | 不能删除系统内置角色 |
+| 10004 | 404 | 角色不存在 |
+| 10005 | 409 | 角色下存在关联用户，无法删除 |
 
 ---
 
-## 菜单管理
-
-### 6. 菜单列表
+## 6. 菜单列表
 
 ```http
 GET /api/v1/admin/menus
@@ -205,7 +199,7 @@ Authorization: Bearer <token>
 | sort_order | int | 排序 |
 | type | string | 菜单类型（menu/button） |
 
-### 7. 更新角色菜单权限
+## 7. 更新角色菜单权限
 
 ```http
 PUT /api/v1/admin/roles/:id/menus
@@ -238,7 +232,7 @@ Authorization: Bearer <token>
 
 **错误：**
 
-| code | 说明 |
-|------|------|
-| 10003 | 参数校验失败（menu_ids 未提供）或无效 ID |
-| 10004 | 角色不存在 |
+| code | HTTP | 说明 |
+|------|------|------|
+| 10003 | 400 | 参数校验失败（menu_ids 未提供）或无效 ID |
+| 10004 | 404 | 角色不存在 |

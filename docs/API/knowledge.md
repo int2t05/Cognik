@@ -1,6 +1,6 @@
 # 知识库管理接口
 
-> 基础路径：`/api/v1/admin` | 认证：JWT + RBAC
+> **Base URL:** `/api/v1/admin` + `/api/v1/portal` | **Auth:** Admin: JWT + RBAC, Portal: JWT only
 
 ## 知识文章状态
 
