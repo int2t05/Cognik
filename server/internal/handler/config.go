@@ -1,10 +1,11 @@
 // Package handler 实现 HTTP 请求处理。
 //
 // config.go 提供系统配置管理接口。
-// 支持获取和更新系统配置项（如 AI 参数、系统行为开关）。
 package handler
 
 import (
+	"encoding/json"
+
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -44,27 +45,42 @@ func (h *ConfigHandler) Get(c *gin.Context) {
 // Update 更新或创建系统配置。
 //
 // PUT /api/v1/admin/configs/:key
+//
+// 使用 json.RawMessage 检查 "value" 键是否存在，
+// 避免 binding:"required" 将 false/0/"" 等合法值误判为缺失。
 func (h *ConfigHandler) Update(c *gin.Context) {
-	// TODO(handler/config): binding:"required" 会让 false、0 等合法配置值被判定为缺失。
-	// 应改为解析 map[string]json.RawMessage 并检查 value key 是否存在。
 	key := c.Param("key")
 	if key == "" {
 		response.Error(c, errcode.ErrParam, "配置 key 不能为空")
 		return
 	}
 
-	var body struct {
-		Value interface{} `json:"value" binding:"required"`
+	// 先读取原始 JSON 检查 "value" 键是否存在
+	raw, err := c.GetRawData()
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "读取请求体失败")
+		return
 	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		response.Error(c, errcode.ErrParam, "请求体不是合法 JSON")
+		return
+	}
+	valRaw, ok := m["value"]
+	if !ok {
+		response.Error(c, errcode.ErrParam, "缺少 value 字段")
 		return
 	}
 
-	// 从 JWT context 获取操作人 ID
-	updatedBy, _ := getCurrentUserID(c)
+	// 反序列化 value 为任意类型
+	var val interface{}
+	if err := json.Unmarshal(valRaw, &val); err != nil {
+		response.Error(c, errcode.ErrParam, "value 字段解析失败")
+		return
+	}
 
-	if err := h.svc.UpdateConfig(key, body.Value, updatedBy); err != nil {
+	updatedBy, _ := getCurrentUserID(c)
+	if err := h.svc.UpdateConfig(key, val, updatedBy); err != nil {
 		handleServiceError(c, err)
 		return
 	}

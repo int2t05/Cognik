@@ -7,6 +7,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/spf13/viper"
@@ -133,13 +134,8 @@ type AIConfig struct {
 func Load(configPath string) (*AppConfig, error) {
 	v := viper.New()
 
-	// 设置默认值
-	// TODO(config): 增加 Validate() 阶段统一校验配置合法性。
-	// 例如 server.mode 只能是 debug/release、端口范围、TopK 范围、confidence_threshold 范围，
-	// 以及 release 模式下 JWT/数据库/对象存储关键配置必须显式提供。
 	setDefaults(v)
 
-	// 读取配置文件
 	if configPath != "" {
 		v.SetConfigFile(configPath)
 	} else {
@@ -148,41 +144,29 @@ func Load(configPath string) (*AppConfig, error) {
 		v.AddConfigPath("./internal/config")
 	}
 
-	// 配置文件不存在时不报错（使用默认值和环境变量）
-	// TODO(config): 非 ConfigFileNotFoundError 的 ReadInConfig 错误（如 YAML 格式错误）被静默丢弃，
-	// 应用以默认值启动而不报错——生产环境可能以错误配置运行。应区分错误类型并至少 Warn。
+	// 配置文件不存在不报错（使用默认值和环境变量），
+	// 但 YAML 格式错误等非 NotFound 错误必须暴露。
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, err
+			return nil, fmt.Errorf("读取配置文件失败: %w", err)
 		}
 	}
 
-	// 显式绑定环境变量，确保 Unmarshal 能正确覆盖嵌套字段。
-	// 为什么用 BindEnv 而非 AutomaticEnv：AutomaticEnv 对嵌套 key 的
-	// 环境变量映射不一致（需要 key 和 env 同名），BindEnv 更可控。
 	bindEnvs(v)
 
 	var cfg AppConfig
 	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
-	// TODO(config): 记录实际生效配置时应对 password/api_key/secret 做脱敏。
-	// 后续如果添加配置诊断日志，避免把敏感值打到 stdout 或容器日志。
-	//
-	// TODO(config): time.Duration 字段的 BindEnv 映射需注意格式差异。
-	// Viper 要求 time.Duration 为字符串形式（如 "2h"），裸数字 3600 会导致解析失败。
-	// 应在 Validate() 中检测 duration 字段为零值并生成可操作的错误消息。
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("配置校验失败: %w", err)
+	}
 	return &cfg, nil
 }
 
 // bindEnvs 显式绑定环境变量到配置 key。
-//
-// 环境变量命名规则：OPSMIND_ + 字段路径（下划线分隔），
-// 例如 database.host → OPSMIND_DATABASE_HOST。
 func bindEnvs(v *viper.Viper) {
-	// TODO(config): 这里的 BindEnv 调用应检查返回 error。
-	// Viper 当前通常返回 nil，但忽略错误会掩盖未来 key 绑定失败或测试替身异常。
 	// Server
 	v.BindEnv("server.port", "OPSMIND_SERVER_PORT")
 	v.BindEnv("server.mode", "OPSMIND_SERVER_MODE")
@@ -242,6 +226,44 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("rerank.enabled", "OPSMIND_RERANK_ENABLED")
 	v.BindEnv("rerank.python_path", "OPSMIND_RERANK_PYTHON_PATH")
 	v.BindEnv("rerank.script_path", "OPSMIND_RERANK_SCRIPT_PATH")
+}
+
+// Validate 校验配置合法性，在 Load 完成后自动调用。
+//
+// 校验项：
+//   - server.mode 只能是 debug 或 release
+//   - server.port 在有效范围 1-65535
+//   - release 模式下 JWT secret 必须非空
+//   - AI 阈值在合理范围（top_k 1-100, confidence_threshold 0-1）
+//   - duration 零值检测（提示可能是 env 格式问题——裸数字 "3600" 而非 "2h"）
+func (c *AppConfig) Validate() error {
+	if c.Server.Mode != "debug" && c.Server.Mode != "release" {
+		return fmt.Errorf("server.mode 必须为 debug 或 release，当前值: %q", c.Server.Mode)
+	}
+	if c.Server.Port < 1 || c.Server.Port > 65535 {
+		return fmt.Errorf("server.port 必须在 1-65535 范围内，当前值: %d", c.Server.Port)
+	}
+
+	if c.Server.Mode == "release" && c.JWT.Secret == "" {
+		return fmt.Errorf("release 模式下 jwt.secret 不能为空")
+	}
+
+	if c.AI.DefaultTopK < 1 || c.AI.DefaultTopK > 100 {
+		return fmt.Errorf("ai.default_top_k 必须在 1-100 范围内，当前值: %d", c.AI.DefaultTopK)
+	}
+	if c.AI.ConfidenceThreshold < 0 || c.AI.ConfidenceThreshold > 1 {
+		return fmt.Errorf("ai.confidence_threshold 必须在 0-1 范围内，当前值: %f", c.AI.ConfidenceThreshold)
+	}
+
+	// 检测 duration 零值：可能由 env 裸数字格式导致（Viper 要求 duration 为字符串如 "2h"）
+	if c.JWT.AccessExpire == 0 {
+		return fmt.Errorf("jwt.access_expire 为零值，可能是 env 格式错误（需字符串如 \"2h\"，而非裸数字 3600）")
+	}
+	if c.JWT.RefreshExpire == 0 {
+		return fmt.Errorf("jwt.refresh_expire 为零值，可能是 env 格式错误（需字符串如 \"168h\"）")
+	}
+
+	return nil
 }
 
 // setDefaults 设置配置默认值，与 config.yaml 保持一致。

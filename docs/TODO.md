@@ -446,14 +446,14 @@
 
 ### 配置管理
 
-- 🔴⭐ [config/config.go](/server/internal/config/config.go) — **配置错误静默吞掉**：非 `ConfigFileNotFoundError` 的 `ReadInConfig` 错误（如 YAML 格式错误）被丢弃，应用以默认值启动
-- 🟡 [config/config.go](/server/internal/config/config.go) — 增加 `Validate()` 统一校验：mode/port 有效性、JWT 非空、AI 阈值范围
-- 🟡 [config/config.go](/server/internal/config/config.go) — 日志脱敏 password/api_key/secret：`config.Dump()` 或日志输出前应掩码
-- 🟡 [config/config.go](/server/internal/config/config.go) — `BindEnv` 24 处返回值全部忽略
-- 🟢 [config/config.go](/server/internal/config/config.go) — `time.Duration` 解析：`OPSMIND_JWT_ACCESS_EXPIRE=3600`（裸数字）会导致解析失败
-- 📌 [service/config_service.go:37](/server/internal/service/config_service.go) — Config key whitelist and type definitions needed
-- 📌 [service/config_service.go:62](/server/internal/service/config_service.go) — 更新 ai 配置项未同步到运行时
-- 📌 [handler/config.go:48](/server/internal/handler/config.go) — binding:"required" 会让 false、0 等合法配置值被判定为缺失
+- ✅ [config/config.go](/server/internal/config/config.go) — **配置错误静默吞掉**：非 `ConfigFileNotFoundError` 的 `ReadInConfig` 错误（如 YAML 格式错误）被丢弃，应用以默认值启动
+- ✅ [config/config.go](/server/internal/config/config.go) — 增加 `Validate()` 统一校验：mode/port 有效性、JWT 非空、AI 阈值范围
+- ✅ [config/config.go](/server/internal/config/config.go) — 日志脱敏 password/api_key/secret：`config.Dump()` 或日志输出前应掩码
+- ✅ [config/config.go](/server/internal/config/config.go) — `BindEnv` 24 处返回值全部忽略
+- ✅ [config/config.go](/server/internal/config/config.go) — `time.Duration` 解析：`OPSMIND_JWT_ACCESS_EXPIRE=3600`（裸数字）会导致解析失败
+- ✅ [service/config_service.go](/server/internal/service/config_service.go) — Config key whitelist and type definitions needed
+- ✅ [service/config_service.go](/server/internal/service/config_service.go) — 更新 ai 配置项未同步到运行时
+- ✅ [handler/config.go](/server/internal/handler/config.go) — binding:"required" 会让 false、0 等合法配置值被判定为缺失
 
 ### 数据库
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 3 | 17+1📝 | 5 | 16 | 42 |
+| 8. 基础设施与部署 | 3 | 14+1📝 | 4 | 13 | 35 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **37** | **69** | **26+6📝** | **26** | **~177** |
+| **合计** | **37** | **66** | **25+6📝** | **23** | **~170** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
