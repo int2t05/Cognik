@@ -108,10 +108,11 @@
 
 ### 知识发布管道（核心路径）
 
-- 🔴 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `DeleteByArticle` + `BatchInsert` 非原子：删除旧向量成功但新向量写入失败 → 文章向量永久丢失
-- 🔴 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish 使用 `context.Background` 忽略请求取消
-- 🔴 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 管道未初始化（`pipeline == nil`）时应映射为 `ErrRAGUnavailable`，而非静默跳过
-- 📌 [service/knowledge_service.go:323](/server/internal/service/knowledge_service.go) — 发布失败时应设置 process_status=failed 和 process_error
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `DeleteByArticle` + `BatchInsert` 非原子：删除旧向量成功但新向量写入失败 → 文章向量永久丢失。**修复：先 BatchInsert 写入新向量，成功后再 DeleteByArticle 删旧向量。**
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish 使用 `context.Background` 忽略请求取消。**修复：Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()。**
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 管道未初始化（`chunker/embedder/store == nil`）时应映射为 `ErrRAGUnavailable`。**修复：返回 errcode.AppError{Code: ErrRAGUnavailable, ...}。**
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go:323](/server/internal/service/knowledge_service.go) — 发布失败时应设置 process_status=failed 和 process_error。**修复：新增 recordPublishFailure()，在 Embed/BatchInsert 失败时持久化。**
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 使用 `context.Background`。**修复：Disable(ctx, id)，Handler 传 c.Request.Context()。**
 
 ### 文章状态机
 
@@ -119,7 +120,7 @@
 - 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Enable 仅重置 status 为 Draft，不重新执行分块/Embedding/pgvector 写入。📝 [API/knowledge.md](API/knowledge.md) 记载「启用后需重新执行分块→embedding→pgvector 写入（因为停用时向量已删除）」。
 - 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 未校验当前状态是否为已发布（Draft 可直接 Disable）。📝 [API/knowledge.md](API/knowledge.md) 记载「状态：已发布(4) → 已停用(5)」。
 - 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 文章 `status`（审核流程）和 `process_status`（文档处理）两个状态机概念混淆
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish/Disable 应接收请求 ctx 而非 `context.Background`
+- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish/Disable 应接收请求 ctx 而非 `context.Background`。**修复：Publish(ctx, id, uid) + Disable(ctx, id)，Handler 传入 c.Request.Context()。**
 - 🟡 [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — `UpdateArticleStatus` 不检查 `RowsAffected`，更新不存在的 ID 静默成功
 
 ### 文档上传与异步处理
@@ -163,6 +164,13 @@
 
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt 方案 → cross-encoder 子进程重排序
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — `_ = i` 调试残留删除
+- ✅ **[2026-06-17]** `DeleteByArticle` + `BatchInsert` 非原子 — 先写后删，新向量写入成功后才删旧向量
+- ✅ **[2026-06-17]** Publish `context.Background` — 改为 Publish( ctx, id, publisherID )，Handler 传 c.Request.Context()
+- ✅ **[2026-06-17]** 管道 nil → `ErrRAGUnavailable` — 替换 ErrUnknown(99999) 为 ErrRAGUnavailable(20002)
+- ✅ **[2026-06-17]** 发布失败记录 process_status=failed — 新增 recordPublishFailure()，Embed/BatchInsert 失败时持久化
+- ✅ **[2026-06-17]** Disable `context.Background` — Disable(ctx, id)，Handler 传 c.Request.Context()
+- ✅ **[2026-06-17]** ArticleStatusDisabled 值文档漂移 — 图表从 4 修正为 0（与 model/enums.go 一致）
+- ✅ **[2026-06-17]** KB 删除 API 补齐 — 新增 DELETE /knowledge-bases/:id (Handler→Service→Repo 三层) + 前端 deleteKnowledgeBase()
 
 ---
 
@@ -599,7 +607,7 @@
 |----------|-------|-------|-------|----------|------|
 | 1. 认证与授权 | 0 | 0 | 1 | 0 | 1 |
 | 2. 智能问答 RAG | 0 | 1📝 | 2 | 0 | 3 |
-| 3. 知识库与文档管理 | 3 | 12+5📝 | 5 | 7 | 32 |
+| 3. 知识库与文档管理 | 0 | 8+5📝 | 5 | 6 | 24 |
 | 4. 申告管理 | 5 | 7+1📝 | 2 | 10 | 25 |
 | 5. 用户与角色管理 | 2 | 9 | 3 | 4 | 18 |
 | 6. LLM 配置与适配层 | 12+2📝 | 9 | 0 | 0 | 23 |
@@ -608,7 +616,7 @@
 | 9. 前端架构与交互 | 7⭐ | 11+5⭐ | 10+5⭐ | 9 | 47 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **53** | **69** | **30+9📝** | **51** | **~212** |
+| **合计** | **50** | **65** | **30+9📝** | **48** | **~202** |
 
 > ⭐ 标记项为 2026-06-16 审计新发现（前端 18 项 + 后端 13 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷（共 9 项）。
@@ -630,8 +638,8 @@
 12. 前端创建 LLM 配置崩溃
 13. Repository 全层缺 context.Context
 14. `is_default` 缺部分唯一索引
-15. DeleteByArticle 非原子
-16. 文章状态编号文档 vs 代码不一致 📝
+15. ~~DeleteByArticle 非原子~~ ✅ 已修复 2026-06-17
+16. ~~文章状态编号文档 vs 代码不一致~~ ✅ 已修复 2026-06-17（图表中 Disabled=4 → 0）
 17. 上传 API 字段名文档 vs 代码不一致 📝
 18. ⭐ crypto.randomUUID() 无 fallback（前端）
 19. ⭐ TicketDetail 缺 loading 守卫（前端）
@@ -639,4 +647,4 @@
 
 ---
 
-**最后更新**：2026-06-16（"已修复"全部改为逐项 ✅ 列表；§1 20 项 + §2 43 项 + §3 2 项 + §10 1 项）
+**最后更新**：2026-06-17（§3 知识发布管道 4 P0 + 1 P1 + 图表漂移全部修复；KB 删除 API 补齐；文档一致性同步）
