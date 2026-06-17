@@ -156,11 +156,11 @@
 - ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 管道未初始化时映射为 `ErrRAGUnavailable`。
 - ✅ **[2026-06-17]** [service/knowledge_service.go:323](/server/internal/service/knowledge_service.go) — 发布失败设置 process_status=failed + process_error。
 - ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 使用 `context.Background`。**修复：Disable(ctx, id)。**
-- 🔴⭐ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — **UploadDocuments 双倍内存分配**：`io.ReadAll`（50MB `[]byte`）后再 `string(data)`（再 50MB），并发上传迅速耗尽内存。应使用 `bytes.NewReader(data)` 避免二次分配。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `CountArticlesByKB` 错误静默丢弃，查询失败时所有 KB 文章计数显示为 0。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `allowedTypes` map 在每个上传请求中重建，应为包级常量。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — ProcessTask 回调中 `_ = s.repo.UpdateArticleProcessStatus(...)` 丢弃错误，状态更新失败静默丢失。
-- 🟢 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 构造函数 8 个位置参数，可读性差。建议用 functional options 模式。
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — **UploadDocuments 双倍内存分配**：`io.ReadAll`（50MB `[]byte`）后再 `string(data)`（再 50MB），并发上传迅速耗尽内存。已改用 `bytes.NewReader(data)` 避免二次分配。
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `CountArticlesByKB` 错误静默丢弃，查询失败时所有 KB 文章计数显示为 0。
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `allowedTypes` map 在每个上传请求中重建，已提取为包级常量 `allowedDocumentTypes`。
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — ProcessTask 回调中 `_ = s.repo.UpdateArticleProcessStatus(...)` 丢弃错误。已提取为 `onProcessStatusChange`/`onProcessMetrics` 方法，内部 slog.Warn 记录失败。
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 构造函数 8 个位置参数，已重构为 functional options 模式（`WithUserNames`/`WithChunker`/`WithEmbedder`/`WithVectorStore`/`WithDocParser`/`WithProcessor`/`WithStorage`）。
 
 ### 文章状态机
 
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§2 RAG 4 项修复：BM25 文档长度改用 token 词数 + gse 词典加载失败回退字符级切分 + ChatMessage pipeline_metrics JSONB 字段 + DOCX 正则段落边界 next-tag 检测。）
+**最后更新**：2026-06-17（§3 知识库 5 项修复：UploadDocuments 双倍内存→bytes.NewReader + CountArticlesByKB 错误日志 + allowedTypes 包级常量 + ProcessTask 回调方法化 + 构造函数 functional options 重构。）

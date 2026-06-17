@@ -76,8 +76,7 @@ func setupKnowledgeIntegration(t *testing.T) *knowledgeIntEnv {
 
 	// 组装依赖链（nil 管道组件 — Publish 仅更新状态，不执行分块/embedding）
 	knowledgeRepo := repository.NewKnowledgeRepo(db)
-	knowledgeSvc := service.NewKnowledgeService(knowledgeRepo,
-		nil, nil, nil, nil, nil, nil, nil)
+	knowledgeSvc := service.NewKnowledgeService(knowledgeRepo)
 	knowledgeH := handler.NewKnowledgeHandler(knowledgeSvc)
 
 	// 路由（模拟管理员用户 user_id=1）

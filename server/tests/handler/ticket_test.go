@@ -76,7 +76,7 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 
 	ticketRepo := repository.NewTicketRepo(db)
 	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db))
-	kbSvc := service.NewKnowledgeService(repository.NewKnowledgeRepo(db), nil, nil, nil, nil, nil, nil, nil)
+	kbSvc := service.NewKnowledgeService(repository.NewKnowledgeRepo(db))
 	ticketH := handler.NewTicketHandler(ticketSvc, kbSvc)
 
 	r := gin.New()

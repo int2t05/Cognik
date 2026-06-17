@@ -4,6 +4,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,9 @@ import (
 
 // MaxDocumentSize 文档上传大小上限（50MB）。
 const MaxDocumentSize = 50 * 1024 * 1024
+
+// allowedDocumentTypes 支持上传的文档格式白名单。
+var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
 
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
 // 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
@@ -68,30 +72,75 @@ type userNameResolver interface {
 //
 // 所有依赖使用接口类型，便于测试 mock。
 type KnowledgeService struct {
-	repo       knowledgeRepo
-	userNames  userNameResolver
-	chunker    knowledgeChunker
-	embedder   knowledgeEmbedder
-	store      adapter.VectorStore
-	docParser  knowledgeDocParser
-	processor  *rag.Processor
-	storage    adapter.StorageClient // MinIO 文档对象存储
+	repo      knowledgeRepo
+	userNames userNameResolver
+	chunker   knowledgeChunker
+	embedder  knowledgeEmbedder
+	store     adapter.VectorStore
+	docParser knowledgeDocParser
+	processor *rag.Processor
+	storage   adapter.StorageClient
+}
+
+// KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
+type KnowledgeServiceOption func(*KnowledgeService)
+
+// WithUserNames 设置用户名解析器（用于列表/详情填充 created_by_name 等字段）。
+func WithUserNames(u userNameResolver) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.userNames = u }
+}
+
+// WithChunker 设置文本分块器（发布/启用文章时使用）。
+func WithChunker(c knowledgeChunker) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.chunker = c }
+}
+
+// WithEmbedder 设置向量嵌入器（发布/启用文章时使用）。
+func WithEmbedder(e knowledgeEmbedder) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.embedder = e }
+}
+
+// WithVectorStore 设置 pgvector 向量存储（发布/启用/停用/删除时使用）。
+func WithVectorStore(vs adapter.VectorStore) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.store = vs }
+}
+
+// WithDocParser 设置文档解析器（上传时非 MinIO 降级路径使用）。
+func WithDocParser(dp knowledgeDocParser) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.docParser = dp }
+}
+
+// WithProcessor 设置文档异步处理器（上传时入队异步分块/embedding）。
+func WithProcessor(p *rag.Processor) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.processor = p }
+}
+
+// WithStorage 设置对象存储客户端（上传时写入 MinIO）。
+func WithStorage(sc adapter.StorageClient) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.storage = sc }
 }
 
 // NewKnowledgeService 创建 KnowledgeService 实例。
 //
-// repo/userNames/chunker/embedder/store/docParser/processor 可以为 nil（测试或部分功能不需要时）。
-func NewKnowledgeService(repo knowledgeRepo, userNames userNameResolver, chunker knowledgeChunker, embedder knowledgeEmbedder, store adapter.VectorStore, docParser knowledgeDocParser, processor *rag.Processor, storage adapter.StorageClient) *KnowledgeService {
-	return &KnowledgeService{
-		repo:      repo,
-		userNames: userNames,
-		chunker:   chunker,
-		embedder:  embedder,
-		store:     store,
-		docParser: docParser,
-		processor: processor,
-		storage:   storage,
+// repo 为必需参数（所有业务操作依赖数据访问）。
+// 其余依赖通过可选函数注入——调用方只传非 nil 的依赖，
+// 避免 8 位置参数的可读性问题。
+//
+// 示例：
+//
+//	// 生产环境全依赖
+//	svc := NewKnowledgeService(repo,
+//	    WithUserNames(userRepo), WithChunker(c), WithEmbedder(e),
+//	    WithVectorStore(vs), WithDocParser(dp), WithProcessor(proc), WithStorage(sc))
+//
+//	// 测试环境仅 repo
+//	svc := NewKnowledgeService(repo)
+func NewKnowledgeService(repo knowledgeRepo, opts ...KnowledgeServiceOption) *KnowledgeService {
+	s := &KnowledgeService{repo: repo}
+	for _, o := range opts {
+		o(s)
 	}
+	return s
 }
 
 // =============================================================================
@@ -175,7 +224,11 @@ func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
 	// 批量获取文章数量，避免 N+1 查询
 	counts := map[int64]int{}
 	if s.repo != nil {
-		counts, _ = s.repo.CountArticlesByKB()
+		var countErr error
+		counts, countErr = s.repo.CountArticlesByKB()
+		if countErr != nil {
+			slog.Warn("批量获取文章计数失败，所有 KB 计数将显示为 0", "error", countErr)
+		}
 	}
 
 	result := make([]response.KBResponse, len(kbs))
@@ -577,8 +630,7 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		return nil, err
 	}
 
-	allowedTypes := map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
-	if !allowedTypes[fileType] {
+	if !allowedDocumentTypes[fileType] {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/md/txt）"}
 	}
 
@@ -610,7 +662,7 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		// 写入 MinIO 对象存储，processor 异步下载解析
 		bucket := "opsmind-documents"
 		key := fmt.Sprintf("documents/%d_%s", time.Now().UnixNano(), filename)
-		if _, err := s.storage.Upload(context.Background(), bucket, key, strings.NewReader(string(data)), int64(len(data)), ""); err != nil {
+		if _, err := s.storage.Upload(context.Background(), bucket, key, bytes.NewReader(data), int64(len(data)), ""); err != nil {
 			slog.Error("上传文件到 MinIO 失败", "bucket", bucket, "key", key, "error", err)
 			return nil, errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文件到对象存储失败"}
 		}
@@ -621,19 +673,15 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 			Bucket:    bucket,
 			Key:       key,
 			FileType:  fileType,
-			OnStatusChange: func(aID int64, status, errMsg string) {
-				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-			},
-			OnMetrics: func(aID int64, wordCount, chunkCount int) {
-				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
-			},
+			OnStatusChange: s.onProcessStatusChange,
+			OnMetrics: s.onProcessMetrics,
 		}
 	} else {
 		// 无 StorageClient 时降级：同步解析文本，processor 直接分块
 		if s.docParser == nil {
 			return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "文档解析器未初始化"}
 		}
-		text, err := s.docParser.Parse(strings.NewReader(string(data)), fileType)
+		text, err := s.docParser.Parse(bytes.NewReader(data), fileType)
 		if err != nil {
 			return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档解析失败: " + err.Error()}
 		}
@@ -645,12 +693,8 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 			ArticleID: article.ID,
 			KBID:      kbID,
 			Content:   text,
-			OnStatusChange: func(aID int64, status, errMsg string) {
-				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-			},
-			OnMetrics: func(aID int64, wordCount, chunkCount int) {
-				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
-			},
+			OnStatusChange: s.onProcessStatusChange,
+			OnMetrics: s.onProcessMetrics,
 		}
 	}
 
@@ -725,24 +769,16 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 			Bucket:    bucket,
 			Key:       key,
 			FileType:  article.FileType,
-			OnStatusChange: func(aID int64, status, errMsg string) {
-				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-			},
-			OnMetrics: func(aID int64, wordCount, chunkCount int) {
-				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
-			},
+			OnStatusChange: s.onProcessStatusChange,
+			OnMetrics: s.onProcessMetrics,
 		}
 	} else {
 		task = rag.ProcessTask{
 			ArticleID: articleID,
 			KBID:      article.KBID,
 			Content:   article.Content,
-			OnStatusChange: func(aID int64, status, errMsg string) {
-				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-			},
-			OnMetrics: func(aID int64, wordCount, chunkCount int) {
-				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
-			},
+			OnStatusChange: s.onProcessStatusChange,
+			OnMetrics: s.onProcessMetrics,
 		}
 	}
 	if err := s.processor.Submit(task); err != nil {
@@ -754,6 +790,23 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 // =============================================================================
 // 辅助函数
 // =============================================================================
+
+// onProcessStatusChange 更新文档处理状态，失败时记录日志但不阻塞流程。
+//
+// 作为 Processor 回调使用——Processor 在异步 goroutine 中运行，
+// 状态更新失败不应 panic，仅记录日志供排查。
+func (s *KnowledgeService) onProcessStatusChange(aID int64, status, errMsg string) {
+	if err := s.repo.UpdateArticleProcessStatus(aID, status, errMsg); err != nil {
+		slog.Warn("更新文档处理状态失败", "article_id", aID, "status", status, "error", err)
+	}
+}
+
+// onProcessMetrics 更新文档指标（字数/分块数），失败时记录日志但不阻塞流程。
+func (s *KnowledgeService) onProcessMetrics(aID int64, wordCount, chunkCount int) {
+	if err := s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount); err != nil {
+		slog.Warn("更新文档指标失败", "article_id", aID, "error", err)
+	}
+}
 
 // resolveUserNames 批量解析文章关联的用户名（创建人 + 发布人）。
 //
