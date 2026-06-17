@@ -75,16 +75,16 @@ make up
 LLM/Embedding 服务是可选的——基础功能不依赖 AI 模型。如需本地 AI：
 
 ```bash
-# 下载模型（首次约 3.2GB）
-pip install huggingface_hub
-hf download Qwen/Qwen3-4B-GGUF Qwen3-4B-Q4_K_M.gguf --local-dir ./models
-hf download Qwen/Qwen3-Embedding-0.6B-GGUF Qwen3-Embedding-0.6B-Q8_0.gguf --local-dir ./models
+# 下载模型（首次约 3.2GB，国内走 ModelScope 阿里 CDN）
+pip install modelscope
+python -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-4B-GGUF', allow_patterns='*Q4_K_M*', local_dir='./models')"
+python -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-Embedding-0.6B-GGUF', allow_patterns='*Q8_0*', local_dir='./models')"
 
 # 启动含 AI 的完整环境
 docker compose --profile ai-local up -d --build
 ```
 
-> `docker compose --profile ai-local` 首次启动也会自动下载模型，以上命令供手动/离线场景使用。
+> `docker compose --profile ai-local` 首次启动也会自动下载（默认走 ModelScope）。
 
 ```bash
 # 加载演示数据（含预置账号）
