@@ -41,8 +41,6 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 //
 // GET /api/v1/admin/dashboard/trends
 func (h *DashboardHandler) GetTrends(c *gin.Context) {
-	// TODO(handler/dashboard): granularity 参数已在前端/API 类型中出现，但 Service 当前忽略。
-	// 应支持 day/week 或从请求 DTO 中移除，避免调用方误以为生效。
 	var req request.TrendRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())

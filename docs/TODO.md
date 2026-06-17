@@ -372,19 +372,19 @@
 
 ### 看板统计
 
-- 🔴 [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — `.Scan()` 错误被丢弃：聚合查询失败时静默返回零值，掩盖数据库故障
-- 🟡 [router/admin.go](/server/internal/router/admin.go) — Dashboard 路由使用 `audit:read` 权限控制，应有独立的 `dashboard:read` 权限
-- 🟡⭐ [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — `GetTrends` 无日期上限限制，跨年查询生成海量日期序列 + 大响应体。
-- 🟢⭐ [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — GetStats 中 7 项统计查询全串行，首屏看板延迟为所有 SQL 延迟之和。
-- 📌 [handler/dashboard.go:44](/server/internal/handler/dashboard.go) — granularity 参数已在前端/API 类型中出现，但 Service 当前忽略。Handler TODO 确认后端未实现。
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — `.Scan()` 错误已正确处理（所有调用均检查 `if err != nil`）
+- ✅ **[2026-06-17]** [router/admin.go](/server/internal/router/admin.go) — **独立权限**：dashboard 路由改用 `dashboard:read`
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **日期上限**：GetTrends 添加 90 天范围上限
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **并行查询**：7 项统计使用 `sync.WaitGroup` 并行执行
+- ✅ **[2026-06-17]** [handler/dashboard.go](/server/internal/handler/dashboard.go) + [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **granularity 实现**：支持 day/week 粒度，移除 TODO
 
 ### 看板代码 TODO
 
-- 📌 [service/dashboard_service.go:33](/server/internal/service/dashboard_service.go) — 统计查询串行执行，首屏看板延迟等于所有 SQL 延迟之和
-- 📌 [service/dashboard_service.go:88](/server/internal/service/dashboard_service.go) — 校验 endDate >= startDate 且范围上限（如 90 天）
-- 📌 [service/dashboard_service.go:117](/server/internal/service/dashboard_service.go) — 双重循环填充趋势数据是 O(days \* rows)
-- 📌 [repository/dashboard_repo.go:23](/server/internal/repository/dashboard_repo.go) — created_at::date 会让索引失效
-- 📌 [repository/dashboard_repo.go:66](/server/internal/repository/dashboard_repo.go) — 趋势 SQL 固定按日聚合，未支持 week granularity
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **并行查询**：7 项统计 goroutine 并行
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **范围校验**：endDate >= startDate + 90 天上限
+- ✅ **[2026-06-17]** [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — **O(n) 填充**：map[date]count 替代双重循环
+- ✅ **[2026-06-17]** [repository/dashboard_repo.go](/server/internal/repository/dashboard_repo.go) — **索引友好**：`created_at::date` → 范围查询 `>= ... AND < ... + 1 day`
+- ✅ **[2026-06-17]** [repository/dashboard_repo.go](/server/internal/repository/dashboard_repo.go) — **week 粒度**：SQL 使用 `date_trunc('week', created_at)`
 
 ### 审计日志 — P0 审计写入缺失（零调用方）
 
@@ -696,12 +696,12 @@
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
-| 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
+| 7. 数据看板与审计 | 11 | 5 | 2+3📝 | 2 | 20 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **60** | **74** | **26+9📝** | **44** | **~224** |
+| **合计** | **60** | **73** | **26+9📝** | **39** | **~219** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

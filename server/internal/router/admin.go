@@ -121,8 +121,8 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// TODO(router/admin): dashboard 使用 audit:read 权限不够直观。
 	// 建议引入 dashboard:read，避免拥有审计权限就天然拥有运营看板权限。
 	if h != nil && h.Dashboard != nil {
-		rg.GET("/dashboard/stats", middleware.RequirePermission("audit:read"), h.Dashboard.GetStats)
-		rg.GET("/dashboard/trends", middleware.RequirePermission("audit:read"), h.Dashboard.GetTrends)
+		rg.GET("/dashboard/stats", middleware.RequirePermission("dashboard:read"), h.Dashboard.GetStats)
+		rg.GET("/dashboard/trends", middleware.RequirePermission("dashboard:read"), h.Dashboard.GetTrends)
 	} else {
 		rg.GET("/dashboard/stats", placeholder())
 		rg.GET("/dashboard/trends", placeholder())

@@ -39,6 +39,7 @@ var validPermissions = map[string]bool{
 	"knowledge:create": true,
 	"knowledge:manage": true,
 	"audit:read":       true,
+	"dashboard:read":   true,
 	"system:config":    true,
 }
 

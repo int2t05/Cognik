@@ -1,6 +1,6 @@
 # 数据看板接口
 
-> **Base URL:** `/api/v1/admin/dashboard` | **Auth:** JWT + `audit:read` | **Module:** Dashboard
+> **Base URL:** `/api/v1/admin/dashboard` | **Auth:** JWT + `dashboard:read` | **Module:** Dashboard
 
 ## 1. 统计数据
 
