@@ -20,7 +20,7 @@ func TestHybridFuse_BothSources(t *testing.T) {
 	}
 
 	// ChunkID=2 在两路都排高位，融合后应排最前
-	fused := rag.HybridFuse(vectorResults, bm25Results, 60, 5)
+	fused := rag.HybridFuse(vectorResults, bm25Results, 5)
 
 	if len(fused) == 0 {
 		t.Fatal("RRF 融合后不应为空")
@@ -41,7 +41,7 @@ func TestHybridFuse_VectorOnly(t *testing.T) {
 	}
 	var bm25Results []rag.RetrievalResult
 
-	fused := rag.HybridFuse(vectorResults, bm25Results, 60, 3)
+	fused := rag.HybridFuse(vectorResults, bm25Results, 3)
 
 	if len(fused) != 2 {
 		t.Fatalf("仅向量结果时应保留全部, 期望 2, 实际 %d", len(fused))
@@ -59,7 +59,7 @@ func TestHybridFuse_BM25Only(t *testing.T) {
 		{ChunkID: 20, Score: 0.80, Source: "bm25"},
 	}
 
-	fused := rag.HybridFuse(vectorResults, bm25Results, 60, 3)
+	fused := rag.HybridFuse(vectorResults, bm25Results, 3)
 
 	if len(fused) != 1 {
 		t.Fatalf("仅 BM25 结果时应保留全部, 期望 1, 实际 %d", len(fused))
@@ -78,7 +78,7 @@ func TestHybridFuse_TopK(t *testing.T) {
 		bm25Results[i] = rag.RetrievalResult{ChunkID: int64(i + 100), Score: float64(20-i) / 20, Source: "bm25"}
 	}
 
-	fused := rag.HybridFuse(vectorResults, bm25Results, 60, 5)
+	fused := rag.HybridFuse(vectorResults, bm25Results, 5)
 	if len(fused) != 5 {
 		t.Errorf("topK=5 期望 5 条, 实际 %d", len(fused))
 	}
@@ -86,7 +86,7 @@ func TestHybridFuse_TopK(t *testing.T) {
 
 // TestHybridFuse_EmptyInput 验证空输入返回空。
 func TestHybridFuse_EmptyInput(t *testing.T) {
-	fused := rag.HybridFuse(nil, nil, 60, 5)
+	fused := rag.HybridFuse(nil, nil, 5)
 	if len(fused) != 0 {
 		t.Errorf("空输入期望 0 条, 实际 %d", len(fused))
 	}
@@ -108,7 +108,7 @@ func TestHybridFuse_SameChunkDifferentRank(t *testing.T) {
 		{ChunkID: 1, Score: 0.50, Source: "bm25"},
 	}
 
-	fused := rag.HybridFuse(vectorResults, bm25Results, 60, 3)
+	fused := rag.HybridFuse(vectorResults, bm25Results, 3)
 	if len(fused) != 3 {
 		t.Fatalf("期望 3 条融合结果, 实际 %d", len(fused))
 	}
