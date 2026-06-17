@@ -235,10 +235,10 @@
 
 ### 状态机
 
-- 🔴 [service/ticket_service.go](/server/internal/service/ticket_service.go) — 状态机和 action 使用裸数字（1,2,3,4,5）而非常量 `TicketStatusXxx`，可读性和可维护性差
-- 🔴⭐ [service/ticket_service.go](/server/internal/service/ticket_service.go) — **UpdateStatus 无 CAS 条件**：`UPDATE SET status=? WHERE id=?` 不检查旧状态。两操作者可从同一旧状态并发操作，两个都成功产生双重记录。
-- 🟡 [service/ticket_service.go](/server/internal/service/ticket_service.go) — close 操作是否允许关闭已解决（Resolved）状态需在代码中明确语义
-- 🟡 [service/ticket_service.go](/server/internal/service/ticket_service.go) — `request_info` 后应同步创建站内消息通知
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — 状态机和 action 使用裸数字（1,2,3,4,5）而非常量 `TicketStatusXxx`~~ → 已替换为 `model.TicketStatusXxx` / `model.TicketActionXxx`
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — **UpdateStatus 无 CAS 条件**~~ → 已改为 `WHERE id=? AND status=?` CAS 式更新
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — close 操作是否允许关闭已解决（Resolved）状态~~ → 已明确：禁止关闭已关闭/已解决的申告
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — `request_info` 后应同步创建站内消息通知~~ → 已注入 MessageService，同步调用 NotifySupplement
 
 ### 安全与校验
 
@@ -266,7 +266,7 @@
 
 - 📌 [service/message_service.go:42](/server/internal/service/message_service.go) — 消息文案应包含 ticket_no/title 或跳转目标摘要
 - 📌 [service/message_service.go:95](/server/internal/service/message_service.go) — 未读数适合缓存或通过 WebSocket/SSE 推送
-- 🔴⭐ [service/message_service.go](/server/internal/service/message_service.go) — **NotifySupplement 死代码**：存在但零生产调用方。`TicketService` 未注入 `MessageService`，`request_info` 操作不通知用户。
+- ✅ ~~[service/message_service.go](/server/internal/service/message_service.go) — **NotifySupplement 死代码**~~ → TicketService 已注入 MessageService，request_info 后同步调用 NotifySupplement
 - 🟡 [service/message_service.go](/server/internal/service/message_service.go) — `MarkAsRead` 未校验 `userID > 0`，而 `ListMessages`/`CountUnread` 有校验。不一致。
 
 ### Repository

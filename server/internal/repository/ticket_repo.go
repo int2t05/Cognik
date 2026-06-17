@@ -62,13 +62,15 @@ func (r *TicketRepo) Update(ticket *model.Ticket) error {
 	return r.db.Save(ticket).Error
 }
 
-// UpdateStatus 更新申告状态，返回受影响行数。
+// UpdateStatus 以 CAS（Compare-And-Swap）方式更新申告状态。
 //
-// 返回 RowsAffected 让调用方区分"不存在"(0)和"成功更新"(1)。
-// 为什么单独封装：状态转换是高频操作，仅更新 status 字段避免
-// Save 意外覆盖其他字段（如 supplement_count）。
-func (r *TicketRepo) UpdateStatus(id int64, status int) (int64, error) {
-	result := r.db.Model(&model.Ticket{}).Where("id = ?", id).Update("status", status)
+// WHERE id=? AND status=? 保证只有当前状态匹配时才执行更新，
+// 防止两操作者从同一旧状态并发操作产生双重记录。
+// 返回 RowsAffected：1=成功，0=状态已变更或不存在。
+func (r *TicketRepo) UpdateStatus(id int64, expectedStatus, newStatus int) (int64, error) {
+	result := r.db.Model(&model.Ticket{}).
+		Where("id = ? AND status = ?", id, expectedStatus).
+		Update("status", newStatus)
 	return result.RowsAffected, result.Error
 }
 

@@ -29,11 +29,12 @@ import (
 type TicketService struct {
 	repo      *repository.TicketRepo
 	txManager TxManager
+	msgSvc    *MessageService
 }
 
 // NewTicketService 创建 TicketService 实例。
-func NewTicketService(repo *repository.TicketRepo, txManager TxManager) *TicketService {
-	return &TicketService{repo: repo, txManager: txManager}
+func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService) *TicketService {
+	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc}
 }
 
 // =============================================================================
@@ -44,12 +45,10 @@ func NewTicketService(repo *repository.TicketRepo, txManager TxManager) *TicketS
 //
 // 业务规则：
 //   - title、description、contact_phone 为必填
-//   - urgency 必须为 1（低）、2（中）、3（高）
-//   - ticket_no 格式：TK-YYYYMMDD-XXXX（XXXX 为随机 4 位后缀）
-//   - 新建申告 status=1（待处理）、source=1（门户提交）
+//   - urgency 必须为 TicketUrgencyLow/Medium/High
+//   - ticket_no 格式：TK-YYYYMMDD-XXXX（XXXX 为随机 6 位后缀）
+//   - 新建申告 status=TicketStatusPending、source=TicketSourcePortal
 func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int64) error {
-	// TODO(service/ticket): 使用 model.TicketUrgency* 等常量替代裸数字 1/2/3。
-	// 状态、紧急程度、来源散落裸值会让后续改枚举时难以全局追踪。
 	// 参数校验
 	if strings.TrimSpace(req.Title) == "" {
 		return AppError{Code: errcode.ErrParam, Message: "标题不能为空"}
@@ -60,7 +59,7 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 	if strings.TrimSpace(req.ContactPhone) == "" {
 		return AppError{Code: errcode.ErrParam, Message: "联系电话不能为空"}
 	}
-	if req.Urgency < 1 || req.Urgency > 3 {
+	if req.Urgency < int(model.TicketUrgencyLow) || req.Urgency > int(model.TicketUrgencyHigh) {
 		return AppError{Code: errcode.ErrParam, Message: "紧急程度必须为 1-3"}
 	}
 
@@ -99,8 +98,8 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 		ContactPhone:    req.ContactPhone,
 		ContactEmail:    req.ContactEmail,
 		ChatContext:     chatCtxJSON,
-		Status:          1,
-		Source:          1,
+		Status:          model.TicketStatusPending,
+		Source:          model.TicketSourcePortal,
 	}
 
 	return s.repo.Create(ticket)
@@ -114,8 +113,8 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 //
 // 业务规则：
 //   - 仅申告人本人可补充
-//   - 仅"需补充信息"(3)状态可补充
-//   - 补充后状态变为"处理中"(2)
+//   - 仅"需补充信息"状态可补充
+//   - 补充后状态变为"处理中"，使用 CAS 防止并发双重操作
 //   - CreateRecord + UpdateStatus 在同一事务中原子执行
 func (s *TicketService) SupplementTicket(id int64, userID int64, req request.SupplementTicketRequest) error {
 	ticket, err := s.repo.FindByID(id)
@@ -132,30 +131,31 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 	}
 
 	// 仅"需补充信息"状态可操作
-	if ticket.Status != 3 {
+	if ticket.Status != model.TicketStatusNeedSupplement {
 		return AppError{Code: errcode.ErrParam, Message: "仅需补充信息状态可补充"}
 	}
 
-	// 事务内原子执行：CreateRecord + UpdateStatus，避免孤立记录
+	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)，避免孤立记录
 	return s.txManager.Transaction(func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		record := &model.TicketRecord{
 			TicketID:   id,
 			OperatorID: userID,
-			Action:     "supplement",
+			Action:     model.TicketActionSupplement,
 			Content:    req.Content,
 		}
 		if err := txRepo.CreateRecord(record); err != nil {
 			return err
 		}
 
-		rows, err := txRepo.UpdateStatus(id, 2)
+		// CAS: 仅在 status=NeedSupplement 时更新为 Processing
+		rows, err := txRepo.UpdateStatus(id, int(model.TicketStatusNeedSupplement), int(model.TicketStatusProcessing))
 		if err != nil {
 			return err
 		}
 		if rows == 0 {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
 		}
 		return nil
 	})
@@ -165,22 +165,18 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 // UpdateStatus
 // =============================================================================
 
-// UpdateStatus 执行申告状态转换。
+// UpdateStatus 执行申告状态转换（CAS 防护）。
 //
-// 状态机规则：
+// 状态机规则（使用 model 常量，编译期约束）：
 //
-//	start:        待处理(1) → 处理中(2)
-//	request_info: 处理中(2) → 需补充信息(3)，supplement_count+1，超过3次禁止
-//	resolve:      处理中(2) → 已解决(4)
-//	close:        任意状态 → 已关闭(5)
+//	start:        TicketStatusPending     → TicketStatusProcessing
+//	request_info: TicketStatusProcessing  → TicketStatusNeedSupplement（supplement_count < 3）
+//	resolve:      TicketStatusProcessing  → TicketStatusResolved
+//	close:        TStatus≠Closed/Resolved → TicketStatusClosed
 //
-// 每次状态转换都会创建 TicketRecord，记录操作人、操作类型和结果描述。
-//
-// 为什么用 switch-case 而非状态转换矩阵：
-// MVP 阶段 action 数量有限（4 个），switch-case 更直观且易于调试。
+// 所有转换使用 CAS（WHERE id=? AND status=?），防止并发双重操作。
+// 每次状态转换都会创建 TicketRecord。
 func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.UpdateTicketStatusRequest) error {
-	// TODO(service/ticket): 状态机应使用 model.TicketAction* 和 model.TicketStatus* 常量。
-	// 当前字符串和数字混用，和 enums.go 的常量定义没有形成编译期约束。
 	ticket, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -193,17 +189,15 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 	var recordAction string
 
 	switch req.Action {
-	case "start":
-		// 仅待处理(1)可开始处理
-		if ticket.Status != 1 {
+	case model.TicketActionStart:
+		if ticket.Status != model.TicketStatusPending {
 			return AppError{Code: errcode.ErrParam, Message: "仅待处理状态可开始处理"}
 		}
-		newStatus = 2
-		recordAction = "start"
+		newStatus = model.TicketStatusProcessing
+		recordAction = model.TicketActionStart
 
-	case "request_info":
-		// 仅处理中(2)可请求补充信息
-		if ticket.Status != 2 {
+	case model.TicketActionRequestInfo:
+		if ticket.Status != model.TicketStatusProcessing {
 			return AppError{Code: errcode.ErrParam, Message: "仅处理中状态可请求补充信息"}
 		}
 		// 原子自增 supplement_count，WHERE supplement_count < 3 保证并发安全
@@ -214,41 +208,42 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 		if !ok {
 			return AppError{Code: errcode.ErrParam, Message: "补充信息次数已达上限（3次）"}
 		}
-		newStatus = 3
-		recordAction = "request_info"
-		// TODO(service/ticket): request_info 后应同步创建站内消息或调用 MessageService.NotifySupplement。
-		// 当前注释/文档说会通知，但 TicketService 构造函数未注入 MessageService，实际用户可能收不到补充提醒。
+		newStatus = model.TicketStatusNeedSupplement
+		recordAction = model.TicketActionRequestInfo
 
-	case "resolve":
-		// 仅处理中(2)可解决
-		if ticket.Status != 2 {
+	case model.TicketActionResolve:
+		if ticket.Status != model.TicketStatusProcessing {
 			return AppError{Code: errcode.ErrParam, Message: "仅处理中状态可解决"}
 		}
-		newStatus = 4
-		recordAction = "resolve"
+		newStatus = model.TicketStatusResolved
+		recordAction = model.TicketActionResolve
 
-	case "close":
-		// 任意状态可关闭
-		// TODO(service/ticket): close 是否允许关闭已解决/已关闭需要业务确认。
-		// 当前重复关闭会再次创建 close 记录，可能污染处理时间线。
-		newStatus = 5
-		recordAction = "close"
+	case model.TicketActionClose:
+		// 已关闭不允许重复关闭；已解决不允许回退为关闭
+		if ticket.Status == model.TicketStatusClosed {
+			return AppError{Code: errcode.ErrParam, Message: "申告已关闭，无需重复操作"}
+		}
+		if ticket.Status == model.TicketStatusResolved {
+			return AppError{Code: errcode.ErrParam, Message: "已解决的申告不允许关闭"}
+		}
+		newStatus = model.TicketStatusClosed
+		recordAction = model.TicketActionClose
 
 	default:
 		return AppError{Code: errcode.ErrParam, Message: "不支持的操作类型: " + req.Action}
 	}
 
-	// 包裹在事务中：UpdateStatus + CreateRecord 原子执行，
-	// 避免状态已变但无 timeline 记录的数据不一致。
+	// 事务内原子执行：UpdateStatus(CAS) + CreateRecord
 	err = s.txManager.Transaction(func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
-		rows, err := txRepo.UpdateStatus(id, int(newStatus))
+		// CAS: 仅在状态未变化时执行更新，防止并发双重操作
+		rows, err := txRepo.UpdateStatus(id, int(ticket.Status), int(newStatus))
 		if err != nil {
 			return err
 		}
 		if rows == 0 {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
 		}
 
 		record := &model.TicketRecord{
@@ -262,6 +257,14 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 	if err != nil {
 		return err
 	}
+
+	// request_info 成功后同步通知申告人
+	if recordAction == model.TicketActionRequestInfo && s.msgSvc != nil {
+		if notifyErr := s.msgSvc.NotifySupplement(id, ticket.UserID); notifyErr != nil {
+			slog.Warn("补充信息通知失败", "ticket_id", id, "user_id", ticket.UserID, "error", notifyErr)
+		}
+	}
+
 	slog.Info("申告状态变更", "ticket_id", id, "action", recordAction,
 		"from", ticket.Status, "to", newStatus, "operator", operatorID)
 	return nil

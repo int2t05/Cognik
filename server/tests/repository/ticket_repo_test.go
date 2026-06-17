@@ -198,7 +198,7 @@ func TestTicketRepo_UpdateStatus(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	rows, err := repo.UpdateStatus(ticket.ID, 2) // 处理中
+	rows, err := repo.UpdateStatus(ticket.ID, int(ticket.Status), 2) // 待处理 → 处理中 (CAS)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

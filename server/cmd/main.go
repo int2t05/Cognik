@@ -192,8 +192,8 @@ func main() {
 	authService := service.NewAuthService(userRepo, db, cfg.JWT)
 	userService := service.NewUserService(userRepo, db)
 	roleService := service.NewRoleService(roleRepo, userRepo, db)
-	ticketService := service.NewTicketService(ticketRepo, txManager)
 	messageService := service.NewMessageService(messageRepo)
+	ticketService := service.NewTicketService(ticketRepo, txManager, messageService)
 	dashboardService := service.NewDashboardService(dashboardRepo)
 	configService := service.NewConfigService(configRepo)
 

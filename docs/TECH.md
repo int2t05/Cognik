@@ -258,9 +258,25 @@ type TxManager interface {
 `TicketService` 通过构造函数注入 `TxManager`（而非直接持有 `*gorm.DB`），事务编排由 Service 层完成，Repository 只做纯数据操作。
 
 **事务使用场景：**
-- `UpdateStatus`：UpdateStatus + CreateRecord 在同一事务中执行
-- `SupplementTicket`：CreateRecord + UpdateStatus 在同一事务中执行，避免孤立记录
-- `AutoClose`：批量 UPDATE + 批量 TicketRecord 创建在同一事务中执行
+- `UpdateStatus`：UpdateStatus(CAS) + CreateRecord 在同一事务中执行
+- `SupplementTicket`：CreateRecord + UpdateStatus(CAS) 在同一事务中执行，避免孤立记录
+- `AutoClose`：`UPDATE...RETURNING id` + 批量 TicketRecord 创建在同一事务中执行
+
+**CAS（Compare-And-Swap）状态转换：**
+
+所有状态更新使用 `WHERE id=? AND status=?` 条件，确保仅在当前状态匹配时才执行更新：
+- 防止两操作者从同一旧状态并发操作产生双重记录
+- RowsAffected=0 时返回"状态已变更，请刷新后重试"
+
+**状态机常量：**
+
+`model/enums.go` 提供完整的工单状态和操作常量，Service 层编译期约束：
+- 状态：`TicketStatusPending`(1) / `TicketStatusProcessing`(2) / `TicketStatusNeedSupplement`(3) / `TicketStatusResolved`(4) / `TicketStatusClosed`(5)
+- 操作：`TicketActionStart` / `TicketActionRequestInfo` / `TicketActionSupplement` / `TicketActionResolve` / `TicketActionClose`
+
+**request_info 通知：**
+
+`request_info` 操作成功后，同步调用 `MessageService.NotifySupplement` 向申告人发送站内消息。通知失败仅记录警告日志，不回滚工单状态变更。
 
 ## 9. 项目结构
 
