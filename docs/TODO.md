@@ -130,6 +130,7 @@
 - ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — Question `max=2000` + `route_count`/`rerank_count`
 - ✅ [dto/response/chat.go](/server/internal/dto/response/chat.go) — `PipelineStep` 类型 + `Pipeline` 字段
 - ✅ [model/chat.go](/server/internal/model/chat.go) — `ChatMessage.SessionID` GORM 索引
+- 📌 [model/chat.go:17-18](/server/internal/model/chat.go) — 连续两行相同 TODO（`pipeline_metrics JSONB`），应合并为一条并补充具体字段设计
 
 ### 适配层
 
@@ -360,6 +361,7 @@
 - 🔴⭐ [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **PgvectorStore 不暴露 Close()**：独立连接池无法在优雅关闭时清理，连接泄漏。
 - 🟡 [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — `fmt.Sprintf("%.6f")` 截断 float32 精度，叠加 halfvec 量化进一步损失召回率
 - 🟡 [adapter/storage_client.go](/server/internal/adapter/storage_client.go) — 上传 key 应由上层 helper 统一生成（当前分散在调用方拼接）
+- 📌 [adapter/llm_client.go:409](/server/internal/adapter/llm_client.go) — `doHTTPRequest` 将 429/503 包装为 `fmt.Errorf` 而非 `retryableError`，导致 Embedding 客户端的 `isRetryable()` 永远返回 false。与 `tryRequest` 的重试处理不一致。
 
 ---
 
@@ -374,6 +376,7 @@
 - 🟡 [router/admin.go](/server/internal/router/admin.go) — Dashboard 路由使用 `audit:read` 权限控制，应有独立的 `dashboard:read` 权限
 - 🟡⭐ [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — `GetTrends` 无日期上限限制，跨年查询生成海量日期序列 + 大响应体。
 - 🟢⭐ [service/dashboard_service.go](/server/internal/service/dashboard_service.go) — GetStats 中 7 项统计查询全串行，首屏看板延迟为所有 SQL 延迟之和。
+- 📌 [handler/dashboard.go:44](/server/internal/handler/dashboard.go) — granularity 参数已在前端/API 类型中出现，但 Service 当前忽略。Handler TODO 确认后端未实现。
 
 ### 看板代码 TODO
 
@@ -477,7 +480,7 @@
 - 🟡 [repository/pagination.go](/server/internal/repository/pagination.go) — 分页辅助函数零调用方（死代码），各 Repo 自行实现分页
 - 🟡 [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — GORM query 对象复用于 Count 和 Find，session 状态可能泄漏
 - 📌 [repository/knowledge_repo.go:34](/server/internal/repository/knowledge_repo.go) — 创建知识库应依赖数据库唯一索引兜底
-- 📌 [repository/knowledge_repo.go:117](/server/internal/repository/knowledge_repo.go) — Count 后复用同一个 query 继续 Offset/Limit 容易携带 Count 的状态
+- ✅ [repository/knowledge_repo.go:117](/server/internal/repository/knowledge_repo.go) — Count/Offset/Limit 复用同一 query 的状态泄漏风险已在 `ListArticles` 重构时消除（每个 WHERE 条件独立添加，GORM clone 了 session）
 - 📌 [repository/config_repo.go:46](/server/internal/repository/config_repo.go) — Upsert 会覆盖 description 之外的配置元信息
 - 📌 [repository/chat_repo.go:37](/server/internal/repository/chat_repo.go) — FindByID 应支持 userID 条件，用于门户端防止水平越权
 
@@ -503,7 +506,7 @@
 ### Handler 通用工具
 
 - 📌 [handler/common.go:24](/server/internal/handler/common.go) — page_size max 应可配置
-- 📌 [handler/common.go:58](/server/internal/handler/common.go) — 应提供 `mustCurrentUserID()` helper
+- 📌 [handler/common.go:58](/server/internal/handler/common.go) — `getCurrentUserID` 的 `exists` 返回值被所有 12 个调用方忽略（`userID, _ := ...`），JWT 中间件漏配时 userID=0 静默传入 Service 层。应提供 `mustCurrentUserID()` 变体在缺失时直接返回 401。
 - 🟡⭐ [handler/common.go](/server/internal/handler/common.go) — **12 个 `getCurrentUserID` 调用方全部忽略 `exists` 布尔值**：JWT 中间件漏配时 userID=0 静默传入 Service 层，创建归属 user 0 的数据。
 - 🟡⭐ [handler/chat.go](/server/internal/handler/chat.go) — `SubmitFeedback` 使用内联匿名 struct 定义请求体，应改为命名 DTO。
 - 🟡⭐ [handler/role.go](/server/internal/handler/role.go) + [handler/user.go](/server/internal/handler/user.go) — 手动实现分页/ID 解析而非复用 `parsePagination`/`parseID` 公共 helper。
@@ -565,7 +568,7 @@
 ### 组件拆分与重复代码
 
 - 🟡 [views/portal/Chat.vue](/web/src/views/portal/Chat.vue) — 组件 >560 行，应拆分为 ChatInput/ChatMessage/ChatPipeline 子组件
-- 🟡 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — 组件 >610 行，应拆分
+- 🟡 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — 组件 >610 行，应拆分。注意：行 166-167 有重复 TODO（组件拆分提示写了两次），应合并。
 - 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — 组件 >400 行，多文件上传只显示单个汇总结果
 - 🟡⭐ **重复 `formatDate`**：[utils/date.ts](/web/src/utils/date.ts)、[utils/format.ts](/web/src/utils/format.ts)、Messages.vue、Dashboard.vue 各有一份独立实现。`utils/format.ts` 全文件为 `utils/date.ts` 的完整副本且零调用方——应删除。
 - 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — `router.back()` 在直接访问页面时可能离开应用
@@ -739,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（11 个并行 Agent 全量深检 ~171 源文件，新增 70+ 发现项：10 项 P0、15 项 P1、5 项 P2 前端/后端；P0 速览从 20 项扩展至 30 项）
+**最后更新**：2026-06-17（全量 TODO 注释一致性审计：151 条代码 TODO ↔ 47 条 📌 双向校验。修复 1 处 stale 条目、1 处内容不匹配、补充 3 条孤儿 TODO、标注 2 处重复 TODO）
