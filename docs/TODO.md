@@ -16,19 +16,27 @@
 
 ### 密码策略
 
+- ✅ [pkg/hash/hash.go](/server/pkg/hash/hash.go) — 字节计数 `utf8.RuneCountInString`
+- ✅ [pkg/hash/hash.go](/server/pkg/hash/hash.go) — `unicode.IsLower/IsUpper/IsDigit` 统一检测
 - 🟢 [pkg/hash/hash.go](/server/pkg/hash/hash.go) — bcrypt cost=10 硬编码，应可配置以应对硬件升级
 
-### 已修复
+### JWT 令牌
 
 - ✅ [pkg/jwt/jwt.go](/server/pkg/jwt/jwt.go) — alg 限制 `WithValidMethods([]string{"HS256"})`
 - ✅ [pkg/jwt/jwt.go](/server/pkg/jwt/jwt.go) — secret 为空时 `generateToken` 显式校验
 - ✅ [pkg/jwt/jwt.go](/server/pkg/jwt/jwt.go) — 标准声明 Issuer/Subject/ID(jti)/IssuedAt
+
+### 认证服务
+
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — jwtSecret 构造注入 `config.JWT.Secret`
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — token 有效期读取 `AccessExpire`/`RefreshExpire`
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — RefreshToken 校验 `TokenType != "refresh"`
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — 登录失败限流器（5 次/15 分钟滑动窗口）
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — Login 内 slog 记录失败审计日志（不泄露用户名是否存在）
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — Logout 内存黑名单 + RefreshToken 前置校验
+
+### 中间件链
+
 - ✅ [middleware/auth.go](/server/internal/middleware/auth.go) — JWT 中间件检查用户冻结（status==2）
 - ✅ [middleware/auth.go](/server/internal/middleware/auth.go) — secret 空值检查，拒绝所有请求
 - ✅ [middleware/auth.go](/server/internal/middleware/auth.go) — `claims.TokenType != "access"` 校验
@@ -36,8 +44,9 @@
 - ✅ [middleware/request_id.go](/server/internal/middleware/request_id.go) — X-Request-ID 长度限制(128) + 字符集校验
 - ✅ [middleware/rbac.go](/server/internal/middleware/rbac.go) — 通配权限 `*` 全匹配 + `prefix:*` 前缀通配
 - ✅ [middleware/rbac.go](/server/internal/middleware/rbac.go) — 空 permissions 时 slog.Warn 告警
-- ✅ [pkg/hash/hash.go](/server/pkg/hash/hash.go) — 字节计数 `utf8.RuneCountInString`
-- ✅ [pkg/hash/hash.go](/server/pkg/hash/hash.go) — `unicode.IsLower/IsUpper/IsDigit` 统一检测
+
+### 路由与 DTO
+
 - ✅ [router/router.go](/server/internal/router/router.go) — Auth 路由路径 `/api/v1/auth/me` 与文档一致
 - ✅ [dto/request/auth.go](/server/internal/dto/request/auth.go) — LogoutRequest DTO（`refresh_token` 字段）
 
@@ -48,12 +57,7 @@
 > 对应图：[chat-rag-flow.md](diagrams/chat-rag-flow.md) — SSE 流式 → Pipeline 执行 → 多路检索 → 混合融合 → 重排序 → LLM 生成
 > 对应文档：[API/chat.md](API/chat.md)
 
-### SSE 流式输出（核心路径）
-
-- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — 系统 prompt 硬编码在 `buildMessages`，不支持按知识库定制 AI 角色
-- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — `SyncChat` 为死代码：`ChatService` 仅调用 `StreamChat`，`SyncChat` 无内部调用方
-
-### 已修复
+### RAG 引擎核心
 
 - ✅ [rag/types.go](/server/internal/rag/types.go) — StepMetric 注释 `hybrid_retrieve` → `vector_retrieve / bm25_retrieve / hybrid_fuse`
 - ✅ [rag/chunker.go](/server/internal/rag/chunker.go) — `mergeSplits` chunkOverlap 尾部前缀保留
@@ -67,26 +71,11 @@
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — worker panic recovery `processWithRecovery`
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — 每任务独立 `context.WithTimeout`（10 分钟）
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — 移除重复 `updateStatus("indexing")` 调用
-- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `CreateSession` 传播 `ctx context.Context`
-- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `GetChatDetail` 校验 `session.UserID` 归属
-- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `SubmitFeedback` 校验下沉 Service 层
-- ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — Question `max=2000` + `route_count`/`rerank_count`
-- ✅ [dto/response/chat.go](/server/internal/dto/response/chat.go) — `PipelineStep` 类型 + `Pipeline` 字段
-- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — `maxConfidence` 钳位 [0,1]
-- ✅ [model/chat.go](/server/internal/model/chat.go) — `ChatMessage.SessionID` GORM 索引
-- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — `getModelConfig` 移除 `"default"` 硬编码回退
-- ✅ [cmd/main.go](/server/cmd/main.go) — BM25 TTL `OPSMIND_AI_BM25_REBUILD_MINUTES` env 配置
-- ✅ [cmd/main.go](/server/cmd/main.go) — Processor pool `OPSMIND_AI_PROCESSOR_WORKERS` env 配置
-- ✅ [handler/chat.go](/server/internal/handler/chat.go) + [service/llm_service.go](/server/internal/service/llm_service.go) — 流式答案与存储答案一致（单次 LLM 调用）
-- ✅ [handler/chat.go](/server/internal/handler/chat.go) — SSE error 事件 `StreamEvent{Type: "error"}`
-- ✅ [handler/chat.go](/server/internal/handler/chat.go) — 真实 `ChatCompletionStream` token 级流式
-- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — RAG 步骤事件 `onStep` callback 实时推送
-- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — 多轮历史滑动窗口截断（`maxHistoryMessages`）
-- ✅ [handler/chat.go](/server/internal/handler/chat.go) — SSE 响应头在 Flusher 检查后发送
-- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — done 持久化失败 `slog.Error` 记录
-- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) + [config/](/server/internal/config/) — `RAGDefaults` env 配置化
-- ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — `llmClient != nil` 守卫（nil 时跳过辅助步骤）
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt → cross-encoder 子进程重排序
+
+### RAG 管道
+
+- ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — `llmClient != nil` 守卫（nil 时跳过辅助步骤）
 - ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — `RAGOptions.History` 字段传入会话历史
 - ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — RerankCount 预截断候选池 + Normalize() 入口
 - ✅ [rag/query_rewrite.go](/server/internal/rag/query_rewrite.go) — llm 为 nil 时降级返回原 query
@@ -94,10 +83,45 @@
 - ✅ [rag/hybrid.go](/server/internal/rag/hybrid.go) — 单路结果按 topK 截断
 - ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — 超量 `recordLargeIndex` warn / building 并发守卫 / LoadDict 错误 / `isValidToken` 过滤 / topK 默认 10
 - ✅ [rag/embedder.go](/server/internal/rag/embedder.go) — fail-fast / 维度一致性校验 / nil client 守卫
-- ✅ [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — 跨 chunk 维度校验 / CosineSearch 防护 / NaN/Inf `math.IsNaN`/`math.IsInf`
+
+### SSE 流式输出
+
+- ✅ [handler/chat.go](/server/internal/handler/chat.go) + [service/llm_service.go](/server/internal/service/llm_service.go) — 流式答案与存储答案一致（单次 LLM 调用）
+- ✅ [handler/chat.go](/server/internal/handler/chat.go) — SSE error 事件 `StreamEvent{Type: "error"}`
+- ✅ [handler/chat.go](/server/internal/handler/chat.go) — 真实 `ChatCompletionStream` token 级流式
+- ✅ [handler/chat.go](/server/internal/handler/chat.go) — SSE 响应头在 Flusher 检查后发送
+- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — RAG 步骤事件 `onStep` callback 实时推送
+- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — 多轮历史滑动窗口截断（`maxHistoryMessages`）
+- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — `maxConfidence` 钳位 [0,1]
+- ✅ [service/llm_service.go](/server/internal/service/llm_service.go) — `getModelConfig` 移除 `"default"` 硬编码回退
+- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — 系统 prompt 硬编码在 `buildMessages`，不支持按知识库定制 AI 角色
+- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — `SyncChat` 为死代码：`ChatService` 仅调用 `StreamChat`，`SyncChat` 无内部调用方
+
+### 聊天服务
+
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `CreateSession` 传播 `ctx context.Context`
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `GetChatDetail` 校验 `session.UserID` 归属
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `SubmitFeedback` 校验下沉 Service 层
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — done 持久化失败 `slog.Error` 记录
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) + [config/](/server/internal/config/) — `RAGDefaults` env 配置化
 - ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — Sources 持久化写入
-- ✅ [repository/chat_repo.go](/server/internal/repository/chat_repo.go) — `CreateBatch` 调用方修复
 - ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — pipeline 死存储移除
+
+### DTO 与 Model
+
+- ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — Question `max=2000` + `route_count`/`rerank_count`
+- ✅ [dto/response/chat.go](/server/internal/dto/response/chat.go) — `PipelineStep` 类型 + `Pipeline` 字段
+- ✅ [model/chat.go](/server/internal/model/chat.go) — `ChatMessage.SessionID` GORM 索引
+
+### 适配层
+
+- ✅ [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — 跨 chunk 维度校验 / CosineSearch 防护 / NaN/Inf `math.IsNaN`/`math.IsInf`
+- ✅ [repository/chat_repo.go](/server/internal/repository/chat_repo.go) — `CreateBatch` 调用方修复
+
+### 启动配置
+
+- ✅ [cmd/main.go](/server/cmd/main.go) — BM25 TTL `OPSMIND_AI_BM25_REBUILD_MINUTES` env 配置
+- ✅ [cmd/main.go](/server/cmd/main.go) — Processor pool `OPSMIND_AI_PROCESSOR_WORKERS` env 配置
 
 ---
 
@@ -106,7 +130,7 @@
 > 对应图：[knowledge-publish-flow.md](diagrams/knowledge-publish-flow.md) + [document-upload-flow.md](diagrams/document-upload-flow.md) — 文章生命周期 → 分块 → Embedding → pgvector；文档上传 → 解析 → 异步处理
 > 对应文档：[API/knowledge.md](API/knowledge.md)
 
-### 知识发布管道（核心路径）
+### 知识发布管道
 
 - ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `DeleteByArticle` + `BatchInsert` 非原子：删除旧向量成功但新向量写入失败 → 文章向量永久丢失。**修复：先 BatchInsert 写入新向量，成功后再 DeleteByArticle 删旧向量。**
 - ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish 使用 `context.Background` 忽略请求取消。**修复：Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()。**
@@ -124,59 +148,50 @@
 
 ### 文档上传与异步处理
 
-> 4 项全部于 2026-06-17 修复，见下方"已修复"。
+- ✅ **[2026-06-17]** `ensureBucket` 静默失败 — `NewMinIOClient` 改为返回 error，bucket 不可用时阻止启动
+- ✅ **[2026-06-17]** `io.LimitReader` 静默截断 — `parsePDF`/`parseDocx` 增加上限检测，超大文件明确报错
+- ✅ **[2026-06-17]** MIME sniffing 文件类型检测 — 用 `http.DetectContentType` 嗅探替代仅信任扩展名
+- ✅ **[2026-06-17]** 多文件上传 + 字段名对齐 — `file`→`files`，循环处理多文件，响应 `documents` 数组 + `file_size`
 
-### 文档响应形状对齐
+### 文档上传 API 重构
 
-- 🟡⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — KB 响应缺少 `llm_config_id`/`article_count` 字段（[API/knowledge.md](API/knowledge.md) 文档中有，DTO 未实现）。
-- 🟡⭐ [dto/request/knowledge.go](/server/internal/dto/request/knowledge.go) — 创建 KB 请求缺少 `llm_config_id` 字段（[API/knowledge.md](API/knowledge.md) 记为可选参数）。
-- 🟡⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — Article 响应缺少 `source_type_text`/`created_by_name`/`published_by_name` 字段（[API/knowledge.md](API/knowledge.md) 文档中有，需 Service 层 join 查询填充）。
-- 🟢⭐ [dto/request/chat.go](/server/internal/dto/request/chat.go) — RAGOptions 缺少 `route_count`/`rerank_count` 字段，前端无法传递这两个参数。
-
-### 内容质量
-
-- 🟢 [rag/chunker.go](/server/internal/rag/chunker.go) — `mergeSplits` 未实现 chunkOverlap（仅 `splitByRunes` 硬切分支持 overlap）
-- 🟢 [rag/chunker.go](/server/internal/rag/chunker.go) — 分块前应做文本归一化（全角→半角、多余空白合并）
-- 🟢 [rag/document_parser.go](/server/internal/rag/document_parser.go) — DOCX 只读 `w:t` 元素，丢失表格和超链接内容
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — tags 应 trim/去重/限制数量
-- 🟢 [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — 门户端不应返回 `RAGWorkspaceSlug`/`EmbeddingModel` 等内部基础设施字段
-
-### 知识服务代码 TODO
-
-- 📌 [service/knowledge_service.go:185](/server/internal/service/knowledge_service.go) — userID 参数当前未使用
-- 📌 [service/knowledge_service.go:384](/server/internal/service/knowledge_service.go) — source_type/process_status 筛选未实现
-- 📌 [service/knowledge_service.go:427-428](/server/internal/service/knowledge_service.go) — 详情响应仍返回 sync_status/sync_error/synced_at，应改为 process_status/process_error/chunk_index
-
-### Model
-
-- 📌 [model/enums.go:98](/server/internal/model/enums.go) — 为知识文章/处理状态/紧急程度/影响范围提供统一 Text 方法
-- 📌 [dto/response/knowledge.go:70](/server/internal/dto/response/knowledge.go) — ChunkResponse 已有 kb_id/chunk_index，但缺少 created_at
-
-### 已修复
-
-- ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt 方案 → cross-encoder 子进程重排序
-- ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — `_ = i` 调试残留删除
-- ✅ **[2026-06-17]** `DeleteByArticle` + `BatchInsert` 非原子 — 先写后删，新向量写入成功后才删旧向量
-- ✅ **[2026-06-17]** Publish `context.Background` — 改为 Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()
-- ✅ **[2026-06-17]** 管道 nil → `ErrRAGUnavailable` — 替换 ErrUnknown(99999) 为 ErrRAGUnavailable(20002)
-- ✅ **[2026-06-17]** 发布失败记录 process_status=failed — 新增 recordPublishFailure()，Embed/BatchInsert 失败时持久化
-- ✅ **[2026-06-17]** Disable `context.Background` — Disable(ctx, id)，Handler 传 c.Request.Context()
-- ✅ **[2026-06-17]** ArticleStatusDisabled 值文档漂移 — 图表从 4 修正为 0（与 model/enums.go 一致）
-- ✅ **[2026-06-17]** KB 删除 API 补齐 — 新增 DELETE /knowledge-bases/:id（Handler→Service→Repo 三层）+ 前端 deleteKnowledgeBase()
-- ✅ **[2026-06-17]** 文章状态编号统一 — 以代码枚举为准（Disabled=0），更新 API 文档 + 流程图状态机描述
-- ✅ **[2026-06-17]** Enable 走发布管道 — 提取 `republishFromApproved` 共用方法，Enable 改为 `Disabled(0) → Published(4)`，重跑分块→embedding→pgvector
-- ✅ **[2026-06-17]** Disable 强校验状态 — 仅允许 `Published(4) → Disabled(0)`，其他状态返回 `code=10003`
-- ✅ **[2026-06-17]** 状态机解耦 — 删除 `mapProcessStatus()`，Processor 回调仅写 `process_status` 不再污染 `Article.Status`；`RetryDocument` 仅 `ProcessStatus="failed"` 可重试
-- ✅ **[2026-06-17]** UpdateArticleStatus 检查 RowsAffected — 不存在的 ID 返回 `gorm.ErrRecordNotFound`，Service 可向上层返回 404
 - ✅ **[2026-06-17]** 删除重复 `/articles/:id/retry-sync` 路由 — 统一走 `/knowledge-bases/:kb_id/documents/:id/retry`
 - ✅ **[2026-06-17]** kbID 校验下沉 Service — `GetDocumentStatus`/`RetryDocument`/`UploadDocuments` 均在 Service 层校验 kbID
 - ✅ **[2026-06-17]** 文档响应 DTO 化 + 多文件字段名对齐 — `DocumentUploadItem`/`DocumentUploadResponse`/`DocumentStatusResponse` 替换全部 `gin.H`；`file`→`files`
 - ✅ **[2026-06-17]** `MaxDocumentSize` 包级常量 — 删除局部 `const maxSize`，统一引用 `service.MaxDocumentSize`
 - ✅ **[2026-06-17]** `mapProcessStatus` 死代码删除 — 无调用方，状态机已解耦
-- ✅ **[2026-06-17]** `ensureBucket` 静默失败 — `NewMinIOClient` 改为返回 error，bucket 不可用时阻止启动
-- ✅ **[2026-06-17]** `io.LimitReader` 静默截断 — `parsePDF`/`parseDocx` 增加上限检测，超大文件明确报错
-- ✅ **[2026-06-17]** MIME sniffing 文件类型检测 — 用 `http.DetectContentType` 嗅探替代仅信任扩展名
-- ✅ **[2026-06-17]** 多文件上传 + 字段名对齐 — `file`→`files`，循环处理多文件，响应 `documents` 数组 + `file_size`
+
+### KB 管理
+
+- ✅ **[2026-06-17]** KB 删除 API 补齐 — 新增 DELETE /knowledge-bases/:id（Handler→Service→Repo 三层）+ 前端 deleteKnowledgeBase()
+
+### 文档响应形状对齐
+
+- ✅ **[2026-06-17]** [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) + [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — KB 响应缺少 `llm_config_id`/`article_count` 字段。**修复：`ListKBs` 从 model 填充 `LlmConfigID` + `CountArticlesByKB` 批量获取文章数。**
+- ✅ **[2026-06-17]** [dto/request/knowledge.go](/server/internal/dto/request/knowledge.go) + [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 创建 KB 请求缺少 `llm_config_id` 字段。**修复：`CreateKB` 使用 `req.LlmConfigID` 写入。**
+- ✅ **[2026-06-17]** [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) + [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Article 响应缺少 `source_type_text`/`created_by_name`/`published_by_name`。**修复：`ArticleSourceTypeText` 映射 + `userNameResolver` 批量查询填充。**
+- ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — `SendMessageRequest` 已有 `route_count`/`rerank_count` 字段，无需额外 RAGOptions 结构。
+
+### 内容质量
+
+- ✅ [rag/chunker.go](/server/internal/rag/chunker.go) — `mergeSplits` 已实现 chunkOverlap（尾部前缀保留逻辑）。
+- ✅ [rag/chunker.go](/server/internal/rag/chunker.go) — `Split()` 入口已调用 `normalizeText` 做归一化处理。
+- ✅ [rag/document_parser.go](/server/internal/rag/document_parser.go) — DOCX 表格 `w:tbl` 提取 + 命名空间回退已实现。
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — tags 应 trim/去重/限制数量。**修复：`marshalTags` 增加 TrimSpace + 去重 + maxTagCount=10 上限。**
+- ✅ [handler/knowledge.go](/server/internal/handler/knowledge.go) — 门户端 `ListKBsForPortal` 已用独立 `portalKB` 结构过滤内部字段。
+
+### 代码 TODO
+
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `UpdateArticle` 的 userID 参数未使用。**修复：从签名中移除 userID。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) + [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — source_type/process_status 筛选未实现。**修复：`ListArticles` 增加 sourceType/processStatus 参数，Repo 层 WHERE 子句按需过滤。**
+- ✅ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 详情响应已使用 `process_status`/`process_error`，无 sync_status 残留字段。
+- ✅ **[2026-06-17]** [model/enums.go](/server/internal/model/enums.go) — 为知识文章/处理状态/紧急程度/影响范围提供统一 Text 方法。**修复：新增 `ArticleStatusText`/`ArticleSourceTypeText`/`TicketUrgencyText`/`TicketImpactText`/`ProcessStatusText`。**
+- ✅ **[2026-06-17]** [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) + [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — ChunkResponse 缺少 created_at 填充。**修复：`GetArticleDetail` 中 `ChunkResponse.CreatedAt` 从 model 赋值。**
+
+### RAG 重排序
+
+- ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt 方案 → cross-encoder 子进程重排序
+- ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — `_ = i` 调试残留删除
 
 ---
 
@@ -264,20 +279,17 @@
 - 🟡 [repository/role_repo.go](/server/internal/repository/role_repo.go) — `Delete` 不检查 `RowsAffected`
 - 🟡 [repository/user_repo.go](/server/internal/repository/user_repo.go) — 角色权限 JSON 解析失败静默跳过 `continue`，数据损坏被掩盖
 
-### 输入校验
+### 输入校验与 Model
 
 - 🟢 [service/user_service.go](/server/internal/service/user_service.go) — 缺少对 phone/email/realName 的格式/trim 校验
 - 🟢 [model/user.go](/server/internal/model/user.go) — phone 字段缺少唯一索引
 - 🟢 [model/user.go](/server/internal/model/user.go) — Role 缺少 `is_system` 不可变标记字段（注：Role struct 在 `model/user.go:32`，非独立文件）
 
-### 代码 TODO（Handler 层）
+### 代码 TODO
 
 - 📌 [handler/role.go:63](/server/internal/handler/role.go) — Role list should support keyword search
 - 📌 [handler/user.go:51](/server/internal/handler/user.go) — 复用 parseID，减少重复错误信息
 - 📌 [handler/user.go:71](/server/internal/handler/user.go) — 复用 parsePagination
-
-### 代码 TODO（Service 层）
-
 - 📌 [service/role_service.go:161](/server/internal/service/role_service.go) — 校验 menuIDs 是否全部存在，且按钮权限不能挂到错误父级
 
 ---
@@ -460,7 +472,6 @@
 
 ### 文档一致性
 
-- 📝⭐ ~~[TECH.md §2.1](TECH.md) — **模块文件计数偏差**~~ — 经核实，TECH.md 项目结构计数准确（handler: 11 模块+common.go=12、service: 12 服务+2 基础设施=14、model: 10、rag: 12、web/api: 12），原审计读数有误，已排除。
 - 📝⭐ docs 目录引用 `docs/v2/` 和 `server/migrations/v2/`，但两个目录均不存在，迁移脚本缺失。
 
 ---
@@ -476,14 +487,11 @@
 - 🔴⭐ [utils/request.ts](/web/src/utils/request.ts) — **Token 刷新竞态**：刷新失败时 `refreshSubscribers` 重置为 `[]` 但未通知已订阅者，其 Promise 永久挂起（内存泄漏）。
 - 🟡 [views/auth/Login.vue](/web/src/views/auth/Login.vue) — 错误信息提取不完整：`catch` 用 `err?.message`（Axios 通用字符串），后端真实错误在 `err.response?.data?.message`
 
-### 新发现 P0 项（2026-06-16）
+### P0 缺陷（2026-06-16 审计新发现）
 
 - 🔴⭐ [stores/chat.ts](/web/src/stores/chat.ts) — `crypto.randomUUID()` 无 fallback：HTTP/localhost 环境下 `crypto.randomUUID()` 为 undefined，调用直接抛 TypeError 崩溃整个聊天功能。已有 `generateId()` 工具函数（`utils/__tests__/id.test.ts`）但未使用。
 - 🔴⭐ [views/admin/TicketDetail.vue](/web/src/views/admin/TicketDetail.vue) — 操作按钮缺 loading 守卫：`doAction()` 和 `doAddRecord()` 未绑定 `:disabled` 到 `<template>` 按钮，用户可多次点击发送重复请求。
 - 🔴⭐ [App.vue](/web/src/App.vue) — `NMessageProvider` 死代码：全项目无组件使用 Naive UI `useMessage()`（统一使用自定义 `useToast()`），每次渲染浪费不必要的组件树开销。
-
-### 前置组件 P0（已有 TODO）
-
 - 🔴⭐ [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — **创建配置时测试连接崩溃**：`handleTestConnection` 调 `updateLLMConfig(editingId.value!)`，新建时 `editingId` 为 null，`!` 断言导致运行时崩溃
 
 ### 数据流与类型安全
@@ -507,7 +515,7 @@
 - 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — `router.back()` 在直接访问页面时可能离开应用
 - 🟡 [components/common/StatusBadge.vue](/web/src/components/common/StatusBadge.vue) — `knowledge` 类型未实现：TEXT_MAP 和 TYPE_MAP 中缺少 knowledge 键，知识文章状态渲染为「未知」
 
-### 新发现 P1 项（2026-06-16）
+### P1 缺陷（2026-06-16 审计新发现）
 
 - 🟡⭐ [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — 使用原生 `alert()` 而非 `useToast()`：10 处 `alert()` 调用（`fetchKBs`、`handleSave`、`handlePublish` 等）阻塞 UI 线程且无设计系统样式集成。
 - 🟡⭐ [views/admin/KnowledgeList.vue](/web/src/views/admin/KnowledgeList.vue) — KB 编辑对话框静默清空 description：`startEditKB` 始终 `description: ''`，保存后服务端描述被覆盖为空字符串。
@@ -525,7 +533,7 @@
 - 🟡 [views/admin/KnowledgeList.vue](/web/src/views/admin/KnowledgeList.vue) — `(res.data as any).articles || (res.data as any).items || []` 三种回退提取，暴露 API 响应形状不确定
 - 🟡 [components/layout/AdminLayout.vue](/web/src/components/layout/AdminLayout.vue) — 菜单路径硬编码字符串，应引用路由名称
 
-### 前端代码 TODO（来自代码注释）
+### 代码 TODO
 
 - 📌 [composables/useAIConfig.ts:48](/web/src/composables/useAIConfig.ts) — loadConfig swallows errors, uses defaults silently
 - 📌 [views/admin/KnowledgeEdit.vue:151](/web/src/views/admin/KnowledgeEdit.vue) — fetchArticle/fetchKBs only console.error on failure
@@ -537,7 +545,7 @@
 - 📌 [views/admin/Dashboard.vue:147](/web/src/views/admin/Dashboard.vue) — 小数值统一最小 4px 会让 0 和 1 视觉差异不明显
 - 📌 [views/admin/LLMConfig.vue:209](/web/src/views/admin/LLMConfig.vue) — getLLMConfigs 类型应直接返回 ApiResponse 解包后的 data
 
-### 新发现 P2 项（2026-06-16）
+### P2 缺陷（2026-06-16 审计新发现）
 
 - 🟢⭐ [views/admin/Dashboard.vue](/web/src/views/admin/Dashboard.vue) — `fetchTrends` 失败静默吞掉：`catch { trendPoints.value = [] }`，用户无法区分"无趋势数据"和"趋势加载失败"。
 - 🟢⭐ [views/portal/Messages.vue](/web/src/views/portal/Messages.vue) + [views/portal/TicketQuery.vue](/web/src/views/portal/TicketQuery.vue) — API 失败静默清空数据数组，无用户可见错误提示。
@@ -564,9 +572,6 @@
 - 🔴 `audit_logs` — `AuditRepo.Create` 存在但零调用方，详细调用点清单见 §7 审计日志（共 7 个 Service 缺失审计写入）
 - 🔴 `chat_sessions.sources` — `CreateChatSession` 未填充 `Sources` 字段，检索引用证据永远为空
 - 🟡 `system_configs.description` — `Upsert` 未设置 `Description`，配置说明永远为空
-
-### 已修复
-
 - ✅ `chat_messages` — `ChatRepo.CreateBatch` 多轮对话重构中已修复调用方
 
 ---
@@ -653,4 +658,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§3 文章状态机 5 项 P1 全部修复：编号统一、Enable 重跑管道、Disable 强校验、状态机解耦、UpdateArticleStatus RowsAffected；新增 API 文档双状态机表 + 流程图状态图）
+**最后更新**：2026-06-17（§3 文档响应形状对齐 + 内容质量 + 代码 TODO 共 14 项全部修复：DTO 字段对齐、marshalTags 清理、ListArticles 筛选、Text 方法统一、ChunkResponse created_at）

@@ -55,7 +55,7 @@ func setupKnowledgeHandler(t *testing.T) *handler.KnowledgeHandler {
 	// 使用真实 DocParser（纯 Go）和 Chunker（纯 Go），无需外部依赖
 	docParser := rag.NewDocParser()
 	chunker := rag.NewChunker(1000, 200)
-	svc := service.NewKnowledgeService(repo, chunker, nil, nil, docParser, nil, nil)
+	svc := service.NewKnowledgeService(repo, nil, chunker, nil, nil, docParser, nil, nil)
 	return handler.NewKnowledgeHandler(svc)
 }
 

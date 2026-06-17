@@ -14,6 +14,7 @@ type KnowledgeBase struct {
 	RAGWorkspaceSlug string    `gorm:"type:varchar(128);uniqueIndex;column:rag_workspace_slug" json:"rag_workspace_slug"`
 	EmbeddingModel   string    `gorm:"type:varchar(128);not null;column:embedding_model" json:"embedding_model"`
 	VectorDimension  int       `gorm:"not null;column:vector_dimension" json:"vector_dimension"`
+	LlmConfigID      int64     `gorm:"not null;default:0;column:llm_config_id" json:"llm_config_id"`
 	CreatedBy        int64     `gorm:"column:created_by" json:"created_by"`
 	CreatedAt        time.Time `gorm:"not null" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"not null" json:"updated_at"`

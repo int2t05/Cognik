@@ -174,8 +174,7 @@ func (h *KnowledgeHandler) UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.UpdateArticle(id, req, userID); svcErr != nil {
+	if svcErr := h.svc.UpdateArticle(id, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -288,9 +287,11 @@ func (h *KnowledgeHandler) ListArticles(c *gin.Context) {
 	}
 
 	page, pageSize := parsePagination(c)
-	status, _ := strconv.Atoi(c.DefaultQuery("status", "0"))
+	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
+	sourceType, _ := strconv.Atoi(c.DefaultQuery("source_type", "0"))
+	processStatus := c.DefaultQuery("process_status", "")
 
-	result, svcErr := h.svc.ListArticles(kbID, status, page, pageSize)
+	result, svcErr := h.svc.ListArticles(kbID, status, sourceType, processStatus, page, pageSize)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return

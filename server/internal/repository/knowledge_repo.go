@@ -57,11 +57,7 @@ func (r *KnowledgeRepo) UpdateKB(kb *model.KnowledgeBase) error {
 }
 
 // ListKBs 列出全部知识库。
-//
-// 为什么返回空切片而非 nil：调用方可以直接 range 遍历，无需额外 nil 判断。
 func (r *KnowledgeRepo) ListKBs() ([]model.KnowledgeBase, error) {
-	// TODO(repository/knowledge): ListKBs 应返回 article_count，避免 Service/前端再额外查询统计。
-	// API 文档已经定义 article_count 字段。
 	var kbs []model.KnowledgeBase
 	err := r.db.Order("id ASC").Find(&kbs).Error
 	if err != nil {
@@ -71,6 +67,28 @@ func (r *KnowledgeRepo) ListKBs() ([]model.KnowledgeBase, error) {
 		kbs = []model.KnowledgeBase{}
 	}
 	return kbs, nil
+}
+
+// CountArticlesByKB 返回各知识库的文章数量映射（仅统计非 Disabled 状态）。
+func (r *KnowledgeRepo) CountArticlesByKB() (map[int64]int, error) {
+	type row struct {
+		KBID  int64
+		Count int
+	}
+	var rows []row
+	err := r.db.Model(&model.KnowledgeArticle{}).
+		Select("kb_id, COUNT(*) as count").
+		Where("status != ?", model.ArticleStatusDisabled).
+		Group("kb_id").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[int64]int, len(rows))
+	for _, r := range rows {
+		m[r.KBID] = r.Count
+	}
+	return m, nil
 }
 
 // =============================================================================
@@ -105,23 +123,27 @@ func (r *KnowledgeRepo) UpdateArticle(article *model.KnowledgeArticle) error {
 	return r.db.Save(article).Error
 }
 
-// ListArticles 分页查询文章列表，支持按知识库和状态过滤。
+// ListArticles 分页查询文章列表，支持按知识库、状态、来源类型、处理状态过滤。
 //
 // 参数说明：
 //   - kbID: 知识库 ID，必传（>0）
-//   - status: 文章状态，传 -1 表示不过滤，0 表示已停用
+//   - status: 文章审核状态，传 -1 表示不过滤
+//   - sourceType: 文章来源类型，传 0 表示不过滤
+//   - processStatus: 文档处理状态，传空字符串表示不过滤
 //   - page/pageSize: 分页参数
-//
-// 为什么按 id DESC 排序：最新创建的文章排在前面，符合管理后台使用习惯。
-func (r *KnowledgeRepo) ListArticles(kbID int64, status int, page, pageSize int) ([]model.KnowledgeArticle, int64, error) {
-	// TODO(repository/knowledge): Count 后复用同一个 query 继续 Offset/Limit 容易携带 Count 的状态。
-	// 虽然 GORM 多数场景可用，后续可 clone session 或使用通用 Paginate 明确分离。
+func (r *KnowledgeRepo) ListArticles(kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error) {
 	var articles []model.KnowledgeArticle
 	var total int64
 
 	query := r.db.Model(&model.KnowledgeArticle{}).Where("kb_id = ?", kbID).Preload("KnowledgeBase")
 	if status >= 0 {
 		query = query.Where("status = ?", status)
+	}
+	if sourceType > 0 {
+		query = query.Where("source_type = ?", sourceType)
+	}
+	if processStatus != "" {
+		query = query.Where("process_status = ?", processStatus)
 	}
 
 	if err := query.Count(&total).Error; err != nil {

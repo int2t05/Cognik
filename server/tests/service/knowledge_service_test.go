@@ -45,7 +45,7 @@ func init() {
 func setupKnowledgeService(t *testing.T) *service.KnowledgeService {
 	t.Helper()
 	repo := repository.NewKnowledgeRepo(knowledgeSvcDB)
-	svc := service.NewKnowledgeService(repo, nil, nil, nil, nil, nil, nil)
+	svc := service.NewKnowledgeService(repo, nil, nil, nil, nil, nil, nil, nil)
 
 	// 清理测试数据
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_chunks")

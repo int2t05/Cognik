@@ -225,7 +225,7 @@ func main() {
 	processor := rag.NewProcessor(docParser, chunker, embedder, vectorStore, storageClient, procWorkers)
 
 	// KnowledgeService（CRUD + pgvector 管道 + 文档上传）
-	knowledgeService := service.NewKnowledgeService(knowledgeRepo, chunker, embedder, vectorStore, docParser, processor, storageClient)
+	knowledgeService := service.NewKnowledgeService(knowledgeRepo, userRepo, chunker, embedder, vectorStore, docParser, processor, storageClient)
 	slog.Info("KnowledgeService 已初始化（含 Chunker + Processor）")
 
 	// LLMService（RAG + prompt + LLM 统一编排，供 ChatService 使用）

@@ -54,30 +54,37 @@ type knowledgeRepo interface {
 	UpdateKB(kb *model.KnowledgeBase) error
 	DeleteKB(id int64) error
 	ListKBs() ([]model.KnowledgeBase, error)
-	ListArticles(kbID int64, status int, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
+	CountArticlesByKB() (map[int64]int, error)
+	ListArticles(kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
 	FindChunksByArticleID(articleID int64) ([]model.KnowledgeChunk, error)
+}
+
+// userNameResolver 按 ID 列表批量查询用户名称（仅 id + real_name）。
+type userNameResolver interface {
+	FindByIDs(ids []int64) ([]model.User, error)
 }
 
 // KnowledgeService 知识库管理服务。
 //
 // 所有依赖使用接口类型，便于测试 mock。
 type KnowledgeService struct {
-	repo      knowledgeRepo
-	chunker   knowledgeChunker
-	embedder  knowledgeEmbedder
-	store     adapter.VectorStore
-	docParser knowledgeDocParser
-	processor *rag.Processor
-	storage   adapter.StorageClient // MinIO 文档对象存储
+	repo       knowledgeRepo
+	userNames  userNameResolver
+	chunker    knowledgeChunker
+	embedder   knowledgeEmbedder
+	store      adapter.VectorStore
+	docParser  knowledgeDocParser
+	processor  *rag.Processor
+	storage    adapter.StorageClient // MinIO 文档对象存储
 }
 
 // NewKnowledgeService 创建 KnowledgeService 实例。
 //
-// repo/chunker/embedder/store/docParser/processor 可以为 nil（测试或部分功能不需要时）。
-// 直接使用具体接口类型，编译期校验传入类型。
-func NewKnowledgeService(repo knowledgeRepo, chunker knowledgeChunker, embedder knowledgeEmbedder, store adapter.VectorStore, docParser knowledgeDocParser, processor *rag.Processor, storage adapter.StorageClient) *KnowledgeService {
+// repo/userNames/chunker/embedder/store/docParser/processor 可以为 nil（测试或部分功能不需要时）。
+func NewKnowledgeService(repo knowledgeRepo, userNames userNameResolver, chunker knowledgeChunker, embedder knowledgeEmbedder, store adapter.VectorStore, docParser knowledgeDocParser, processor *rag.Processor, storage adapter.StorageClient) *KnowledgeService {
 	return &KnowledgeService{
 		repo:      repo,
+		userNames: userNames,
 		chunker:   chunker,
 		embedder:  embedder,
 		store:     store,
@@ -104,6 +111,7 @@ func (s *KnowledgeService) CreateKB(req request.CreateKBRequest, userID int64) e
 		RAGWorkspaceSlug: slug,
 		EmbeddingModel:   req.EmbeddingModel,
 		VectorDimension:  req.VectorDimension,
+		LlmConfigID:      req.LlmConfigID,
 		CreatedBy:        userID,
 	}
 	return s.repo.CreateKB(kb)
@@ -157,12 +165,19 @@ func (s *KnowledgeService) DeleteKB(id int64) error {
 	return s.repo.DeleteKB(id)
 }
 
-// ListKBs 列出全部知识库。
+// ListKBs 列出全部知识库（含文章数量统计）。
 func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
 	kbs, err := s.repo.ListKBs()
 	if err != nil {
 		return nil, err
 	}
+
+	// 批量获取文章数量，避免 N+1 查询
+	counts := map[int64]int{}
+	if s.repo != nil {
+		counts, _ = s.repo.CountArticlesByKB()
+	}
+
 	result := make([]response.KBResponse, len(kbs))
 	for i, kb := range kbs {
 		result[i] = response.KBResponse{
@@ -171,6 +186,8 @@ func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
 			Description:     kb.Description,
 			EmbeddingModel:  kb.EmbeddingModel,
 			VectorDimension: kb.VectorDimension,
+			LlmConfigID:     kb.LlmConfigID,
+			ArticleCount:    counts[kb.ID],
 			CreatedBy:       kb.CreatedBy,
 			CreatedAt:       kb.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:       kb.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -213,9 +230,7 @@ func (s *KnowledgeService) CreateArticle(req request.CreateArticleRequest, userI
 }
 
 // UpdateArticle 更新文章（仅草稿/驳回状态可编辑）。
-func (s *KnowledgeService) UpdateArticle(id int64, req request.UpdateArticleRequest, userID int64) error {
-	// TODO(service/knowledge): userID 参数当前未使用。
-	// 如果需要审计或作者权限校验，应在这里使用；否则从签名移除避免误导调用方。
+func (s *KnowledgeService) UpdateArticle(id int64, req request.UpdateArticleRequest) error {
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -437,40 +452,44 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 // List / Detail
 // =============================================================================
 
-// ListArticles 分页查询文章列表。
-func (s *KnowledgeService) ListArticles(kbID int64, status int, page, pageSize int) (*response.ArticleListResponse, error) {
-	// TODO(service/knowledge): source_type/process_status 筛选未实现。
-	// 调用方可能传这些参数，后端忽略会导致列表筛选失效。
-	articles, total, err := s.repo.ListArticles(kbID, status, page, pageSize)
+// ListArticles 分页查询文章列表，支持按 sourceType/processStatus 筛选。
+func (s *KnowledgeService) ListArticles(kbID int64, status int, sourceType int, processStatus string, page, pageSize int) (*response.ArticleListResponse, error) {
+	articles, total, err := s.repo.ListArticles(kbID, status, sourceType, processStatus, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
+	// 批量获取用户名，避免 N+1
+	userNames := s.resolveUserNames(articles)
+
 	result := make([]response.ArticleResponse, len(articles))
 	for i, a := range articles {
 		result[i] = response.ArticleResponse{
-			ID:            a.ID,
-			KBID:          a.KBID,
-			KBName:        a.KnowledgeBase.Name,
-			Title:         a.Title,
-			Content:       a.Content,
-			Category:      a.Category,
-			Tags:          unmarshalTags(a.Tags),
-			Status:        a.Status,
-			StatusText:    statusText(a.Status),
-			SourceType:    a.SourceType,
-			FileType:      a.FileType,
-			MinioPath:     a.MinioPath,
-			WordCount:     a.WordCount,
-			ChunkCount:    a.ChunkCount,
-			ProcessStatus: a.ProcessStatus,
-			ProcessError:  a.ProcessError,
-			CreatedBy:     a.CreatedBy,
-			ReviewedBy:    a.ReviewedBy,
-			PublishedBy:   a.PublishedBy,
-			ReviewComment: a.ReviewComment,
-			CreatedAt:     a.CreatedAt,
-			UpdatedAt:     a.UpdatedAt,
+			ID:              a.ID,
+			KBID:            a.KBID,
+			KBName:          a.KnowledgeBase.Name,
+			Title:           a.Title,
+			Content:         a.Content,
+			Category:        a.Category,
+			Tags:            unmarshalTags(a.Tags),
+			Status:          a.Status,
+			StatusText:      model.ArticleStatusText(a.Status),
+			SourceType:      a.SourceType,
+			SourceTypeText:  model.ArticleSourceTypeText(a.SourceType),
+			FileType:        a.FileType,
+			MinioPath:       a.MinioPath,
+			WordCount:       a.WordCount,
+			ChunkCount:      a.ChunkCount,
+			ProcessStatus:   a.ProcessStatus,
+			ProcessError:    a.ProcessError,
+			CreatedBy:       a.CreatedBy,
+			CreatedByName:   userNames[a.CreatedBy],
+			ReviewedBy:      a.ReviewedBy,
+			PublishedBy:     a.PublishedBy,
+			PublishedByName: userNames[ptrVal(a.PublishedBy)],
+			ReviewComment:   a.ReviewComment,
+			CreatedAt:       a.CreatedAt,
+			UpdatedAt:       a.UpdatedAt,
 		}
 	}
 
@@ -480,10 +499,8 @@ func (s *KnowledgeService) ListArticles(kbID int64, status int, page, pageSize i
 	}, nil
 }
 
-// GetArticleDetail 获取文章详情。
+// GetArticleDetail 获取文章详情（含切片）。
 func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailResponse, error) {
-	// TODO(service/knowledge): 详情响应仍返回 sync_status/sync_error/synced_at。
-	// TODO(service/knowledge): 应改为 process_status/process_error/chunk_index。
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -497,6 +514,8 @@ func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailRe
 		return nil, err
 	}
 
+	userNames := s.resolveUserNames([]model.KnowledgeArticle{*article})
+
 	chunkResponses := make([]response.ChunkResponse, len(chunks))
 	for i, c := range chunks {
 		chunkResponses[i] = response.ChunkResponse{
@@ -506,33 +525,37 @@ func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailRe
 			ChunkIndex:      c.ChunkIndex,
 			EmbeddingModel:  c.EmbeddingModel,
 			VectorDimension: c.VectorDimension,
+			CreatedAt:       c.CreatedAt,
 		}
 	}
 
 	return &response.ArticleDetailResponse{
 		ArticleResponse: response.ArticleResponse{
-			ID:            article.ID,
-			KBID:          article.KBID,
-			KBName:        article.KnowledgeBase.Name,
-			Title:         article.Title,
-			Content:       article.Content,
-			Category:      article.Category,
-			Tags:          unmarshalTags(article.Tags),
-			Status:        article.Status,
-			StatusText:    statusText(article.Status),
-			SourceType:    article.SourceType,
-			FileType:      article.FileType,
-			MinioPath:     article.MinioPath,
-			WordCount:     article.WordCount,
-			ChunkCount:    article.ChunkCount,
-			ProcessStatus: article.ProcessStatus,
-			ProcessError:  article.ProcessError,
-			CreatedBy:     article.CreatedBy,
-			ReviewedBy:    article.ReviewedBy,
-			PublishedBy:   article.PublishedBy,
-			ReviewComment: article.ReviewComment,
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
+			ID:              article.ID,
+			KBID:            article.KBID,
+			KBName:          article.KnowledgeBase.Name,
+			Title:           article.Title,
+			Content:         article.Content,
+			Category:        article.Category,
+			Tags:            unmarshalTags(article.Tags),
+			Status:          article.Status,
+			StatusText:      model.ArticleStatusText(article.Status),
+			SourceType:      article.SourceType,
+			SourceTypeText:  model.ArticleSourceTypeText(article.SourceType),
+			FileType:        article.FileType,
+			MinioPath:       article.MinioPath,
+			WordCount:       article.WordCount,
+			ChunkCount:      article.ChunkCount,
+			ProcessStatus:   article.ProcessStatus,
+			ProcessError:    article.ProcessError,
+			CreatedBy:       article.CreatedBy,
+			CreatedByName:   userNames[article.CreatedBy],
+			ReviewedBy:      article.ReviewedBy,
+			PublishedBy:     article.PublishedBy,
+			PublishedByName: userNames[ptrVal(article.PublishedBy)],
+			ReviewComment:   article.ReviewComment,
+			CreatedAt:       article.CreatedAt,
+			UpdatedAt:       article.UpdatedAt,
 		},
 		Chunks: chunkResponses,
 	}, nil
@@ -732,13 +755,73 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 // 辅助函数
 // =============================================================================
 
+// resolveUserNames 批量解析文章关联的用户名（创建人 + 发布人）。
+//
+// 为什么一次查询而非每个文章单独查：列表页 20 篇文章会产生 ~40 次用户查询，
+// 批量去重后一次搞定，避免 N+1 往返。
+func (s *KnowledgeService) resolveUserNames(articles []model.KnowledgeArticle) map[int64]string {
+	if s.userNames == nil || len(articles) == 0 {
+		return map[int64]string{}
+	}
+	ids := make(map[int64]bool)
+	for _, a := range articles {
+		if a.CreatedBy > 0 {
+			ids[a.CreatedBy] = true
+		}
+		if a.PublishedBy != nil && *a.PublishedBy > 0 {
+			ids[*a.PublishedBy] = true
+		}
+	}
+	if len(ids) == 0 {
+		return map[int64]string{}
+	}
+	idList := make([]int64, 0, len(ids))
+	for id := range ids {
+		idList = append(idList, id)
+	}
+	users, err := s.userNames.FindByIDs(idList)
+	if err != nil {
+		slog.Warn("批量查询用户名失败", "error", err)
+		return map[int64]string{}
+	}
+	m := make(map[int64]string, len(users))
+	for _, u := range users {
+		m[u.ID] = u.RealName
+	}
+	return m
+}
+
+func ptrVal(p *int64) int64 {
+	if p == nil {
+		return 0
+	}
+	return *p
+}
+
+// maxTagCount 标签数量上限，防止 JSONB 膨胀。
+const maxTagCount = 10
+
 func marshalTags(tags []string) datatypes.JSON {
-	// TODO(service/knowledge): tags 应 trim、去重、限制数量和单个长度。
-	// 标签直接写入 JSONB 会让前端和检索筛选承受脏数据。
 	if len(tags) == 0 {
 		return datatypes.JSON(`[]`)
 	}
-	data, _ := json.Marshal(tags)
+	seen := make(map[string]bool, len(tags))
+	clean := make([]string, 0, len(tags))
+	for _, t := range tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		seen[t] = true
+		clean = append(clean, t)
+		if len(clean) >= maxTagCount {
+			break
+		}
+	}
+	if len(clean) == 0 {
+		return datatypes.JSON(`[]`)
+	}
+	data, _ := json.Marshal(clean)
 	return datatypes.JSON(data)
 }
 
@@ -752,25 +835,6 @@ func unmarshalTags(data datatypes.JSON) []string {
 		return []string{}
 	}
 	return tags
-}
-
-func statusText(status int16) string {
-	switch status {
-	case 0:
-		return "已停用"
-	case 1:
-		return "草稿"
-	case 2:
-		return "待审核"
-	case 3:
-		return "已通过"
-	case 4:
-		return "已发布"
-	case 5:
-		return "已驳回"
-	default:
-		return "未知"
-	}
 }
 
 // splitMinioPath 将 "bucket/key" 格式的 MinioPath 拆分为 bucket 和 key。

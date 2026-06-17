@@ -92,12 +92,7 @@ const (
 )
 
 // TicketStatusText 返回工单状态的中文描述。
-//
-// 为什么放在 model 包而非 DTO：业务映射函数与状态常量就近维护，
-// 避免 DTO 包承担数据模型之外的职责。
 func TicketStatusText(status int16) string {
-	// TODO(model/enums): 为知识文章、处理状态、紧急程度、影响范围也提供统一 Text 方法。
-	// 当前这些映射散落在 Service 和前端工具函数中，容易出现文案不一致。
 	switch status {
 	case TicketStatusPending:
 		return "待处理"
@@ -111,5 +106,87 @@ func TicketStatusText(status int16) string {
 		return "已关闭"
 	default:
 		return "未知"
+	}
+}
+
+// ArticleStatusText 返回文章审核状态的中文描述。
+func ArticleStatusText(status int16) string {
+	switch status {
+	case ArticleStatusDisabled:
+		return "已停用"
+	case ArticleStatusDraft:
+		return "草稿"
+	case ArticleStatusReviewing:
+		return "待审核"
+	case ArticleStatusApproved:
+		return "已通过"
+	case ArticleStatusPublished:
+		return "已发布"
+	case ArticleStatusRejected:
+		return "已驳回"
+	default:
+		return "未知"
+	}
+}
+
+// ArticleSourceTypeText 返回文章来源类型的中文描述。
+func ArticleSourceTypeText(sourceType int16) string {
+	switch sourceType {
+	case 1:
+		return "手动创建"
+	case 2:
+		return "文档上传"
+	default:
+		return "未知"
+	}
+}
+
+// TicketUrgencyText 返回紧急程度的中文描述。
+func TicketUrgencyText(urgency int16) string {
+	switch urgency {
+	case TicketUrgencyLow:
+		return "低"
+	case TicketUrgencyMedium:
+		return "中"
+	case TicketUrgencyHigh:
+		return "高"
+	default:
+		return "未知"
+	}
+}
+
+// TicketImpactText 返回影响范围的中文描述。
+func TicketImpactText(impact int16) string {
+	switch impact {
+	case ImpactPersonal:
+		return "个人"
+	case ImpactDept:
+		return "部门"
+	case ImpactCompany:
+		return "全公司"
+	default:
+		return "未知"
+	}
+}
+
+// ProcessStatusText 返回文档处理状态的中文描述。
+func ProcessStatusText(processStatus string) string {
+	switch processStatus {
+	case "pending":
+		return "待处理"
+	case "parsing":
+		return "解析中"
+	case "chunking":
+		return "分块中"
+	case "embedding":
+		return "向量化中"
+	case "indexing":
+		return "索引中"
+	case "completed":
+		return "已完成"
+	case "failed":
+		return "失败"
+	default:
+		return processStatus
 	}
 }
