@@ -62,14 +62,14 @@ func (r *TicketRepo) Update(ticket *model.Ticket) error {
 	return r.db.Save(ticket).Error
 }
 
-// UpdateStatus 更新申告状态。
+// UpdateStatus 更新申告状态，返回受影响行数。
 //
+// 返回 RowsAffected 让调用方区分"不存在"(0)和"成功更新"(1)。
 // 为什么单独封装：状态转换是高频操作，仅更新 status 字段避免
 // Save 意外覆盖其他字段（如 supplement_count）。
-func (r *TicketRepo) UpdateStatus(id int64, status int) error {
-	// TODO(repository/ticket): UpdateStatus 应返回 RowsAffected 或在 WHERE 中带 expectedStatus。
-	// 当前无法区分“不存在”“并发状态已变化”“成功更新”三种结果。
-	return r.db.Model(&model.Ticket{}).Where("id = ?", id).Update("status", status).Error
+func (r *TicketRepo) UpdateStatus(id int64, status int) (int64, error) {
+	result := r.db.Model(&model.Ticket{}).Where("id = ?", id).Update("status", status)
+	return result.RowsAffected, result.Error
 }
 
 // IncrementSupplementCount 原子自增补充信息计数。
@@ -154,38 +154,23 @@ func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]mod
 	return tickets, total, nil
 }
 
-// AutoCloseTickets 批量关闭超期申告并返回被关闭的 ticket ID 列表。
+// AutoCloseTickets 原子关闭超期申告并返回被关闭的 ticket ID 列表。
 //
-// 纯数据操作：查询待关闭的 ticket → 批量 UPDATE status=5。
-// 事务编排和 TicketRecord 创建已上移到 TicketService.AutoClose。
+// 使用 UPDATE ... RETURNING id 在单条 SQL 中完成"查询+关闭"，
+// 消除 SELECT-then-UPDATE 的 TOCTOU 竞态窗口。
 func (r *TicketRepo) AutoCloseTickets(olderThan time.Time) ([]int64, error) {
-	// TODO(repository/ticket): SELECT ids + UPDATE ids 之间不是原子操作。
-	// 可使用 UPDATE ... RETURNING id 在单条 SQL 中拿到关闭的工单列表。
-	var tickets []model.Ticket
-	if err := r.db.Model(&model.Ticket{}).
-		Where("status IN ? AND created_at < ?",
-			[]int16{model.TicketStatusPending, model.TicketStatusProcessing, model.TicketStatusNeedSupplement},
-			olderThan).
-		Select("id").
-		Find(&tickets).Error; err != nil {
+	var ids []int64
+	err := r.db.Raw(
+		`UPDATE tickets SET status = ?, updated_at = NOW()
+		 WHERE status IN (?,?,?) AND created_at < ?
+		 RETURNING id`,
+		model.TicketStatusClosed,
+		model.TicketStatusPending, model.TicketStatusProcessing, model.TicketStatusNeedSupplement,
+		olderThan,
+	).Scan(&ids).Error
+	if err != nil {
 		return nil, err
 	}
-
-	if len(tickets) == 0 {
-		return nil, nil
-	}
-
-	ids := make([]int64, len(tickets))
-	for i, t := range tickets {
-		ids[i] = t.ID
-	}
-
-	if err := r.db.Model(&model.Ticket{}).
-		Where("id IN ?", ids).
-		Update("status", model.TicketStatusClosed).Error; err != nil {
-		return nil, err
-	}
-
 	return ids, nil
 }
 

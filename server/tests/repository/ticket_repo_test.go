@@ -198,9 +198,12 @@ func TestTicketRepo_UpdateStatus(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := repo.UpdateStatus(ticket.ID, 2) // 处理中
+	rows, err := repo.UpdateStatus(ticket.ID, 2) // 处理中
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
+	}
+	if rows != 1 {
+		t.Errorf("期望 RowsAffected=1, got %d", rows)
 	}
 
 	var updated model.Ticket

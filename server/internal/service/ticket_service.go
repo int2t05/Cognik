@@ -116,10 +116,8 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 //   - 仅申告人本人可补充
 //   - 仅"需补充信息"(3)状态可补充
 //   - 补充后状态变为"处理中"(2)
-//   - 创建处理记录（action=supplement）
+//   - CreateRecord + UpdateStatus 在同一事务中原子执行
 func (s *TicketService) SupplementTicket(id int64, userID int64, req request.SupplementTicketRequest) error {
-	// TODO(service/ticket): 补充记录创建和状态更新应放入同一事务。
-	// 当前 CreateRecord 成功后 UpdateStatus 失败，会留下补充记录但工单仍停留在需补充状态。
 	ticket, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -138,19 +136,29 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 		return AppError{Code: errcode.ErrParam, Message: "仅需补充信息状态可补充"}
 	}
 
-	// 创建处理记录
-	record := &model.TicketRecord{
-		TicketID:   id,
-		OperatorID: userID,
-		Action:     "supplement",
-		Content:    req.Content,
-	}
-	if err := s.repo.CreateRecord(record); err != nil {
-		return err
-	}
+	// 事务内原子执行：CreateRecord + UpdateStatus，避免孤立记录
+	return s.txManager.Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.NewTicketRepo(tx)
 
-	// 更新状态为处理中
-	return s.repo.UpdateStatus(id, 2)
+		record := &model.TicketRecord{
+			TicketID:   id,
+			OperatorID: userID,
+			Action:     "supplement",
+			Content:    req.Content,
+		}
+		if err := txRepo.CreateRecord(record); err != nil {
+			return err
+		}
+
+		rows, err := txRepo.UpdateStatus(id, 2)
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+		}
+		return nil
+	})
 }
 
 // =============================================================================
@@ -234,10 +242,13 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 	// 避免状态已变但无 timeline 记录的数据不一致。
 	err = s.txManager.Transaction(func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
-		// TODO(service/ticket): UpdateStatus 的 WHERE 仅按 id 更新，没有带旧 status 条件。
-		// 并发操作时可能两个操作者基于同一旧状态都成功写入记录，应改为 CAS 式状态转换。
-		if err := txRepo.UpdateStatus(id, int(newStatus)); err != nil {
+
+		rows, err := txRepo.UpdateStatus(id, int(newStatus))
+		if err != nil {
 			return err
+		}
+		if rows == 0 {
+			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
 		}
 
 		record := &model.TicketRecord{
@@ -436,21 +447,23 @@ func unmarshalTicketTags(data datatypes.JSON) []string {
 // AutoClose 自动关闭超期申告（由 Scheduler 定时调用）。
 //
 // 业务规则：status IN (1,2,3) AND created_at < olderThan 的申告自动关闭。
-// 在事务中执行：批量关闭 + 为每个 ticket 创建 action=auto_close 的 TicketRecord。
+// UPDATE + TicketRecord 创建在同一事务中原子执行，
+// 避免工单已关闭但缺少 auto_close 时间线记录。
 func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
-	// TODO(service/ticket): AutoCloseTickets 的批量 UPDATE 和创建 TicketRecord 不在同一事务里。
-	// 如果记录创建失败，工单已经关闭但缺少自动关闭时间线。
-	ids, err := s.repo.AutoCloseTickets(olderThan)
-	if err != nil {
-		return 0, err
-	}
-	if len(ids) == 0 {
-		return 0, nil
-	}
+	var closedCount int64
 
-	// 在事务中为每个关闭的 ticket 创建处理记录
-	now := time.Now()
-	err = s.txManager.Transaction(func(tx *gorm.DB) error {
+	err := s.txManager.Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.NewTicketRepo(tx)
+
+		ids, err := txRepo.AutoCloseTickets(olderThan)
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+
+		now := time.Now()
 		for _, id := range ids {
 			record := &model.TicketRecord{
 				TicketID:   id,
@@ -463,11 +476,10 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 				return err
 			}
 		}
+
+		closedCount = int64(len(ids))
 		return nil
 	})
-	if err != nil {
-		return 0, err
-	}
 
-	return int64(len(ids)), nil
+	return closedCount, err
 }

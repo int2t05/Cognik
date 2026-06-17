@@ -237,10 +237,11 @@ type VectorStore interface {
 
 1. `Scheduler.runAutoCloseLoop` → 每小时触发一次
 2. `Scheduler.RunAutoClose` → 调用 `ticketSvc.AutoClose(olderThan)`
-3. `TicketService.AutoClose(olderThan)` → **Service 层事务编排**：
-   - 调用 `TicketRepo.AutoCloseTickets(olderThan)` 获取待关闭 ticket ID 列表
-   - 通过 `TxManager.Transaction` 在事务中为每个 ticket 创建 `action="auto_close"` 的 `TicketRecord`
-4. `TicketRepo.AutoCloseTickets(olderThan)` → **纯数据操作**：SELECT + 批量 UPDATE status=Closed
+3. `TicketService.AutoClose(olderThan)` → **单事务中原子执行**：
+   - 调用 `TicketRepo.AutoCloseTickets(olderThan)` 原子关闭并返回 ID 列表
+   - 在同一事务内为每个 ticket 创建 `action="auto_close"` 的 `TicketRecord`
+   - 事务回滚时 UPDATE 和 Record 创建同时撤销
+4. `TicketRepo.AutoCloseTickets(olderThan)` → **单 SQL 原子操作**：`UPDATE ... RETURNING id`，消除 SELECT-then-UPDATE 的 TOCTOU 竞态
 
 关闭条件：`status IN (1,2,3) AND created_at < now - 7 days`
 
@@ -255,6 +256,11 @@ type TxManager interface {
 ```
 
 `TicketService` 通过构造函数注入 `TxManager`（而非直接持有 `*gorm.DB`），事务编排由 Service 层完成，Repository 只做纯数据操作。
+
+**事务使用场景：**
+- `UpdateStatus`：UpdateStatus + CreateRecord 在同一事务中执行
+- `SupplementTicket`：CreateRecord + UpdateStatus 在同一事务中执行，避免孤立记录
+- `AutoClose`：批量 UPDATE + 批量 TicketRecord 创建在同一事务中执行
 
 ## 9. 项目结构
 
