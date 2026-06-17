@@ -6,7 +6,6 @@
 package handler
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -20,13 +19,12 @@ import (
 
 // TicketHandler 申告管理接口。
 type TicketHandler struct {
-	svc        *service.TicketService
-	kbSvc      *service.KnowledgeService
+	svc *service.TicketService
 }
 
 // NewTicketHandler 创建 TicketHandler 实例。
-func NewTicketHandler(svc *service.TicketService, kbSvc *service.KnowledgeService) *TicketHandler {
-	return &TicketHandler{svc: svc, kbSvc: kbSvc}
+func NewTicketHandler(svc *service.TicketService) *TicketHandler {
+	return &TicketHandler{svc: svc}
 }
 
 // =============================================================================
@@ -57,16 +55,7 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 // GET /api/v1/portal/tickets
 func (h *TicketHandler) ListByUser(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
-
-	// TODO(handler/ticket): 复用 parsePagination，避免和其他列表端点的分页规则不一致。
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
-	}
+	page, pageSize := parsePagination(c)
 
 	result, err := h.svc.ListByUser(userID, page, pageSize)
 	if err != nil {
@@ -110,17 +99,9 @@ func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 //
 // GET /api/v1/admin/tickets
 func (h *TicketHandler) ListAll(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, pageSize := parsePagination(c)
 	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
 	urgency, _ := strconv.Atoi(c.DefaultQuery("urgency", "0"))
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
-	}
 
 	result, err := h.svc.ListAll(status, urgency, page, pageSize)
 	if err != nil {
@@ -214,13 +195,7 @@ func (h *TicketHandler) AddRecord(c *gin.Context) {
 // CreateKnowledgeCandidate 从申告内容生成知识库候选条目。
 //
 // POST /api/v1/admin/tickets/:id/knowledge-candidate
-//
-// 为什么放在 TicketHandler 而非 KnowledgeHandler：
-// 该操作的本质是将申告处理经验转化为知识，操作入口是申告详情页，
-// 放在 TicketHandler 更符合用户操作路径。
 func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
-	// TODO(handler/ticket): 这里跨 Handler 直接调用 KnowledgeService 创建文章，缺少事务和审计记录。
-	// 建议在 Service 层提供“从申告生成知识候选”用例，集中处理状态和审计。
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "无效的申告 ID")
@@ -236,23 +211,7 @@ func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-
-	// 获取申告详情
-	detail, svcErr := h.svc.GetDetail(id, 0)
-	if svcErr != nil {
-		handleServiceError(c, svcErr)
-		return
-	}
-
-	// 以申告标题和描述创建知识文章草稿
-	answer := fmt.Sprintf("问题描述：%s\n\n解决方案：%s", detail.Title, detail.Description)
-	articleReq := request.CreateArticleRequest{
-		KBID:     body.KBID,
-		Title:   "申告经验 - " + detail.Title,
-		Content: answer,
-	}
-
-	if err := h.kbSvc.CreateArticle(articleReq, userID); err != nil {
+	if err := h.svc.CreateKnowledgeCandidate(id, body.KBID, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}

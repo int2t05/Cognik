@@ -36,9 +36,7 @@ func (Ticket) TableName() string { return "tickets" }
 type TicketRecord struct {
 	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketID   int64          `gorm:"not null;column:ticket_id;index:idx_ticket_records_ticket_id" json:"ticket_id"`
-	OperatorID int64          `gorm:"not null;column:operator_id" json:"operator_id"` // FK 约束由数据库迁移管理 (REFERENCES users(id))
-	// TODO(model/ticket): OperatorID=0 用于系统操作，但 FK 到 users(id) 会冲突。
-	// 应统一为 nullable operator_id 或创建系统用户记录。
+	OperatorID int64          `gorm:"not null;column:operator_id" json:"operator_id"` // 0=系统自动操作，无 FK 约束以避免冲突
 	Action     string         `gorm:"type:varchar(32);not null" json:"action"`
 	Content    string         `gorm:"type:text" json:"content"`
 	Detail     datatypes.JSON `gorm:"type:jsonb" json:"detail"`

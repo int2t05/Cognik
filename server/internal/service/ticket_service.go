@@ -32,11 +32,17 @@ type TicketService struct {
 	repo      *repository.TicketRepo
 	txManager TxManager
 	msgSvc    *MessageService
+	kbSvc     *KnowledgeService
 }
 
 // NewTicketService 创建 TicketService 实例。
-func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService) *TicketService {
-	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc}
+func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, kbSvc *KnowledgeService) *TicketService {
+	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, kbSvc: kbSvc}
+}
+
+// SetKnowledgeService 延迟注入 KnowledgeService（解决循环依赖）。
+func (s *TicketService) SetKnowledgeService(kbSvc *KnowledgeService) {
+	s.kbSvc = kbSvc
 }
 
 // =============================================================================
@@ -261,7 +267,7 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 
 	// request_info 成功后同步通知申告人
 	if recordAction == model.TicketActionRequestInfo && s.msgSvc != nil {
-		if notifyErr := s.msgSvc.NotifySupplement(id, ticket.UserID); notifyErr != nil {
+		if notifyErr := s.msgSvc.NotifySupplement(id, ticket.UserID, ticket.Title); notifyErr != nil {
 			slog.Warn("补充信息通知失败", "ticket_id", id, "user_id", ticket.UserID, "error", notifyErr)
 		}
 	}
@@ -501,6 +507,38 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 	})
 
 	return closedCount, err
+}
+
+// =============================================================================
+// CreateKnowledgeCandidate
+// =============================================================================
+
+// CreateKnowledgeCandidate 从申告内容生成知识库候选文章。
+//
+// 为什么放在 TicketService 而非 Handler 直接调用 KnowledgeService：
+// 统一的 Service 层编排便于加入事务边界和审计日志，避免 Handler 层跨 Service 调用。
+func (s *TicketService) CreateKnowledgeCandidate(id int64, kbID int64, userID int64) error {
+	detail, err := s.GetDetail(id, 0)
+	if err != nil {
+		return err
+	}
+
+	answer := fmt.Sprintf("问题描述：%s\n\n解决方案：%s", detail.Title, detail.Description)
+	articleReq := request.CreateArticleRequest{
+		KBID:    kbID,
+		Title:   "申告经验 - " + detail.Title,
+		Content: answer,
+	}
+
+	if s.kbSvc == nil {
+		return AppError{Code: errcode.ErrUnknown, Message: "知识库服务未初始化"}
+	}
+	if err := s.kbSvc.CreateArticle(articleReq, userID); err != nil {
+		return err
+	}
+
+	slog.Info("从申告创建知识候选", "ticket_id", id, "kb_id", kbID, "operator", userID)
+	return nil
 }
 
 // =============================================================================

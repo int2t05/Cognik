@@ -38,8 +38,7 @@ type SupplementTicketRequest struct {
 //
 // ToKnowledgeCandidate 为 true 时，resolve 操作会将此申告标记为知识候选。
 type UpdateTicketStatusRequest struct {
-	Action                string `json:"action" binding:"required"`
-	// TODO(dto/ticket): action 应使用 binding oneof 或自定义校验限制为 start/request_info/resolve/close。
+	Action                string `json:"action" binding:"required,oneof=start request_info resolve close"`
 	Result                string `json:"result"`
 	ToKnowledgeCandidate  bool   `json:"to_knowledge_candidate"`
 }

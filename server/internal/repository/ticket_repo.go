@@ -140,15 +140,16 @@ func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]mod
 			ids[i] = t.UserID
 		}
 		var users []model.User
-		if err := r.db.Where("id IN ?", ids).Find(&users).Error; err == nil {
-			userMap := make(map[int64]model.User, len(users))
-			for _, u := range users {
-				userMap[u.ID] = u
-			}
-			for i := range tickets {
-				if u, ok := userMap[tickets[i].UserID]; ok {
-					tickets[i].User = u
-				}
+		if err := r.db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+			return nil, 0, err
+		}
+		userMap := make(map[int64]model.User, len(users))
+		for _, u := range users {
+			userMap[u.ID] = u
+		}
+		for i := range tickets {
+			if u, ok := userMap[tickets[i].UserID]; ok {
+				tickets[i].User = u
 			}
 		}
 	}

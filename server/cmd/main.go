@@ -193,7 +193,7 @@ func main() {
 	userService := service.NewUserService(userRepo, db)
 	roleService := service.NewRoleService(roleRepo, userRepo, db)
 	messageService := service.NewMessageService(messageRepo)
-	ticketService := service.NewTicketService(ticketRepo, txManager, messageService)
+	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, nil)
 	dashboardService := service.NewDashboardService(dashboardRepo)
 	configService := service.NewConfigService(configRepo)
 
@@ -235,6 +235,7 @@ func main() {
 		service.WithStorage(storageClient),
 	)
 	slog.Info("KnowledgeService 已初始化（含 Chunker + Processor）")
+	ticketService.SetKnowledgeService(knowledgeService)
 
 	// LLMService（RAG + prompt + LLM 统一编排，供 ChatService 使用）
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
@@ -257,7 +258,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
 	roleHandler := handler.NewRoleHandler(roleService)
-	ticketHandler := handler.NewTicketHandler(ticketService, knowledgeService)
+	ticketHandler := handler.NewTicketHandler(ticketService)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeService)
 	chatHandler := handler.NewChatHandler(chatService)
 	messageHandler := handler.NewMessageHandler(messageService)

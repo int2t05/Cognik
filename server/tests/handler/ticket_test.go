@@ -75,9 +75,8 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 		ON CONFLICT (id) DO NOTHING`)
 
 	ticketRepo := repository.NewTicketRepo(db)
-	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), nil)
-	kbSvc := service.NewKnowledgeService(repository.NewKnowledgeRepo(db))
-	ticketH := handler.NewTicketHandler(ticketSvc, kbSvc)
+	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), nil, nil)
+	ticketH := handler.NewTicketHandler(ticketSvc)
 
 	r := gin.New()
 	r.Use(middleware.RequestID())

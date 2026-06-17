@@ -7,6 +7,7 @@ package handler
 import (
 	"strconv"
 
+	"opsmind/internal/repository"
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -28,16 +29,23 @@ func NewMessageHandler(svc *service.MessageService) *MessageHandler {
 // 门户端
 // =============================================================================
 
-// ListMessages 查询当前用户的消息列表。
+// ListMessages 查询当前用户的消息列表，支持 is_read/type 过滤。
 //
-// GET /api/v1/portal/messages
+// GET /api/v1/portal/messages?is_read=true&type=ticket_supplement
 func (h *MessageHandler) ListMessages(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 
-	// 使用共享分页辅助函数（上限 100，与其他端点对齐）
 	page, pageSize := parsePagination(c)
 
-	msgs, total, err := h.svc.ListMessages(userID, page, pageSize)
+	// 解析可选过滤参数
+	var filter repository.MessageFilter
+	if v := c.Query("is_read"); v != "" {
+		b := v == "true" || v == "1"
+		filter.IsRead = &b
+	}
+	filter.Type = c.Query("type")
+
+	msgs, total, err := h.svc.ListMessages(userID, page, pageSize, filter)
 	if err != nil {
 		handleServiceError(c, err)
 		return

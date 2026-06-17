@@ -10,6 +10,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
@@ -38,13 +39,15 @@ func NewMessageService(repo *repository.MessageRepo) *MessageService {
 // 写入一条 type=ticket_supplement 的站内消息。
 // 为什么同步调用而非异步：消息写入是轻量操作（单条 INSERT），
 // 同步执行可保证事务一致性——如果消息创建失败，申告操作也告失败。
-func (s *MessageService) NotifySupplement(ticketID int64, userID int64) error {
-	// TODO(service/message): 消息文案应包含 ticket_no/title 或跳转目标摘要。
-	// 只有 RelatedID 时前端可跳转，但通知列表缺少足够上下文。
+func (s *MessageService) NotifySupplement(ticketID int64, userID int64, ticketTitle string) error {
+	content := "您的申告需要补充更多信息，请尽快登录系统查看并补充相关材料。"
+	if ticketTitle != "" {
+		content = fmt.Sprintf("您的申告「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
+	}
 	msg := &model.Message{
 		UserID:      userID,
 		Title:       "申告需补充信息",
-		Content:     "您的申告需要补充更多信息，请尽快登录系统查看并补充相关材料。",
+		Content:     content,
 		Type:        "ticket_supplement",
 		RelatedType: "ticket",
 		RelatedID:   ticketID,
@@ -57,12 +60,12 @@ func (s *MessageService) NotifySupplement(ticketID int64, userID int64) error {
 // 查询和操作
 // =============================================================================
 
-// ListMessages 分页查询用户消息列表。
-func (s *MessageService) ListMessages(userID int64, page, pageSize int) ([]model.Message, int64, error) {
+// ListMessages 分页查询用户消息列表，支持按 is_read/type 过滤。
+func (s *MessageService) ListMessages(userID int64, page, pageSize int, filter repository.MessageFilter) ([]model.Message, int64, error) {
 	if userID <= 0 {
 		return nil, 0, AppError{Code: errcode.ErrParam, Message: "无效的用户 ID"}
 	}
-	return s.repo.ListByUser(userID, page, pageSize)
+	return s.repo.ListByUser(userID, page, pageSize, filter)
 }
 
 // MarkAsRead 将指定用户的消息标记为已读。
@@ -70,6 +73,9 @@ func (s *MessageService) ListMessages(userID int64, page, pageSize int) ([]model
 // 校验消息归属（userID），防止水平越权：用户 A 不能标记用户 B 的消息已读。
 // 消息不存在或不属于该用户时返回 AppError{Code: ErrNotFound}。
 func (s *MessageService) MarkAsRead(id int64, userID int64) error {
+	if userID <= 0 {
+		return AppError{Code: errcode.ErrParam, Message: "无效的用户 ID"}
+	}
 	if err := s.repo.MarkAsRead(id, userID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "消息不存在"}

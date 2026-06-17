@@ -255,28 +255,28 @@
 
 ### 代码 TODO（申告服务）
 
-- 📌 [handler/ticket.go:60](/server/internal/handler/ticket.go) — ListByUser should reuse parsePagination
+- ✅ ~~[handler/ticket.go:60](/server/internal/handler/ticket.go) — ListByUser should reuse parsePagination~~ → ListByUser + ListAll 均改用 parsePagination()
 - ✅ ~~[handler/ticket.go:138](/server/internal/handler/ticket.go) — GetDetail 未区分权限范围~~ → 已实现：门户端传 userID，后台传 0
-- 📌 [handler/ticket.go:217](/server/internal/handler/ticket.go) — 跨 Handler 直接调用 KnowledgeService 创建文章，缺少事务和审计记录
+- ✅ ~~[handler/ticket.go:217](/server/internal/handler/ticket.go) — 跨 Handler 直接调用 KnowledgeService~~ → 已移至 TicketService.CreateKnowledgeCandidate，Handler 仅转发调用
 - ✅ ~~[service/ticket_service.go:86](/server/internal/service/ticket_service.go) — 校验 ChatContext 是合法 JSON~~ → isValidJSON() 已实现
 - ✅ ~~[service/ticket_service.go:267](/server/internal/service/ticket_service.go) — Detail JSON 校验 + action 白名单~~ → 已实现
-- 📌 [dto/request/ticket.go:42](/server/internal/dto/request/ticket.go) — action 应使用 binding oneof 或自定义校验限制为 start/request_info/resolve/close
+- ✅ ~~[dto/request/ticket.go:42](/server/internal/dto/request/ticket.go) — action 应使用 binding oneof~~ → 已添加 `binding:"required,oneof=start request_info resolve close"`
 
 ### 代码 TODO（消息服务）
 
-- 📌 [service/message_service.go:42](/server/internal/service/message_service.go) — 消息文案应包含 ticket_no/title 或跳转目标摘要
-- 📌 [service/message_service.go:95](/server/internal/service/message_service.go) — 未读数适合缓存或通过 WebSocket/SSE 推送
+- ✅ ~~[service/message_service.go:42](/server/internal/service/message_service.go) — 消息文案应包含 ticket_title~~ → NotifySupplement 增加 ticketTitle 参数，消息包含「申告标题」
+- 📌 [service/message_service.go:95](/server/internal/service/message_service.go) — 未读数适合缓存或通过 WebSocket/SSE 推送（架构级优化，暂保留 TODO）
 - ✅ ~~[service/message_service.go](/server/internal/service/message_service.go) — **NotifySupplement 死代码**~~ → TicketService 已注入 MessageService，request_info 后同步调用 NotifySupplement
-- 🟡 [service/message_service.go](/server/internal/service/message_service.go) — `MarkAsRead` 未校验 `userID > 0`，而 `ListMessages`/`CountUnread` 有校验。不一致。
+- ✅ ~~[service/message_service.go](/server/internal/service/message_service.go) — MarkAsRead 未校验 userID > 0~~ → 已添加 `if userID <= 0` 守卫
 
 ### Repository
 
-- 📌 [repository/ticket_repo.go:112](/server/internal/repository/ticket_repo.go) — ListAll 对提交人使用二次查询失败时静默忽略
-- 📌 [repository/message_repo.go:33](/server/internal/repository/message_repo.go) — 增加 is_read/type 过滤
+- ✅ ~~[repository/ticket_repo.go:112](/server/internal/repository/ticket_repo.go) — ListAll 二次查询失败静默忽略~~ → 改为 return error
+- ✅ ~~[repository/message_repo.go:33](/server/internal/repository/message_repo.go) — 增加 is_read/type 过滤~~ → MessageFilter 结构体 + Handler 解析 query params
 
 ### Model
 
-- 📌 [model/ticket.go:40](/server/internal/model/ticket.go) — OperatorID=0 for system operations conflicts with FK
+- ✅ ~~[model/ticket.go:40](/server/internal/model/ticket.go) — OperatorID=0 conflicts with FK~~ → 注释修正：确认无 FK 约束，0=系统自动操作
 
 ---
 

@@ -26,15 +26,28 @@ func (r *MessageRepo) Create(msg *model.Message) error {
 	return r.db.Create(msg).Error
 }
 
-// ListByUser 分页查询指定用户的消息列表。
+// MessageFilter 消息列表过滤条件。
+//
+// 零值表示不过滤（isRead 用指针区分未设置 vs false）。
+type MessageFilter struct {
+	IsRead *bool
+	Type   string
+}
+
+// ListByUser 分页查询指定用户的消息列表，支持按 is_read/type 过滤。
 //
 // 按 created_at DESC 排序（最新在前），返回总数和列表。
-func (r *MessageRepo) ListByUser(userID int64, page, pageSize int) ([]model.Message, int64, error) {
-	// TODO(repository/message): 增加 is_read/type 过滤，消息中心需要快速查看未读或某类通知。
+func (r *MessageRepo) ListByUser(userID int64, page, pageSize int, filter MessageFilter) ([]model.Message, int64, error) {
 	var messages []model.Message
 	var total int64
 
 	query := r.db.Model(&model.Message{}).Where("user_id = ?", userID)
+	if filter.IsRead != nil {
+		query = query.Where("is_read = ?", *filter.IsRead)
+	}
+	if filter.Type != "" {
+		query = query.Where("type = ?", filter.Type)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
