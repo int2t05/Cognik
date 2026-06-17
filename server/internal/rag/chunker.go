@@ -215,6 +215,11 @@ func (c *Chunker) mergeSplits(splits []string) []string {
 				runes := []rune(current)
 				if len(runes) > c.ChunkOverlap {
 					current = string(runes[len(runes)-c.ChunkOverlap:]) + s
+					// 重叠拼接后可能超过 chunkSize，截断防止超大块
+					if utf8.RuneCountInString(current) > c.ChunkSize {
+						cr := []rune(current)
+						current = string(cr[:c.ChunkSize])
+					}
 					continue
 				}
 			}

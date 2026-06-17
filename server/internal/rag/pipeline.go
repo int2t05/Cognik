@@ -173,9 +173,9 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			return nil, fmt.Errorf("混合检索无结果: %w", fuseErr)
 		}
 		if len(allChunks) == 0 && len(vectorResults) > 0 {
-			allChunks = vectorResults
+			allChunks = dedupChunks(vectorResults)
 		} else if len(allChunks) == 0 && len(bm25Results) > 0 {
-			allChunks = bm25Results
+			allChunks = dedupChunks(bm25Results)
 		}
 	} else {
 		// 纯向量模式
@@ -240,4 +240,20 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		Chunks:  allChunks,
 		Metrics: metrics,
 	}, nil
+}
+
+// dedupChunks 按 ChunkID 去重，保留首次出现的结果。
+//
+// 多路检索和混合融合回退路径可能产生同一 chunk 的重复条目，
+// 去重避免 LLM 收到重复上下文浪费 token 预算。
+func dedupChunks(chunks []RetrievalResult) []RetrievalResult {
+	seen := make(map[int64]bool, len(chunks))
+	result := make([]RetrievalResult, 0, len(chunks))
+	for _, c := range chunks {
+		if !seen[c.ChunkID] {
+			seen[c.ChunkID] = true
+			result = append(result, c)
+		}
+	}
+	return result
 }

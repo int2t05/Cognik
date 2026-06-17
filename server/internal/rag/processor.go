@@ -175,8 +175,16 @@ func (p *Processor) processWithRecovery(workerID int, task ProcessTask) {
 }
 
 // processTask 处理单个文档的完整流程。
+//
+// 在各阶段之间检查 ctx 是否已取消，及时释放 worker 资源。
 func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 	articleID := task.ArticleID
+
+	// 入口检查
+	if ctx.Err() != nil {
+		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
+		return
+	}
 
 	var content string
 	p.updateStatus(task, "parsing", "")
@@ -214,6 +222,10 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 	}
 
 	// 阶段 2: 分块
+	if ctx.Err() != nil {
+		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
+		return
+	}
 	p.updateStatus(task, "chunking", "")
 	chunks := p.chunker.Split(content)
 	if len(chunks) == 0 {
@@ -225,6 +237,10 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 	}
 
 	// 阶段 3: Embedding
+	if ctx.Err() != nil {
+		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
+		return
+	}
 	p.updateStatus(task, "embedding", "")
 	vectors, _, err := p.embedder.Embed(ctx, chunks)
 	if err != nil {

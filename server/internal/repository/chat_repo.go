@@ -134,3 +134,28 @@ func (r *ChatRepo) CountMessagesBySession(sessionID int64) (int64, error) {
 	err := r.db.Model(&model.ChatMessage{}).Where("session_id = ?", sessionID).Count(&count).Error
 	return count, err
 }
+
+// CountMessagesBySessions 批量统计多个会话的消息数量，避免 N+1 查询。
+func (r *ChatRepo) CountMessagesBySessions(sessionIDs []int64) (map[int64]int64, error) {
+	if len(sessionIDs) == 0 {
+		return map[int64]int64{}, nil
+	}
+	type row struct {
+		SessionID int64
+		Count     int64
+	}
+	var rows []row
+	err := r.db.Model(&model.ChatMessage{}).
+		Select("session_id, COUNT(*) as count").
+		Where("session_id IN ?", sessionIDs).
+		Group("session_id").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[int64]int64, len(rows))
+	for _, r := range rows {
+		m[r.SessionID] = r.Count
+	}
+	return m, nil
+}

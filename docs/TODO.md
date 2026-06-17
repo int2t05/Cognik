@@ -78,9 +78,9 @@
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — 每任务独立 `context.WithTimeout`（10 分钟）
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — 移除重复 `updateStatus("indexing")` 调用
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt → cross-encoder 子进程重排序
-- 🔴⭐ [rag/chunker.go](/server/internal/rag/chunker.go) — **mergeSplits 可产生 1.5× ChunkSize 的分块**：重叠拼接后 `newCurrent = overlapTail + s` 未做大小校验，超限块直接进入 merged 列表。
-- 🔴⭐ [rag/bm25.go](/server/internal/rag/bm25.go) — **BuildIndex building 标志位 panic 后永不释放**：defer 解锁只保护 mutex，若 buildIndex 因 panic 或 OOM 中断，`building[kbID]=true` 永久阻塞该 KB 的所有后续索引构建。
-- 🔴⭐ [rag/processor.go](/server/internal/rag/processor.go) — **processTask 不检查 ctx 取消**：`context.WithTimeout` 创建的 ctx 在整个流程（下载/解析/分块/embedding/写入）中从未被检查。超时后 goroutine 仍继续消耗资源直到自然完成或 I/O 边界。
+- ✅ [rag/chunker.go](/server/internal/rag/chunker.go) — **mergeSplits 可产生 1.5× ChunkSize 的分块**：重叠拼接后 `newCurrent = overlapTail + s` 未做大小校验，超限块直接进入 merged 列表。
+- ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — **BuildIndex building 标志位 panic 后永不释放**：defer 解锁只保护 mutex，若 buildIndex 因 panic 或 OOM 中断，`building[kbID]=true` 永久阻塞该 KB 的所有后续索引构建。
+- ✅ [rag/processor.go](/server/internal/rag/processor.go) — **processTask 不检查 ctx 取消**：`context.WithTimeout` 创建的 ctx 在整个流程（下载/解析/分块/embedding/写入）中从未被检查。超时后 goroutine 仍继续消耗资源直到自然完成或 I/O 边界。
 - 🟡 [rag/bm25.go](/server/internal/rag/bm25.go) — 文档长度用 rune 计数而非 token 数，中英文长度拉伸不均匀。
 - 🟡 [rag/bm25.go](/server/internal/rag/bm25.go) — gse 词典加载失败时静默降级返回空结果，调用方无感知。
 - 🟡 [rag/document_parser.go](/server/internal/rag/document_parser.go) — DOCX 正则回退使用 200 字节启发式检测段落边界，长文本节点可能丢失段落结构。
@@ -95,7 +95,7 @@
 - ✅ [rag/hybrid.go](/server/internal/rag/hybrid.go) — 单路结果按 topK 截断
 - ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — 超量 `recordLargeIndex` warn / building 并发守卫 / LoadDict 错误 / `isValidToken` 过滤 / topK 默认 10
 - ✅ [rag/embedder.go](/server/internal/rag/embedder.go) — fail-fast / 维度一致性校验 / nil client 守卫
-- 🟡 [rag/pipeline.go](/server/internal/rag/pipeline.go) — 多路向量检索结果含重复 ChunkID，纯向量模式或混合融合失败回退时不做去重。
+- ✅ [rag/pipeline.go](/server/internal/rag/pipeline.go) — 多路向量检索结果含重复 ChunkID，纯向量模式或混合融合失败回退时不做去重。
 - 🟡 [rag/hybrid.go](/server/internal/rag/hybrid.go) — `rrfK` 常量定义但零引用；k 值硬编码在调用方。应删除常量或改用常量替代形参。
 
 ### SSE 流式输出
@@ -121,16 +121,16 @@
 - ✅ [service/chat_service.go](/server/internal/service/chat_service.go) + [config/](/server/internal/config/) — `RAGDefaults` env 配置化
 - ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — Sources 持久化写入
 - ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — pipeline 死存储移除
-- 🔴⭐ [service/chat_service.go](/server/internal/service/chat_service.go) — **FindMessagesBySession 错误静默丢弃**：`msgs, _ := s.chatRepo.FindMessagesBySession(...)` 查询失败时 history 为空，多轮对话降级为单轮——无对话上下文导致查询改写失效。
-- 🔴⭐ [service/chat_service.go](/server/internal/service/chat_service.go) — **ListSessions N+1**：每个 session 逐一调用 `CountMessagesBySession`，20 个 session = 21 次 DB 查询。
-- 🟡 [service/chat_service.go](/server/internal/service/chat_service.go) — `json.Unmarshal` 错误在 `GetChatDetail` 中静默丢弃，Sources 列损坏时前端无来源展示且无错误追踪。
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — **FindMessagesBySession 错误静默丢弃**：`msgs, _ := s.chatRepo.FindMessagesBySession(...)` 查询失败时 history 为空，多轮对话降级为单轮——无对话上下文导致查询改写失效。
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — **ListSessions N+1**：每个 session 逐一调用 `CountMessagesBySession`，20 个 session = 21 次 DB 查询。
+- ✅ [service/chat_service.go](/server/internal/service/chat_service.go) — `json.Unmarshal` 错误在 `GetChatDetail` 中静默丢弃，Sources 列损坏时前端无来源展示且无错误追踪。
 
 ### DTO 与 Model
 
 - ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — Question `max=2000` + `route_count`/`rerank_count`
 - ✅ [dto/response/chat.go](/server/internal/dto/response/chat.go) — `PipelineStep` 类型 + `Pipeline` 字段
 - ✅ [model/chat.go](/server/internal/model/chat.go) — `ChatMessage.SessionID` GORM 索引
-- 📌 [model/chat.go:17-18](/server/internal/model/chat.go) — 连续两行相同 TODO（`pipeline_metrics JSONB`），应合并为一条并补充具体字段设计
+- ✅ [model/chat.go:17-18](/server/internal/model/chat.go) — 连续两行相同 TODO（`pipeline_metrics JSONB`），应合并为一条并补充具体字段设计
 
 ### 适配层
 
@@ -678,7 +678,7 @@
 | 25 | ⭐ `stores/chat.ts` | re-entrant sendQuestion 竞态 | 待添加 |
 | 26 | ⭐ `pkg/response/response.go` | ErrAlreadyFrozen/Active → 500 | 待添加 |
 | 27 | ⭐ `database/migrate.go` | DESC 索引 no-op | 待添加 |
-| 28 | ⭐ `rag/bm25.go` | BuildIndex panic 死锁 | 待添加 |
+| 28 | ⭐ `rag/bm25.go` | BuildIndex panic 死锁 | ✅ 已修复 |
 | 29 | ⭐ `rag/chunker.go` | mergeSplits 1.5x 溢出 | 待添加 |
 | 30 | ⭐ `service/chat_service.go` | FindMessagesBySession 静默丢弃 | 待添加 |
 
@@ -736,9 +736,9 @@
 25. ⭐ **[2026-06-17]** chat.store.ts re-entrant sendQuestion 竞态（前端）
 26. ⭐ **[2026-06-17]** ErrAlreadyFrozen/Active 返回 500 而非 400
 27. ⭐ **[2026-06-17]** migrate.go DESC 索引 no-op
-28. ⭐ **[2026-06-17]** BM25 BuildIndex panic 后 building 死锁
-29. ⭐ **[2026-06-17]** mergeSplits 1.5× ChunkSize 溢出
-30. ⭐ **[2026-06-17]** FindMessagesBySession 错误静默丢弃（RAG 降级）
+28. ⭐ ~~BM25 BuildIndex panic~~ ✅ 已修复
+29. ⭐ ~~mergeSplits 1.5×~~ ✅ 已修复
+30. ⭐ ~~FindMessagesBySession 静默丢弃~~ ✅ 已修复
 
 ---
 

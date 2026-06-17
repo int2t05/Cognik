@@ -133,6 +133,8 @@ type BM25Index struct {
 	// 倒排索引：token → posting list
 	inverted map[string][]bm25Posting
 	// 文档长度：ChunkID → rune count
+	// TODO(rag/bm25): rune 计数对中英文长度拉伸不均（中文 1-2 字符=1 词，英文 5-6 字符=1 词），
+	// 应改用 tokenizer 输出的词数作为文档长度，BM25 的 b 参数才能正确归一化。
 	docLens map[int64]int
 	// 文档元数据：ChunkID → {ArticleID, ChunkIndex, Content}
 	docMeta map[int64]BM25Document
@@ -200,6 +202,16 @@ func (r *BM25Retriever) BuildIndex(kbID int64, docs []BM25Document) {
 	r.building[kbID] = true
 	r.mu.Unlock()
 
+	// 保障 building 标志位一定被清除，防止 panic/OOM 导致永久阻塞
+	defer func() {
+		if rec := recover(); rec != nil {
+			slog.Error("BM25 索引构建 panic，已清除 building 标志位", "kb_id", kbID, "panic", rec)
+		}
+		r.mu.Lock()
+		delete(r.building, kbID)
+		r.mu.Unlock()
+	}()
+
 	idx := r.buildIndex(docs)
 
 	r.mu.Lock()
@@ -208,7 +220,6 @@ func (r *BM25Retriever) BuildIndex(kbID int64, docs []BM25Document) {
 		documents: docs,
 		builtAt:   time.Now(),
 	}
-	r.building[kbID] = false
 	r.mu.Unlock()
 
 	slog.Info("BM25 索引构建完成", "kb_id", kbID, "docs", idx.docCount)

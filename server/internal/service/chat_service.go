@@ -40,6 +40,7 @@ type chatSessionRepo interface {
 	ListByUser(userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
 	DeleteSession(id, userID int64) error
 	CountMessagesBySession(sessionID int64) (int64, error)
+	CountMessagesBySessions(sessionIDs []int64) (map[int64]int64, error)
 }
 
 // RAGDefaults RAG 管道默认开关（从 env 配置读取）。
@@ -139,7 +140,10 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 
 	// 加载历史消息（用于 LLM 上下文 + RAG 查询改写消歧）
 	var history []adapter.ChatMessage
-	msgs, _ := s.chatRepo.FindMessagesBySession(sessionID)
+	msgs, msgErr := s.chatRepo.FindMessagesBySession(sessionID)
+	if msgErr != nil {
+		slog.Warn("加载会话历史消息失败，多轮上下文降级为单轮", "session_id", sessionID, "error", msgErr)
+	}
 	for _, m := range msgs {
 		history = append(history, adapter.ChatMessage{Role: m.Role, Content: m.Content})
 	}
@@ -259,7 +263,9 @@ func (s *ChatService) GetChatDetail(sessionID int64, userID int64) (*response.Ch
 
 	var sources []response.SourceItem
 	if len(session.Sources) > 0 {
-		json.Unmarshal(session.Sources, &sources)
+		if err := json.Unmarshal(session.Sources, &sources); err != nil {
+			slog.Warn("解析会话 Sources JSON 失败", "session_id", sessionID, "error", err)
+		}
 	}
 
 	// 加载消息历史
@@ -268,7 +274,9 @@ func (s *ChatService) GetChatDetail(sessionID int64, userID int64) (*response.Ch
 		for _, m := range msgs {
 			var msgSources []response.SourceItem
 			if len(m.Sources) > 0 {
-				json.Unmarshal(m.Sources, &msgSources)
+				if err := json.Unmarshal(m.Sources, &msgSources); err != nil {
+					slog.Warn("解析消息 Sources JSON 失败", "message_id", m.ID, "error", err)
+				}
 			}
 			messages = append(messages, response.MessageItem{
 				ID:         m.ID,
@@ -311,15 +319,25 @@ func (s *ChatService) ListSessions(userID int64, page, pageSize int) ([]response
 		return nil, 0, err
 	}
 
+	// 批量获取消息数量，避免 N+1 查询
+	sessionIDs := make([]int64, len(sessions))
+	for i, sess := range sessions {
+		sessionIDs[i] = sess.ID
+	}
+	msgCounts, countErr := s.chatRepo.CountMessagesBySessions(sessionIDs)
+	if countErr != nil {
+		slog.Warn("批量获取会话消息数失败", "error", countErr)
+		msgCounts = map[int64]int64{}
+	}
+
 	items := make([]response.SessionListItem, 0, len(sessions))
 	for _, sess := range sessions {
-		count, _ := s.chatRepo.CountMessagesBySession(sess.ID)
 		lastAnswer := truncateText(sess.Answer, 100)
 		items = append(items, response.SessionListItem{
 			ID:           sess.ID,
 			Question:     sess.Question,
 			LastAnswer:   lastAnswer,
-			MessageCount: count,
+			MessageCount: msgCounts[sess.ID],
 			CreatedAt:    sess.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:    sess.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
