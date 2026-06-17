@@ -5,8 +5,8 @@
 package service
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sort"
 	"sync"
@@ -48,6 +48,7 @@ type AuthService struct {
 	rateLimiter    *loginRateLimiter
 	tokenBlacklist map[string]time.Time // 已失效 refresh token -> 到期时间
 	blMu           sync.Mutex
+	stopCh         chan struct{} // 关闭信号，用于停止 blacklistCleanupLoop
 }
 
 // loginRateLimiter 基于内存的登录失败限流器。
@@ -74,25 +75,40 @@ func NewAuthService(userRepo *repository.UserRepo, db *gorm.DB, jwtCfg config.JW
 			window:   15 * time.Minute,
 		},
 		tokenBlacklist: make(map[string]time.Time),
+		stopCh:         make(chan struct{}),
 	}
-	// 后台定期清理已过期的黑名单条目，防止内存泄漏
 	go s.blacklistCleanupLoop()
 	return s
 }
 
+// Shutdown 优雅关闭 AuthService。
+//
+// 关闭 blacklistCleanupLoop goroutine，释放 tokenBlacklist map 的引用，
+// 确保服务关闭后 goroutine 不会阻止 GC 回收。
+func (s *AuthService) Shutdown() {
+	close(s.stopCh)
+}
+
 // blacklistCleanupLoop 每 10 分钟清理一次已到期的黑名单条目。
+//
+// 通过 stopCh 接收关闭信号，确保 Shutdown() 调用后 goroutine 退出。
 func (s *AuthService) blacklistCleanupLoop() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
-	for range ticker.C {
-		s.blMu.Lock()
-		now := time.Now()
-		for token, exp := range s.tokenBlacklist {
-			if now.After(exp) {
-				delete(s.tokenBlacklist, token)
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+			s.blMu.Lock()
+			now := time.Now()
+			for token, exp := range s.tokenBlacklist {
+				if now.After(exp) {
+					delete(s.tokenBlacklist, token)
+				}
 			}
+			s.blMu.Unlock()
 		}
-		s.blMu.Unlock()
 	}
 }
 
@@ -145,7 +161,7 @@ func (r *loginRateLimiter) recordSuccess(username string) {
 // 流程：查用户 → bcrypt 校验 → 检查状态 → 生成令牌 → 组装返回。
 // 为什么密码错误和用户不存在返回相同错误码（10003）：
 // 避免用户名枚举攻击，不暴露"用户是否存在"信息。
-func (s *AuthService) Login(username, password string) (*response.LoginResponse, error) {
+func (s *AuthService) Login(ctx context.Context, username, password string) (*response.LoginResponse, error) {
 	// 限流检查：同一用户名在 15 分钟内最多失败 5 次
 	if err := s.rateLimiter.allowLogin(username); err != nil {
 		slog.Warn("登录被限流拒绝", "username", username)
@@ -159,7 +175,7 @@ func (s *AuthService) Login(username, password string) (*response.LoginResponse,
 			slog.Warn("登录失败：用户不存在", "username", username)
 			return nil, AppError{Code: 10003, Message: "用户名或密码错误"}
 		}
-		return nil, fmt.Errorf("查询用户失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户失败: " + err.Error()}
 	}
 
 	if !hash.CheckPassword(user.PasswordHash, password) {
@@ -182,7 +198,7 @@ func (s *AuthService) Login(username, password string) (*response.LoginResponse,
 //
 // 将 token 加入内存黑名单，阻止其被用于刷新。
 // 黑名单条目在 token 到期后由后台 goroutine 自动清理。
-func (s *AuthService) Logout(refreshToken string) error {
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	claims, err := jwt.ParseToken(refreshToken, s.jwtCfg.Secret)
 	if err != nil {
 		// token 已过期或无效——仍视为退出成功（不需要再失效）
@@ -202,7 +218,7 @@ func (s *AuthService) Logout(refreshToken string) error {
 //
 // 解析 refresh_token 后重新生成令牌对。
 // 为什么不直接生成新 access_token：统一走令牌对刷新，客户端逻辑更简单。
-func (s *AuthService) RefreshToken(refreshToken string) (*response.LoginResponse, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*response.LoginResponse, error) {
 	// 检查 token 是否已被登出（黑名单）
 	s.blMu.Lock()
 	if _, blacklisted := s.tokenBlacklist[refreshToken]; blacklisted {
@@ -240,10 +256,10 @@ func (s *AuthService) RefreshToken(refreshToken string) (*response.LoginResponse
 //
 // 流程：查用户 → 校验旧密码 → 校验新密码策略 → 更新哈希 → 设置 first_login=false。
 // 为什么先校验旧密码再校验新密码策略：旧密码错误是更常见的场景，先返回更有用的错误信息。
-func (s *AuthService) ChangePassword(userID int64, oldPwd, newPwd string) error {
+func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, newPwd string) error {
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
-		return fmt.Errorf("查询用户失败: %w", err)
+		return AppError{Code: errcode.ErrUnknown, Message: "查询用户失败: " + err.Error()}
 	}
 
 	if !hash.CheckPassword(user.PasswordHash, oldPwd) {
@@ -258,15 +274,15 @@ func (s *AuthService) ChangePassword(userID int64, oldPwd, newPwd string) error 
 
 	newHash, err := hash.HashPassword(newPwd)
 	if err != nil {
-		return fmt.Errorf("密码哈希失败: %w", err)
+		return AppError{Code: errcode.ErrUnknown, Message: "密码哈希失败: " + err.Error()}
 	}
 
-	user.PasswordHash = newHash
-	user.FirstLogin = false
-	user.UpdatedAt = time.Now()
-
-	if err := s.userRepo.Update(user); err != nil {
-		return fmt.Errorf("更新密码失败: %w", err)
+	// 仅更新 password_hash 和 first_login，避免 Save 全字段覆盖并发的 user.Update
+	if err := s.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"password_hash": newHash,
+		"first_login":   false,
+	}).Error; err != nil {
+		return AppError{Code: errcode.ErrUnknown, Message: "更新密码失败: " + err.Error()}
 	}
 
 	slog.Info("密码修改成功", "user_id", userID)
@@ -281,7 +297,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 	// 查询用户角色
 	roles, err := s.userRepo.GetUserRoles(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("查询用户角色失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户角色失败: " + err.Error()}
 	}
 
 	roleNames := make([]string, 0, len(roles))
@@ -292,13 +308,16 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 	// 查询用户权限
 	permissions, err := s.userRepo.GetUserPermissions(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("查询用户权限失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户权限失败: " + err.Error()}
+	}
+	if permissions == nil {
+		permissions = []string{}
 	}
 
 	// 查询用户菜单树
 	menuTree, err := s.buildMenuTree(roles)
 	if err != nil {
-		return nil, fmt.Errorf("查询用户菜单失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户菜单失败: " + err.Error()}
 	}
 
 	accessToken, err := jwt.GenerateAccessToken(
@@ -306,7 +325,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 		s.jwtCfg.Secret, s.jwtCfg.AccessExpire,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("生成 access_token 失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "生成 access_token 失败: " + err.Error()}
 	}
 
 	refreshToken, err := jwt.GenerateRefreshToken(
@@ -314,7 +333,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 		s.jwtCfg.Secret, s.jwtCfg.RefreshExpire,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("生成 refresh_token 失败: %w", err)
+		return nil, AppError{Code: errcode.ErrUnknown, Message: "生成 refresh_token 失败: " + err.Error()}
 	}
 
 	return &response.LoginResponse{

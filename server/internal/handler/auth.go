@@ -37,7 +37,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.authService.Login(req.Username, req.Password)
+	resp, err := h.authService.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -56,7 +56,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.authService.RefreshToken(req.RefreshToken)
+	resp, err := h.authService.RefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -88,7 +88,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		response.Error(c, errcode.ErrUnknown, "用户信息异常")
 		return
 	}
-	err := h.authService.ChangePassword(uid, req.OldPassword, req.NewPassword)
+	err := h.authService.ChangePassword(c.Request.Context(), uid, req.OldPassword, req.NewPassword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -108,7 +108,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Logout(req.RefreshToken); err != nil {
+	if err := h.authService.Logout(c.Request.Context(), req.RefreshToken); err != nil {
 		handleServiceError(c, err)
 		return
 	}

@@ -8,6 +8,7 @@
 package service_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+var bgCtx = context.Background()
 
 // testJWTConfig 返回测试用 JWT 配置，与 config.yaml 默认值一致。
 func testJWTConfig() config.JWTConfig {
@@ -100,7 +103,7 @@ func TestAuthService_Login_Success(t *testing.T) {
 
 	seedTestUser(t, db, "test_auth_login", "Test@1234", "13800001001", 1)
 
-	resp, err := svc.Login("test_auth_login", "Test@1234")
+	resp, err := svc.Login(bgCtx, "test_auth_login", "Test@1234")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.AccessToken, "应返回 access_token")
 	assert.NotEmpty(t, resp.RefreshToken, "应返回 refresh_token")
@@ -117,7 +120,7 @@ func TestAuthService_Login_WrongPassword(t *testing.T) {
 
 	seedTestUser(t, db, "test_auth_wrong", "Test@1234", "13800001002", 1)
 
-	resp, err := svc.Login("test_auth_wrong", "WrongPassword@1")
+	resp, err := svc.Login(bgCtx, "test_auth_wrong", "WrongPassword@1")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, 10003, err.(service.AppError).Code, "密码错误应返回 10003")
@@ -131,7 +134,7 @@ func TestAuthService_Login_FrozenAccount(t *testing.T) {
 
 	seedTestUser(t, db, "test_auth_frozen", "Test@1234", "13800001003", 2) // status=2 冻结
 
-	resp, err := svc.Login("test_auth_frozen", "Test@1234")
+	resp, err := svc.Login(bgCtx, "test_auth_frozen", "Test@1234")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, 10002, err.(service.AppError).Code, "冻结账号应返回 10002")
@@ -143,7 +146,7 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 	repo := repository.NewUserRepo(db)
 	svc := service.NewAuthService(repo, nil, testJWTConfig())
 
-	resp, err := svc.Login("nonexistent_xyz", "Test@1234")
+	resp, err := svc.Login(bgCtx, "nonexistent_xyz", "Test@1234")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, 10003, err.(service.AppError).Code)
@@ -158,11 +161,11 @@ func TestAuthService_RefreshToken_Success(t *testing.T) {
 	seedTestUser(t, db, "test_auth_refresh", "Test@1234", "13800001004", 1)
 
 	// 先登录拿到 refresh_token
-	loginResp, err := svc.Login("test_auth_refresh", "Test@1234")
+	loginResp, err := svc.Login(bgCtx, "test_auth_refresh", "Test@1234")
 	require.NoError(t, err)
 
 	// 刷新
-	refreshResp, err := svc.RefreshToken(loginResp.RefreshToken)
+	refreshResp, err := svc.RefreshToken(bgCtx, loginResp.RefreshToken)
 	require.NoError(t, err)
 	assert.NotEmpty(t, refreshResp.AccessToken)
 	assert.NotEmpty(t, refreshResp.RefreshToken)
@@ -175,7 +178,7 @@ func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 	repo := repository.NewUserRepo(db)
 	svc := service.NewAuthService(repo, nil, testJWTConfig())
 
-	resp, err := svc.RefreshToken("invalid_token_xyz")
+	resp, err := svc.RefreshToken(bgCtx, "invalid_token_xyz")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, 10001, err.(service.AppError).Code)
@@ -189,11 +192,11 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd", "Test@1234", "13800001005", 1)
 
-	err := svc.ChangePassword(user.ID, "Test@1234", "NewPass@123")
+	err := svc.ChangePassword(bgCtx,user.ID, "Test@1234", "NewPass@123")
 	assert.NoError(t, err)
 
 	// 验证新密码可用
-	resp, err := svc.Login("test_auth_chpwd", "NewPass@123")
+	resp, err := svc.Login(bgCtx, "test_auth_chpwd", "NewPass@123")
 	require.NoError(t, err)
 	assert.False(t, resp.User.FirstLogin, "修改密码后 first_login 应为 false")
 }
@@ -206,7 +209,7 @@ func TestAuthService_ChangePassword_WrongOldPassword(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd_old", "Test@1234", "13800001006", 1)
 
-	err := svc.ChangePassword(user.ID, "WrongOld@123", "NewPass@123")
+	err := svc.ChangePassword(bgCtx,user.ID, "WrongOld@123", "NewPass@123")
 	assert.Error(t, err)
 	assert.Equal(t, 10003, err.(service.AppError).Code, "旧密码错误应返回 10003")
 }
@@ -219,7 +222,7 @@ func TestAuthService_ChangePassword_WeakNewPassword(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd_weak", "Test@1234", "13800001007", 1)
 
-	err := svc.ChangePassword(user.ID, "Test@1234", "weak")
+	err := svc.ChangePassword(bgCtx,user.ID, "Test@1234", "weak")
 	assert.Error(t, err)
 	assert.Equal(t, 10003, err.(service.AppError).Code, "弱密码应返回 10003")
 }

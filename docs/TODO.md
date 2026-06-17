@@ -34,11 +34,11 @@
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — 登录失败限流器（5 次/15 分钟滑动窗口）
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — Login 内 slog 记录失败审计日志（不泄露用户名是否存在）
 - ✅ [service/auth_service.go](/server/internal/service/auth_service.go) — Logout 内存黑名单 + RefreshToken 前置校验
-- 🔴⭐ [service/auth_service.go](/server/internal/service/auth_service.go) — **blacklistCleanupLoop goroutine 泄漏**：构造时启动后台 goroutine，无 Stop/Shutdown 方法。服务关闭后 goroutine 持续运行并持有 `tokenBlacklist` map 引用，阻止 GC 回收。
-- 🔴⭐ [service/auth_service.go](/server/internal/service/auth_service.go) — **ChangePassword 全字段 Save 存在丢失更新**：`GetByID → 修改 → Save` 写入所有字段，并发 `user_service.Update`（修改 RealName/Phone/Email）的写入会被覆盖。
+- ✅ **[2026-06-17]** [service/auth_service.go](/server/internal/service/auth_service.go) — **blacklistCleanupLoop goroutine 泄漏**。**修复：新增 `stopCh chan struct{}` + `Shutdown()` 方法，loop 通过 `select { case <-stopCh: return }` 优雅退出。main.go 优雅关闭链中调用 `authService.Shutdown()`。**
+- ✅ **[2026-06-17]** [service/auth_service.go](/server/internal/service/auth_service.go) — **ChangePassword 全字段 Save 丢失更新**。**修复：`s.db.Model(&model.User{}).Where("id = ?", userID).Updates(...)` 仅写 `password_hash`/`first_login` 两个字段，不再覆盖并发写入。**
 - 🟡 [service/auth_service.go](/server/internal/service/auth_service.go) — 管理员检测硬编码角色名 `"系统管理员"`，角色更名后静默失效。Role 模型应增加 `IsAdmin bool` 字段。
-- 🟡 [service/auth_service.go](/server/internal/service/auth_service.go) — Login/Logout/RefreshToken/ChangePassword 缺少 `context.Context` 参数。
-- 🟡 [service/auth_service.go](/server/internal/service/auth_service.go) — `buildLoginResponse` 中子调用错误用 `fmt.Errorf` 而非 `errcode.AppError` 包装，Handler 无法区分错误类型。
+- ✅ **[2026-06-17]** [service/auth_service.go](/server/internal/service/auth_service.go) — Login/Logout/RefreshToken/ChangePassword 缺少 `context.Context`。**修复：4 个方法全部新增 `ctx context.Context` 首参，Handler 传递 `c.Request.Context()`。**
+- ✅ **[2026-06-17]** [service/auth_service.go](/server/internal/service/auth_service.go) — `buildLoginResponse` 中子调用错误用 `fmt.Errorf` 而非 `errcode.AppError`。**修复：9 处 `fmt.Errorf` 全部替换为 `AppError{Code: errcode.ErrUnknown, Message: ...}`，移除 `"fmt"` 导入。**
 
 ### 中间件链
 
@@ -54,7 +54,7 @@
 
 - ✅ [router/router.go](/server/internal/router/router.go) — Auth 路由路径 `/api/v1/auth/me` 与文档一致
 - ✅ [dto/request/auth.go](/server/internal/dto/request/auth.go) — LogoutRequest DTO（`refresh_token` 字段）
-- 🟢⭐ [dto/response/auth.go](/server/internal/dto/response/auth.go) — `Permissions []string` nil 值序列化为 JSON `null` 而非 `[]`，前端迭代可能报错。应初始化为空切片。
+- ✅ **[2026-06-17]** [dto/response/auth.go](/server/internal/dto/response/auth.go) + [service/auth_service.go](/server/internal/service/auth_service.go) — `Permissions []string` nil 值序列化为 JSON `null`。**修复：`buildLoginResponse` 中查询权限后添加 `if permissions == nil { permissions = []string{} }` 守卫。**
 
 ---
 
@@ -524,7 +524,7 @@
 
 - 📝⭐ docs 目录引用 `docs/v2/` 和 `server/migrations/v2/`，但两个目录均不存在，迁移脚本缺失。
 - 📝⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) vs [dto/response/user.go](/server/internal/dto/response/user.go) — 时间戳格式不一致：ArticleResponse 用 `time.Time`（RFC3339），UserDetailResponse 用 `string`（自定义格式）。前端需两套时间解析策略。
-- 📝⭐ [dto/response/auth.go](/server/internal/dto/response/auth.go) — `Permissions []string` nil 时序列化为 `null`，其他列表字段返回 `[]`。
+- ✅ **[2026-06-17]** [dto/response/auth.go](/server/internal/dto/response/auth.go) — `Permissions []string` nil 问题已修复，与其他列表字段行为一致。
 
 ---
 
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（全量 TODO 注释一致性审计：151 条代码 TODO ↔ 47 条 📌 双向校验。修复 1 处 stale 条目、1 处内容不匹配、补充 3 条孤儿 TODO、标注 2 处重复 TODO）
+**最后更新**：2026-06-17（§1 认证授权 5 项修复：goroutine 泄漏 + ChangePassword 丢失更新 + ctx.Context 传播 + fmt.Errorf→AppError + Permissions nil→[]。移除 `"fmt"` 依赖，新增 `Shutdown()` 优雅关闭。）

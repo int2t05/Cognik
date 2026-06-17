@@ -310,6 +310,7 @@ func main() {
 	slog.Info("收到退出信号，开始优雅关闭...", "signal", sig)
 
 	scheduler.Stop()
+	authService.Shutdown()
 	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
