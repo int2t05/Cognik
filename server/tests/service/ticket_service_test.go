@@ -621,7 +621,7 @@ func TestTicketService_GetDetail(t *testing.T) {
 	record := &model.TicketRecord{TicketID: ticket.ID, OperatorID: user.ID, Action: "create", Content: "创建"}
 	requireNoErr(t, db.Create(record).Error)
 
-	result, err := svc.GetDetail(ticket.ID)
+	result, err := svc.GetDetail(ticket.ID, 0) // 0=后台，不限所有权
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

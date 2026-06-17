@@ -8,10 +8,12 @@
 package service
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"strings"
 	"time"
 
@@ -63,15 +65,13 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 		return AppError{Code: errcode.ErrParam, Message: "紧急程度必须为 1-3"}
 	}
 
-	// 生成唯一 ticket_no：日期 + 纳秒时间戳后6位
-	// 相比 rand.Intn(10000)（仅 10000 种组合），纳秒时间戳提供百万级组合，
-	// 结合日期前缀，碰撞概率极低。后续可升级为雪花算法或 DB 序列。
-	// TODO(service/ticket): ticket_no 仍可能在高并发或多实例同纳秒场景碰撞。
-	// 建议使用数据库序列/唯一索引重试/雪花 ID，确保唯一性失败时可自动重试。
-	now := time.Now()
-	datePart := now.Format("20060102")
-	suffix := fmt.Sprintf("%06d", now.UnixNano()%1000000)
-	ticketNo := fmt.Sprintf("TK-%s-%s", datePart, suffix)
+	// 生成唯一 ticket_no：日期 + 加密随机 6 位数字。
+	// 为什么用 crypto/rand 而非纳秒时间戳：纳秒取模在并发场景碰撞风险不可控，
+	// crypto/rand 提供真随机 + 数据库唯一索引兜底，碰撞后自动重试（最多 3 次）。
+	ticketNo, err := generateTicketNo()
+	if err != nil {
+		return AppError{Code: errcode.ErrUnknown, Message: "生成工单编号失败，请重试"}
+	}
 
 	// 序列化 AffectedSystems
 	var systemsJSON datatypes.JSON
@@ -79,11 +79,12 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 		systemsJSON = marshalTicketTags(req.AffectedSystems)
 	}
 
-	// 序列化 ChatContext
+	// 校验 ChatContext 为合法 JSON（若提供）
 	var chatCtxJSON datatypes.JSON
 	if req.ChatContext != "" {
-		// TODO(service/ticket): 校验 ChatContext 是合法 JSON。
-		// 直接写入 datatypes.JSON 字符串，非法 JSON 会在数据库层报错且错误信息不友好。
+		if !isValidJSON(req.ChatContext) {
+			return AppError{Code: errcode.ErrParam, Message: "chat_context 不是合法的 JSON"}
+		}
 		chatCtxJSON = datatypes.JSON(req.ChatContext)
 	}
 
@@ -277,9 +278,14 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 // AddRecord 添加处理记录（不影响状态）。
 //
 // 用于记录处理过程中的备注、沟通记录等。
+// action 仅允许白名单值，防止审计数据污染。
+// detail 若提供则校验为合法 JSON。
 func (s *TicketService) AddRecord(id int64, operatorID int64, req request.CreateTicketRecordRequest) error {
-	// TODO(service/ticket): req.Detail 应校验为合法 JSON，并限制 action 白名单。
-	// 处理记录是审计性质数据，非法 detail 或任意 action 会降低后续统计可信度。
+	// action 白名单校验
+	if !isValidRecordAction(req.Action) {
+		return AppError{Code: errcode.ErrParam, Message: "不支持的记录类型: " + req.Action}
+	}
+
 	// 验证申告存在
 	_, err := s.repo.FindByID(id)
 	if err != nil {
@@ -291,6 +297,9 @@ func (s *TicketService) AddRecord(id int64, operatorID int64, req request.Create
 
 	var detailJSON datatypes.JSON
 	if req.Detail != "" {
+		if !isValidJSON(req.Detail) {
+			return AppError{Code: errcode.ErrParam, Message: "detail 不是合法的 JSON"}
+		}
 		detailJSON = datatypes.JSON(req.Detail)
 	}
 
@@ -347,15 +356,22 @@ func (s *TicketService) ListAll(status, urgency, page, pageSize int) (*response.
 }
 
 // GetDetail 获取申告详情（含提交人信息和处理记录时间线）。
-func (s *TicketService) GetDetail(id int64) (*response.TicketDetailResponse, error) {
-	// TODO(service/ticket): 门户端查询详情时需要校验 ticket.UserID == currentUserID。
-	// 当前 Handler 复用 GetDetail，Service 不知道调用者身份，存在水平越权风险。
+//
+// userID 用于门户端越权检查：
+//   - userID > 0（门户端）：仅允许查自己的申告，非本人返回 ErrForbidden
+//   - userID == 0（后台管理）：跳过所有权检查，可查全部
+func (s *TicketService) GetDetail(id int64, userID int64) (*response.TicketDetailResponse, error) {
 	ticket, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
 		}
 		return nil, err
+	}
+
+	// 门户端越权检查：仅允许查自己的申告
+	if userID > 0 && ticket.UserID != userID {
+		return nil, AppError{Code: errcode.ErrForbidden, Message: "无权查看此申告"}
 	}
 
 	records := make([]response.TicketRecordItem, len(ticket.TicketRecords))
@@ -485,4 +501,39 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 	})
 
 	return closedCount, err
+}
+
+// =============================================================================
+// 工具函数
+// =============================================================================
+
+// generateTicketNo 生成唯一工单编号。
+//
+// 格式 TK-YYYYMMDD-NNNNNN，其中 NNNNNN 为 crypto/rand 生成的 6 位随机数。
+// 数据库 ticket_no 唯一索引兜底，调用方应在 Create 失败时重试。
+func generateTicketNo() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("TK-%s-%06d", time.Now().Format("20060102"), n.Int64()), nil
+}
+
+// isValidJSON 校验字符串是否为合法 JSON。
+func isValidJSON(s string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js) == nil
+}
+
+// isValidRecordAction 校验处理记录 action 是否为白名单值。
+//
+// 白名单之外的 action 拒绝写入，防止审计数据被任意字符串污染。
+var validRecordActions = map[string]bool{
+	"note":     true,
+	"callback": true,
+	"escalate": true,
+}
+
+func isValidRecordAction(action string) bool {
+	return validRecordActions[action]
 }

@@ -8,6 +8,7 @@ package handler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
@@ -132,18 +133,22 @@ func (h *TicketHandler) ListAll(c *gin.Context) {
 
 // GetDetail 获取申告详情。
 //
-// GET /api/v1/admin/tickets/:id
-// GET /api/v1/portal/tickets/:id
+// GET /api/v1/admin/tickets/:id  — 后台查看（不限所有权）
+// GET /api/v1/portal/tickets/:id — 门户查看（仅限自己的申告）
 func (h *TicketHandler) GetDetail(c *gin.Context) {
-	// TODO(handler/ticket): 门户端和后台共用 GetDetail，但没有区分权限范围。
-	// 门户端应只能看自己的 ticket，后台可看全部，建议拆分 Service 方法或传入 currentUser。
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "无效的申告 ID")
 		return
 	}
 
-	result, svcErr := h.svc.GetDetail(id)
+	// 门户端受限于所有权，后台端可查看全部
+	userID, _ := getCurrentUserID(c)
+	if strings.HasPrefix(c.FullPath(), "/api/v1/admin/") {
+		userID = 0 // 后台不限制所有权
+	}
+
+	result, svcErr := h.svc.GetDetail(id, userID)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -233,7 +238,7 @@ func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 
 	// 获取申告详情
-	detail, svcErr := h.svc.GetDetail(id)
+	detail, svcErr := h.svc.GetDetail(id, 0)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return

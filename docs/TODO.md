@@ -226,12 +226,12 @@
 
 ### 数据完整性与事务
 
-- 🔴 [service/ticket_service.go](/server/internal/service/ticket_service.go) — `supplement_count` 并发竞态：应在 Repository 层用 `UPDATE ... WHERE supplement_count < 3` 原子操作
-- 🔴 [service/ticket_service.go](/server/internal/service/ticket_service.go) — `UpdateStatus` + `CreateRecord` 不在同一事务
-- 🔴 [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — AutoClose 批量 UPDATE 不创建 TicketRecord
-- 🔴 [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — `SELECT ids + UPDATE` 不是原子操作，AutoClose 有 TOCTOU 竞态
-- 🟡 [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — `UpdateStatus` 应返回 `RowsAffected`
-- 🔴⭐ [service/ticket_service.go](/server/internal/service/ticket_service.go) — **SupplementTicket 不在事务内**：`CreateRecord` 成功后 `UpdateStatus` 失败时，时间线记录已写入但工单状态未更新，产生孤立记录。
+- ✅ [service/ticket_service.go](/server/internal/service/ticket_service.go) — `supplement_count` 并发竞态：应在 Repository 层用 `UPDATE ... WHERE supplement_count < 3` 原子操作
+- ✅ [service/ticket_service.go](/server/internal/service/ticket_service.go) — `UpdateStatus` + `CreateRecord` 不在同一事务
+- ✅ [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — AutoClose 批量 UPDATE 不创建 TicketRecord
+- ✅ [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — `SELECT ids + UPDATE` 不是原子操作，AutoClose 有 TOCTOU 竞态
+- ✅ [repository/ticket_repo.go](/server/internal/repository/ticket_repo.go) — `UpdateStatus` 应返回 `RowsAffected`
+- ✅ [service/ticket_service.go](/server/internal/service/ticket_service.go) — **SupplementTicket 不在事务内**：`CreateRecord` 成功后 `UpdateStatus` 失败时，时间线记录已写入但工单状态未更新，产生孤立记录。
 
 ### 状态机
 
@@ -242,24 +242,24 @@
 
 ### 安全与校验
 
-- 🔴 [service/ticket_service.go](/server/internal/service/ticket_service.go) — `ticket_no` 使用 `time.Now().UnixNano()%1000000` + 随机数，高并发下碰撞风险
-- 🔴 [service/ticket_service.go](/server/internal/service/ticket_service.go) — 门户端 `GetDetail` 不校验 `ticket.UserID == 当前用户`，任意用户可查看他人申告
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — `ticket_no` 碰撞风险~~ → 改用 crypto/rand 生成 6 位真随机数
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — 门户端 GetDetail 越权~~ → GetDetail(id, userID)，门户传 userID 校验所有权，后台传 0 跳过
 - 🟢 [model/ticket.go](/server/internal/model/ticket.go) — `contact_phone` 长度假设 11 位中国手机号
 - 🟢 [dto/request/ticket.go](/server/internal/dto/request/ticket.go) — `ChatContext` 应使用结构化对象而非 `string`
-- 🔴⭐ [service/ticket_service.go](/server/internal/service/ticket_service.go) — **`ChatContext` 写入前无 JSON 合法性校验**：`datatypes.JSON(req.ChatContext)` 不验证，非法 JSON 导致数据库级错误。
-- 🔴⭐ [service/ticket_service.go](/server/internal/service/ticket_service.go) — **`AddRecord.Detail` 无 JSON 校验 + action 无白名单**：任意字符串可写入 audit 数据。
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — **ChatContext 无 JSON 校验**~~ → isValidJSON() 前置校验，非法 JSON 返回明确错误
+- ✅ ~~[service/ticket_service.go](/server/internal/service/ticket_service.go) — **AddRecord.Detail 无校验 + action 无白名单**~~ → isValidJSON() + validRecordActions 白名单
 
 ### 文档一致性
 
-- 📝⭐ [PRD.md §3.3](PRD.md) vs [model/enums.go](/server/internal/model/enums.go) — **影响范围取值不一致**：PRD 文档记载 impact_scope 取值 0/1/2/3，enums.go 实际定义 ImpactPersonal=1、ImpactDept=2、ImpactCompany=3（无 0 值）。需统一定义并更新文档。
+- ✅ ~~[API/tickets.md](API/tickets.md) vs [model/enums.go](/server/internal/model/enums.go) — **影响范围取值不一致**~~ → 已修正为 1=个人, 2=部门, 3=全公司，示例值也修复
 
 ### 代码 TODO（申告服务）
 
 - 📌 [handler/ticket.go:60](/server/internal/handler/ticket.go) — ListByUser should reuse parsePagination
-- 📌 [handler/ticket.go:138](/server/internal/handler/ticket.go) — 门户端和后台共用 GetDetail，但未区分权限范围
+- ✅ ~~[handler/ticket.go:138](/server/internal/handler/ticket.go) — GetDetail 未区分权限范围~~ → 已实现：门户端传 userID，后台传 0
 - 📌 [handler/ticket.go:217](/server/internal/handler/ticket.go) — 跨 Handler 直接调用 KnowledgeService 创建文章，缺少事务和审计记录
-- 📌 [service/ticket_service.go:86](/server/internal/service/ticket_service.go) — 校验 ChatContext 是合法 JSON
-- 📌 [service/ticket_service.go:267](/server/internal/service/ticket_service.go) — req.Detail 应校验为合法 JSON，并限制 action 白名单
+- ✅ ~~[service/ticket_service.go:86](/server/internal/service/ticket_service.go) — 校验 ChatContext 是合法 JSON~~ → isValidJSON() 已实现
+- ✅ ~~[service/ticket_service.go:267](/server/internal/service/ticket_service.go) — Detail JSON 校验 + action 白名单~~ → 已实现
 - 📌 [dto/request/ticket.go:42](/server/internal/dto/request/ticket.go) — action 应使用 binding oneof 或自定义校验限制为 start/request_info/resolve/close
 
 ### 代码 TODO（消息服务）

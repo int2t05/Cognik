@@ -28,7 +28,7 @@ Authorization: Bearer <token>
   "title": "公司邮箱无法登录",
   "description": "从今天上午开始，Outlook 一直提示密码错误，已尝试修改密码无效",
   "urgency": 2,
-  "impact_scope": 0,
+  "impact_scope": 1,
   "affected_systems": ["Exchange", "Outlook"],
   "contact_phone": "13800001111",
   "contact_email": "user@company.com",
@@ -41,7 +41,7 @@ Authorization: Bearer <token>
 | title | string | ✓ | 申告标题 |
 | description | string | ✓ | 详细描述 |
 | urgency | int | ✓ | 紧急程度：1=普通, 2=紧急, 3=非常紧急 |
-| impact_scope | int | | 影响范围：0=个人, 1=团队, 2=部门, 3=全公司 |
+| impact_scope | int | | 影响范围：1=个人, 2=部门, 3=全公司（对齐 model/enums.go） |
 | affected_systems | string[] | | 受影响系统列表 |
 | contact_phone | string | ✓ | 联系电话 |
 | contact_email | string | | 联系邮箱 |
