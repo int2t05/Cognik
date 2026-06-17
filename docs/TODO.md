@@ -81,9 +81,9 @@
 - ✅ [rag/chunker.go](/server/internal/rag/chunker.go) — **mergeSplits 可产生 1.5× ChunkSize 的分块**：重叠拼接后 `newCurrent = overlapTail + s` 未做大小校验，超限块直接进入 merged 列表。
 - ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — **BuildIndex building 标志位 panic 后永不释放**：defer 解锁只保护 mutex，若 buildIndex 因 panic 或 OOM 中断，`building[kbID]=true` 永久阻塞该 KB 的所有后续索引构建。
 - ✅ [rag/processor.go](/server/internal/rag/processor.go) — **processTask 不检查 ctx 取消**：`context.WithTimeout` 创建的 ctx 在整个流程（下载/解析/分块/embedding/写入）中从未被检查。超时后 goroutine 仍继续消耗资源直到自然完成或 I/O 边界。
-- 🟡 [rag/bm25.go](/server/internal/rag/bm25.go) — 文档长度用 rune 计数而非 token 数，中英文长度拉伸不均匀。
-- 🟡 [rag/bm25.go](/server/internal/rag/bm25.go) — gse 词典加载失败时静默降级返回空结果，调用方无感知。
-- 🟡 [rag/document_parser.go](/server/internal/rag/document_parser.go) — DOCX 正则回退使用 200 字节启发式检测段落边界，长文本节点可能丢失段落结构。
+- ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — 文档长度用 rune 计数而非 token 数，中英文长度拉伸不均匀。
+- ✅ [rag/bm25.go](/server/internal/rag/bm25.go) — gse 词典加载失败时静默降级返回空结果，调用方无感知。
+- ✅ [rag/document_parser.go](/server/internal/rag/document_parser.go) — DOCX 正则回退使用 200 字节启发式检测段落边界，长文本节点可能丢失段落结构。
 
 ### RAG 管道
 
@@ -130,7 +130,7 @@
 - ✅ [dto/request/chat.go](/server/internal/dto/request/chat.go) — Question `max=2000` + `route_count`/`rerank_count`
 - ✅ [dto/response/chat.go](/server/internal/dto/response/chat.go) — `PipelineStep` 类型 + `Pipeline` 字段
 - ✅ [model/chat.go](/server/internal/model/chat.go) — `ChatMessage.SessionID` GORM 索引
-- ✅ [model/chat.go:17-18](/server/internal/model/chat.go) — 连续两行相同 TODO（`pipeline_metrics JSONB`），应合并为一条并补充具体字段设计
+- ✅ [model/chat.go](/server/internal/model/chat.go) — ChatMessage 增加 `pipeline_metrics JSONB` 字段持久化 RAG 各步骤耗时（ChatSession 重复 TODO 已移除，StreamChat done 事件自动序列化写入）
 
 ### 适配层
 
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§1 认证授权 5 项修复：goroutine 泄漏 + ChangePassword 丢失更新 + ctx.Context 传播 + fmt.Errorf→AppError + Permissions nil→[]。移除 `"fmt"` 依赖，新增 `Shutdown()` 优雅关闭。）
+**最后更新**：2026-06-17（§2 RAG 4 项修复：BM25 文档长度改用 token 词数 + gse 词典加载失败回退字符级切分 + ChatMessage pipeline_metrics JSONB 字段 + DOCX 正则段落边界 next-tag 检测。）

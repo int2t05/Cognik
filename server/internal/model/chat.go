@@ -14,7 +14,6 @@ type ChatSession struct {
 	Question   string         `gorm:"type:text;not null" json:"question"`
 	Answer     string         `gorm:"type:text" json:"answer"`
 	Sources    datatypes.JSON `gorm:"type:jsonb" json:"sources"`
-	// TODO(model/chat): 增加 pipeline_metrics JSONB 字段持久化 RAG 管道各步骤耗时。
 	Confidence float64        `json:"confidence"`
 	Feedback   int16          `json:"feedback"`
 	DurationMs int            `gorm:"column:duration_ms" json:"duration_ms"`
@@ -25,13 +24,14 @@ func (ChatSession) TableName() string { return "chat_sessions" }
 
 // ChatMessage 对话消息表
 type ChatMessage struct {
-	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	SessionID  int64          `gorm:"not null;column:session_id;index:idx_chat_messages_session" json:"session_id"`
-	Role       string         `gorm:"type:varchar(16);not null" json:"role"`
-	Content    string         `gorm:"type:text;not null" json:"content"`
-	Sources    datatypes.JSON `gorm:"type:jsonb" json:"sources"`
-	Confidence float64        `json:"confidence"`
-	CreatedAt  time.Time      `gorm:"not null" json:"created_at"`
+	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	SessionID       int64          `gorm:"not null;column:session_id;index:idx_chat_messages_session" json:"session_id"`
+	Role            string         `gorm:"type:varchar(16);not null" json:"role"`
+	Content         string         `gorm:"type:text;not null" json:"content"`
+	Sources         datatypes.JSON `gorm:"type:jsonb" json:"sources"`
+	PipelineMetrics datatypes.JSON `gorm:"type:jsonb" json:"pipeline_metrics"` // RAG 管道各步骤耗时（JSONB）
+	Confidence      float64        `json:"confidence"`
+	CreatedAt       time.Time      `gorm:"not null" json:"created_at"`
 }
 
 func (ChatMessage) TableName() string { return "chat_messages" }

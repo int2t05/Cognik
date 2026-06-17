@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/go-ego/gse"
 )
@@ -53,8 +52,9 @@ type Segmenter interface {
 //
 // 线程安全：Segment 方法通过 mu 保护 gse 内部状态（HMM 标记器在 Cut 时修改内部结构）。
 type GseSegmenter struct {
-	seg gse.Segmenter
-	mu  sync.Mutex
+	seg        gse.Segmenter
+	mu         sync.Mutex
+	dictLoaded bool // 词典是否加载成功，未加载时回退到字符级切分
 }
 
 // NewGseSegmenter 创建 gse 分词器实例。
@@ -64,19 +64,37 @@ func NewGseSegmenter() *GseSegmenter {
 	s := &GseSegmenter{}
 	if err := s.seg.LoadDict(); err != nil {
 		slog.Warn("gse 词典加载失败，分词将回退到字符级切分，BM25 检索质量下降", "error", err)
+	} else {
+		s.dictLoaded = true
 	}
 	return s
 }
 
 // Segment 对文本分词（线程安全）。
+//
+// 词典正常加载时使用 gse HMM 分词；加载失败时回退到字符级切分，
+// 确保 BM25 仍能返回检索结果（检索质量降低但不会静默返回空结果）。
 func (s *GseSegmenter) Segment(text string) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.seg.Cut(text, true) // true = 启用 HMM 分词
+	if s.dictLoaded {
+		return s.seg.Cut(text, true) // true = 启用 HMM 分词
+	}
+	// 回退：字符级切分（isValidToken 会过滤掉无效单字符）
+	tokens := make([]string, 0)
+	for _, r := range text {
+		tokens = append(tokens, string(r))
+	}
+	return tokens
 }
 
 // Close 释放分词器资源（gse 无显式释放需求）。
 func (s *GseSegmenter) Close() {}
+
+// Loaded 返回词典是否加载成功，供调用方判断检索质量。
+func (s *GseSegmenter) Loaded() bool {
+	return s.dictLoaded
+}
 
 // =============================================================================
 // BM25 常量
@@ -132,9 +150,8 @@ type bm25Posting struct {
 type BM25Index struct {
 	// 倒排索引：token → posting list
 	inverted map[string][]bm25Posting
-	// 文档长度：ChunkID → rune count
-	// TODO(rag/bm25): rune 计数对中英文长度拉伸不均（中文 1-2 字符=1 词，英文 5-6 字符=1 词），
-	// 应改用 tokenizer 输出的词数作为文档长度，BM25 的 b 参数才能正确归一化。
+	// 文档长度：ChunkID → 有效 token 数（用 tokenizer 词数代替 rune 计数，
+	// 避免中英文长度拉伸不均导致 BM25 的 b 参数归一化失效）
 	docLens map[int64]int
 	// 文档元数据：ChunkID → {ArticleID, ChunkIndex, Content}
 	docMeta map[int64]BM25Document
@@ -238,17 +255,19 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 	for _, doc := range docs {
 		idx.docMeta[doc.ChunkID] = doc
 		tokens := r.segmenter.Segment(doc.Content)
-		docLen := utf8.RuneCountInString(doc.Content)
-		idx.docLens[doc.ChunkID] = docLen
-		totalLen += docLen
 
-		// 统计词频，按 ChunkID 分组
+		// 统计词频 + 有效词数（用 token 数代替 rune 计数作为文档长度，
+		// 避免中英文长度拉伸不均导致 BM25 的 b 参数归一化失效）
 		tf := make(map[string]int)
+		docLen := 0
 		for _, tok := range tokens {
 			if isValidToken(tok) {
 				tf[tok]++
+				docLen++
 			}
 		}
+		idx.docLens[doc.ChunkID] = docLen
+		totalLen += docLen
 
 		// 写入倒排索引
 		for tok, freq := range tf {

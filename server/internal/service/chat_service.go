@@ -185,6 +185,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 			}
 			if evt.Type == "done" && evt.Metadata != nil && s.chatRepo != nil {
 				srcJSON, _ := json.Marshal(evt.Metadata.Sources)
+				pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
 
 				// 更新会话摘要
 				if err := s.chatRepo.UpdateSession(&model.ChatSession{
@@ -201,7 +202,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 				if err := s.chatRepo.CreateBatch([]model.ChatMessage{
 					{Role: "user", Content: question, SessionID: sessionID},
 					{Role: "assistant", Content: evt.Metadata.Answer, SessionID: sessionID,
-						Sources: srcJSON, Confidence: evt.Metadata.Confidence},
+						Sources: srcJSON, Confidence: evt.Metadata.Confidence, PipelineMetrics: pipelineJSON},
 				}); err != nil {
 					slog.Error("StreamChat 持久化消息失败", "session_id", sessionID, "err", err)
 				}

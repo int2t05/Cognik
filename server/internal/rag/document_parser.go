@@ -271,6 +271,9 @@ func extractParagraphText(para docxParagraph) string {
 //
 // 当命名空间不匹配导致结构化解析为空时启用此回退。
 // 直接匹配 <w:t...>...</w:t> 标签，忽略命名空间前缀差异。
+//
+// 段落边界检测：判断 </w:p> 是否落在当前文本节点与下一个 w:t 之间（而非硬编码 200 字节窗口），
+// 避免长文本节点中后段的段落标记被遗漏。
 var docxTextRegex = regexp.MustCompile(`<w:t[^>]*>([^<]*)</w:t>`)
 var docxTabRegex = regexp.MustCompile(`<w:tab[^>]*/>`)
 var docxBrRegex = regexp.MustCompile(`<w:br[^>]*/>`)
@@ -285,16 +288,15 @@ func extractDocxTextRegex(xmlData []byte) string {
 		return ""
 	}
 
-	// 标记段落边界
+	// 所有 w:t 标签的匹配位置
+	matchIndices := docxTextRegex.FindAllStringSubmatchIndex(s, -1)
+
+	// 段落边界位置（</w:p> 的结束位置）
 	paraEnds := docxParaEndRegex.FindAllStringIndex(s, -1)
-	paraBoundary := make(map[int]bool)
-	for _, m := range paraEnds {
-		paraBoundary[m[1]] = true
-	}
 
 	var buf strings.Builder
 	tagIdx := 0
-	for i, m := range docxTextRegex.FindAllStringSubmatchIndex(s, -1) {
+	for i, m := range matchIndices {
 		// 检查当前 w:t 前是否有 tab 或 br 标记
 		region := s[tagIdx:m[0]]
 		if docxTabRegex.MatchString(region) || docxBrRegex.MatchString(region) {
@@ -303,9 +305,15 @@ func extractDocxTextRegex(xmlData []byte) string {
 		buf.WriteString(matches[i][1])
 		tagIdx = m[1]
 
-		// 检查当前 w:t 后是否有段落结束标记
+		// 确定下一个 w:t 的起始位置（或字符串末尾）作为段落边界搜索窗口上限
+		nextTagStart := len(s)
+		if i+1 < len(matchIndices) {
+			nextTagStart = matchIndices[i+1][0]
+		}
+
+		// 检查当前 w:t 和下一个 w:t 之间是否有段落结束标记
 		for _, pe := range paraEnds {
-			if pe[1] > m[0] && pe[1] <= m[1]+200 {
+			if pe[1] > m[0] && pe[1] <= nextTagStart {
 				buf.WriteByte('\n')
 				break
 			}
