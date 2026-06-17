@@ -149,9 +149,7 @@ func main() {
 	// pgvector 向量存储
 	// TODO(cmd/main): VectorStore 初始化失败后仅 warn，但后续 KnowledgeService/ChatService 仍可启动。
 	// 应提供健康状态并让依赖向量核心路径的接口返回明确 20002，而不是在 nil store 处退化为未知错误。
-	pgDSN := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.Database.User, cfg.Database.Password, cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName, cfg.Database.SSLMode)
-	vectorStore, err := adapter.NewPgvectorStore(pgDSN)
+	vectorStore, err := adapter.NewPgvectorStore(db)
 	if err != nil {
 		slog.Warn("pgvector 连接失败，向量检索功能不可用", "error", err)
 	} else {

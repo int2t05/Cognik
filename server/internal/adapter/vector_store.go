@@ -17,7 +17,7 @@ import (
 	"math"
 	"strings"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"gorm.io/gorm"
 )
 
 // =============================================================================
@@ -82,29 +82,25 @@ type ChunkContent struct {
 
 // PgvectorStore 实现 VectorStore，使用 pgvector 扩展。
 //
-// 为什么使用 database/sql + pgx stdlib 而非 GORM：
-// GORM 的 pgvector 支持有限（特别是 halfvec 类型），
-// 原生 SQL 对向量操作的控制更精细，且性能更优（避免 ORM 反射开销）。
+// 复用 GORM 的 *sql.DB 连接池，避免创建独立连接池造成双池浪费。
 type PgvectorStore struct {
 	db *sql.DB
 }
 
-// NewPgvectorStore 创建 PgvectorStore 实例。
-//
-// dsn 格式：postgres://user:password@host:port/dbname?sslmode=disable
-func NewPgvectorStore(dsn string) (*PgvectorStore, error) {
-	// TODO(adapter/vector): PgvectorStore 应配置连接池并暴露 Close()。
-	// 当前单独 sql.DB 不会在 main 优雅关闭时关闭，连接池参数也和 GORM DB 不一致。
-	db, err := sql.Open("pgx", dsn)
+// NewPgvectorStore 创建 PgvectorStore 实例，复用 GORM DB 连接池。
+func NewPgvectorStore(gormDB *gorm.DB) (*PgvectorStore, error) {
+	db, err := gormDB.DB()
 	if err != nil {
-		return nil, fmt.Errorf("连接 pgvector 失败: %w", err)
+		return nil, fmt.Errorf("获取 GORM 底层 sql.DB 失败: %w", err)
 	}
 	if err := db.Ping(); err != nil {
-		db.Close()
 		return nil, fmt.Errorf("pgvector Ping 失败: %w", err)
 	}
 	return &PgvectorStore{db: db}, nil
 }
+
+// Close 关闭与 GORM 共享的底层连接（由 GORM 管理生命周期，此方法为 no-op）。
+func (s *PgvectorStore) Close() error { return nil }
 
 // =============================================================================
 // BatchInsert — 批量写入向量
@@ -288,7 +284,7 @@ func float32ToPgVector(v []float32) string {
 	if len(v) == 0 {
 		return "[]"
 	}
-	// TODO(adapter/vector): 使用 fmt.Sprintf("%.6f") 会损失 embedding 精度。
+	// TODO(adapter/vector): 使用 fmt.Sprintf("%.8f") 会损失 embedding 精度。
 	// halfvec 已经会量化，字符串阶段再截断可能进一步影响召回质量。
 	var b strings.Builder
 	b.WriteByte('[')
@@ -302,7 +298,7 @@ func float32ToPgVector(v []float32) string {
 			f = 0.0
 			slog.Warn("向量含 NaN/Inf，已替换为 0.0", "index", i)
 		}
-		b.WriteString(fmt.Sprintf("%.6f", f))
+		b.WriteString(fmt.Sprintf("%.8f", f))
 	}
 	b.WriteByte(']')
 	return b.String()

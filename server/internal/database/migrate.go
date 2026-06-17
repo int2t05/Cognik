@@ -44,6 +44,8 @@ func AutoMigrate(db *gorm.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_chat_created_at ON chat_sessions(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at DESC)",
+		// is_default 部分唯一索引：保证最多一个默认配置
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_llm_configs_default ON llm_configs(is_default) WHERE is_default = true",
 	}
 	// TODO(database/migrate): GORM AutoMigrate 已为 created_at 创建 ASC 索引，
 	// 此处再创建 DESC 索引导致同一列存在两个索引，加倍存储和写入开销。

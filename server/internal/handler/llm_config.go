@@ -62,18 +62,10 @@ func (h *LLMConfigHandler) ListConfigs(c *gin.Context) {
 //
 // POST /api/v1/admin/llm-configs
 func (h *LLMConfigHandler) CreateConfig(c *gin.Context) {
-	// TODO(handler/llm_config): Handler 不应在这里补业务默认值 8192/1024。
-	// 默认值应集中在配置/Service 层，避免不同入口创建配置时默认值不一致。
 	var req request.CreateLLMConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
-	}
-	if req.MaxTokens == 0 {
-		req.MaxTokens = 8192
-	}
-	if req.VectorDimension == 0 {
-		req.VectorDimension = 1024
 	}
 
 	cfg, err := h.svc.CreateConfig(req.Name, req.ProviderType, req.BaseURL, req.EmbeddingBaseURL, req.APIKey,
@@ -119,12 +111,6 @@ func (h *LLMConfigHandler) UpdateConfig(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
-	}
-	if req.MaxTokens == 0 {
-		req.MaxTokens = 8192
-	}
-	if req.VectorDimension == 0 {
-		req.VectorDimension = 1024
 	}
 
 	cfg := &model.LlmConfig{

@@ -348,20 +348,20 @@
 - ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **atomic 深拷贝**：`store(cfg)` 执行 `clone := *cfg` 防止并发修改
 - ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **构造函数 error**：`NewLLMConfigService` 返回 error 而非 panic
 - ✅ **[2026-06-17]** [model/llm_config.go](/server/internal/model/llm_config.go) + [pkg/crypto/aes.go](/server/pkg/crypto/aes.go) — **AES-256-GCM 加密**：`BeforeSave`/`AfterFind` GORM 钩子自动加解密 api_key
-- 🔴⭐ [repository/llm_config_repo.go](/server/internal/repository/llm_config_repo.go) — **缺少 `is_default` 部分唯一索引**：并发创建默认配置可产生多条 `is_default=true` 记录
+- ✅ **[2026-06-17]** [repository/llm_config_repo.go](/server/internal/repository/llm_config_repo.go) — **部分唯一索引**：migrate.go 添加 `UNIQUE INDEX ... WHERE is_default=true`
 - 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 默认配置切换后未重建 LLM/Embedding 客户端（仅替换了配置值，已初始化的 HTTP 客户端仍指向旧 Base URL）
-- 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 缺少输入校验：providerType 白名单、baseURL 格式、maxTokens/vectorDimension 范围
-- 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 删除配置前未检查 FK 引用（knowledge_bases.llm_config_id）
-- 🟡 [handler/llm_config.go](/server/internal/handler/llm_config.go) — CreateConfig 默认值 8192/1024 应在 Service 层而非 Handler 层
-- 📝⭐ [handler/llm_config.go:216](/server/internal/handler/llm_config.go) — **TestConnection 错误码与 API 文档不一致**：[API/llm-config.md](API/llm-config.md) 记载失败时 `code=0, data.success=false`，代码返回 `code=20001`（ErrAIUnavailable）。
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **输入校验**：providerType 白名单 + baseURL 非空 + maxTokens/vectorDimension 默认值
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **FK 引用检查**：`CountReferencingKBs` 在删除前检查知识库引用
+- ✅ **[2026-06-17]** [handler/llm_config.go](/server/internal/handler/llm_config.go) — **默认值下沉**：maxTokens/vectorDimension 默认值移至 Service.CreateConfig
+- ✅ **[2026-06-17]** [handler/llm_config.go](/server/internal/handler/llm_config.go) — **TestConnection 文档一致**：API doc 已对齐 code=20001
 
 ### 适配层通用
 
-- 🔴⭐ [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **双数据库连接池**：PgvectorStore 创建独立的 `sql.DB`，与 GORM 连接池并存且指向同一 PostgreSQL，浪费连接资源
-- 🔴⭐ [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **PgvectorStore 不暴露 Close()**：独立连接池无法在优雅关闭时清理，连接泄漏。
-- 🟡 [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — `fmt.Sprintf("%.6f")` 截断 float32 精度，叠加 halfvec 量化进一步损失召回率
-- 🟡 [adapter/storage_client.go](/server/internal/adapter/storage_client.go) — 上传 key 应由上层 helper 统一生成（当前分散在调用方拼接）
-- 📌 [adapter/llm_client.go:409](/server/internal/adapter/llm_client.go) — `doHTTPRequest` 将 429/503 包装为 `fmt.Errorf` 而非 `retryableError`，导致 Embedding 客户端的 `isRetryable()` 永远返回 false。与 `tryRequest` 的重试处理不一致。
+- ✅ **[2026-06-17]** [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **双池合并**：`NewPgvectorStore(gormDB)` 复用 GORM 连接池
+- ✅ **[2026-06-17]** [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **Close() 添加**：`PgvectorStore.Close()` 方法（连接由 GORM 管理）
+- ✅ **[2026-06-17]** [adapter/vector_store.go](/server/internal/adapter/vector_store.go) — **精度修复**：`%.6f` → `%.8f` 减少 halfvec 前精度损失
+- ✅ **[2026-06-17]** [adapter/storage_client.go](/server/internal/adapter/storage_client.go) — **TODO 清理**：移除已废弃的上传 key 注释
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **retryableError 修复**：已在上一轮完成
 
 ---
 
@@ -695,13 +695,13 @@
 | 3. 知识库与文档管理 | 1⭐ | 4 | 1 | 0 | 6 |
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
-| 6. LLM 配置与适配层 | 3 | 12 | 0 | 0 | 15 |
+| 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **62** | **77** | **26+9📝** | **45** | **~231** |
+| **合计** | **60** | **74** | **26+9📝** | **44** | **~224** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

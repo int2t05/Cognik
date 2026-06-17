@@ -96,6 +96,18 @@ func (s *LLMConfigService) CreateConfig(name string, providerType int16, baseURL
 	if strings.TrimSpace(name) == "" {
 		return nil, AppError{Code: errcode.ErrParam, Message: "名称不能为空"}
 	}
+	if providerType != 1 && providerType != 2 {
+		return nil, AppError{Code: errcode.ErrParam, Message: "提供商类型无效（1=llama.cpp, 2=OpenAI-compatible）"}
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		return nil, AppError{Code: errcode.ErrParam, Message: "BaseURL 不能为空"}
+	}
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
+	if vectorDimension <= 0 {
+		vectorDimension = 1024
+	}
 
 	cfg := &model.LlmConfig{
 		Name: name, ProviderType: providerType, BaseURL: baseURL,
@@ -204,6 +216,16 @@ func (s *LLMConfigService) DeleteConfig(id int64) error {
 	}
 	if cfg.IsDefault {
 		return AppError{Code: errcode.ErrParam, Message: "不能删除默认配置，请先设置其他配置为默认"}
+	}
+	// 检查知识库引用
+	if r, ok := s.repo.(*repository.LlmConfigRepo); ok {
+		count, err := r.CountReferencingKBs(id)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return AppError{Code: errcode.ErrConflict, Message: "该配置被知识库引用，无法删除"}
+		}
 	}
 	return s.repo.Delete(id)
 }

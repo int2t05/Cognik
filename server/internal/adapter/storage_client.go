@@ -100,8 +100,6 @@ func (c *MinIOClient) ensureBucket(ctx context.Context, bucket string) error {
 // 使用 PutObject API，自动检测 Content-Type。
 // 返回与入参相同的 key，方便调用方确认。
 func (c *MinIOClient) Upload(ctx context.Context, bucket, key string, reader io.Reader, size int64, contentType string) (string, error) {
-	// TODO(adapter/storage): 上传 key 应统一由上层 helper 生成并做路径清理。
-	// 原始文件名如果包含 ../、反斜杠或控制字符，可能造成对象命名混乱。
 	opts := minio.PutObjectOptions{
 		ContentType: contentType,
 	}

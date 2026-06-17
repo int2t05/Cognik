@@ -72,6 +72,13 @@ func (r *LlmConfigRepo) Delete(id int64) error {
 	return r.db.Delete(&model.LlmConfig{}, id).Error
 }
 
+// CountReferencingKBs 统计引用了该配置的知识库数量。
+func (r *LlmConfigRepo) CountReferencingKBs(configID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.KnowledgeBase{}).Where("llm_config_id = ?", configID).Count(&count).Error
+	return count, err
+}
+
 // ClearDefault 清空所有默认标志。
 //
 // 为什么用批量 UPDATE 而非逐条：
