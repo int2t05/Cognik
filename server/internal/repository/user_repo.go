@@ -7,6 +7,7 @@ package repository
 
 import (
 	"encoding/json"
+	"log/slog"
 
 	"opsmind/internal/model"
 
@@ -147,7 +148,7 @@ func (r *UserRepo) ExistsByUsername(username string) (bool, error) {
 	return id != 0, nil
 }
 
-// --- 角色/菜单/权限关联查询 ---
+// --- 角色关联查询 ---
 
 // GetUserRoles 查询用户关联的角色列表。
 func (r *UserRepo) GetUserRoles(userID int64) ([]model.Role, error) {
@@ -156,6 +157,31 @@ func (r *UserRepo) GetUserRoles(userID int64) ([]model.Role, error) {
 		Where("user_roles.user_id = ?", userID).
 		Find(&roles).Error
 	return roles, err
+}
+
+// BatchGetUserRoles 批量查询多个用户的角色名（用于列表场景消除 N+1）。
+func (r *UserRepo) BatchGetUserRoles(userIDs []int64) (map[int64][]string, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	type row struct {
+		UserID   int64  `gorm:"column:user_id"`
+		RoleName string `gorm:"column:role_name"`
+	}
+	var rows []row
+	err := r.db.Table("user_roles").
+		Select("user_roles.user_id, roles.name AS role_name").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id IN ?", userIDs).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[int64][]string, len(userIDs))
+	for _, r := range rows {
+		result[r.UserID] = append(result[r.UserID], r.RoleName)
+	}
+	return result, nil
 }
 
 // CountActiveAdmins 统计除指定用户外的活跃系统管理员数量。
@@ -206,65 +232,11 @@ func (r *UserRepo) AssignRoles(userID int64, roleIDs []int64) error {
 	return nil
 }
 
-// ListMenus 查询全部菜单（按排序字段升序）。
-func (r *UserRepo) ListMenus() ([]model.Menu, error) {
-	var menus []model.Menu
-	err := r.db.Order("sort_order ASC, id ASC").Find(&menus).Error
-	return menus, err
-}
-
-// GetRoleMenus 查询角色关联的菜单列表。
-func (r *UserRepo) GetRoleMenus(roleID int64) ([]model.Menu, error) {
-	var menus []model.Menu
-	err := r.db.Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
-		Where("role_menus.role_id = ?", roleID).
-		Order("menus.sort_order ASC, menus.id ASC").
-		Find(&menus).Error
-	return menus, err
-}
-
-// BatchGetRoleMenus 批量查询多个角色的菜单（去重）。
-//
-// 为什么批量查询：用户拥有 N 个角色时，逐角色查询产生 N 次 DB 往返。
-// 批量查询合并为一次 JOIN，避免 N+1 问题。
-func (r *UserRepo) BatchGetRoleMenus(roleIDs []int64) ([]model.Menu, error) {
-	if len(roleIDs) == 0 {
-		return nil, nil
-	}
-	var menus []model.Menu
-	err := r.db.Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
-		Where("role_menus.role_id IN ?", roleIDs).
-		Order("menus.sort_order ASC, menus.id ASC").
-		Distinct().
-		Find(&menus).Error
-	return menus, err
-}
-
-// UpdateRoleMenus 更新角色菜单关联（先删后批量插入，单事务保证原子性）。
-func (r *UserRepo) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("role_id = ?", roleID).Delete(&model.RoleMenu{}).Error; err != nil {
-			return err
-		}
-		if len(menuIDs) == 0 {
-			return nil
-		}
-		menus := make([]model.RoleMenu, len(menuIDs))
-		for i, mid := range menuIDs {
-			menus[i] = model.RoleMenu{RoleID: roleID, MenuID: mid}
-		}
-		return tx.Create(&menus).Error
-	})
-}
-
 // GetUserPermissions 聚合用户所有角色的权限列表（去重）。
 //
 // 权限从 Role.Permissions (jsonb) 字段解析，不再使用硬编码映射。
 // 新增角色或修改权限无需改代码，只需更新数据库 role 记录即可生效。
 func (r *UserRepo) GetUserPermissions(userID int64) ([]string, error) {
-	// TODO(repository/user): 权限解析失败时当前 continue 静默跳过。
-	// 角色权限 JSON 损坏属于数据完整性问题，应记录日志或返回错误，避免隐式降权难排查。
-	// 从数据库 Role.Permissions (jsonb) 字段读取实际权限
 	var roles []model.Role
 	if err := r.db.Model(&model.Role{}).
 		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
@@ -278,7 +250,10 @@ func (r *UserRepo) GetUserPermissions(userID int64) ([]string, error) {
 		var perms []string
 		if len(role.Permissions) > 0 {
 			if err := json.Unmarshal(role.Permissions, &perms); err != nil {
-				continue // 跳过解析失败的角色权限
+				// 角色权限 JSON 损坏时记录告警但继续处理其他角色，
+				// 避免单个角色数据损坏导致全体权限失效。
+				slog.Warn("角色权限 JSON 解析失败，已跳过", "role_id", role.ID, "role_name", role.Name, "error", err)
+				continue
 			}
 		}
 		for _, perm := range perms {

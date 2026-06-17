@@ -43,6 +43,7 @@ type loginFailRecord struct {
 // 为什么用内存而非 DB：MVP 阶段单实例足够；token 到期后自动从 map 清理。
 type AuthService struct {
 	userRepo       *repository.UserRepo
+	menuRepo       *repository.MenuRepo
 	db             *gorm.DB
 	jwtCfg         config.JWTConfig
 	rateLimiter    *loginRateLimiter
@@ -64,9 +65,10 @@ type loginRateLimiter struct {
 }
 
 // NewAuthService 创建 AuthService 实例。
-func NewAuthService(userRepo *repository.UserRepo, db *gorm.DB, jwtCfg config.JWTConfig) *AuthService {
+func NewAuthService(userRepo *repository.UserRepo, menuRepo *repository.MenuRepo, db *gorm.DB, jwtCfg config.JWTConfig) *AuthService {
 	s := &AuthService{
 		userRepo: userRepo,
+		menuRepo: menuRepo,
 		db:       db,
 		jwtCfg:   jwtCfg,
 		rateLimiter: &loginRateLimiter{
@@ -374,14 +376,14 @@ func (s *AuthService) buildMenuTree(roles []model.Role) ([]response.MenuItem, er
 
 	if isAdmin {
 		// 系统管理员获取全部菜单
-		menus, err = s.userRepo.ListMenus()
+		menus, err = s.menuRepo.ListMenus()
 	} else {
 		// 其他用户：批量查询所有角色的菜单（一次 DB 查询，避免 N+1）
 		roleIDSlice := make([]int64, len(roles))
 		for i, role := range roles {
 			roleIDSlice[i] = role.ID
 		}
-		allMenus, menuErr := s.userRepo.BatchGetRoleMenus(roleIDSlice)
+		allMenus, menuErr := s.menuRepo.BatchGetRoleMenus(roleIDSlice)
 		if menuErr != nil {
 			return nil, menuErr
 		}

@@ -19,21 +19,48 @@ import (
 // RoleService 角色管理服务。
 type RoleService struct {
 	repo     *repository.RoleRepo
-	userRepo *repository.UserRepo
+	menuRepo *repository.MenuRepo
 	db       *gorm.DB
 }
 
 // NewRoleService 创建 RoleService 实例。
-func NewRoleService(repo *repository.RoleRepo, userRepo *repository.UserRepo, db *gorm.DB) *RoleService {
-	return &RoleService{repo: repo, userRepo: userRepo, db: db}
+func NewRoleService(repo *repository.RoleRepo, menuRepo *repository.MenuRepo, db *gorm.DB) *RoleService {
+	return &RoleService{repo: repo, menuRepo: menuRepo, db: db}
+}
+
+// validPermissions 权限白名单。
+//
+// 仅允许写入已定义的权限标识，防止拼写错误导致权限静默失效。
+var validPermissions = map[string]bool{
+	"user:manage":      true,
+	"ticket:read":      true,
+	"ticket:write":     true,
+	"ticket:manage":    true,
+	"knowledge:create": true,
+	"knowledge:manage": true,
+	"audit:read":       true,
+	"system:config":    true,
+}
+
+// validatePermissions 校验权限列表是否全部在白名单中。
+func validatePermissions(perms []string) error {
+	for _, p := range perms {
+		if !validPermissions[p] {
+			return AppError{Code: errcode.ErrParam, Message: "无效的权限标识: " + p}
+		}
+	}
+	return nil
 }
 
 // Create 创建角色。
 //
 // 校验角色名唯一性，重复返回 10005。
 func (s *RoleService) Create(name, description string, permissions []string) error {
-	// TODO(service/role): 对 permissions 做白名单校验。
-	// 当前任意字符串都能写入角色权限，拼写错误会导致菜单/接口权限悄悄失效。
+	// 校验权限白名单
+	if err := validatePermissions(permissions); err != nil {
+		return err
+	}
+
 	// 校验角色名唯一（通过 Repository 层，保证三层架构一致）
 	exists, err := s.repo.ExistsByName(name, 0)
 	if err != nil {
@@ -84,6 +111,11 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
 		}
+		return err
+	}
+
+	// 校验权限白名单
+	if err := validatePermissions(permissions); err != nil {
 		return err
 	}
 
@@ -148,7 +180,7 @@ func (s *RoleService) Delete(id int64) error {
 // 菜单权限绑定是本模块的核心功能之一，Menu 存储在独立的 menus 表中，
 // 但菜单管理归入角色模块，因为菜单是权限的载体。
 func (s *RoleService) ListMenus() ([]model.Menu, error) {
-	return s.userRepo.ListMenus()
+	return s.menuRepo.ListMenus()
 }
 
 // GetRoleMenus 获取指定角色的菜单 ID 列表。
@@ -160,7 +192,7 @@ func (s *RoleService) GetRoleMenus(roleID int64) ([]model.Menu, error) {
 		}
 		return nil, err
 	}
-	return s.userRepo.GetRoleMenus(roleID)
+	return s.menuRepo.GetRoleMenus(roleID)
 }
 
 // UpdateRoleMenus 更新角色的菜单权限绑定。
@@ -178,5 +210,5 @@ func (s *RoleService) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
 		}
 		return err
 	}
-	return s.userRepo.UpdateRoleMenus(roleID, menuIDs)
+	return s.menuRepo.UpdateRoleMenus(roleID, menuIDs)
 }

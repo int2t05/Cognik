@@ -299,18 +299,18 @@
 
 ### 查询性能
 
-- 🟡 [service/user_service.go](/server/internal/service/user_service.go) — 列表 N+1 查询角色：每个用户额外一次 DB 查询获取角色名
-- 🟢 [repository/user_repo.go](/server/internal/repository/user_repo.go) — `ExistsBy*` 用 `COUNT(*)` 而非 `SELECT 1 LIMIT 1`，大表效率低
-- 🟢⭐ [service/user_service.go](/server/internal/service/user_service.go) — Freeze/Restore 用魔法数字 `1`/`2` 而非 `model.StatusActive`/`model.StatusInactive`。
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **列表 N+1 消除**：`BatchGetUserRoles` 批量查询角色名
+- ✅ **[2026-06-17]** [repository/user_repo.go](/server/internal/repository/user_repo.go) — `ExistsBy*` 已使用 `Pluck+LIMIT 1`，无需修改
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **魔法数字消除**：Freeze/Restore 改用 `model.StatusActive`/`model.StatusInactive`
 
 ### 权限与角色
 
-- 🔴 [service/role_service.go](/server/internal/service/role_service.go) — `.Count()` 错误被丢弃，绕过 Repository 直调 DB（分层违规）
-- 🟡 [service/role_service.go](/server/internal/service/role_service.go) — 角色权限无白名单校验：任意字符串可作为权限写入 JSONB
-- 🟡 [repository/role_repo.go](/server/internal/repository/role_repo.go) — `Delete` 不检查 `RowsAffected`
-- 🟡 [repository/user_repo.go](/server/internal/repository/user_repo.go) — 角色权限 JSON 解析失败静默跳过 `continue`，数据损坏被掩盖
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — `.Count()` 分层违规：已改为 `txUserRepo.CountUsersByRole`，错误正确传播
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **权限白名单**：`validPermissions` + `validatePermissions()` 校验
+- ✅ **[2026-06-17]** [repository/role_repo.go](/server/internal/repository/role_repo.go) — `Delete` RowsAffected：已在上一轮添加检查
+- ✅ **[2026-06-17]** [repository/user_repo.go](/server/internal/repository/user_repo.go) — **JSON 解析告警**：`continue` 改为 `slog.Warn(role_id+reason)`
 - ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **`db *gorm.DB` 字段已启用**：`Delete` 方法使用 `s.db.Transaction` 包裹 TOCTOU 防护事务。
-- 🟡⭐ [service/role_service.go](/server/internal/service/role_service.go) — 菜单操作通过 `UserRepo` 委托而非 `MenuRepo`，层职责不清。`RoleService.ListMenus()`/`UpdateRoleMenus()` 跨层调用 `s.userRepo`。
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **MenuRepo 拆分**：菜单方法从 UserRepo 独立为 `MenuRepo`，RoleService/AuthService 全部更新
 
 ### 输入校验与 Model
 
@@ -694,14 +694,14 @@
 | 2. 智能问答 RAG | 4⭐ | 7+3📝 | 5 | 0 | 19 |
 | 3. 知识库与文档管理 | 1⭐ | 4 | 1 | 0 | 6 |
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
-| 5. 用户与角色管理 | 0 | 5 | 2 | 4 | 11 |
+| 5. 用户与角色管理 | 0 | 0 | 1 | 4 | 5 |
 | 6. LLM 配置与适配层 | 14+2📝 | 12 | 0 | 0 | 28 |
 | 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **73** | **82** | **29+9📝** | **49** | **~253** |
+| **合计** | **73** | **77** | **28+9📝** | **49** | **~248** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§5 数据安全 9 项修复：GORM 零值陷阱 + 嵌套事务 + 丢失更新竞态 + TOCTOU ×2 + 内置角色保护 + 最后管理员 + 防自冻结 + AssignRoles 校验 + IsSystem 字段 + db 字段启用。）
+**最后更新**：2026-06-17（§5 查询性能 3 项 + 权限角色 6 项：N+1 批量查询 + 魔法数字消除 + 权限白名单 + JSON 解析告警 + MenuRepo 拆分 + 分层违规修复。）

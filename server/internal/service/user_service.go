@@ -42,21 +42,42 @@ func (s *UserService) GetByID(id int64) (*response.UserDetailResponse, error) {
 }
 
 // List 查询用户列表（分页 + 关键词搜索）。
+//
+// 使用 BatchGetUserRoles 一次查询所有用户的角色名，消除 N+1 问题。
 func (s *UserService) List(page, pageSize int, keyword string) (*response.UserListResponse, error) {
 	users, total, err := s.repo.List(page, pageSize, keyword)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(service/user): 这里对每个用户调用 toDetailResponse 会逐个查询角色，用户列表存在 N+1 查询。
-	// 可在 Repo 层批量查询 user_roles/roles 后一次性组装，提高后台用户列表性能。
+
+	// 批量查询所有用户的角色名（消除 N+1）
+	userIDs := make([]int64, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+	roleNames, err := s.repo.BatchGetUserRoles(userIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	details := make([]response.UserDetailResponse, 0, len(users))
-	for i := range users {
-		detail, err := s.toDetailResponse(&users[i])
-		if err != nil {
-			return nil, err
+	for _, user := range users {
+		names := roleNames[user.ID]
+		if names == nil {
+			names = []string{}
 		}
-		details = append(details, *detail)
+		details = append(details, response.UserDetailResponse{
+			ID:         user.ID,
+			Username:   user.Username,
+			RealName:   user.RealName,
+			Phone:      user.Phone,
+			Email:      user.Email,
+			Status:     user.Status,
+			FirstLogin: user.FirstLogin,
+			Roles:      names,
+			CreatedAt:  user.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:  user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		})
 	}
 
 	return &response.UserListResponse{
@@ -171,7 +192,7 @@ func (s *UserService) Freeze(id int64, operatorID int64) error {
 		return err
 	}
 
-	if target.Status == 2 {
+	if target.Status == model.StatusInactive {
 		return AppError{Code: errcode.ErrAlreadyFrozen, Message: "用户已被冻结"}
 	}
 
@@ -180,7 +201,7 @@ func (s *UserService) Freeze(id int64, operatorID int64) error {
 		return err
 	}
 
-	return s.repo.UpdateStatus(id, 2)
+	return s.repo.UpdateStatus(id, int(model.StatusInactive))
 }
 
 // Restore 恢复已冻结用户。
@@ -195,11 +216,11 @@ func (s *UserService) Restore(id int64) error {
 		return err
 	}
 
-	if user.Status == 1 {
+	if user.Status == model.StatusActive {
 		return AppError{Code: errcode.ErrAlreadyActive, Message: "用户已处于正常状态"}
 	}
 
-	return s.repo.UpdateStatus(id, 1)
+	return s.repo.UpdateStatus(id, int(model.StatusActive))
 }
 
 // assertNotLastAdmin 检查目标用户是否为最后一个系统管理员。
