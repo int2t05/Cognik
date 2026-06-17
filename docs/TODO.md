@@ -334,20 +334,20 @@
 
 ### LLM 客户端
 
-- 🔴⭐ [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **重试机制完全失效**：`doHTTPRequest` 将 429/503 包装为普通 `fmt.Errorf` 而非 `*retryableError`，`isRetryable()` 永远返回 false。LLM 同步重试和 Embedding 重试均不工作。
-- 🔴 [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — 校验 baseURL 非空且合法（空字符串产生误导性 "unsupported protocol scheme" 错误）
-- 🔴 [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — `req.Model` 为空时应返回参数错误（而非将空字符串发给 API）
-- 🔴 [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — `bufio.Scanner` 默认 64KB 上限，大 SSE `data:` 行会触发 `ErrTooLong` 静默截断流
-- 🔴 [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — 流式请求无 429/503 重试（直接 return status code error）
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **重试机制修复**：`doHTTPRequest` 返回 `*retryableError`，`isRetryable()` 正确识别 429/503
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **baseURL 校验**：`NewOpenAIClient` 返回 error，空 baseURL 提前暴露
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **Model 空值校验**：`ChatCompletion` 入口检查 `req.Model == ""`
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **Scanner buffer 增大**：`scanner.Buffer(..., 1MB)` 防大 SSE 行截断
+- ✅ **[2026-06-17]** [adapter/llm_client.go](/server/internal/adapter/llm_client.go) — **流式重试**：`ChatCompletionStream` 支持 429/503 指数退避重试
 
 ### LLM 配置管理
 
-- 🔴⭐ [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **事务内使用 repo 原始 DB 而非 tx**：`ClearDefault()` 和 `Create()` 在 `db.Transaction()` 内调但用 `s.repo` 的 `*gorm.DB`，操作在事务外执行，原子性为空壳。`UpdateConfig` 中同样存在。
-- 🔴⭐ [handler/llm_config.go](/server/internal/handler/llm_config.go) — **TestConnection 测试的是全局默认客户端而非被测配置**：始终用 `h.llmClient`，选择 `:id` 配置无意义——功能完全失效。📝 [API/llm-config.md](API/llm-config.md) 记载测试「指定配置的连接」，但代码实现与之完全不符。
-- 🔴⭐ [handler/llm_config.go](/server/internal/handler/llm_config.go) — **UpdateConfig 会清空 api_key**：若请求不传 `api_key`，零值 `""` 覆盖数据库中已存储的密钥。📝 [API/llm-config.md](API/llm-config.md) 记载「api_key 不传时保留原有密钥（不传 ≠ 清空）」，代码行为与文档相反。
-- 🔴 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — `atomic.Store` 直接存指针，未复制 cfg；调用方修改原对象 → 并发读看到中间态（数据竞态）
-- 🔴 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 构造函数不应 panic：mock 类型不匹配会直接崩溃进程，应返回 error
-- 🔴⭐ [model/llm_config.go](/server/internal/model/llm_config.go) — **API Key 明文存储**：数据库泄露 = 所有 LLM 提供商密钥暴露。需 AES-256 加密存储。📝 [API/llm-config.md](API/llm-config.md) 记载「api_key 在数据库中以 AES-256 加密存储」，但代码完全未实现加密。
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **事务用 tx**：`newRepo(tx)` 工厂在事务内创建 txRepo，保证原子性
+- ✅ **[2026-06-17]** [handler/llm_config.go](/server/internal/handler/llm_config.go) — **TestConnection 修复**：基于被测配置 `cfg.BaseURL` 创建临时客户端
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **api_key 保留**：`UpdateConfig` 如果 `cfg.APIKey == ""` 则从 DB 读回原值
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **atomic 深拷贝**：`store(cfg)` 执行 `clone := *cfg` 防止并发修改
+- ✅ **[2026-06-17]** [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — **构造函数 error**：`NewLLMConfigService` 返回 error 而非 panic
+- ✅ **[2026-06-17]** [model/llm_config.go](/server/internal/model/llm_config.go) + [pkg/crypto/aes.go](/server/pkg/crypto/aes.go) — **AES-256-GCM 加密**：`BeforeSave`/`AfterFind` GORM 钩子自动加解密 api_key
 - 🔴⭐ [repository/llm_config_repo.go](/server/internal/repository/llm_config_repo.go) — **缺少 `is_default` 部分唯一索引**：并发创建默认配置可产生多条 `is_default=true` 记录
 - 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 默认配置切换后未重建 LLM/Embedding 客户端（仅替换了配置值，已初始化的 HTTP 客户端仍指向旧 Base URL）
 - 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 缺少输入校验：providerType 白名单、baseURL 格式、maxTokens/vectorDimension 范围
@@ -695,13 +695,13 @@
 | 3. 知识库与文档管理 | 1⭐ | 4 | 1 | 0 | 6 |
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
-| 6. LLM 配置与适配层 | 14+2📝 | 12 | 0 | 0 | 28 |
+| 6. LLM 配置与适配层 | 3 | 12 | 0 | 0 | 15 |
 | 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **73** | **77** | **26+9📝** | **45** | **~242** |
+| **合计** | **62** | **77** | **26+9📝** | **45** | **~231** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

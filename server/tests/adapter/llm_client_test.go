@@ -86,7 +86,11 @@ func newLLMClient(t *testing.T, info llmServiceInfo) (*adapter.OpenAIClient, *ht
 	t.Helper()
 
 	if info.IsReal {
-		return adapter.NewOpenAIClient(info.BaseURL, info.APIKey, 30*time.Second), nil
+		client, err := adapter.NewOpenAIClient(info.BaseURL, info.APIKey, 30*time.Second)
+	if err != nil {
+		t.Fatalf("创建客户端失败: %v", err)
+	}
+	return client, nil
 	}
 
 	// 回退到 mock server
@@ -114,7 +118,7 @@ func newLLMClient(t *testing.T, info llmServiceInfo) (*adapter.OpenAIClient, *ht
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
-	return adapter.NewOpenAIClient(server.URL, "test-key", 10*time.Second), server
+	return adapter.MustNewOpenAIClient(server.URL, "test-key", 10*time.Second), server
 }
 
 // mockOpenAIServer 创建模拟 OpenAI-compatible API 的 HTTP 测试服务器。
@@ -179,7 +183,7 @@ func TestChatCompletion_HTTPError(t *testing.T) {
 	})
 	defer server.Close()
 
-	client := adapter.NewOpenAIClient(server.URL, "bad-key", 10*time.Second)
+	client := adapter.MustNewOpenAIClient(server.URL, "bad-key", 10*time.Second)
 
 	_, err := client.ChatCompletion(context.Background(), adapter.ChatRequest{
 		Model:    "qwen3-4b",
@@ -200,7 +204,7 @@ func TestChatCompletion_Timeout(t *testing.T) {
 	})
 	defer server.Close()
 
-	client := adapter.NewOpenAIClient(server.URL, "test-key", 500*time.Millisecond)
+	client := adapter.MustNewOpenAIClient(server.URL, "test-key", 500*time.Millisecond)
 
 	_, err := client.ChatCompletion(context.Background(), adapter.ChatRequest{
 		Model:    "qwen3-4b",
@@ -218,7 +222,7 @@ func TestChatCompletion_ContextCancellation(t *testing.T) {
 	})
 	defer server.Close()
 
-	client := adapter.NewOpenAIClient(server.URL, "test-key", 30*time.Second)
+	client := adapter.MustNewOpenAIClient(server.URL, "test-key", 30*time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // 立即取消
 
@@ -240,7 +244,7 @@ func TestChatCompletionStream_Success(t *testing.T) {
 
 	if info.IsReal {
 		// 真实 LLM 流式调用
-		client := adapter.NewOpenAIClient(info.BaseURL, info.APIKey, 60*time.Second)
+		client := adapter.MustNewOpenAIClient(info.BaseURL, info.APIKey, 60*time.Second)
 
 		ch, err := client.ChatCompletionStream(context.Background(), adapter.ChatRequest{
 			Model: info.Model,
@@ -298,7 +302,7 @@ func TestChatCompletionStream_Success(t *testing.T) {
 	})
 	defer server.Close()
 
-	client := adapter.NewOpenAIClient(server.URL, "test-key", 10*time.Second)
+	client := adapter.MustNewOpenAIClient(server.URL, "test-key", 10*time.Second)
 
 	ch, err := client.ChatCompletionStream(context.Background(), adapter.ChatRequest{
 		Model:    "qwen3-4b",
@@ -341,7 +345,7 @@ func TestChatCompletionStream_ClientDisconnect(t *testing.T) {
 	})
 	defer server.Close()
 
-	client := adapter.NewOpenAIClient(server.URL, "test-key", 30*time.Second)
+	client := adapter.MustNewOpenAIClient(server.URL, "test-key", 30*time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ch, err := client.ChatCompletionStream(ctx, adapter.ChatRequest{

@@ -108,7 +108,11 @@ func main() {
 	// TODO(cmd/main): LLM/Embedding 超时时间应来自配置，并区分 query rewrite、rerank、最终生成等场景。
 	// 当前 60s/30s 写死会让短请求和长生成共享同一超时策略。
 	llmTimeout := 60 * time.Second
-	llmClient := adapter.NewOpenAIClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, llmTimeout)
+	llmClient, err := adapter.NewOpenAIClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, llmTimeout)
+	if err != nil {
+		slog.Error("创建 LLM 客户端失败", "error", err)
+		os.Exit(1)
+	}
 
 	// Embedding 优先使用独立 Base URL 和 API Key，空时回退到 LLM 配置
 	embedBaseURL := cfg.Embedding.BaseURL
@@ -202,7 +206,11 @@ func main() {
 	// TODO(cmd/main): 启动时应把 config.yaml/env 的 LLM 配置同步为默认 LLMConfig 或作为 fallback 注入 Manager。
 	// 当前 ChatService 可能从 LLMConfigManager 读取到 nil，然后使用 model="default"，与 cfg.LLM.Model 不一致。
 	llmConfigRepo := repository.NewLlmConfigRepo(db)
-	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo)
+	if err != nil {
+		slog.Error("创建 LLM 配置服务失败", "error", err)
+		os.Exit(1)
+	}
 	slog.Info("LLM 配置服务已初始化")
 
 	// RAG 引擎组件
@@ -266,7 +274,7 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
 	auditHandler := handler.NewAuditHandler(auditService)
 	configHandler := handler.NewConfigHandler(configService)
-	llmConfigHandler := handler.NewLLMConfigHandler(llmConfigSvc, llmClient)
+	llmConfigHandler := handler.NewLLMConfigHandler(llmConfigSvc)
 
 	// 8. 初始化后台调度器
 	scheduler := service.NewScheduler(ticketService)

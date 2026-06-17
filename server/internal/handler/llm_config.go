@@ -24,8 +24,7 @@ import (
 
 // LLMConfigHandler LLM 配置管理接口。
 type LLMConfigHandler struct {
-	svc       llmConfigService
-	llmClient adapter.LLMClient // 用于 TestConnection 验证连接
+	svc llmConfigService
 }
 
 // llmConfigService 定义 Handler 需要的 Service 方法（消费者定义接口）。
@@ -39,14 +38,8 @@ type llmConfigService interface {
 }
 
 // NewLLMConfigHandler 创建 LLMConfigHandler 实例。
-//
-// svc 和 llmClient 通过构造函数注入，避免 Setter 注入的时序风险。
-// llmClient 可选（传 nil），用于 TestConnection 真实验证。
-func NewLLMConfigHandler(svc llmConfigService, llmClient adapter.LLMClient) *LLMConfigHandler {
-	return &LLMConfigHandler{
-		svc:       svc,
-		llmClient: llmClient,
-	}
+func NewLLMConfigHandler(svc llmConfigService) *LLMConfigHandler {
+	return &LLMConfigHandler{svc: svc}
 }
 
 // =============================================================================
@@ -172,12 +165,10 @@ func (h *LLMConfigHandler) DeleteConfig(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// TestConnection 测试 LLM 连接。
+// TestConnection 测试指定 LLM 配置的连接。
 //
 // POST /api/v1/admin/llm-configs/:id/test
 func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
-	// TODO(handler/llm_config): 测试连接应基于被测 cfg 创建临时 OpenAIClient。
-	// 当前使用注入的 h.llmClient，实际测试的是启动时默认 BaseURL/APIKey，而不是 :id 对应配置。
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "无效的配置 ID")
@@ -190,40 +181,36 @@ func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 		return
 	}
 
-	// 测试连接：使用注入的 LLMClient 向配置的 BaseURL 发送 /v1/models 请求
-	if h.llmClient == nil {
-		response.Error(c, errcode.ErrUnknown, "LLM 客户端未初始化，无法测试连接")
+	// 基于被测配置创建临时客户端，而非使用注入的全局默认客户端
+	testClient, err := adapter.NewOpenAIClient(cfg.BaseURL, cfg.APIKey, 10*time.Second)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "配置的 BaseURL 无效: "+err.Error())
 		return
 	}
 
-	// 构造一个极小的请求来验证连通性
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	testReq := adapter.ChatRequest{
-		Model: cfg.LLMModel,
-		Messages: []adapter.ChatMessage{
-			{Role: "user", Content: "ping"},
-		},
+		Model:       cfg.LLMModel,
+		Messages:    []adapter.ChatMessage{{Role: "user", Content: "ping"}},
 		MaxTokens:   1,
 		Temperature: 0,
 	}
 
-		start := time.Now()
-		resp, err := h.llmClient.ChatCompletion(ctx, testReq)
-		latency := time.Since(start).Milliseconds()
-		if err != nil {
-			// TODO(handler/llm_config): 测试连接失败应返回 code=0, data.success=false 以区分接口错误。
-			// 当前返回 ErrAIUnavailable，会让前端把业务测试失败当成接口失败处理。
-			response.Error(c, errcode.ErrAIUnavailable, "连接测试失败: "+err.Error())
-			return
-		}
+	start := time.Now()
+	resp, err := testClient.ChatCompletion(ctx, testReq)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		response.Error(c, errcode.ErrAIUnavailable, "连接测试失败: "+err.Error())
+		return
+	}
 
-		response.Success(c, gin.H{
-			"success":      true,
-			"model":        cfg.LLMModel,
-			"latency_ms":   latency,
-			"test_message": resp.Content,
-			"tokens_used":  resp.TokensUsed,
-		})
+	response.Success(c, gin.H{
+		"success":      true,
+		"model":        cfg.LLMModel,
+		"latency_ms":   latency,
+		"test_message": resp.Content,
+		"tokens_used":  resp.TokensUsed,
+	})
 }
