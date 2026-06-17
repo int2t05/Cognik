@@ -129,10 +129,6 @@ export function enableArticle(id: number) {
   return request.post<ApiResponse<null>>(`/api/v1/admin/articles/${id}/enable`)
 }
 
-export function retrySyncArticle(id: number) {
-  return request.post<ApiResponse<null>>(`/api/v1/admin/articles/${id}/retry-sync`)
-}
-
 // =============================================================================
 // 文档上传与处理
 // =============================================================================

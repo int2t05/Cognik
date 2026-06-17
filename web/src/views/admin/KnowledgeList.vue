@@ -70,8 +70,7 @@
                 <button v-if="a.status===3" class="btn-sm btn-success" @click="handlePublish(a.id)">发布</button>
                 <button v-if="a.status===4" class="btn-sm btn-warning" @click="handleDisable(a.id)">停用</button>
                 <button v-if="a.status===5" class="btn-sm btn-success" @click="handleEnable(a.id)">启用</button>
-                <button v-if="a.source_type===2 && a.process_status==='failed'" class="btn-sm btn-warning" @click="handleRetryDocument(a.id)">重试处理</button>
-                <button v-if="a.process_status==='failed'" class="btn-sm btn-warning" @click="handleRetrySync(a.id)">重试发布</button>
+                <button v-if="a.process_status==='failed'" class="btn-sm btn-warning" @click="handleRetryDocument(a.id)">重试</button>
                 <button v-if="a.status===1||a.status===6" class="btn-sm btn-default" @click="goEdit(a.id)">编辑</button>
               </td>
             </tr>
@@ -118,7 +117,7 @@ import { useRouter } from 'vue-router'
 import Pagination from '@/components/common/Pagination.vue'
 import { articleStatusClass as statusClass, articleStatusText as statusText, processClass, processText } from '@/utils/knowledge'
 import { useToast } from '@/composables/useToast'
-import { listKnowledgeBases, createKnowledgeBase, updateKnowledgeBase, listArticles, submitReview, publishArticle, disableArticle, enableArticle, retrySyncArticle, retryDocument } from '@/api/knowledge'
+import { listKnowledgeBases, createKnowledgeBase, updateKnowledgeBase, listArticles, submitReview, publishArticle, disableArticle, enableArticle, retryDocument } from '@/api/knowledge'
 
 interface KB { id: number; name: string }
 // 统一文章模型字段
@@ -189,10 +188,6 @@ const handleRetryDocument = async (id: number) => {
   if (!selectedKB.value) return
   try { await retryDocument(selectedKB.value.id, id); await fetchArticles() } catch (e: any) { alert(e?.message) }
 }
-const handleRetrySync = async (id: number) => {
-  try { await retrySyncArticle(id); await fetchArticles() } catch (e: any) { alert(e?.message) }
-}
-
 // 辅助函数；statusClass/statusText/processClass/processText → @/utils/knowledge.ts
 const sourceIcon = (t: number) => { const m: Record<number,string> = { 1:'✍️',2:'📄' }; return m[t]||'❓' }
 const formatTime = (t?: string) => t ? new Date(t).toLocaleString('zh-CN') : '-'

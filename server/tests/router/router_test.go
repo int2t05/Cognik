@@ -166,7 +166,6 @@ func TestAdminRoutes_Exist(t *testing.T) {
 		{"POST", "/api/v1/admin/articles/1/review"},
 		{"POST", "/api/v1/admin/articles/1/publish"},
 		{"POST", "/api/v1/admin/articles/1/disable"},
-		{"POST", "/api/v1/admin/articles/1/retry-sync"},
 
 		// 用户管理
 		{"GET", "/api/v1/admin/users"},

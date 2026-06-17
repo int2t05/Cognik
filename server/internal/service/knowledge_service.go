@@ -24,6 +24,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// MaxDocumentSize 文档上传大小上限（50MB）。
+const MaxDocumentSize = 50 * 1024 * 1024
+
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
 // 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
 type knowledgeChunker interface {
@@ -543,13 +546,20 @@ func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailRe
 //
 // fileSize 用于大小上限校验（最大 50MB），fileType 用于格式白名单校验。
 func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename string, fileType string, fileSize int64, content io.Reader) (*model.KnowledgeArticle, error) {
+	// 校验知识库存在——防止孤儿文章
+	if _, err := s.repo.FindKBByID(kbID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
+		}
+		return nil, err
+	}
+
 	allowedTypes := map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
 	if !allowedTypes[fileType] {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/md/txt）"}
 	}
 
-	const maxSize = 50 * 1024 * 1024
-	if fileSize > maxSize {
+	if fileSize > MaxDocumentSize {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件大小超过限制（最大 50MB）"}
 	}
 
@@ -564,7 +574,7 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 	}
 
 	// 读取文件内容到内存（MinIO 上传和降级解析都需要）
-	data, err := io.ReadAll(io.LimitReader(content, maxSize))
+	data, err := io.ReadAll(io.LimitReader(content, MaxDocumentSize))
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "读取上传文件失败: " + err.Error()}
 	}
@@ -641,22 +651,36 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 }
 
 // GetDocumentStatus 查询文档处理状态。
-func (s *KnowledgeService) GetDocumentStatus(articleID int64) (string, error) {
+//
+// kbID 用于校验 URL 资源层级一致性——文章必须属于指定知识库，否则返回 ErrNotFound。
+func (s *KnowledgeService) GetDocumentStatus(kbID int64, articleID int64) (*response.DocumentStatusResponse, error) {
 	article, err := s.repo.FindArticleByID(articleID)
 	if err != nil {
-		return "", errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
+		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 	}
-	return mapArticleToProcessStatus(article), nil
+	if article.KBID != kbID {
+		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不属于指定知识库"}
+	}
+	return &response.DocumentStatusResponse{
+		ArticleID:     article.ID,
+		FileName:      article.Title,
+		ProcessStatus: mapArticleToProcessStatus(article),
+		ProcessError:  article.ProcessError,
+	}, nil
 }
 
 // RetryDocument 重试文档处理（重新入队）。
 //
+// kbID 用于校验 URL 资源层级一致性——文章必须属于指定知识库。
 // 状态机：仅允许 ProcessStatus == "failed" 的文章重试（避免对已成功或处理中文档重复入队）。
 // 重试不修改 Article.Status（审核状态），仅清空 ProcessError 让前端重新展示错误。
-func (s *KnowledgeService) RetryDocument(articleID int64) error {
+func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 	article, err := s.repo.FindArticleByID(articleID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
+	}
+	if article.KBID != kbID {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不属于指定知识库"}
 	}
 	if article.ProcessStatus != "failed" {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅处理失败的文章可重试"}
@@ -756,19 +780,6 @@ func splitMinioPath(path string) (string, string) {
 		return path, ""
 	}
 	return path[:idx], path[idx+1:]
-}
-
-// mapProcessStatus 已废弃：文档处理阶段不再写入 Article.Status（审核状态机）。
-//
-// 历史说明：早期实现把 Processor 阶段映射为 Article.Status（草稿/审核通过），
-// 造成"审核状态"和"处理状态"两个状态机共用同一字段，前端无法可靠区分。
-// 2026-06-17 重构后，处理进度仅通过 ProcessStatus 字段表达（独立字符串枚举），
-// Article.Status 仅承载人工审核流程（Draft/Reviewing/Approved/Published/Rejected/Disabled）。
-//
-// 函数体保留为 no-op 占位，避免外部 mock 引用编译失败；新代码不应再调用。
-func mapProcessStatus(status string) int {
-	_ = status
-	return 0
 }
 
 // mapArticleToProcessStatus 返回文章的处理状态字符串。

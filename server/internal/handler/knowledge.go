@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"opsmind/internal/dto/request"
+	dto "opsmind/internal/dto/response"
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -272,23 +273,6 @@ func (h *KnowledgeHandler) Enable(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// RetrySync 重试文档处理。
-//
-// POST /api/v1/admin/articles/:id/retry-sync
-func (h *KnowledgeHandler) RetrySync(c *gin.Context) {
-	id, ok := parseID(c, "id")
-	if !ok {
-		return
-	}
-
-	if svcErr := h.svc.RetryDocument(id); svcErr != nil {
-		handleServiceError(c, svcErr)
-		return
-	}
-
-	response.Success(c, nil)
-}
-
 // ListArticles 分页查询文章列表。
 //
 // GET /api/v1/admin/knowledge-bases/:kb_id/articles
@@ -369,11 +353,11 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
-		"message":    "文档已接收，正在后台处理",
-		"article_id": article.ID,
-		"filename":   file.Filename,
-		"kb_id":      kbID,
+	response.Success(c, dto.DocumentUploadItem{
+		ArticleID:     article.ID,
+		FileName:      file.Filename,
+		FileType:      fileType,
+		ProcessStatus: article.ProcessStatus,
 	})
 }
 
@@ -381,44 +365,41 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 //
 // GET /api/v1/admin/knowledge-bases/:kb_id/documents/:id/status
 func (h *KnowledgeHandler) GetDocumentStatus(c *gin.Context) {
-	// TODO(handler/knowledge): 未校验路径中的 kb_id 与 article.KBID 是否一致。
-	// 错误 kb_id 仍可查询到其他知识库文章状态，破坏 URL 资源层级语义。
+	kbID, ok := parseID(c, "kb_id")
+	if !ok {
+		return
+	}
 	articleID, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
 
-	status, err := h.svc.GetDocumentStatus(articleID)
+	result, err := h.svc.GetDocumentStatus(kbID, articleID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	// TODO(handler/knowledge): 响应缺少 file_name/process_error/progress 字段，
-	// 与 API 文档不一致。需 Service 层返回结构化状态对象而非 string。
-	response.Success(c, gin.H{
-		"article_id":     articleID,
-		"process_status": status,
-	})
+	response.Success(c, result)
 }
 
 // RetryDocument 重试文档处理（重新入队）。
 //
 // POST /api/v1/admin/knowledge-bases/:kb_id/documents/:id/retry
 func (h *KnowledgeHandler) RetryDocument(c *gin.Context) {
+	kbID, ok := parseID(c, "kb_id")
+	if !ok {
+		return
+	}
 	articleID, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.svc.RetryDocument(articleID); err != nil {
+	if err := h.svc.RetryDocument(kbID, articleID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	// TODO(handler/knowledge): 返回 message 与 API 文档不一致（文档："已重新加入处理队列"）。
-	response.Success(c, gin.H{
-		"message":    "重试已提交",
-		"article_id": articleID,
-	})
+	response.Success(c, nil)
 }

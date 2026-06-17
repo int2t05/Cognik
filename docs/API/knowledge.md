@@ -571,19 +571,6 @@ Authorization: Bearer <token>
 >
 > 启用是发布管道的完整重跑（不停用时向量已删除，必须重建才能再次被 RAG 检索到）。
 
-### 16. 重试发布
-
-```http
-POST /api/v1/admin/articles/:id/retry-sync
-Authorization: Bearer <token>
-```
-
-> 当发布时向量写入失败（`process_status=failed`），可重试。仅对「审核通过(3)」状态的文章有效。
->
-> 重试 embedding 生成 + pgvector 写入。
-
----
-
 ## 知识库删除
 
 ### 17. 删除知识库

@@ -50,13 +50,10 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 		rg.POST("/articles/:id/publish", middleware.RequirePermission("knowledge:review"), h.Knowledge.Publish)
 		rg.POST("/articles/:id/disable", middleware.RequirePermission("knowledge:review"), h.Knowledge.Disable)
 		rg.POST("/articles/:id/enable", middleware.RequirePermission("knowledge:review"), h.Knowledge.Enable)
-		rg.POST("/articles/:id/retry-sync", middleware.RequirePermission("knowledge:write"), h.Knowledge.RetrySync)
-			// TODO(router/admin): 文档上传路由当前缩进异常，后续容易误判其是否属于 Knowledge 分支。
-			// 只需格式化即可提升可读性，但本轮保持注释级改动。
-			// 文档上传
-			rg.POST("/knowledge-bases/:kb_id/documents/upload", middleware.RequirePermission("knowledge:write"), h.Knowledge.UploadDocuments)
-			rg.GET("/knowledge-bases/:kb_id/documents/:id/status", middleware.RequirePermission("knowledge:read"), h.Knowledge.GetDocumentStatus)
-			rg.POST("/knowledge-bases/:kb_id/documents/:id/retry", middleware.RequirePermission("knowledge:write"), h.Knowledge.RetryDocument)
+		// 文档上传/状态/重试
+		rg.POST("/knowledge-bases/:kb_id/documents/upload", middleware.RequirePermission("knowledge:write"), h.Knowledge.UploadDocuments)
+		rg.GET("/knowledge-bases/:kb_id/documents/:id/status", middleware.RequirePermission("knowledge:read"), h.Knowledge.GetDocumentStatus)
+		rg.POST("/knowledge-bases/:kb_id/documents/:id/retry", middleware.RequirePermission("knowledge:write"), h.Knowledge.RetryDocument)
 	} else {
 		rg.GET("/knowledge-bases", placeholder())
 		rg.POST("/knowledge-bases", placeholder())
@@ -71,7 +68,6 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 		rg.POST("/articles/:id/publish", placeholder())
 		rg.POST("/articles/:id/disable", placeholder())
 		rg.POST("/articles/:id/enable", placeholder())
-		rg.POST("/articles/:id/retry-sync", placeholder())
 	}
 
 	// 用户管理（T14 — 已实现）

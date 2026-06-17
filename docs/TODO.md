@@ -126,19 +126,15 @@
 
 - 🔴 [adapter/storage_client.go](/server/internal/adapter/storage_client.go) — `ensureBucket` 失败只 warn 继续启动，后续上传操作失败时错误信息令人困惑
 - 🟡 [rag/document_parser.go](/server/internal/rag/document_parser.go) — `io.LimitReader` 到 100MB 上限不报错，静默截断文档内容
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `RetryDocument` 未校验当前是否处于 failed 状态，可对已成功文档重复入队
 - 🟡 [handler/knowledge.go](/server/internal/handler/knowledge.go) — 文档上传应结合 MIME sniffing 判断文件类型，而非仅信任扩展名
-- 🟡 [handler/knowledge.go](/server/internal/handler/knowledge.go) — `GetDocumentStatus` 未校验 `kb_id` 与 article.KBID 一致，URL 资源层级校验缺失
-- 📝⭐ [handler/knowledge.go](/server/internal/handler/knowledge.go) — **上传 API 字段名与文档不一致**：[API/knowledge.md](API/knowledge.md) 指定 multipart 字段名 `files`（复数，多文件），代码读取 `c.FormFile("file")`（单数，仅单文件）。响应形状也不一致：文档返回 `documents` 数组含 `file_size`，代码返回扁平对象含 `article_id`/`filename`/`kb_id`。
+- 📝 [handler/knowledge.go](/server/internal/handler/knowledge.go) — **上传 API 字段名与文档不一致**：[API/knowledge.md](API/knowledge.md) 指定 multipart 字段名 `files`（复数，多文件），代码读取 `c.FormFile("file")`（单数，仅单文件）。已修复 gin.H→DTO，多文件支持仍待实现。
 
 ### 文档响应形状对齐
 
-- 🟡⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — KB 响应缺少 `llm_config_id`/`article_count` 字段（[API/knowledge.md](API/knowledge.md) 文档中有，DTO 未实现）。需补充字段并修改 Service 层 `ListKBs` 填充。
-- 🟡⭐ [dto/request/knowledge.go](/server/internal/dto/request/knowledge.go) — 创建 KB 请求缺少 `llm_config_id` 字段（[API/knowledge.md](API/knowledge.md) 记为可选参数）。需补充 DTO + Service 关联逻辑。
+- 🟡⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — KB 响应缺少 `llm_config_id`/`article_count` 字段（[API/knowledge.md](API/knowledge.md) 文档中有，DTO 未实现）。
+- 🟡⭐ [dto/request/knowledge.go](/server/internal/dto/request/knowledge.go) — 创建 KB 请求缺少 `llm_config_id` 字段（[API/knowledge.md](API/knowledge.md) 记为可选参数）。
 - 🟡⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) — Article 响应缺少 `source_type_text`/`created_by_name`/`published_by_name` 字段（[API/knowledge.md](API/knowledge.md) 文档中有，需 Service 层 join 查询填充）。
-- 🟡⭐ [handler/knowledge.go](/server/internal/handler/knowledge.go) — `GetDocumentStatus` 响应缺少 `file_name`/`process_error`/`progress` 对象（[API/knowledge.md](API/knowledge.md) 文档详细但代码仅返回 `article_id` + `process_status` 字符串）。
-- 🟡⭐ [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `RetryDocument` 返回 message 与 [API/knowledge.md](API/knowledge.md) 不一致（"重试已提交" vs "已重新加入处理队列"）。
-- 🟢⭐ [dto/request/chat.go](/server/internal/dto/request/chat.go) — RAGOptions 缺少 `route_count`/`rerank_count` 字段，与 `rag.RAGOptions` 类型不同步，前端无法传递这两个参数。
+- 🟢⭐ [dto/request/chat.go](/server/internal/dto/request/chat.go) — RAGOptions 缺少 `route_count`/`rerank_count` 字段，前端无法传递这两个参数。
 
 ### 内容质量
 
@@ -175,6 +171,11 @@
 - ✅ **[2026-06-17]** Disable 强校验状态 — 仅允许 `Published(4) → Disabled(0)`，其他状态返回 `code=10003`
 - ✅ **[2026-06-17]** 状态机解耦 — 删除 `mapProcessStatus()`，Processor 回调仅写 `process_status` 不再污染 `Article.Status`；`RetryDocument` 仅 `ProcessStatus="failed"` 可重试
 - ✅ **[2026-06-17]** UpdateArticleStatus 检查 RowsAffected — 不存在的 ID 返回 `gorm.ErrRecordNotFound`，Service 可向上层返回 404
+- ✅ **[2026-06-17]** 删除重复 `/articles/:id/retry-sync` 路由 — 统一走 `/knowledge-bases/:kb_id/documents/:id/retry`
+- ✅ **[2026-06-17]** kbID 校验下沉 Service — `GetDocumentStatus`/`RetryDocument`/`UploadDocuments` 均在 Service 层校验 kbID
+- ✅ **[2026-06-17]** 文档响应 DTO 化 — `DocumentUploadItem`/`DocumentStatusResponse` 替换全部 `gin.H`
+- ✅ **[2026-06-17]** `MaxDocumentSize` 包级常量 — 删除局部 `const maxSize`，统一引用 `service.MaxDocumentSize`
+- ✅ **[2026-06-17]** `mapProcessStatus` 死代码删除 — 无调用方，状态机已解耦
 
 ---
 
@@ -418,7 +419,7 @@
 - 🟡 [router/portal.go](/server/internal/router/portal.go) — 门户路由无角色校验：仅需 JWT，不验证用户是否为报障人角色
 - 🟡 [middleware/logger.go](/server/internal/middleware/logger.go) — `json.Marshal` 错误被丢弃
 - 🟢 [middleware/logger.go](/server/internal/middleware/logger.go) — request-ID/userID 已记录，缺少**业务错误码**写入日志行（当前仅 HTTP status，无法关联 errcode 10001/20001 等）
-- 📌 [router/admin.go:53](/server/internal/router/admin.go) — 文档上传路由当前缩进异常，后续容易误判其是否属于 Knowledge 分支
+- ✅ [router/admin.go](/server/internal/router/admin.go) — 文档上传路由缩进已修复
 
 ### Repository 层
 

@@ -234,9 +234,9 @@ test.describe('发布/停用/启用', () => {
     await assertError(resp, [200, 400, 404, 500], [10003, 10004, 99999]);
   });
 
-  test('retry-sync 不存在文章返回 404', async ({ request }) => {
+  test('retry 不存在文档返回 404', async ({ request }) => {
     if (!token) { test.skip(true, '缺少 token'); return; }
-    const resp = await request.post(apiUrl('/api/v1/admin/articles/99999/retry-sync'), {
+    const resp = await request.post(apiUrl('/api/v1/admin/knowledge-bases/1/documents/99999/retry'), {
       headers: authHeaders(token),
     });
     await assertError(resp, [200, 400, 404, 500], [10003, 10004, 99999]);

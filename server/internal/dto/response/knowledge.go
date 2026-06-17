@@ -65,6 +65,22 @@ type ArticleDetailResponse struct {
 	Chunks []ChunkResponse `json:"chunks"`
 }
 
+// DocumentUploadItem 文档上传响应项，替换原先的 gin.H 临时结构。
+type DocumentUploadItem struct {
+	ArticleID     int64  `json:"article_id"`
+	FileName      string `json:"file_name"`
+	FileType      string `json:"file_type"`
+	ProcessStatus string `json:"process_status"`
+}
+
+// DocumentStatusResponse 文档处理状态响应，替换原先的 gin.H 临时结构。
+type DocumentStatusResponse struct {
+	ArticleID     int64  `json:"article_id"`
+	FileName      string `json:"file_name"`
+	ProcessStatus string `json:"process_status"`
+	ProcessError  string `json:"process_error"`
+}
+
 // ChunkResponse 知识切片响应。
 type ChunkResponse struct {
 	// TODO(dto/knowledge): ChunkResponse 已有 kb_id/chunk_index，但缺少 created_at。

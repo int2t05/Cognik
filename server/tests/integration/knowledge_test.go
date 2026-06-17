@@ -7,7 +7,7 @@
 //   - 审核驳回流程
 //   - 知识库列表和文章列表查询
 //
-// Publish/Disable/RetrySync 仅管理数据库和向量状态，
+// Publish/Disable 仅管理数据库和向量状态，
 // 不依赖外部 RAG 服务。
 //
 // 数据库使用真实 PostgreSQL opsmind_test 库。
@@ -108,7 +108,6 @@ func setupKnowledgeIntegration(t *testing.T) *knowledgeIntEnv {
 		admin.POST("/articles/:id/review", knowledgeH.Review)
 		admin.POST("/articles/:id/publish", knowledgeH.Publish)
 		admin.POST("/articles/:id/disable", knowledgeH.Disable)
-		admin.POST("/articles/:id/retry-sync", knowledgeH.RetrySync)
 	}
 
 	return &knowledgeIntEnv{r: r, db: db}
@@ -131,9 +130,8 @@ func postJSON(t *testing.T, env *knowledgeIntEnv, url string, body interface{}) 
 
 // TestKnowledgeIntegration_FullLifecycle 验证完整知识生命周期。
 //
-// 流程：创建知识库 → 创建草稿 → 提交审核 → 审核通过 → 发布 → 停用 → 重试同步。
-// Publish/Disable/RetrySync 仅管理数据库状态，
-// 不再调用外部 RAG 服务。
+// 流程：创建知识库 → 创建草稿 → 提交审核 → 审核通过 → 发布 → 停用。
+// Publish/Disable 仅管理数据库状态，不再调用外部 RAG 服务。
 func TestKnowledgeIntegration_FullLifecycle(t *testing.T) {
 	env := setupKnowledgeIntegration(t)
 
@@ -217,8 +215,6 @@ func TestKnowledgeIntegration_FullLifecycle(t *testing.T) {
 	t.Logf("   文章状态=已停用(0)")
 
 	// 7. 验证完整生命周期状态转换链路：草稿(1)→待审核(2)→审核通过(3)→已发布(4)→已停用(0)
-	// RetrySync 依赖 Processor（需要 DocParser+Chunker+Embedder+VectorStore），
-	// 属于异步文档处理管道，单独在 rag 包测试中覆盖。
 	env.db.First(&article, articleID)
 	assert.Equal(t, int16(model.ArticleStatusDisabled), article.Status, "最终状态应为已停用(0)")
 	t.Logf("✅ 步骤7: 完整状态链路验证通过: 1→2→3→4→0")

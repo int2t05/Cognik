@@ -588,7 +588,6 @@ flowchart LR
 | Knowledge | `POST /admin/articles/:id/publish` | `KnowledgeHandler.Publish` | `KnowledgeService.Publish` | knowledge.md | ✅ |
 | Knowledge | `POST /admin/articles/:id/disable` | `KnowledgeHandler.Disable` | `KnowledgeService.Disable` | knowledge.md | ✅ |
 | Knowledge | `POST /admin/articles/:id/enable` | `KnowledgeHandler.Enable` | `KnowledgeService.Enable` | knowledge.md | ✅ |
-| Knowledge | `POST /admin/articles/:id/retry-sync` | `KnowledgeHandler.RetrySync` | `KnowledgeService.RetrySync` | knowledge.md | ✅ |
 | Knowledge | `POST /admin/knowledge-bases/:kb_id/documents/upload` | `KnowledgeHandler.UploadDocuments` | `KnowledgeService.UploadDocuments` | knowledge.md | ✅ |
 | Knowledge | `GET /admin/knowledge-bases/:kb_id/documents/:id/status` | `KnowledgeHandler.GetDocumentStatus` | `KnowledgeService.GetDocumentStatus` | knowledge.md | ✅ |
 | Knowledge | `POST /admin/knowledge-bases/:kb_id/documents/:id/retry` | `KnowledgeHandler.RetryDocument` | `KnowledgeService.RetryDocument` | knowledge.md | ✅ |

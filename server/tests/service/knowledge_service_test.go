@@ -2,7 +2,7 @@
 
 // Package service_test 验证 KnowledgeService 业务逻辑。
 //
-// CreateKB/Publish/Disable/RetrySync 操作数据库状态。
+// CreateKB/Publish/Disable 操作数据库状态。
 //
 // 保留测试：知识库 CRUD、文章 CRUD、审核流程、EmbeddingConfig CRUD。
 package service_test
