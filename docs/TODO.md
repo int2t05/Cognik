@@ -108,20 +108,19 @@
 
 ### 知识发布管道（核心路径）
 
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `DeleteByArticle` + `BatchInsert` 非原子：删除旧向量成功但新向量写入失败 → 文章向量永久丢失。**修复：先 BatchInsert 写入新向量，成功后再 DeleteByArticle 删旧向量。**
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish 使用 `context.Background` 忽略请求取消。**修复：Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()。**
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 管道未初始化（`chunker/embedder/store == nil`）时应映射为 `ErrRAGUnavailable`。**修复：返回 errcode.AppError{Code: ErrRAGUnavailable, ...}。**
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go:323](/server/internal/service/knowledge_service.go) — 发布失败时应设置 process_status=failed 和 process_error。**修复：新增 recordPublishFailure()，在 Embed/BatchInsert 失败时持久化。**
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 使用 `context.Background`。**修复：Disable(ctx, id)，Handler 传 c.Request.Context()。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — `DeleteByArticle` + `BatchInsert` 非原子：删除旧向量成功但新向量写入失败 → 文章向量永久丢失。**修复：先 BatchInsert 写入新向量，成功后再 DeleteByArticle 删旧向量。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish 使用 `context.Background` 忽略请求取消。**修复：Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 管道未初始化（`chunker/embedder/store == nil`）时应映射为 `ErrRAGUnavailable`。**修复：返回 errcode.AppError{Code: ErrRAGUnavailable, ...}。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go:323](/server/internal/service/knowledge_service.go) — 发布失败时应设置 process_status=failed 和 process_error。**修复：新增 recordPublishFailure()，在 Embed/BatchInsert 失败时持久化。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 使用 `context.Background`。**修复：Disable(ctx, id)，Handler 传 c.Request.Context()。**
 
 ### 文章状态机
 
-- 📝⭐ [API/knowledge.md](API/knowledge.md) vs [model/enums.go](/server/internal/model/enums.go) — **文章状态编号不一致**：API 文档定义生命周期为「草稿(1)→已提交审核(2)→审核通过(3)→已发布(4)→已停用(5)/驳回(6)」，代码定义 Disabled=0、Draft=1、Reviewing=2、Approved=3、Published=4、Rejected=5。Disabled 在文档中编号 5（与 Closed 混淆），代码中编号 0。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Enable 仅重置 status 为 Draft，不重新执行分块/Embedding/pgvector 写入。📝 [API/knowledge.md](API/knowledge.md) 记载「启用后需重新执行分块→embedding→pgvector 写入（因为停用时向量已删除）」。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 未校验当前状态是否为已发布（Draft 可直接 Disable）。📝 [API/knowledge.md](API/knowledge.md) 记载「状态：已发布(4) → 已停用(5)」。
-- 🟡 [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 文章 `status`（审核流程）和 `process_status`（文档处理）两个状态机概念混淆
-- ✅ **[已修复 2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Publish/Disable 应接收请求 ctx 而非 `context.Background`。**修复：Publish(ctx, id, uid) + Disable(ctx, id)，Handler 传入 c.Request.Context()。**
-- 🟡 [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — `UpdateArticleStatus` 不检查 `RowsAffected`，更新不存在的 ID 静默成功
+- ✅ **[2026-06-17]** [model/enums.go](/server/internal/model/enums.go) vs [API/knowledge.md](API/knowledge.md) — **文章状态编号统一**：以代码枚举为准（Disabled=0、Draft=1、Reviewing=2、Approved=3、Published=4、Rejected=5），更新 [API/knowledge.md](API/knowledge.md) 状态机表格 + [diagrams/knowledge-publish-flow.md](diagrams/knowledge-publish-flow.md) 序列图为两套状态机（审核 status + 文档处理 process_status）。
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Enable 不再仅重置 status 为 Draft。**修复：Enable(ctx, id, publisherID) 复用 `republishFromApproved` 走完整发布管道，状态机改为 `Disabled(0) → Published(4)`，符合 API 文档约束。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — Disable 强校验当前状态。**修复：仅 `Published(4) → Disabled(0)` 合法，其他状态（含 Draft）返回 `code=10003` 参数错误。**
+- ✅ **[2026-06-17]** [service/knowledge_service.go](/server/internal/service/knowledge_service.go) — 文章 `status` 与 `process_status` 状态机解耦。**修复：删除 `mapProcessStatus()` 对审核状态的污染，Processor 回调仅写 `process_status` 字段；`RetryDocument` 改为仅 `ProcessStatus="failed"` 可重试，不再误重置 `Article.Status=Draft`。**
+- ✅ **[2026-06-17]** [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — `UpdateArticleStatus` 检查 `RowsAffected`。**修复：返回 `gorm.ErrRecordNotFound` 当目标文章不存在，Service 可向上层返回 404。**
 
 ### 文档上传与异步处理
 
@@ -165,12 +164,17 @@
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — LLM prompt 方案 → cross-encoder 子进程重排序
 - ✅ [rag/rerank.go](/server/internal/rag/rerank.go) — `_ = i` 调试残留删除
 - ✅ **[2026-06-17]** `DeleteByArticle` + `BatchInsert` 非原子 — 先写后删，新向量写入成功后才删旧向量
-- ✅ **[2026-06-17]** Publish `context.Background` — 改为 Publish( ctx, id, publisherID )，Handler 传 c.Request.Context()
+- ✅ **[2026-06-17]** Publish `context.Background` — 改为 Publish(ctx, id, publisherID)，Handler 传 c.Request.Context()
 - ✅ **[2026-06-17]** 管道 nil → `ErrRAGUnavailable` — 替换 ErrUnknown(99999) 为 ErrRAGUnavailable(20002)
 - ✅ **[2026-06-17]** 发布失败记录 process_status=failed — 新增 recordPublishFailure()，Embed/BatchInsert 失败时持久化
 - ✅ **[2026-06-17]** Disable `context.Background` — Disable(ctx, id)，Handler 传 c.Request.Context()
 - ✅ **[2026-06-17]** ArticleStatusDisabled 值文档漂移 — 图表从 4 修正为 0（与 model/enums.go 一致）
-- ✅ **[2026-06-17]** KB 删除 API 补齐 — 新增 DELETE /knowledge-bases/:id (Handler→Service→Repo 三层) + 前端 deleteKnowledgeBase()
+- ✅ **[2026-06-17]** KB 删除 API 补齐 — 新增 DELETE /knowledge-bases/:id（Handler→Service→Repo 三层）+ 前端 deleteKnowledgeBase()
+- ✅ **[2026-06-17]** 文章状态编号统一 — 以代码枚举为准（Disabled=0），更新 API 文档 + 流程图状态机描述
+- ✅ **[2026-06-17]** Enable 走发布管道 — 提取 `republishFromApproved` 共用方法，Enable 改为 `Disabled(0) → Published(4)`，重跑分块→embedding→pgvector
+- ✅ **[2026-06-17]** Disable 强校验状态 — 仅允许 `Published(4) → Disabled(0)`，其他状态返回 `code=10003`
+- ✅ **[2026-06-17]** 状态机解耦 — 删除 `mapProcessStatus()`，Processor 回调仅写 `process_status` 不再污染 `Article.Status`；`RetryDocument` 仅 `ProcessStatus="failed"` 可重试
+- ✅ **[2026-06-17]** UpdateArticleStatus 检查 RowsAffected — 不存在的 ID 返回 `gorm.ErrRecordNotFound`，Service 可向上层返回 404
 
 ---
 
@@ -327,7 +331,7 @@
 
 - 📌 [service/dashboard_service.go:33](/server/internal/service/dashboard_service.go) — 统计查询串行执行，首屏看板延迟等于所有 SQL 延迟之和
 - 📌 [service/dashboard_service.go:88](/server/internal/service/dashboard_service.go) — 校验 endDate >= startDate 且范围上限（如 90 天）
-- 📌 [service/dashboard_service.go:117](/server/internal/service/dashboard_service.go) — 双重循环填充趋势数据是 O(days * rows)
+- 📌 [service/dashboard_service.go:117](/server/internal/service/dashboard_service.go) — 双重循环填充趋势数据是 O(days \* rows)
 - 📌 [repository/dashboard_repo.go:23](/server/internal/repository/dashboard_repo.go) — created_at::date 会让索引失效
 - 📌 [repository/dashboard_repo.go:66](/server/internal/repository/dashboard_repo.go) — 趋势 SQL 固定按日聚合，未支持 week granularity
 
@@ -574,28 +578,28 @@
 
 经全量扫描，20 个 P0 项对应关系：
 
-| P0 # | 文件 | 问题 | 代码 TODO |
-|------|------|------|-----------|
-| 1 | `adapter/llm_client.go` | 重试机制完全失效 | ✅ 已有 |
-| 2 | `model/llm_config.go` | API Key 明文存储 | ✅ 已有 |
-| 3 | `handler/llm_config.go` | TestConnection 测试错误端点 | ✅ 已有 |
-| 4 | `handler/llm_config.go` | UpdateConfig 清空 api_key | ✅ 已有 |
-| 5 | `service/llm_config_service.go` | 事务用错 DB 句柄 | ✅ 已有 |
-| 6 | `repository/role_repo.go` | Delete(0) 删除全部角色 | ✅ 已有 |
-| 7 | `cmd/main.go` | nil 传播到下游 panic | ✅ 已有 |
-| 8 | `config/config.go` | 配置 YAML 格式错误静默吞掉 | ✅ 2026-06-16 新增 |
-| 9 | `database/migrate.go` | ASC+DESC 双重索引 | ✅ 已有 |
-| 10 | `web/src/router/index.ts` | JWT atob base64url 不兼容 | ✅ 已有 |
-| 11 | `web/src/api/chat.ts` | SSE 流绕过 Axios 拦截器 | ✅ 2026-06-16 新增 |
-| 12 | `views/admin/LLMConfig.vue` | 创建配置时测试连接崩溃 | ✅ 已有 |
-| 13 | `repository/pagination.go` | 全层缺少 context.Context | ✅ 已有 |
-| 14 | `repository/llm_config_repo.go` | is_default 缺部分唯一索引 | ✅ 已有 |
-| 15 | `service/knowledge_service.go` | DeleteByArticle 非原子 | ✅ 已有 |
-| 16 | `model/enums.go` vs `API/knowledge.md` | 文章状态编号不一致 | ✅ 已有 |
-| 17 | `handler/knowledge.go` vs `API/knowledge.md` | 上传 API 字段名不一致 | ✅ 已有 |
-| 18 | `web/src/stores/chat.ts` | crypto.randomUUID() 无 fallback | ✅ 2026-06-16 新增 |
-| 19 | `views/admin/TicketDetail.vue` | 操作按钮缺 loading 守卫 | ✅ 2026-06-16 新增 |
-| 20 | `web/src/App.vue` | NMessageProvider 死代码 | ✅ 2026-06-16 新增 |
+| P0 # | 文件                                         | 问题                            | 代码 TODO          |
+| ---- | -------------------------------------------- | ------------------------------- | ------------------ |
+| 1    | `adapter/llm_client.go`                      | 重试机制完全失效                | ✅ 已有            |
+| 2    | `model/llm_config.go`                        | API Key 明文存储                | ✅ 已有            |
+| 3    | `handler/llm_config.go`                      | TestConnection 测试错误端点     | ✅ 已有            |
+| 4    | `handler/llm_config.go`                      | UpdateConfig 清空 api_key       | ✅ 已有            |
+| 5    | `service/llm_config_service.go`              | 事务用错 DB 句柄                | ✅ 已有            |
+| 6    | `repository/role_repo.go`                    | Delete(0) 删除全部角色          | ✅ 已有            |
+| 7    | `cmd/main.go`                                | nil 传播到下游 panic            | ✅ 已有            |
+| 8    | `config/config.go`                           | 配置 YAML 格式错误静默吞掉      | ✅ 2026-06-16 新增 |
+| 9    | `database/migrate.go`                        | ASC+DESC 双重索引               | ✅ 已有            |
+| 10   | `web/src/router/index.ts`                    | JWT atob base64url 不兼容       | ✅ 已有            |
+| 11   | `web/src/api/chat.ts`                        | SSE 流绕过 Axios 拦截器         | ✅ 2026-06-16 新增 |
+| 12   | `views/admin/LLMConfig.vue`                  | 创建配置时测试连接崩溃          | ✅ 已有            |
+| 13   | `repository/pagination.go`                   | 全层缺少 context.Context        | ✅ 已有            |
+| 14   | `repository/llm_config_repo.go`              | is_default 缺部分唯一索引       | ✅ 已有            |
+| 15   | `service/knowledge_service.go`               | DeleteByArticle 非原子          | ✅ 已有            |
+| 16   | `model/enums.go` vs `API/knowledge.md`       | 文章状态编号不一致              | ✅ 已有            |
+| 17   | `handler/knowledge.go` vs `API/knowledge.md` | 上传 API 字段名不一致           | ✅ 已有            |
+| 18   | `web/src/stores/chat.ts`                     | crypto.randomUUID() 无 fallback | ✅ 2026-06-16 新增 |
+| 19   | `views/admin/TicketDetail.vue`               | 操作按钮缺 loading 守卫         | ✅ 2026-06-16 新增 |
+| 20   | `web/src/App.vue`                            | NMessageProvider 死代码         | ✅ 2026-06-16 新增 |
 
 **覆盖度：20/20 P0 项均有代码 TODO 注释。**
 
@@ -603,20 +607,20 @@
 
 ## 统计
 
-| 业务流程 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO | 合计 |
-|----------|-------|-------|-------|----------|------|
-| 1. 认证与授权 | 0 | 0 | 1 | 0 | 1 |
-| 2. 智能问答 RAG | 0 | 1📝 | 2 | 0 | 3 |
-| 3. 知识库与文档管理 | 0 | 8+5📝 | 5 | 6 | 24 |
-| 4. 申告管理 | 5 | 7+1📝 | 2 | 10 | 25 |
-| 5. 用户与角色管理 | 2 | 9 | 3 | 4 | 18 |
-| 6. LLM 配置与适配层 | 12+2📝 | 9 | 0 | 0 | 23 |
-| 7. 数据看板与审计 | 11 | 7 | 2+3📝 | 6 | 29 |
-| 8. 基础设施与部署 | 11 | 14+1📝 | 5 | 16 | 47 |
-| 9. 前端架构与交互 | 7⭐ | 11+5⭐ | 10+5⭐ | 9 | 47 |
-| 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
-| 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **50** | **65** | **30+9📝** | **48** | **~202** |
+| 业务流程            | 🔴 P0  | 🟡 P1  | 🟢 P2      | 📌 TODO | 合计     |
+| ------------------- | ------ | ------ | ---------- | ------- | -------- |
+| 1. 认证与授权       | 0      | 0      | 1          | 0       | 1        |
+| 2. 智能问答 RAG     | 0      | 1📝    | 2          | 0       | 3        |
+| 3. 知识库与文档管理 | 0      | 8+5📝  | 5          | 6       | 24       |
+| 4. 申告管理         | 5      | 7+1📝  | 2          | 10      | 25       |
+| 5. 用户与角色管理   | 2      | 9      | 3          | 4       | 18       |
+| 6. LLM 配置与适配层 | 12+2📝 | 9      | 0          | 0       | 23       |
+| 7. 数据看板与审计   | 11     | 7      | 2+3📝      | 6       | 29       |
+| 8. 基础设施与部署   | 11     | 14+1📝 | 5          | 16      | 47       |
+| 9. 前端架构与交互   | 7⭐    | 11+5⭐ | 10+5⭐     | 9       | 47       |
+| 10. 整表空数据      | 2      | 1      | 0          | 0       | 3        |
+| 11. P0 覆盖验证     | —      | —      | —          | —       | (维护)   |
+| **合计**            | **50** | **65** | **30+9📝** | **48**  | **~202** |
 
 > ⭐ 标记项为 2026-06-16 审计新发现（前端 18 项 + 后端 13 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷（共 9 项）。
@@ -639,7 +643,7 @@
 13. Repository 全层缺 context.Context
 14. `is_default` 缺部分唯一索引
 15. ~~DeleteByArticle 非原子~~ ✅ 已修复 2026-06-17
-16. ~~文章状态编号文档 vs 代码不一致~~ ✅ 已修复 2026-06-17（图表中 Disabled=4 → 0）
+16. ~~文章状态编号文档 vs 代码不一致~~ ✅ 已修复 2026-06-17（图表 + API 文档与代码枚举对齐）
 17. 上传 API 字段名文档 vs 代码不一致 📝
 18. ⭐ crypto.randomUUID() 无 fallback（前端）
 19. ⭐ TicketDetail 缺 loading 守卫（前端）
@@ -647,4 +651,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§3 知识发布管道 4 P0 + 1 P1 + 图表漂移全部修复；KB 删除 API 补齐；文档一致性同步）
+**最后更新**：2026-06-17（§3 文章状态机 5 项 P1 全部修复：编号统一、Enable 重跑管道、Disable 强校验、状态机解耦、UpdateArticleStatus RowsAffected；新增 API 文档双状态机表 + 流程图状态图）

@@ -285,16 +285,7 @@ func (s *KnowledgeService) Review(id int64, reviewerID int64, req request.Review
 // 流程：
 //  1. 校验管道组件非空（否则返回 ErrRAGUnavailable）
 //  2. 校验状态（仅审核通过 status=3 可发布）
-//  3. Chunker.Split → 文本分块
-//  4. Embedder.Embed → 生成向量
-//  5. VectorStore.BatchInsert → 写入新向量（失败时设置 process_status=failed）
-//  6. VectorStore.DeleteByArticle → 清除旧向量（仅新向量写入成功后执行）
-//  7. 更新文章状态为已发布 status=4
-//
-// 为什么先写新向量再删旧向量：
-// 新旧向量的写入和删除不在同一事务中（pgvector 不支持 GORM 事务），
-// 先写后删保证：写入失败时旧向量仍在（文章仍可被检索），
-// 删除失败时旧向量残留但新向量有效（检索会返回新旧混合结果，优于全部丢失）。
+//  3. 调用 republishFromApproved 执行分块→embedding→pgvector 写入
 func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID int64) error {
 	if s.chunker == nil || s.embedder == nil || s.store == nil {
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 管道未初始化（chunker/embedder/store 为空）"}
@@ -310,6 +301,26 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 	if article.Status != model.ArticleStatusApproved {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已审核通过的文章可发布"}
 	}
+	return s.republishFromApproved(ctx, article, publisherID)
+}
+
+// republishFromApproved 从已审核通过状态执行发布管道——分块→embedding→pgvector。
+//
+// 流程：
+//  1. Chunker.Split → 文本分块
+//  2. Embedder.Embed → 生成向量
+//  3. VectorStore.BatchInsert → 写入新向量（失败时设置 process_status=failed）
+//  4. VectorStore.DeleteByArticle → 清除旧向量（仅新向量写入成功后执行）
+//  5. 更新文章状态为已发布 status=4
+//
+// 为什么先写新向量再删旧向量：
+// 新旧向量的写入和删除不在同一事务中（pgvector 不支持 GORM 事务），
+// 先写后删保证：写入失败时旧向量仍在（文章仍可被检索），
+// 删除失败时旧向量残留但新向量有效（检索会返回新旧混合结果，优于全部丢失）。
+//
+// 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
+func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
+	id := article.ID
 
 	// Step 1: 分块
 	content := article.Content
@@ -373,6 +384,9 @@ func (s *KnowledgeService) recordPublishFailure(article *model.KnowledgeArticle,
 }
 
 // Disable 停用文章——从 pgvector 删除向量并更新状态。
+//
+// 状态机：仅 Published → Disabled。停用前必须先经过审核发布流程，
+// 草稿/待审核/审核通过/已驳回状态不应直接 Disable（应通过驳回或回退路径处理）。
 func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
@@ -380,6 +394,9 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
 		return err
+	}
+	if article.Status != model.ArticleStatusPublished {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已发布状态可停用"}
 	}
 
 	if s.store != nil {
@@ -392,8 +409,12 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64) error {
 	return s.repo.UpdateArticle(article)
 }
 
-// Enable 恢复已停用文章为草稿状态。
-func (s *KnowledgeService) Enable(id int64) error {
+// Enable 启用已停用文章——重新执行分块→embedding→pgvector 写入并发布。
+//
+// 状态机：仅 Disabled → Published。停用时向量已删除，启用必须重建向量。
+// 复用 Publish 内部状态机校验之外的逻辑：状态校验在本函数入口完成，
+// 剩余分块/embedding/写入路径与 Publish 共用。
+func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int64) error {
 	article, err := s.repo.FindArticleByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -402,10 +423,11 @@ func (s *KnowledgeService) Enable(id int64) error {
 		return err
 	}
 	if article.Status != model.ArticleStatusDisabled {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已停用状态的文章可恢复"}
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已停用状态的文章可启用"}
 	}
-	article.Status = model.ArticleStatusDraft // 已停用 → 草稿
-	return s.repo.UpdateArticle(article)
+	// 直接走发布管道；绕开 Publish 的状态校验（已由本函数完成）
+	article.Status = model.ArticleStatusApproved
+	return s.republishFromApproved(ctx, article, publisherID)
 }
 
 // =============================================================================
@@ -561,14 +583,13 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		}
 		article.MinioPath = fmt.Sprintf("%s/%s", bucket, key)
 		task = rag.ProcessTask{
-			ArticleID:      article.ID,
-			KBID:           kbID,
-			Bucket:         bucket,
-			Key:            key,
-			FileType:       fileType,
+			ArticleID: article.ID,
+			KBID:      kbID,
+			Bucket:    bucket,
+			Key:       key,
+			FileType:  fileType,
 			OnStatusChange: func(aID int64, status, errMsg string) {
 				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-				_ = s.repo.UpdateArticleStatus(aID, mapProcessStatus(status))
 			},
 			OnMetrics: func(aID int64, wordCount, chunkCount int) {
 				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
@@ -588,12 +609,11 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		}
 		article.Content = text
 		task = rag.ProcessTask{
-			ArticleID:      article.ID,
-			KBID:           kbID,
-			Content:        text,
+			ArticleID: article.ID,
+			KBID:      kbID,
+			Content:   text,
 			OnStatusChange: func(aID int64, status, errMsg string) {
 				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-				_ = s.repo.UpdateArticleStatus(aID, mapProcessStatus(status))
 			},
 			OnMetrics: func(aID int64, wordCount, chunkCount int) {
 				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
@@ -630,19 +650,24 @@ func (s *KnowledgeService) GetDocumentStatus(articleID int64) (string, error) {
 }
 
 // RetryDocument 重试文档处理（重新入队）。
+//
+// 状态机：仅允许 ProcessStatus == "failed" 的文章重试（避免对已成功或处理中文档重复入队）。
+// 重试不修改 Article.Status（审核状态），仅清空 ProcessError 让前端重新展示错误。
 func (s *KnowledgeService) RetryDocument(articleID int64) error {
-	// TODO(service/knowledge): RetryDocument 未校验当前处理状态是否 failed。
-	// 非失败状态重复入队可能造成同一文章重复写入向量分块。
 	article, err := s.repo.FindArticleByID(articleID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
+	}
+	if article.ProcessStatus != "failed" {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅处理失败的文章可重试"}
 	}
 	if s.processor == nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "文档处理器未初始化"}
 	}
 
-	if err := s.repo.UpdateArticleStatus(articleID, int(model.ArticleStatusDraft)); err != nil {
-		slog.Warn("更新文章状态失败，不阻断主流程", "article_id", articleID, "error", err)
+	// 重置 process_status 为 pending，processor 在新一轮处理开始时会再覆盖
+	if err := s.repo.UpdateArticleProcessStatus(articleID, "pending", ""); err != nil {
+		slog.Warn("重置处理状态失败，不阻断主流程", "article_id", articleID, "error", err)
 	}
 	var task rag.ProcessTask
 	if article.MinioPath != "" {
@@ -655,7 +680,6 @@ func (s *KnowledgeService) RetryDocument(articleID int64) error {
 			FileType:  article.FileType,
 			OnStatusChange: func(aID int64, status, errMsg string) {
 				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-				_ = s.repo.UpdateArticleStatus(aID, mapProcessStatus(status))
 			},
 			OnMetrics: func(aID int64, wordCount, chunkCount int) {
 				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
@@ -668,7 +692,6 @@ func (s *KnowledgeService) RetryDocument(articleID int64) error {
 			Content:   article.Content,
 			OnStatusChange: func(aID int64, status, errMsg string) {
 				_ = s.repo.UpdateArticleProcessStatus(aID, status, errMsg)
-				_ = s.repo.UpdateArticleStatus(aID, mapProcessStatus(status))
 			},
 			OnMetrics: func(aID int64, wordCount, chunkCount int) {
 				_ = s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount)
@@ -735,34 +758,26 @@ func splitMinioPath(path string) (string, string) {
 	return path[:idx], path[idx+1:]
 }
 
-// mapProcessStatus 将 Processor 阶段映射为文章状态。
+// mapProcessStatus 已废弃：文档处理阶段不再写入 Article.Status（审核状态机）。
+//
+// 历史说明：早期实现把 Processor 阶段映射为 Article.Status（草稿/审核通过），
+// 造成"审核状态"和"处理状态"两个状态机共用同一字段，前端无法可靠区分。
+// 2026-06-17 重构后，处理进度仅通过 ProcessStatus 字段表达（独立字符串枚举），
+// Article.Status 仅承载人工审核流程（Draft/Reviewing/Approved/Published/Rejected/Disabled）。
+//
+// 函数体保留为 no-op 占位，避免外部 mock 引用编译失败；新代码不应再调用。
 func mapProcessStatus(status string) int {
-	// TODO(service/knowledge): 用文章 status 承载文档处理进度会混淆“审核状态”和“处理状态”两个状态机。
-	// 模型应增加 process_status/process_error 字段，保持两个生命周期独立。
-	switch status {
-	case "chunking", "embedding", "indexing":
-		return int(model.ArticleStatusDraft)
-	case "completed":
-		return int(model.ArticleStatusApproved)
-	case "failed":
-		return int(model.ArticleStatusDraft)
-	default:
-		return int(model.ArticleStatusDraft)
-	}
+	_ = status
+	return 0
 }
 
 // mapArticleToProcessStatus 返回文章的处理状态字符串。
+//
+// 仅读取 ProcessStatus 字段，不再从 Status 反推（历史兼容逻辑已删除）。
+// ProcessStatus 取值见 rag.Processor 文档：pending/chunking/embedding/indexing/completed/failed/disabled。
 func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 	if article.ProcessStatus != "" {
 		return article.ProcessStatus
 	}
-	// 兼容旧数据：无 process_status 时按审核状态推断
-	switch article.Status {
-	case model.ArticleStatusApproved, model.ArticleStatusPublished:
-		return "completed"
-	case model.ArticleStatusDisabled:
-		return "disabled"
-	default:
-		return "pending"
-	}
+	return "pending"
 }

@@ -1,9 +1,63 @@
 # 知识发布管道 — 函数级调用链
 
 > 代码基准：`handler/knowledge.go` → `service/knowledge_service.go` → `rag/chunker.go` / `rag/embedder.go` / `adapter/vector_store.go`
-> 更新于 2026-06-17 — 新增 KB 删除流程（§4-5），文章状态机含 Disable→Draft 重启用路径
+> 更新于 2026-06-17 — 文章状态机重构：
+>
+> - Disable 仅允许 `Published(4) → Disabled(0)`，拒绝其他状态直接 Disable
+> - Enable 直接 `Disabled(0) → Published(4)`，**复用发布管道**（不再走 Draft）
+> - 状态机与 process_status 解耦：文档处理进度不再污染 Article.Status
 
-## 1. 文章生命周期（创建→审核→发布→停用）
+## 1. 文章生命周期（创建→审核→发布→停用→重新启用）
+
+**审核状态机**（`Article.Status` 字段，由人工操作流转）：
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft_1 : CreateArticle()
+    Draft_1 --> Reviewing_2 : SubmitReview()
+    Reviewing_2 --> Approved_3 : Review(approved=true)
+    Reviewing_2 --> Rejected_5 : Review(approved=false)
+    Approved_3 --> Published_4 : Publish()<br/>(分块→embedding→pgvector)
+    Published_4 --> Disabled_0 : Disable()<br/>(校验 Published 才允许)
+    Disabled_0 --> Published_4 : Enable()<br/>(重跑发布管道，不走 Draft)
+
+    note right of Disabled_0
+        Enable 是 Publish 管道同款路径：
+        chunker.Split → embedder.Embed →
+        store.BatchInsert → store.DeleteByArticle
+        → Status=Published(4)
+    end note
+
+    note left of Published_4
+        停用后向量已删除，
+        启用必须重建向量。
+    end note
+```
+
+**文档处理状态机**（`Article.ProcessStatus` 字段，与 Status 互不污染）：
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending : UploadDocuments()
+    pending --> parsing : Processor 启动
+    parsing --> chunking
+    chunking --> embedding
+    embedding --> indexing
+    indexing --> completed
+    pending --> failed : 任一阶段出错
+    parsing --> failed
+    chunking --> failed
+    embedding --> failed
+    indexing --> failed
+    failed --> pending : RetryDocument()
+
+    note right of completed
+        Article.Status 仍由人工流转，
+        ProcessStatus 仅反映处理进度。
+    end note
+```
+
+**完整生命周期序列图：**
 
 ```mermaid
 sequenceDiagram
@@ -37,33 +91,35 @@ sequenceDiagram
     Note over A,DB: ====== 3. 提交审核 ======
     A->>KH: PUT .../articles/:id/submit
     KH->>KS: SubmitForReview(articleID)
-    KS->>KS: 状态校验: Status == Draft → Status = Reviewing(2)
+    KS->>KS: 状态校验: Status == Draft(1) → Status = Reviewing(2)
     KS->>KR: UpdateArticleStatus(articleID, ArticleStatusReviewing)
     KR->>DB: UPDATE knowledge_articles SET status=2 WHERE id=?
 
     Note over A,DB: ====== 4. 审核通过 ======
     R->>KH: PUT .../articles/:id/approve
     KH->>KS: Approve(articleID)
-    KS->>KS: 状态校验: Status == Reviewing → Status = Published(3)
-    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusPublished)
+    KS->>KS: 状态校验: Status == Reviewing(2) → Status = Approved(3)
+    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusApproved)
 
     Note over A,DB: ====== 5. 驳回 ======
     R->>KH: PUT .../articles/:id/reject
     KH->>KS: Reject(articleID)
-    KS->>KS: 状态校验: Status == Reviewing → Status = Rejected(5)
+    KS->>KS: 状态校验: Status == Reviewing(2) → Status = Rejected(5)
     KS->>KR: UpdateArticleStatus(articleID, ArticleStatusRejected)
 
     Note over A,DB: ====== 6. 停用 ======
     A->>KH: PUT .../articles/:id/disable
     KH->>KS: Disable(articleID)
-    KS->>KS: Status → ArticleStatusDisabled(4)
-    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusDisabled)
+    KS->>KS: 校验 Status == Published(4) 才允许<br/>其他状态返回 code=10003
+    KS->>KR: DeleteByArticle(id)<br/>(清空 pgvector)
+    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusDisabled=0)
 
-    Note over A,DB: ====== 7. 重新启用 ======
+    Note over A,DB: ====== 7. 重新启用（重跑发布管道） ======
     A->>KH: PUT .../articles/:id/enable
-    KH->>KS: Enable(articleID)
-    KS->>KS: 状态校验: Status == ArticleStatusDisabled(4) 才可启用
-    KS->>KR: UpdateArticleStatus(articleID, Draft=1)
+    KH->>KS: Enable(ctx, articleID, userID)
+    KS->>KS: 校验 Status == Disabled(0) 才允许
+    KS->>KS: republishFromApproved(article, userID)<br/>= Publish 管道同款路径<br/>(分块→embedding→pgvector)
+    KS->>KR: UpdateArticleStatus(articleID, ArticleStatusPublished=4)
 ```
 
 ## 2. 发布管道（pgvector 向量写入）

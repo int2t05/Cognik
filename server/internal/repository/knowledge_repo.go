@@ -140,10 +140,18 @@ func (r *KnowledgeRepo) ListArticles(kbID int64, status int, page, pageSize int)
 //
 // 为什么单独封装而非复用 UpdateArticle：仅更新 status 字段，
 // 避免 Save 时意外覆盖其他字段（如 reviewed_by、review_comment 等）。
+//
+// 返回 gorm.ErrRecordNotFound 当目标文章不存在（RowsAffected == 0），
+// 让 Service 能正确向上层返回 404。
 func (r *KnowledgeRepo) UpdateArticleStatus(id int64, status int) error {
-	// TODO(repository/knowledge): UpdateArticleStatus 未检查 RowsAffected。
-	// 不存在的 articleID 会被当成更新成功，Service 无法返回 404。
-	return r.db.Model(&model.KnowledgeArticle{}).Where("id = ?", id).Update("status", status).Error
+	res := r.db.Model(&model.KnowledgeArticle{}).Where("id = ?", id).Update("status", status)
+	if err := res.Error; err != nil {
+		return err
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateArticleProcessStatus 更新文档的异步处理状态和错误信息。

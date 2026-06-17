@@ -254,7 +254,7 @@ func (h *KnowledgeHandler) Disable(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// Enable 恢复已停用文章为草稿。
+// Enable 启用已停用文章——重新执行分块→embedding→pgvector 写入并发布。
 //
 // POST /api/v1/admin/articles/:id/enable
 func (h *KnowledgeHandler) Enable(c *gin.Context) {
@@ -263,7 +263,8 @@ func (h *KnowledgeHandler) Enable(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Enable(id); svcErr != nil {
+	userID, _ := getCurrentUserID(c)
+	if svcErr := h.svc.Enable(c.Request.Context(), id, userID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
