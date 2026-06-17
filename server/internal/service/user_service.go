@@ -7,6 +7,9 @@ package service
 
 import (
 	"errors"
+	"regexp"
+	"strings"
+
 	"opsmind/internal/dto/request"
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
@@ -113,12 +116,17 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 		return err
 	}
 
+	// 输入校验与清洗
+	if err := validateUserInput(req.Username, req.RealName, req.Phone, req.Email); err != nil {
+		return err
+	}
+
 	user := &model.User{
-		Username:     req.Username,
+		Username:     strings.TrimSpace(req.Username),
 		PasswordHash: passwordHash,
-		RealName:     req.RealName,
-		Phone:        req.Phone,
-		Email:        req.Email,
+		RealName:     strings.TrimSpace(req.RealName),
+		Phone:        strings.TrimSpace(req.Phone),
+		Email:        strings.TrimSpace(req.Email),
 		Status:       1,
 		FirstLogin:   true,
 	}
@@ -159,9 +167,9 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// 使用 UpdateColumns 只写目标列，避免 Save 全字段覆盖（特别是 password_hash）
 		if err := tx.Model(user).UpdateColumns(map[string]interface{}{
-			"real_name": req.RealName,
-			"phone":     req.Phone,
-			"email":     req.Email,
+			"real_name": strings.TrimSpace(req.RealName),
+			"phone":     strings.TrimSpace(req.Phone),
+			"email":     strings.TrimSpace(req.Email),
 		}).Error; err != nil {
 			return err
 		}
@@ -251,6 +259,30 @@ func (s *UserService) assertNotLastAdmin(targetUserID int64) error {
 	}
 	if adminCount == 0 {
 		return AppError{Code: errcode.ErrParam, Message: "不能冻结/移除最后一个系统管理员"}
+	}
+	return nil
+}
+
+// validateUserInput 校验用户输入字段格式并做空白裁剪前检查。
+func validateUserInput(username, realName, phone, email string) error {
+	if strings.TrimSpace(username) == "" {
+		return AppError{Code: errcode.ErrParam, Message: "用户名不能为空"}
+	}
+	if strings.TrimSpace(realName) == "" {
+		return AppError{Code: errcode.ErrParam, Message: "姓名不能为空"}
+	}
+	if strings.TrimSpace(phone) == "" {
+		return AppError{Code: errcode.ErrParam, Message: "手机号不能为空"}
+	}
+	phoneRe := regexp.MustCompile(`^1[3-9]\d{9}$`)
+	if !phoneRe.MatchString(strings.TrimSpace(phone)) {
+		return AppError{Code: errcode.ErrParam, Message: "手机号格式不正确"}
+	}
+	if email != "" {
+		emailRe := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+		if !emailRe.MatchString(strings.TrimSpace(email)) {
+			return AppError{Code: errcode.ErrParam, Message: "邮箱格式不正确"}
+		}
 	}
 	return nil
 }

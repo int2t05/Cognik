@@ -5,11 +5,8 @@
 package handler
 
 import (
-	"strconv"
-
 	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
-	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +26,7 @@ func NewRoleHandler(svc *service.RoleService) *RoleHandler {
 func (h *RoleHandler) Create(c *gin.Context) {
 	var req request.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 
@@ -43,9 +40,8 @@ func (h *RoleHandler) Create(c *gin.Context) {
 
 // GetByID 获取角色详情。
 func (h *RoleHandler) GetByID(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的角色 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -58,21 +54,12 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 	response.Success(c, role)
 }
 
-// List 角色列表（分页）。
+// List 角色列表（分页 + 关键词搜索）。
 func (h *RoleHandler) List(c *gin.Context) {
-	// TODO(handler/role): 复用 parsePagination，并让角色列表支持 keyword 搜索。
-	// 角色增多后仅分页不利于快速定位。
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, pageSize := parsePagination(c)
+	keyword := c.Query("keyword")
 
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
-	}
-
-	roles, total, err := h.svc.List(page, pageSize)
+	roles, total, err := h.svc.List(page, pageSize, keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -83,15 +70,14 @@ func (h *RoleHandler) List(c *gin.Context) {
 
 // Update 更新角色。
 func (h *RoleHandler) Update(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的角色 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
 	var req request.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 
@@ -105,9 +91,8 @@ func (h *RoleHandler) Update(c *gin.Context) {
 
 // Delete 删除角色。
 func (h *RoleHandler) Delete(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的角色 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -139,9 +124,8 @@ func (h *RoleHandler) ListMenus(c *gin.Context) {
 //
 // PUT /api/v1/admin/roles/:id/menus
 func (h *RoleHandler) UpdateRoleMenus(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的角色 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -149,7 +133,7 @@ func (h *RoleHandler) UpdateRoleMenus(c *gin.Context) {
 		MenuIDs []int64 `json:"menu_ids" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 

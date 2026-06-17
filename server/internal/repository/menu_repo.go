@@ -51,6 +51,30 @@ func (r *MenuRepo) BatchGetRoleMenus(roleIDs []int64) ([]model.Menu, error) {
 	return menus, err
 }
 
+// ValidateMenuIDs 校验菜单 ID 列表是否全部存在。
+//
+// 返回不存在的 ID 列表，用于 UpdateRoleMenus 前置校验。
+func (r *MenuRepo) ValidateMenuIDs(menuIDs []int64) ([]int64, error) {
+	if len(menuIDs) == 0 {
+		return nil, nil
+	}
+	var existing []int64
+	if err := r.db.Model(&model.Menu{}).Where("id IN ?", menuIDs).Pluck("id", &existing).Error; err != nil {
+		return nil, err
+	}
+	existingSet := make(map[int64]bool, len(existing))
+	for _, id := range existing {
+		existingSet[id] = true
+	}
+	var missing []int64
+	for _, id := range menuIDs {
+		if !existingSet[id] {
+			missing = append(missing, id)
+		}
+	}
+	return missing, nil
+}
+
 // UpdateRoleMenus 更新角色菜单关联（先删后批量插入，单事务保证原子性）。
 func (r *MenuRepo) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {

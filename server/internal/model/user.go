@@ -12,7 +12,7 @@ type User struct {
 	Username     string    `gorm:"type:varchar(64);uniqueIndex;not null" json:"username"`
 	PasswordHash string    `gorm:"type:varchar(255);not null;column:password_hash" json:"-"`
 	RealName     string    `gorm:"type:varchar(64);not null;column:real_name" json:"real_name"`
-	Phone        string    `gorm:"type:varchar(11);not null" json:"phone"`
+	Phone        string    `gorm:"type:varchar(11);uniqueIndex;not null" json:"phone"`
 	// TODO(model/user): phone 应增加唯一索引或明确允许重复。
 	// UserRepo 已提供 ExistsByPhone，但数据库没有唯一约束时并发创建仍可能重复。
 	Email        string    `gorm:"type:varchar(128)" json:"email"`

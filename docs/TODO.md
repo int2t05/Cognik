@@ -314,16 +314,16 @@
 
 ### 输入校验与 Model
 
-- 🟢 [service/user_service.go](/server/internal/service/user_service.go) — 缺少对 phone/email/realName 的格式/trim 校验
-- 🟢 [model/user.go](/server/internal/model/user.go) — phone 字段缺少唯一索引
+- ✅ **[2026-06-17]** [service/user_service.go](/server/internal/service/user_service.go) — **输入校验**：`validateUserInput` 校验手机号/邮箱格式 + TrimSpace 清洗
+- ✅ **[2026-06-17]** [model/user.go](/server/internal/model/user.go) — **phone 唯一索引**：添加 `uniqueIndex` gorm 标签
 - ✅ **[2026-06-17]** [model/user.go](/server/internal/model/user.go) — Role 新增 `IsSystem bool` 不可变标记字段
 
 ### 代码 TODO
 
-- 📌 [handler/role.go:63](/server/internal/handler/role.go) — Role list should support keyword search
-- 📌 [handler/user.go:51](/server/internal/handler/user.go) — 复用 parseID，减少重复错误信息
-- 📌 [handler/user.go:71](/server/internal/handler/user.go) — 复用 parsePagination
-- 📌 [service/role_service.go:161](/server/internal/service/role_service.go) — 校验 menuIDs 是否全部存在，且按钮权限不能挂到错误父级
+- ✅ **[2026-06-17]** [handler/role.go](/server/internal/handler/role.go) — **角色关键词搜索**：Handler/Service/Repo 全层支持 keyword 参数
+- ✅ **[2026-06-17]** [handler/user.go](/server/internal/handler/user.go) — **复用 parseID**：GetByID/Update/Freeze/Restore 全部改用 parseID
+- ✅ **[2026-06-17]** [handler/user.go](/server/internal/handler/user.go) — **复用 parsePagination**：List 改用 parsePagination
+- ✅ **[2026-06-17]** [service/role_service.go](/server/internal/service/role_service.go) — **menuIDs 存在性校验**：MenuRepo.ValidateMenuIDs 前置检查
 
 ---
 
@@ -694,14 +694,14 @@
 | 2. 智能问答 RAG | 4⭐ | 7+3📝 | 5 | 0 | 19 |
 | 3. 知识库与文档管理 | 1⭐ | 4 | 1 | 0 | 6 |
 | 4. 申告管理 | 9 | 12+1📝 | 2 | 10 | 34 |
-| 5. 用户与角色管理 | 0 | 0 | 1 | 4 | 5 |
+| 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 14+2📝 | 12 | 0 | 0 | 28 |
 | 7. 数据看板与审计 | 11 | 6 | 2+3📝 | 7 | 29 |
 | 8. 基础设施与部署 | 15 | 17+1📝 | 5 | 19 | 57 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 2 | 1 | 0 | 0 | 3 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **73** | **77** | **28+9📝** | **49** | **~248** |
+| **合计** | **73** | **77** | **26+9📝** | **45** | **~242** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
@@ -742,4 +742,4 @@
 
 ---
 
-**最后更新**：2026-06-17（§5 查询性能 3 项 + 权限角色 6 项：N+1 批量查询 + 魔法数字消除 + 权限白名单 + JSON 解析告警 + MenuRepo 拆分 + 分层违规修复。）
+**最后更新**：2026-06-17（§5 全清：输入校验 + phone 唯一索引 + 角色关键词搜索 + parseID/parsePagination 复用 + menuIDs 存在性校验。§5 用户与角色管理全部清零。）

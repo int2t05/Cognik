@@ -96,9 +96,9 @@ func (s *RoleService) GetByID(id int64) (*model.Role, error) {
 	return role, nil
 }
 
-// List 查询角色列表（分页）。
-func (s *RoleService) List(page, pageSize int) ([]model.Role, int64, error) {
-	return s.repo.List(page, pageSize)
+// List 查询角色列表（分页 + 关键词搜索）。
+func (s *RoleService) List(page, pageSize int, keyword string) ([]model.Role, int64, error) {
+	return s.repo.List(page, pageSize, keyword)
 }
 
 // Update 更新角色。
@@ -201,8 +201,13 @@ func (s *RoleService) GetRoleMenus(roleID int64) ([]model.Menu, error) {
 // 为什么全量替换而非增量更新：前端提交的是完整菜单 ID 列表，
 // 全量替换避免了前端需要追踪增删的复杂性。
 func (s *RoleService) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
-	// TODO(service/role): 校验 menuIDs 是否全部存在，且按钮权限不能挂到错误父级。
-	// 现在直接写关联表，非法 ID 只能依赖数据库约束或静默产生无效授权。
+	// 校验 menuIDs 是否全部存在
+	if missing, err := s.menuRepo.ValidateMenuIDs(menuIDs); err != nil {
+		return err
+	} else if len(missing) > 0 {
+		return AppError{Code: errcode.ErrParam, Message: "菜单 ID 不存在"}
+	}
+
 	// 先确认角色存在
 	if _, err := s.repo.GetByID(roleID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

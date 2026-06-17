@@ -52,12 +52,15 @@ func (r *RoleRepo) ExistsByName(name string, excludeID int64) (bool, error) {
 	return count > 0, nil
 }
 
-// List 查询角色列表（分页）。
-func (r *RoleRepo) List(page, pageSize int) ([]model.Role, int64, error) {
+// List 查询角色列表（分页 + 关键词搜索）。
+func (r *RoleRepo) List(page, pageSize int, keyword string) ([]model.Role, int64, error) {
 	var roles []model.Role
 	var total int64
 
 	query := r.db.Model(&model.Role{})
+	if keyword != "" {
+		query = query.Where("name LIKE ? OR description LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

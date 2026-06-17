@@ -6,11 +6,8 @@
 package handler
 
 import (
-	"strconv"
-
 	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
-	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -32,7 +29,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (h *UserHandler) Create(c *gin.Context) {
 	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 
@@ -48,10 +45,8 @@ func (h *UserHandler) Create(c *gin.Context) {
 //
 // GET /api/v1/admin/users/:id
 func (h *UserHandler) GetByID(c *gin.Context) {
-	// TODO(handler/user): 这里和 Update/Freeze/Restore 可复用 parseID，减少重复错误信息。
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的用户 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -68,17 +63,8 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 //
 // GET /api/v1/admin/users
 func (h *UserHandler) List(c *gin.Context) {
-	// TODO(handler/user): 复用 parsePagination，避免分页默认值和上限在多个 Handler 中漂移。
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, pageSize := parsePagination(c)
 	keyword := c.Query("keyword")
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
-	}
 
 	result, err := h.svc.List(page, pageSize, keyword)
 	if err != nil {
@@ -93,15 +79,14 @@ func (h *UserHandler) List(c *gin.Context) {
 //
 // PUT /api/v1/admin/users/:id
 func (h *UserHandler) Update(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的用户 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
 	var req request.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		response.Error(c, 10003, "参数校验失败: "+err.Error())
 		return
 	}
 
@@ -117,9 +102,8 @@ func (h *UserHandler) Update(c *gin.Context) {
 //
 // PATCH /api/v1/admin/users/:id/freeze
 func (h *UserHandler) Freeze(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的用户 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -137,9 +121,8 @@ func (h *UserHandler) Freeze(c *gin.Context) {
 //
 // PATCH /api/v1/admin/users/:id/unfreeze
 func (h *UserHandler) Restore(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的用户 ID")
+	id, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 
