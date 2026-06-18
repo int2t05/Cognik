@@ -120,6 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  // 在 SSR 阶段或 AuthProvider 未挂载时返回安全默认值
+  if (!ctx) {
+    if (typeof window === 'undefined') {
+      return { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false, login: () => {}, logout: () => {}, hasPermission: () => false, setTokens: () => {} };
+    }
+    throw new Error('useAuth must be used within AuthProvider');
+  }
   return ctx;
 }
