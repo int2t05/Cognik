@@ -9,7 +9,7 @@
 
 ## 1. 认证与授权
 
-- ✅ 📌 🟡 每次 API 请求都查 DB 校验用户状态，高并发时 N 次额外查询 — 保留（需缓存基础设施）
+- ✅ 📌 🟡 每次 API 请求都查 DB 校验用户状态 — 已修复：`cache/user_status.go` 内存缓存 + 冻结/恢复时失效
 - ✅ 🟢 ChangePassword 未校验新旧密码不同 — 已修复：`auth_service.go:279` 添加 `oldPwd == newPwd` 校验
 
 ## 2. 智能问答
@@ -114,7 +114,7 @@
 
 ## 代码 TODO 索引（双向同步）
 
-### 后端 TODO（4 → 已清理 4 个）
+### 后端 TODO（5 → 已清理 5 个）
 
 | 位置 | 内容 | 状态 |
 |------|------|------|
@@ -122,8 +122,8 @@
 | ~~`server/internal/log/rotating_writer.go:1`~~ | ~~日志文件保留策略~~ | ✅ 已修复 |
 | ~~`server/internal/service/scheduler.go:70`~~ | ~~context.Background()~~ | ✅ 已修复 |
 | ~~`server/internal/rag/rerank.go`~~ | ~~doc 引用笔误~~ | ✅ 已修复 |
+| ~~`server/internal/middleware/auth.go:73`~~ | ~~用户状态每次查 DB~~ | ✅ 已修复（内存缓存） |
 | `server/internal/model/llm_config.go:43` | APIKey 重复加密检测 | 📌 保留 |
-| `server/internal/middleware/auth.go:73` | 用户状态查询缓存 | 📌 保留 |
 | `server/internal/service/message_service.go:102` | 未读数缓存/WebSocket | 📌 保留 |
 
 ### 前端 TODO（1 → 已清理 1 个）
@@ -138,10 +138,10 @@
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
-| 后端 | 1 | 7 | 2 | 3 |
+| 后端 | 1 | 6 | 2 | 2 |
 | 前端 | 1 | 8 | 5 | 0 |
-| **合计** | **2** | **15** | **7** | **3** |
+| **合计** | **2** | **14** | **7** | **2** |
 
 ---
 
-> 本次修复：已删除 4 个后端 TODO 注释 + 1 个前端 TODO 注释。剩余 3 个 TODO 涉及模型行为变更或基础设施重构，需独立规划。
+> 本次修复：内存缓存替换 auth 中间件 DB 查询（`cache/user_status.go`），冻结/恢复时自动失效。

@@ -5,14 +5,15 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 
+	"opsmind/internal/cache"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/jwt"
 	"opsmind/pkg/response"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // CurrentUser JWT 解析后的用户信息，写入 Gin context。
@@ -31,12 +32,10 @@ type CurrentUser struct {
 
 // JWTAuth 返回 JWT 认证中间件。
 //
-// db 用于校验用户状态（冻结/存在性）；测试环境中可传 nil 跳过 DB 校验。
-// secret 为空时中间件对所有请求返回配置错误，而非静默放行。
-func JWTAuth(db *gorm.DB, secret string) gin.HandlerFunc {
+// userCache 用于校验用户状态（冻结/存在性），内存缓存减少 DB 查询。
+// 测试环境传 nil 跳过 DB 校验。secret 为空时返回配置错误。
+func JWTAuth(userCache *cache.UserStatusCache, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 纵深防御：secret 为空时应由 main.go 在启动阶段拒绝，
-		// 此处作为运行时兜底，避免空密钥令牌被意外接受。
 		if secret == "" {
 			abortWithError(c, errcode.ErrUnknown, "JWT 密钥未配置")
 			return
@@ -48,7 +47,6 @@ func JWTAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 			return
 		}
 
-		// 提取 Bearer 令牌
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			abortWithError(c, errcode.ErrAuth, "Authorization 格式错误，应为 Bearer <token>")
@@ -61,41 +59,29 @@ func JWTAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 			return
 		}
 
-		// 拒绝 refresh token 用于 API 认证，保证双令牌安全模型
 		if claims.TokenType != "access" {
 			abortWithError(c, errcode.ErrAuth, "令牌类型错误，请使用访问令牌")
 			return
 		}
 
-		// DB 可用时校验用户状态（冻结/存在性），
-		// 弥补 JWT 纯签名校验的不足——token 签发后被冻结的用户应被即时拒绝。
-		//
-		// TODO(middleware/auth): 每次 API 请求都查 DB 获取用户状态，高并发时产生 N 次查询。
-		// 可考虑 Redis 缓存用户状态（冻结/正常），token 签发时写入、变更时失效。
-		if db != nil {
-			var userStatus int
-			// 仅查询 status 字段，不读取全表数据
-			err := db.Table("users").
-				Where("id = ?", claims.UserID).
-				Select("status").
-				Scan(&userStatus).Error
+		// 校验用户状态——优先内存缓存，未命中回退 DB
+		if userCache != nil {
+			status, err := userCache.GetStatus(context.Background(), claims.UserID)
 			if err != nil {
 				abortWithError(c, errcode.ErrAuth, "用户不存在或已被删除")
 				return
 			}
-			if userStatus == 2 {
+			if status == 2 {
 				abortWithError(c, errcode.ErrAuth, "账号已被冻结")
 				return
 			}
 		}
 
-		// 从 JWT Claims 读取权限（登录时已从 Role.Permissions DB 字段解析）
 		permissions := claims.Permissions
 		if permissions == nil {
 			permissions = []string{}
 		}
 
-		// 写入 context，供下游 Handler 使用
 		c.Set("currentUser", CurrentUser{
 			UserID:      claims.UserID,
 			Username:    claims.Username,

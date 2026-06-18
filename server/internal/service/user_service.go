@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"opsmind/internal/cache"
 	"opsmind/internal/dto/request"
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
@@ -26,11 +27,12 @@ type UserService struct {
 	repo      *repository.UserRepo
 	auditRepo *repository.AuditRepo
 	db        *gorm.DB
+	userCache *cache.UserStatusCache
 }
 
 // NewUserService 创建 UserService 实例。
-func NewUserService(repo *repository.UserRepo, auditRepo *repository.AuditRepo, db *gorm.DB) *UserService {
-	return &UserService{repo: repo, auditRepo: auditRepo, db: db}
+func NewUserService(repo *repository.UserRepo, auditRepo *repository.AuditRepo, db *gorm.DB, userCache *cache.UserStatusCache) *UserService {
+	return &UserService{repo: repo, auditRepo: auditRepo, db: db, userCache: userCache}
 }
 
 // GetByID 根据 ID 获取用户详情（含角色列表）。
@@ -221,6 +223,7 @@ func (s *UserService) Freeze(ctx context.Context, id int64, operatorID int64) er
 	if err := s.repo.UpdateStatus(ctx, id, int(model.StatusInactive)); err != nil {
 		return err
 	}
+	s.invalidateCache(id)
 	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: operatorID, Action: "user.freeze", TargetType: "user", TargetID: id,
 	})
@@ -246,10 +249,18 @@ func (s *UserService) Restore(ctx context.Context, id int64) error {
 	if err := s.repo.UpdateStatus(ctx, id, int(model.StatusActive)); err != nil {
 		return err
 	}
+	s.invalidateCache(id)
 	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: 0, Action: "user.restore", TargetType: "user", TargetID: id,
 	})
 	return nil
+}
+
+// invalidateCache 清除指定用户的缓存条目（状态变更后调用）。
+func (s *UserService) invalidateCache(userID int64) {
+	if s.userCache != nil {
+		s.userCache.Invalidate(userID)
+	}
 }
 
 // assertNotLastAdmin 检查目标用户是否为最后一个系统管理员。

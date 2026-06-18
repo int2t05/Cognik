@@ -19,6 +19,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/cache"
 	"opsmind/internal/config"
 	"opsmind/internal/database"
 	"opsmind/internal/handler"
@@ -193,8 +194,13 @@ func wireApp() (*app, error) {
 	// 5. Service 层
 	txManager := service.NewGormTxManager(db)
 	menuRepo := repository.NewMenuRepo(db)
+
+	// 用户状态缓存（减少每个 API 请求的 DB 查询）
+	userCache := cache.NewUserStatusCache(db, 30*time.Second)
+	slog.Info("用户状态缓存已创建", "ttl", "30s")
+
 	a.authService = service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
-	userService := service.NewUserService(userRepo, auditRepo, db)
+	userService := service.NewUserService(userRepo, auditRepo, db, userCache)
 	roleService := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
 	messageService := service.NewMessageService(messageRepo)
 	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, nil)
@@ -319,7 +325,7 @@ func wireApp() (*app, error) {
 	slog.Info("后台调度器已创建")
 
 	// 8. HTTP Server
-	r := router.Setup(cfg, db, handlers)
+	r := router.Setup(cfg, userCache, handlers)
 
 	readTimeout := cfg.Server.ReadTimeout
 	if readTimeout <= 0 {

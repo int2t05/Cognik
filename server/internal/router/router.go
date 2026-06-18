@@ -10,10 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"gorm.io/gorm"
-
 	"github.com/gin-gonic/gin"
 
+	"opsmind/internal/cache"
 	"opsmind/internal/config"
 	"opsmind/internal/handler"
 	"opsmind/internal/middleware"
@@ -35,7 +34,7 @@ type Handlers struct {
 }
 
 // Setup 初始化 Gin 引擎并注册所有路由。
-func Setup(cfg *config.AppConfig, db *gorm.DB, h *Handlers) *gin.Engine {
+func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers) *gin.Engine {
 	gin.SetMode(cfg.Server.Mode)
 
 	// 生产模式下，nil Handler 应立即失败而非返回运行时 501
@@ -55,29 +54,24 @@ func Setup(cfg *config.AppConfig, db *gorm.DB, h *Handlers) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// /readyz — 就绪探针（K8s readiness），验证数据库可达
-	r.GET("/readyz", func(c *gin.Context) {
-		sqlDB, err := db.DB()
-		if err != nil || sqlDB.Ping() != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	// /health — 存活探针（K8s liveness），同时验证基本可达性
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	public := r.Group("/api/v1/auth")
 	registerPublicRoutes(public, h)
 
 	authRequired := r.Group("/api/v1/auth/me")
-	authRequired.Use(middleware.JWTAuth(db, cfg.JWT.Secret))
+	authRequired.Use(middleware.JWTAuth(userCache, cfg.JWT.Secret))
 	registerAuthRequiredRoutes(authRequired, h)
 
 	portal := r.Group("/api/v1/portal")
-	portal.Use(middleware.JWTAuth(db, cfg.JWT.Secret))
+	portal.Use(middleware.JWTAuth(userCache, cfg.JWT.Secret))
 	registerPortalRoutes(portal, h)
 
 	admin := r.Group("/api/v1/admin")
-	admin.Use(middleware.JWTAuth(db, cfg.JWT.Secret))
+	admin.Use(middleware.JWTAuth(userCache, cfg.JWT.Secret))
 	registerAdminRoutes(admin, h)
 
 	return r
