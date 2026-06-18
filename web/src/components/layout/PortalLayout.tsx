@@ -34,7 +34,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)]">
-      <header className="h-[52px] flex items-center justify-between px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] sticky top-0 z-[100] backdrop-blur-[20px] backdrop-saturate-[180%]">
+      <header className="h-12 flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[100] backdrop-blur-xl">
         <div className="flex items-center gap-8">
           <span
             role="button"
@@ -53,7 +53,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 border-0 bg-transparent text-[var(--color-ink)] text-sm rounded-lg cursor-pointer relative transition hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 border-0 bg-transparent text-[var(--color-ink)] text-[13px] rounded-lg cursor-pointer relative transition hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (

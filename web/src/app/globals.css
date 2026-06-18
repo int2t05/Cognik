@@ -132,6 +132,15 @@ input:focus, select:focus, textarea:focus {
 /* ===== 选择 ===== */
 ::selection { background: var(--color-accent); color: #fff; }
 
+/* ===== 登录页卡片入场动画 ===== */
+@keyframes card-entrance {
+  0% { opacity: 0; transform: translateY(16px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-entrance {
+  animation: card-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* ===== 骨架屏 ===== */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

@@ -1,25 +1,36 @@
 # OpsMind 架构与业务流程图
 
-> 基于实际代码函数调用链绘制，与 `server/` 源码保持同步。最后更新：2026-06-18
+> 按业务模块组织，每文件包含流程图 + 时序图，从输入到输出体现完整函数调用链。
+
+## 快速导航
+
+| 我想了解... | 看这个文件 | 核心调用链 |
+|-------------|-----------|-----------|
+| **系统整体架构** | [architecture.md](architecture.md) | `main()` → `router.Setup` → `ListenAndServe` |
+| **登录认证和权限** | [auth-rbac.md](auth-rbac.md) | `AuthHandler.Login` → `JWTAuth` → `RequirePermission` |
+| **RAG 智能问答** | [chat-rag.md](chat-rag.md) | `ChatHandler.StreamChatMessage` → `Pipeline.Execute` → SSE |
+| **知识库和文档** | [knowledge.md](knowledge.md) | `Publish` → `Chunker.Split` → `Embedder.Embed` → `VectorStore.BatchInsert` |
+| **申告工单** | [ticket.md](ticket.md) | `CreateTicket` → `UpdateStatus`(状态机) → `AutoClose` |
+| **LLM 配置和调用** | [llm-config.md](llm-config.md) | `CreateConfig` → `atomic.Value.Store` → `OpenAIClient.ChatCompletionStream` |
+| **看板和审计** | [dashboard-audit.md](dashboard-audit.md) | `DashboardService.GetStats` → 7 条原生 SQL 并行 |
+| **数据库模型** | [data-model.md](data-model.md) | ER 图 + 索引策略 + 业务域划分 |
+| **全部 API 全景** | [master-data-flow.md](master-data-flow.md) | 62 个端点 + 10 模块端到端 + API 完整性矩阵 |
 
 ## 图表索引
 
-| 文件 | 核心文件 | 图表数 | 说明 |
-|------|----------|--------|------|
-| [master-data-flow.md](master-data-flow.md) | 全部模块 | 10 | 🆕 **全业务数据流总览** — 62 个端点全景 + 10 个模块端到端流程 + API 完整性矩阵 |
-| [architecture.md](architecture.md) | `main.go`, `router/`, `middleware/` | 3 | 系统架构总览 — 分层全景 + 请求生命周期 + 模块依赖 |
-| [chat-rag-flow.md](chat-rag-flow.md) | `handler/chat.go` → `rag/pipeline.go` → `adapter/llm_client.go` | 3 | 智能问答 RAG 管道 — SSE 流式(writeSSEEvent) + 非流式 + 降级矩阵 |
-| [knowledge-publish-flow.md](knowledge-publish-flow.md) | `handler/knowledge.go` → `rag/chunker.go` → `adapter/vector_store.go` | 5 | 知识发布管道 — 文章生命周期 + Publish + 🆕DeleteKB 流程 |
-| [document-upload-flow.md](document-upload-flow.md) | `handler/knowledge.go` → `rag/document_parser.go` → `rag/processor.go` | 3 | 文档上传 — Service 层校验 + io.LimitReader(100MB) + 异步处理 |
-| [ticket-lifecycle.md](ticket-lifecycle.md) | `handler/ticket.go` → `service/ticket_service.go` → `service/scheduler.go` | 3 | 申告完整生命周期 — AutoClose Service 编排 + TxManager 事务 |
-| [ticket-state-machine.md](ticket-state-machine.md) | `service/ticket_service.go` | 1 | 申告状态机 — 5 态转换规则 + supplement_count 原子检查 |
-| [auth-flow.md](auth-flow.md) | `handler/auth.go` → `middleware/auth.go` → `middleware/rbac.go` | 4 | 认证 RBAC — TokenType access/refresh + /auth/me + 中间件链 |
-| [user-rbac-flow.md](user-rbac-flow.md) | `handler/user.go` → `service/role_service.go` | 2 | 用户管理 + 角色权限 — CountUsersByRole 删除保护 + BatchGetRoleMenus |
-| [llm-config-flow.md](llm-config-flow.md) | `handler/llm_config.go` → `service/llm_config_service.go` | 4 | LLM 配置 — 构造函数注入 + MarshalJSON 脱敏 + atomic.Value 热替换 |
-| [dashboard-audit-flow.md](dashboard-audit-flow.md) | `handler/dashboard.go` → `repository/dashboard_repo.go` | 2 | 看板统计 + 审计日志 — DashboardRepo 聚合查询 |
-| [request-lifecycle.md](request-lifecycle.md) | `middleware/` → `router/` | 2 | 请求生命周期 — Recovery→RequestID→CORS→Logger→JWTAuth→RBAC |
+| 文件 | 业务模块 | 内容 |
+|------|---------|------|
+| [architecture.md](architecture.md) | 系统架构 | 分层全景 + 请求生命周期 + 模块依赖 + 启动流程 + 依赖注入 + 优雅关闭 (6 图) |
+| [auth-rbac.md](auth-rbac.md) | 认证与权限 | 登录全链路 + Token 刷新 + 中间件链 + 路由分组 + 用户 CRUD + 角色菜单 (7 图) |
+| [chat-rag.md](chat-rag.md) | 智能问答 RAG | 端到端数据流 + 会话创建 + 流式时序 + 降级矩阵 + SSE 协议 + 数据形态表 (6 图) |
+| [knowledge.md](knowledge.md) | 知识管理 | 双路径入库 + 状态机 + 发布管道 + 发布时序 + KB CRUD + 删除级联 + goroutine pool (7 图) |
+| [ticket.md](ticket.md) | 申告管理 | 全生命周期 + 状态机 + 转换时序 + 自动关闭 + 编号生成 + 补充流程 + 数据形态表 (8 图) |
+| [llm-config.md](llm-config.md) | LLM 配置 | CRUD 热替换 + LLM 调用链 + Embedding 调用链 + pgvector 调用链 + atomic.Value 原理 (5 图) |
+| [dashboard-audit.md](dashboard-audit.md) | 看板与审计 | Dashboard 统计 + 趋势 + 审计日志 + 配置读写 + 跨模块事件驱动 (5 图) |
+| [data-model.md](data-model.md) | 数据模型 | 核心 ER 图 + 索引策略 + 业务域划分 (3 图) |
+| [master-data-flow.md](master-data-flow.md) | 全业务总览 | 全景路由映射 + 10 模块端到端时序 + API 完整性矩阵 (62 端点) |
 
-## 架构层次对应
+## 架构层次
 
 ```
 Handler 层   →  handler/xxx.go             请求绑定、响应格式化
@@ -34,12 +45,19 @@ Middleware   →  middleware/xxx.go           Recovery / RequestID / CORS / Logg
 
 | 流程 | Handler 入口 | Service 核心 | Repository / Adapter |
 |------|-------------|-------------|---------------------|
-| 智能问答 | `ChatHandler.StreamChatSession` | `ChatService.CreateChatSession` → `Pipeline.Execute` | `OpenAIClient.ChatCompletionStream` + `writeSSEEvent` |
-| 知识发布 | `KnowledgeHandler.Publish` | `KnowledgeService.Publish` → `Chunker.Split` → `Embedder.Embed` | `VectorStore.BatchInsert` (halfvec) |
-| 知识库删除 | `KnowledgeHandler.DeleteKB` | `KnowledgeService.DeleteKB` → `VectorStore.DeleteByKB` → `repo.DeleteKB` | `PgvectorStore.DeleteByKB` + 事务级联 |
-| 文档上传 | `KnowledgeHandler.UploadDocuments` | `KnowledgeService.UploadDocuments` (含格式/大小校验) | `DocParser.Parse` → `Processor.Submit` |
-| 申告管理 | `TicketHandler.UpdateStatus` | `TicketService.UpdateStatus` (状态机) | `TicketRepo` + `MessageService.NotifySupplement` |
-| 自动关闭 | `Scheduler.runAutoCloseLoop` | `TicketService.AutoClose` (TxManager 事务) | `TicketRepo.AutoCloseTickets` (纯数据) |
-| LLM 配置 | `LLMConfigHandler.TestConnection` | `LLMConfigService` → `LLMConfigManager` | `atomic.Value` 热替换 |
-| 认证 | `AuthHandler.Login` | `AuthService.Login` → `bcrypt` | `jwt.GenerateAccessToken("access")` |
-| 权限 | `RBAC` middleware | `RoleService` → `UserRepo.GetUserPermissions` | `BatchGetRoleMenus` |
+| 智能问答 | `ChatHandler.StreamChatMessage` | `ChatService.StreamChat` → `LLMService.StreamChat` | `Pipeline.Execute` → `OpenAIClient.ChatCompletionStream` + `writeSSEEvent` |
+| 会话创建 | `ChatHandler.CreateChatSession` | `ChatService.CreateSession` | `KnowledgeRepo.FindKBByID` → `ChatRepo.Create` |
+| 知识发布 | `KnowledgeHandler.Publish` | `KnowledgeService.Publish` → `Chunker.Split` → `Embedder.Embed` | `VectorStore.BatchInsert` + `DeleteByArticle` |
+| 知识库删除 | `KnowledgeHandler.DeleteKB` | `KnowledgeService.DeleteKB` → `VectorStore.DeleteByKB` | `KnowledgeRepo.DeleteKB` (事务级联) |
+| 文档上传 | `KnowledgeHandler.UploadDocuments` | `KnowledgeService.UploadDocuments` (格式/大小校验) | `DocParser.Parse` → `Processor.Submit` → goroutine pool |
+| 申告创建 | `TicketHandler.CreateTicket` | `TicketService.CreateTicket` (编号生成) | `TicketRepo.Create` |
+| 申告处理 | `TicketHandler.UpdateStatus` | `TicketService.UpdateStatus` (状态机 + TxManager) | `TicketRepo` + `MessageService.NotifySupplement` |
+| 自动关闭 | `Scheduler.runAutoCloseLoop` | `TicketService.AutoClose` (批量事务) | `TicketRepo.AutoCloseTickets` |
+| LLM 配置 | `LLMConfigHandler.CreateConfig` | `LLMConfigService.CreateConfig` → `LLMConfigManager` | `atomic.Value.Store` 热替换 |
+| LLM 调用 | — | `LLMService` / `Pipeline` 各步骤 | `OpenAIClient.ChatCompletion` / `ChatCompletionStream` |
+| Embedding | — | `Embedder.Embed` (batchSize=32) | `OpenAIEmbeddingClient.CreateEmbeddings` |
+| 向量存储 | — | — | `PgvectorStore.CosineSearch` / `BatchInsert` / `DeleteByArticle` / `DeleteByKB` |
+| 认证 | `AuthHandler.Login` | `AuthService.Login` → `bcrypt.CompareHashAndPassword` | `jwt.GenerateAccessToken` + `jwt.GenerateRefreshToken` |
+| 中间件 | `JWTAuth` middleware | `jwt.ParseWithClaims` + TokenType 校验 | `c.Set("userID")` → `c.Next()` |
+| 权限 | `RequirePermission` middleware | `RoleService` → `UserRepo.GetUserPermissions` | `BatchGetRoleMenus` → `buildTree` |
+| 系统启动 | `main()` | `NewPipeline` / `NewProcessor` / `NewScheduler` | 全部 `New*` 构造函数 + `router.Setup` |

@@ -165,7 +165,7 @@ export default function ChatPage() {
   const isLoading = loading || streaming;
 
   return (
-    <div className="flex h-[calc(100vh-100px)]">
+    <div className="flex h-[calc(100vh-96px)]">
       {/* 侧边栏 — 会话历史（lg 以下隐藏） */}
       <aside
         className={`hidden lg:flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden ${
@@ -243,7 +243,7 @@ export default function ChatPage() {
 
       {/* 主内容区 */}
       <div className="flex flex-col flex-1 min-w-0">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 px-4 lg:px-6">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0"
@@ -277,65 +277,67 @@ export default function ChatPage() {
           )}
         </div>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto mb-4">
+        <div ref={listRef} className="flex-1 overflow-y-auto mb-4 px-4 lg:px-6">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-[var(--color-text-muted-48)] text-lg">
               {selectedKB ? '输入问题开始对话' : '请先选择一个知识库'}
             </div>
           ) : (
-            <div
-              className="relative w-full"
-              style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                const isPipeline =
-                  virtualItem.index === messages.length && currentStep;
-                if (isPipeline) {
+            <div className="max-w-4xl mx-auto">
+              <div
+                className="relative w-full"
+                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                  const isPipeline =
+                    virtualItem.index === messages.length && currentStep;
+                  if (isPipeline) {
+                    return (
+                      <div
+                        key={`pipeline-${currentStep}`}
+                        className="absolute top-0 left-0 w-full"
+                        style={{
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                        ref={rowVirtualizer.measureElement}
+                      >
+                        <ChatPipeline
+                          currentStep={currentStep}
+                          steps={pipelineSteps}
+                        />
+                      </div>
+                    );
+                  }
+                  const msg = messages[virtualItem.index];
                   return (
                     <div
-                      key={`pipeline-${currentStep}`}
+                      key={msg.id}
                       className="absolute top-0 left-0 w-full"
                       style={{
                         transform: `translateY(${virtualItem.start}px)`,
                       }}
                       ref={rowVirtualizer.measureElement}
                     >
-                      <ChatPipeline
-                        currentStep={currentStep}
-                        steps={pipelineSteps}
+                      <ChatMessage
+                        id={msg.id}
+                        role={msg.role}
+                        content={msg.content}
+                        sources={msg.sources}
+                        confidence={msg.confidence}
+                        isStreaming={
+                          msg.role === 'assistant' &&
+                          streaming &&
+                          virtualItem.index === messages.length - 1
+                        }
+                        sessionId={sessionId}
+                        feedback={feedback}
+                        onFeedback={handleFeedback}
+                        feedbackLoading={feedbackLoading}
                       />
                     </div>
                   );
-                }
-                const msg = messages[virtualItem.index];
-                return (
-                  <div
-                    key={msg.id}
-                    className="absolute top-0 left-0 w-full"
-                    style={{
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                    ref={rowVirtualizer.measureElement}
-                  >
-                    <ChatMessage
-                      id={msg.id}
-                      role={msg.role}
-                      content={msg.content}
-                      sources={msg.sources}
-                      confidence={msg.confidence}
-                      isStreaming={
-                        msg.role === 'assistant' &&
-                        streaming &&
-                        virtualItem.index === messages.length - 1
-                      }
-                      sessionId={sessionId}
-                      feedback={feedback}
-                      onFeedback={handleFeedback}
-                      feedbackLoading={feedbackLoading}
-                    />
-                  </div>
-                );
-              })}
+                })}
+              </div>
             </div>
           )}
         </div>

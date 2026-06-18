@@ -57,14 +57,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)]">
-      <div className="w-[400px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
-        <h1 className="text-[28px] font-semibold tracking-[-0.28px] text-center mb-2 text-[var(--color-ink)]">OpsMind</h1>
-        <p className="text-[17px] text-[var(--color-text-muted-48)] text-center mb-8">运维数字员工系统</p>
+    <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
+      <div className="w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+        <div className="text-center mb-10">
+          <h1 className="text-[32px] font-semibold tracking-[-0.32px] text-[var(--color-ink)] mb-2">
+            OpsMind
+          </h1>
+          <p className="text-[17px] text-[var(--color-text-muted-48)]">
+            运维数字员工系统
+          </p>
+          <p className="text-[13px] text-[var(--color-text-muted-48)] mt-2">
+            智能问答 · 申告管理 · 知识库
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">用户名</label>
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">用户名</label>
             <input
               type="text"
               value={username}
@@ -75,8 +84,8 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">密码</label>
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">密码</label>
             <input
               type="password"
               value={password}

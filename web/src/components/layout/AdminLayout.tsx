@@ -83,7 +83,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-sm cursor-pointer text-left transition hover:bg-[var(--color-divider-soft)]',
+      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-sm cursor-pointer text-left rounded-lg transition hover:bg-[var(--color-divider-soft)]',
       collapsed ? 'justify-center px-0 py-3' : '',
       active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : '',
       depthPadding(depth),
@@ -118,7 +118,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-[var(--color-parchment)]">
       <aside
-        className="flex flex-col fixed left-0 top-0 bottom-0 z-[100] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="flex flex-col fixed left-0 top-0 bottom-0 z-[100] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
         <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-base' : 'text-lg font-semibold text-[var(--color-ink)]'}`}>
@@ -152,7 +152,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 p-6"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
+        <main className="flex-1 p-6 max-w-[1600px] w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
       </div>
     </div>
   );
