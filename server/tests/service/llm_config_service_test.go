@@ -17,14 +17,18 @@ func setupLLMConfigService(t *testing.T) *service.LLMConfigService {
 	// 清空旧数据，避免默认配置唯一索引冲突
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
 	repo := repository.NewLlmConfigRepo(knowledgeSvcDB)
-	return service.NewLLMConfigService(repo)
+	svc, err := service.NewLLMConfigService(repo)
+	if err != nil {
+		t.Fatalf("NewLLMConfigService 失败: %v", err)
+	}
+	return svc
 }
 
 // TestLLMConfigService_CreateDefault 验证创建默认配置并可通过 GetConfig 读取。
 func TestLLMConfigService_CreateDefault(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, err := svc.CreateConfig("llama.cpp 本地", 1, "http://llama-cpp:8080/v1", "", "", "qwen3-4b", "bge-m3", 8192, 1024, true)
+	_, err := svc.CreateConfig(bgCtx, "llama.cpp 本地", 1, "http://llama-cpp:8080/v1", "", "", "qwen3-4b", "bge-m3", "", 8192, 1024, true)
 	if err != nil {
 		t.Fatalf("CreateConfig 失败: %v", err)
 	}
@@ -43,8 +47,8 @@ func TestLLMConfigService_CreateDefault(t *testing.T) {
 func TestLLMConfigService_DefaultUnique(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("默认1", 1, "http://a:8080/v1", "", "", "m1", "e1", 8192, 1024, true)
-	_, err := svc.CreateConfig("默认2", 2, "http://b:8080/v1", "", "key", "m2", "e2", 4096, 1536, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认1", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, true)
+	_, err := svc.CreateConfig(bgCtx, "默认2", 2, "http://b:8080/v1", "", "key", "m2", "e2", "", 4096, 1536, true)
 	if err != nil {
 		t.Fatalf("CreateConfig 失败: %v", err)
 	}
@@ -56,7 +60,7 @@ func TestLLMConfigService_DefaultUnique(t *testing.T) {
 	}
 
 	// 验证唯一性
-	configs, _ := svc.ListConfigs()
+	configs, _ := svc.ListConfigs(bgCtx)
 	defaults := 0
 	for _, c := range configs {
 		if c.IsDefault {
@@ -72,10 +76,10 @@ func TestLLMConfigService_DefaultUnique(t *testing.T) {
 func TestLLMConfigService_DeleteDefault(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("默认", 1, "http://x:8080/v1", "", "", "m", "e", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://x:8080/v1", "", "", "m", "e", "", 8192, 1024, true)
 
-	configs, _ := svc.ListConfigs()
-	err := svc.DeleteConfig(configs[0].ID)
+	configs, _ := svc.ListConfigs(bgCtx)
+	err := svc.DeleteConfig(bgCtx, configs[0].ID)
 	if err == nil {
 		t.Error("删除默认配置应返回错误")
 	}
@@ -85,9 +89,9 @@ func TestLLMConfigService_DeleteDefault(t *testing.T) {
 func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("默认", 1, "http://a:8080/v1", "", "", "m1", "e1", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, true)
 
-	configs, _ := svc.ListConfigs()
+	configs, _ := svc.ListConfigs(bgCtx)
 	id := configs[0].ID
 
 	updated := &model.LlmConfig{
@@ -96,7 +100,7 @@ func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 		LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small",
 		MaxTokens: 4096, VectorDimension: 1536, IsDefault: true,
 	}
-	if err := svc.UpdateConfig(updated); err != nil {
+	if err := svc.UpdateConfig(bgCtx, updated); err != nil {
 		t.Fatalf("UpdateConfig 失败: %v", err)
 	}
 
@@ -111,10 +115,10 @@ func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 func TestLLMConfigService_ListConfigs(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("cfg1", 1, "http://a:8080/v1", "", "", "m1", "e1", 8192, 1024, false)
-	_, _ = svc.CreateConfig("cfg2", 2, "http://b:8080/v1", "", "k", "m2", "e2", 4096, 1536, false)
+	_, _ = svc.CreateConfig(bgCtx, "cfg1", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, false)
+	_, _ = svc.CreateConfig(bgCtx, "cfg2", 2, "http://b:8080/v1", "", "k", "m2", "e2", "", 4096, 1536, false)
 
-	configs, err := svc.ListConfigs()
+	configs, err := svc.ListConfigs(bgCtx)
 	if err != nil {
 		t.Fatalf("ListConfigs 失败: %v", err)
 	}
@@ -138,7 +142,7 @@ func TestLLMConfigService_NoDefaultFallback(t *testing.T) {
 func TestLLMConfigManager_ZeroLockReads(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("默认", 1, "http://x:8080/v1", "", "", "m", "e", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://x:8080/v1", "", "", "m", "e", "", 8192, 1024, true)
 
 	mgr := svc.GetManager()
 	done := make(chan bool)
@@ -160,9 +164,9 @@ func TestLLMConfigManager_ZeroLockReads(t *testing.T) {
 func TestLLMConfigService_APIKeyMasked(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig("openai", 2, "https://api.openai.com/v1", "", "sk-1234567890abcdef", "gpt-4o", "text-3-small", 4096, 1536, false)
+	_, _ = svc.CreateConfig(bgCtx, "openai", 2, "https://api.openai.com/v1", "", "sk-1234567890abcdef", "gpt-4o", "text-3-small", "", 4096, 1536, false)
 
-	configs, _ := svc.ListConfigs()
+	configs, _ := svc.ListConfigs(bgCtx)
 	if len(configs) == 0 {
 		t.Fatal("应有配置")
 	}

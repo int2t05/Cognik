@@ -2,15 +2,12 @@
 
 // Package service_test 验证 ChatService 业务逻辑。
 //
-// ChatService 使用自建 RAG 管道（rag.Pipeline），在 AI/Embedding 不可用时返回兜底回答。
-//
-// 保留测试：参数校验、会话持久化、反馈提交、详情查询。
+// ChatService 使用自建 RAG 管道，在 AI/Embedding 不可用时返回兜底回答。
+// 测试覆盖：会话创建/参数校验/反馈提交/详情查询/删除。
 package service_test
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"opsmind/internal/config"
 	"opsmind/internal/database"
@@ -22,18 +19,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// =============================================================================
-// 测试基础设施
-// =============================================================================
-
 var chatSvcDB *gorm.DB
 
 func init() {
-	cfg := config.DatabaseConfig{
+	db, err := database.Init(config.DatabaseConfig{
 		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
 		DBName: "opsmind_test", SSLMode: "disable",
-	}
-	db, err := database.Init(cfg)
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -43,18 +35,16 @@ func init() {
 func setupChatServiceTest(t *testing.T) (*service.ChatService, *model.KnowledgeBase) {
 	t.Helper()
 
-	// 创建表
 	chatSvcDB.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id BIGSERIAL PRIMARY KEY, username VARCHAR(64) NOT NULL UNIQUE,
 		password_hash VARCHAR(255) NOT NULL, real_name VARCHAR(64) NOT NULL,
-		phone VARCHAR(11) NOT NULL, email VARCHAR(128),
-		status SMALLINT NOT NULL DEFAULT 1, first_login BOOLEAN NOT NULL DEFAULT TRUE,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		phone VARCHAR(20) NOT NULL, email VARCHAR(128),
+		status SMALLINT NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 	chatSvcDB.Exec(`CREATE TABLE IF NOT EXISTS knowledge_bases (
 		id BIGSERIAL PRIMARY KEY, name VARCHAR(128) NOT NULL, description TEXT,
-		rag_workspace_slug VARCHAR(128), embedding_model VARCHAR(128) NOT NULL DEFAULT '',
-		vector_dimension INT NOT NULL DEFAULT 0, created_by BIGINT NOT NULL,
+		embedding_model VARCHAR(128) NOT NULL DEFAULT '', vector_dimension INT NOT NULL DEFAULT 0,
+		created_by BIGINT NOT NULL,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 	chatSvcDB.Exec(`CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -69,25 +59,20 @@ func setupChatServiceTest(t *testing.T) (*service.ChatService, *model.KnowledgeB
 		confidence DOUBLE PRECISION DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 
-	// 清理旧数据（按 FK 依赖逆序）
 	chatSvcDB.Exec("DELETE FROM chat_messages")
 	chatSvcDB.Exec("DELETE FROM chat_sessions")
-	chatSvcDB.Exec("DELETE FROM knowledge_chunks")
-	chatSvcDB.Exec("DELETE FROM knowledge_articles")
 	chatSvcDB.Exec("DELETE FROM knowledge_bases")
 
 	knowledgeRepo := repository.NewKnowledgeRepo(chatSvcDB)
 	chatRepo := repository.NewChatRepo(chatSvcDB)
 	svc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 5})
 
-	// 创建测试知识库（使用唯一 slug 避免冲突）
 	kb := &model.KnowledgeBase{
-		Name:             "运维知识库",
-		Description:      "测试",
-		RAGWorkspaceSlug: fmt.Sprintf("ops-workspace-%d", time.Now().UnixNano()),
-		EmbeddingModel:   "text-embedding-ada-002",
-		VectorDimension:  1536,
-		CreatedBy:        1,
+		Name:            "测试知识库",
+		Description:     "chat_service 测试",
+		EmbeddingModel:  "bge-m3",
+		VectorDimension: 1024,
+		CreatedBy:       1,
 	}
 	if err := chatSvcDB.Create(kb).Error; err != nil {
 		t.Fatalf("创建测试知识库失败: %v", err)
@@ -96,113 +81,202 @@ func setupChatServiceTest(t *testing.T) (*service.ChatService, *model.KnowledgeB
 	return svc, kb
 }
 
-// =============================================================================
-// CreateChatSession
-// =============================================================================
-
-// TestChatService_CreateChatSession_Success 验证问答会话创建成功。
-func TestChatService_CreateChatSession_Success(t *testing.T) {
+// TestChatService_CreateSession_Success 验证会话容器创建成功。
+func TestChatService_CreateSession_Success(t *testing.T) {
 	svc, kb := setupChatServiceTest(t)
 
-	req := request.CreateChatRequest{
-		Question: "如何重置密码？",
-		KBID:     kb.ID,
-	}
-
-	resp, err := svc.CreateChatSession(req, 1)
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "如何重置密码？",
+	}, 1)
 	if err != nil {
-		t.Fatalf("期望无错误, got %v", err)
+		t.Fatalf("CreateSession 失败: %v", err)
 	}
-	if resp.Answer == "" {
-		t.Error("期望非空 Answer")
+	if session.ID == 0 {
+		t.Error("期望 Session ID 被填充")
 	}
-	if resp.Question != "如何重置密码？" {
-		t.Errorf("期望 Question 保持原值, got '%s'", resp.Question)
-	}
-	if !resp.CanSubmitTicket {
-		t.Error("CanSubmitTicket 应为 true")
-	}
-	if resp.SessionID == 0 {
-		t.Error("应填充 SessionID")
+	if session.UserID != 1 {
+		t.Errorf("期望 UserID=1, 实际 %d", session.UserID)
 	}
 }
 
-// TestChatService_CreateChatSession_LowConfidence 验证兜底回答场景。
-func TestChatService_CreateChatSession_LowConfidence(t *testing.T) {
-	svc, kb := setupChatServiceTest(t)
-
-	req := request.CreateChatRequest{Question: "复杂问题", KBID: kb.ID}
-	resp, err := svc.CreateChatSession(req, 1)
-	if err != nil {
-		t.Fatalf("期望无错误, got %v", err)
-	}
-	if !resp.CanSubmitTicket {
-		t.Error("CanSubmitTicket 应为 true")
-	}
-}
-
-// TestChatService_CreateChatSession_InvalidKB 不存在的知识库应返回错误。
-func TestChatService_CreateChatSession_InvalidKB(t *testing.T) {
+// TestChatService_CreateSession_InvalidKB 不存在的知识库应返回错误。
+func TestChatService_CreateSession_InvalidKB(t *testing.T) {
 	svc, _ := setupChatServiceTest(t)
 
-	req := request.CreateChatRequest{Question: "问题", KBID: 999999}
-	_, err := svc.CreateChatSession(req, 1)
+	_, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID: 999999,
+	}, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
 }
 
-// TestChatService_CreateChatSession_EmptyQuestion 空问题应返回参数校验错误。
-func TestChatService_CreateChatSession_EmptyQuestion(t *testing.T) {
+// TestChatService_CreateSession_DefaultTitle 空标题自动填充默认值。
+func TestChatService_CreateSession_DefaultTitle(t *testing.T) {
 	svc, kb := setupChatServiceTest(t)
 
-	req := request.CreateChatRequest{Question: "", KBID: kb.ID}
-	_, err := svc.CreateChatSession(req, 1)
-	if err == nil {
-		t.Fatal("期望错误, got nil")
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID: kb.ID,
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+	if session.Question != "新会话" {
+		t.Errorf("期望默认标题 '新会话', 实际 '%s'", session.Question)
 	}
 }
-
-// =============================================================================
-// SubmitFeedback
-// =============================================================================
 
 // TestChatService_SubmitFeedback 提交反馈后会话反馈值正确更新。
 func TestChatService_SubmitFeedback(t *testing.T) {
 	svc, kb := setupChatServiceTest(t)
 
-	// 先创建会话
-	resp, err := svc.CreateChatSession(request.CreateChatRequest{Question: "问题", KBID: kb.ID}, 1)
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "测试问题",
+	}, 1)
 	if err != nil {
-		t.Fatalf("创建会话失败: %v", err)
+		t.Fatalf("CreateSession 失败: %v", err)
 	}
 
-	// 提交反馈
-	err = svc.SubmitFeedback(resp.SessionID, 1) // 1 = 已解决
+	err = svc.SubmitFeedback(bgCtx, session.ID, 1, 1)
 	if err != nil {
-		t.Fatalf("期望无错误, got %v", err)
+		t.Fatalf("SubmitFeedback 失败: %v", err)
 	}
 
-	// 验证反馈已更新
-	detail, err := svc.GetChatDetail(resp.SessionID)
+	detail, err := svc.GetChatDetail(bgCtx, session.ID, 1)
 	if err != nil {
-		t.Fatalf("查询详情失败: %v", err)
+		t.Fatalf("GetChatDetail 失败: %v", err)
 	}
 	if detail.Feedback != 1 {
-		t.Errorf("期望 Feedback=1, got %d", detail.Feedback)
+		t.Errorf("期望 Feedback=1, 实际 %d", detail.Feedback)
 	}
 }
 
-// =============================================================================
-// GetChatDetail
-// =============================================================================
+// TestChatService_SubmitFeedback_InvalidValue 非法反馈值应返回错误。
+func TestChatService_SubmitFeedback_InvalidValue(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "测试",
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+
+	err = svc.SubmitFeedback(bgCtx, session.ID, 1, 5)
+	if err == nil {
+		t.Fatal("非法反馈值(5)应返回错误")
+	}
+}
+
+// TestChatService_SubmitFeedback_WrongUser 其他用户不能提交反馈。
+func TestChatService_SubmitFeedback_WrongUser(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "水平越权测试",
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+
+	err = svc.SubmitFeedback(bgCtx, session.ID, 2, 1)
+	if err == nil {
+		t.Fatal("用户2 无权提交用户1 的反馈")
+	}
+}
 
 // TestChatService_GetChatDetail_NotFound 不存在的会话应返回错误。
 func TestChatService_GetChatDetail_NotFound(t *testing.T) {
 	svc, _ := setupChatServiceTest(t)
 
-	_, err := svc.GetChatDetail(999999)
+	_, err := svc.GetChatDetail(bgCtx, 999999, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
+	}
+}
+
+// TestChatService_GetChatDetail_WrongUser 其他用户不能查看会话。
+func TestChatService_GetChatDetail_WrongUser(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "归属校验测试",
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+
+	_, err = svc.GetChatDetail(bgCtx, session.ID, 2)
+	if err == nil {
+		t.Fatal("用户2 无权查看用户1 的会话")
+	}
+}
+
+// TestChatService_ListSessions 验证会话列表查询。
+func TestChatService_ListSessions(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	for i := 0; i < 3; i++ {
+		svc.CreateSession(bgCtx, request.CreateSessionRequest{
+			KBID:  kb.ID,
+			Title: "列表测试",
+		}, 1)
+	}
+
+	sessions, total, err := svc.ListSessions(bgCtx, 1, 1, 10)
+	if err != nil {
+		t.Fatalf("ListSessions 失败: %v", err)
+	}
+	if total < 3 {
+		t.Errorf("期望 total>=3, 实际 %d", total)
+	}
+	if len(sessions) < 3 {
+		t.Errorf("期望 >=3 条, 实际 %d", len(sessions))
+	}
+}
+
+// TestChatService_DeleteSession 验证删除会话。
+func TestChatService_DeleteSession(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "待删除",
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+
+	err = svc.DeleteSession(bgCtx, session.ID, 1)
+	if err != nil {
+		t.Fatalf("DeleteSession 失败: %v", err)
+	}
+
+	_, err = svc.GetChatDetail(bgCtx, session.ID, 1)
+	if err == nil {
+		t.Fatal("删除后查询应返回错误")
+	}
+}
+
+// TestChatService_DeleteSession_WrongUser 其他用户不能删除他人会话。
+func TestChatService_DeleteSession_WrongUser(t *testing.T) {
+	svc, kb := setupChatServiceTest(t)
+
+	session, err := svc.CreateSession(bgCtx, request.CreateSessionRequest{
+		KBID:  kb.ID,
+		Title: "越权删除测试",
+	}, 1)
+	if err != nil {
+		t.Fatalf("CreateSession 失败: %v", err)
+	}
+
+	err = svc.DeleteSession(bgCtx, session.ID, 2)
+	if err == nil {
+		t.Fatal("用户2 无权删除用户1 的会话")
 	}
 }

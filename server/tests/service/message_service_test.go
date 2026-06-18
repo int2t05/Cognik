@@ -57,7 +57,7 @@ func setupMessageService(t *testing.T) *service.MessageService {
 func TestMessageService_NotifySupplement(t *testing.T) {
 	svc := setupMessageService(t)
 
-	err := svc.NotifySupplement(100, 42)
+	err := svc.NotifySupplement(bgCtx, 100, 42, "测试申告标题")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -97,7 +97,7 @@ func TestMessageService_CountUnread(t *testing.T) {
 	// 其他用户的未读消息（不应计入）
 	msgSvcDB.Create(&model.Message{UserID: 99, Title: "E", Content: "e", Type: "test", IsRead: false, CreatedAt: now})
 
-	count, err := svc.CountUnread(1)
+	count, err := svc.CountUnread(bgCtx, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -109,7 +109,7 @@ func TestMessageService_CountUnread(t *testing.T) {
 func TestMessageService_CountUnread_Zero(t *testing.T) {
 	svc := setupMessageService(t)
 
-	count, err := svc.CountUnread(1)
+	count, err := svc.CountUnread(bgCtx, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -129,7 +129,7 @@ func TestMessageService_MarkAsRead(t *testing.T) {
 	msg := &model.Message{UserID: 1, Title: "测试", Content: "内容", Type: "test", IsRead: false, CreatedAt: now}
 	msgSvcDB.Create(msg)
 
-	err := svc.MarkAsRead(msg.ID, msg.UserID)
+	err := svc.MarkAsRead(bgCtx, msg.ID, msg.UserID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -144,7 +144,7 @@ func TestMessageService_MarkAsRead(t *testing.T) {
 func TestMessageService_MarkAsRead_NotFound(t *testing.T) {
 	svc := setupMessageService(t)
 
-	err := svc.MarkAsRead(999999, 1)
+	err := svc.MarkAsRead(bgCtx, 999999, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -161,7 +161,7 @@ func TestMessageService_MarkAsRead_WrongOwner(t *testing.T) {
 	msgSvcDB.Create(msg)
 
 	// 用户 2 尝试标记用户 1 的消息为已读 — 应被拒绝
-	err := svc.MarkAsRead(msg.ID, 2)
+	err := svc.MarkAsRead(bgCtx, msg.ID, 2)
 	if err == nil {
 		t.Fatal("跨用户标记已读应返回错误, got nil")
 	}
@@ -182,7 +182,7 @@ func TestMessageService_ListMessages(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(1, 1, 10)
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 10, repository.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -209,7 +209,7 @@ func TestMessageService_ListMessages_Pagination(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(1, 1, 2)
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 2, repository.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

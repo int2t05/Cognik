@@ -67,7 +67,7 @@ func TestConfigRepo_GetByKey_Existing(t *testing.T) {
 	if err := db.Create(cfg).Error; err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
 	}
-	result, err := repo.GetByKey("ai.confidence_threshold")
+	result, err := repo.GetByKey(bgCtx, "ai.confidence_threshold")
 	if err != nil {
 		t.Fatalf("GetByKey 失败: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestConfigRepo_GetByKey_Existing(t *testing.T) {
 func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
-	_, err := repo.GetByKey("nonexistent.key")
+	_, err := repo.GetByKey(bgCtx, "nonexistent.key")
 	if err == nil {
 		t.Fatal("期望返回错误, 实际为 nil")
 	}
@@ -89,11 +89,11 @@ func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
 	db.Create(&model.SystemConfig{Key: "ai.confidence_threshold", Value: datatypes.JSON(`{"threshold":0.6}`), UpdatedBy: 1})
-	err := repo.Upsert("ai.confidence_threshold", "AI 置信度阈值", datatypes.JSON(`{"threshold":0.8}`), 2)
+	err := repo.Upsert(bgCtx, "ai.confidence_threshold", "AI 置信度阈值", datatypes.JSON(`{"threshold":0.8}`), 2)
 	if err != nil {
 		t.Fatalf("Upsert 更新失败: %v", err)
 	}
-	result, err := repo.GetByKey("ai.confidence_threshold")
+	result, err := repo.GetByKey(bgCtx, "ai.confidence_threshold")
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -103,11 +103,11 @@ func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 func TestConfigRepo_Upsert_InsertNew(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
-	err := repo.Upsert("system.max_retries", "系统最大重试次数", datatypes.JSON(`{"max_retries":3}`), 1)
+	err := repo.Upsert(bgCtx, "system.max_retries", "系统最大重试次数", datatypes.JSON(`{"max_retries":3}`), 1)
 	if err != nil {
 		t.Fatalf("Upsert 插入失败: %v", err)
 	}
-	result, err := repo.GetByKey("system.max_retries")
+	result, err := repo.GetByKey(bgCtx, "system.max_retries")
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestConfigRepo_List(t *testing.T) {
 	for i := range configs {
 		db.Create(&configs[i])
 	}
-	result, err := repo.List()
+	result, err := repo.List(bgCtx)
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestConfigRepo_List(t *testing.T) {
 func TestConfigRepo_List_Empty(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
-	result, err := repo.List()
+	result, err := repo.List(bgCtx)
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -163,9 +163,9 @@ func setupConfigService(t *testing.T) *service.ConfigService {
 // TestConfigService_GetConfig_Existing 验证获取已有配置返回正确的值。
 func TestConfigService_GetConfig_Existing(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig("test.key1", "value1", 1)
+	svc.UpdateConfig(bgCtx, "test.key1", "value1", 1)
 
-	val, err := svc.GetConfig("test.key1")
+	val, err := svc.GetConfig(bgCtx, "test.key1")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -177,7 +177,7 @@ func TestConfigService_GetConfig_Existing(t *testing.T) {
 // TestConfigService_GetConfig_NotFound 验证查询不存在的 key 返回明确错误。
 func TestConfigService_GetConfig_NotFound(t *testing.T) {
 	svc := setupConfigService(t)
-	_, err := svc.GetConfig("nonexistent.key")
+	_, err := svc.GetConfig(bgCtx, "nonexistent.key")
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -186,9 +186,9 @@ func TestConfigService_GetConfig_NotFound(t *testing.T) {
 // TestConfigService_GetConfig_JSONObject 验证获取 JSON 对象类型的配置。
 func TestConfigService_GetConfig_JSONObject(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig("test.json_key", map[string]interface{}{"threshold": 0.6, "top_k": 5.0}, 1)
+	svc.UpdateConfig(bgCtx, "test.json_key", map[string]interface{}{"threshold": 0.6, "top_k": 5.0}, 1)
 
-	val, err := svc.GetConfig("test.json_key")
+	val, err := svc.GetConfig(bgCtx, "test.json_key")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -207,11 +207,11 @@ func TestConfigService_GetConfig_JSONObject(t *testing.T) {
 // TestConfigService_UpdateConfig_Create 验证创建新配置。
 func TestConfigService_UpdateConfig_Create(t *testing.T) {
 	svc := setupConfigService(t)
-	err := svc.UpdateConfig("ai.top_k", 10.0, 1)
+	err := svc.UpdateConfig(bgCtx, "ai.top_k", 10.0, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	val, err := svc.GetConfig("ai.top_k")
+	val, err := svc.GetConfig(bgCtx, "ai.top_k")
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}
@@ -223,12 +223,12 @@ func TestConfigService_UpdateConfig_Create(t *testing.T) {
 // TestConfigService_UpdateConfig_Update 验证更新已有配置。
 func TestConfigService_UpdateConfig_Update(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig("ai.threshold", 0.7, 1)
-	err := svc.UpdateConfig("ai.threshold", 0.85, 2)
+	svc.UpdateConfig(bgCtx, "ai.threshold", 0.7, 1)
+	err := svc.UpdateConfig(bgCtx, "ai.threshold", 0.85, 2)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	val, err := svc.GetConfig("ai.threshold")
+	val, err := svc.GetConfig(bgCtx, "ai.threshold")
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}
@@ -240,11 +240,11 @@ func TestConfigService_UpdateConfig_Update(t *testing.T) {
 // TestConfigService_UpdateConfig_StringValue 验证字符串类型配置。
 func TestConfigService_UpdateConfig_StringValue(t *testing.T) {
 	svc := setupConfigService(t)
-	err := svc.UpdateConfig("app.name", "OpsMind", 1)
+	err := svc.UpdateConfig(bgCtx, "app.name", "OpsMind", 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	val, err := svc.GetConfig("app.name")
+	val, err := svc.GetConfig(bgCtx, "app.name")
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestConfigService_UpdateConfig_StringValue(t *testing.T) {
 // TestConfigService_UpdateConfig_NilValue 验证更新 nil 值应被拒绝。
 func TestConfigService_UpdateConfig_NilValue(t *testing.T) {
 	svc := setupConfigService(t)
-	err := svc.UpdateConfig("should.fail", nil, 1)
+	err := svc.UpdateConfig(bgCtx, "should.fail", nil, 1)
 	if err == nil {
 		t.Fatal("期望错误（nil value）, got nil")
 	}

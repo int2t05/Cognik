@@ -93,13 +93,13 @@ func TestTicketService_CreateTicket(t *testing.T) {
 		ContactEmail: "test@example.com",
 	}
 
-	err := svc.CreateTicket(req, user.ID)
+	err := svc.CreateTicket(bgCtx, req, user.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
 	// 验证申告已创建
-	tickets, total, err := repo.ListByUser(user.ID, 1, 10)
+	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10)
 	if err != nil {
 		t.Fatalf("查询申告失败: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 	user := createTestUserForService(t, db, "tsvc_val")
 
 	// 标题为空
-	err := svc.CreateTicket(request.CreateTicketRequest{
+	err := svc.CreateTicket(bgCtx, request.CreateTicketRequest{
 		Title: "", Description: "描述", Urgency: 1, ContactPhone: "13800000001",
 	}, user.ID)
 	if err == nil {
@@ -139,7 +139,7 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 	}
 
 	// 紧急程度无效
-	err = svc.CreateTicket(request.CreateTicketRequest{
+	err = svc.CreateTicket(bgCtx, request.CreateTicketRequest{
 		Title: "测试", Description: "描述", Urgency: 5, ContactPhone: "13800000001",
 	}, user.ID)
 	if err == nil {
@@ -147,7 +147,7 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 	}
 
 	// 手机号为空
-	err = svc.CreateTicket(request.CreateTicketRequest{
+	err = svc.CreateTicket(bgCtx, request.CreateTicketRequest{
 		Title: "测试", Description: "描述", Urgency: 1, ContactPhone: "",
 	}, user.ID)
 	if err == nil {
@@ -174,7 +174,7 @@ func TestTicketService_SupplementTicket(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.SupplementTicket(ticket.ID, user.ID, request.SupplementTicketRequest{
+	err := svc.SupplementTicket(bgCtx, ticket.ID, user.ID, request.SupplementTicketRequest{
 		Content: "补充的信息内容",
 	})
 	if err != nil {
@@ -182,13 +182,13 @@ func TestTicketService_SupplementTicket(t *testing.T) {
 	}
 
 	// 验证状态变回处理中(2)
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != 2 {
 		t.Errorf("补充后状态应为 2(处理中), got %d", updated.Status)
 	}
 
 	// 验证创建了处理记录
-	records, _ := repo.FindByTicketID(ticket.ID)
+	records, _ := repo.FindByTicketID(bgCtx, ticket.ID)
 	found := false
 	for _, r := range records {
 		if r.Action == "supplement" {
@@ -215,7 +215,7 @@ func TestTicketService_SupplementTicket_WrongStatus(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.SupplementTicket(ticket.ID, user.ID, request.SupplementTicketRequest{
+	err := svc.SupplementTicket(bgCtx, ticket.ID, user.ID, request.SupplementTicketRequest{
 		Content: "补充信息",
 	})
 	if err == nil {
@@ -237,7 +237,7 @@ func TestTicketService_SupplementTicket_NotOwner(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.SupplementTicket(ticket.ID, other.ID, request.SupplementTicketRequest{
+	err := svc.SupplementTicket(bgCtx, ticket.ID, other.ID, request.SupplementTicketRequest{
 		Content: "补充信息",
 	})
 	if err == nil {
@@ -263,7 +263,7 @@ func TestTicketService_UpdateStatus_Start(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "start",
 		Result: "开始处理此申告",
 	})
@@ -271,13 +271,13 @@ func TestTicketService_UpdateStatus_Start(t *testing.T) {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != 2 {
 		t.Errorf("start 后状态应为 2(处理中), got %d", updated.Status)
 	}
 
 	// 验证处理记录
-	records, _ := repo.FindByTicketID(ticket.ID)
+	records, _ := repo.FindByTicketID(bgCtx, ticket.ID)
 	if len(records) != 1 {
 		t.Fatalf("期望 1 条记录, got %d", len(records))
 	}
@@ -301,7 +301,7 @@ func TestTicketService_UpdateStatus_RequestInfo(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "request_info",
 		Result: "请提供更多信息",
 	})
@@ -309,7 +309,7 @@ func TestTicketService_UpdateStatus_RequestInfo(t *testing.T) {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != 3 {
 		t.Errorf("request_info 后状态应为 3(需补充信息), got %d", updated.Status)
 	}
@@ -334,7 +334,7 @@ func TestTicketService_UpdateStatus_RequestInfoExceeded(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "request_info",
 		Result: "再提供信息",
 	})
@@ -365,7 +365,7 @@ func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "request_info",
 		Result: "应被拒绝的补充请求",
 	})
@@ -398,7 +398,7 @@ func TestTicketService_UpdateStatus_Resolve(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "resolve",
 		Result: "问题已解决，重启路由器即可",
 	})
@@ -406,7 +406,7 @@ func TestTicketService_UpdateStatus_Resolve(t *testing.T) {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != 4 {
 		t.Errorf("resolve 后状态应为 4(已解决), got %d", updated.Status)
 	}
@@ -426,7 +426,7 @@ func TestTicketService_UpdateStatus_Close(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "close",
 		Result: "重复申告",
 	})
@@ -434,7 +434,7 @@ func TestTicketService_UpdateStatus_Close(t *testing.T) {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != 5 {
 		t.Errorf("close 后状态应为 5(已关闭), got %d", updated.Status)
 	}
@@ -454,7 +454,7 @@ func TestTicketService_UpdateStatus_InvalidAction(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "invalid_action",
 	})
 	if err == nil {
@@ -477,7 +477,7 @@ func TestTicketService_UpdateStatus_WrongPreStatus(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	err := svc.UpdateStatus(ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
+	err := svc.UpdateStatus(bgCtx, ticket.ID, operator.ID, request.UpdateTicketStatusRequest{
 		Action: "start",
 	})
 	if err == nil {
@@ -504,7 +504,7 @@ func TestTicketService_AddRecord(t *testing.T) {
 	requireNoErr(t, db.Create(ticket).Error)
 
 	oldStatus := ticket.Status
-	err := svc.AddRecord(ticket.ID, operator.ID, request.CreateTicketRecordRequest{
+	err := svc.AddRecord(bgCtx, ticket.ID, operator.ID, request.CreateTicketRecordRequest{
 		Action:  "note",
 		Content: "添加了一条备注",
 	})
@@ -513,13 +513,13 @@ func TestTicketService_AddRecord(t *testing.T) {
 	}
 
 	// 状态不应改变
-	updated, _ := repo.FindByID(ticket.ID)
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
 	if updated.Status != oldStatus {
 		t.Errorf("AddRecord 不应改变状态, 期望 %d, got %d", oldStatus, updated.Status)
 	}
 
 	// 记录应存在
-	records, _ := repo.FindByTicketID(ticket.ID)
+	records, _ := repo.FindByTicketID(bgCtx, ticket.ID)
 	if len(records) != 1 {
 		t.Errorf("期望 1 条记录, got %d", len(records))
 	}
@@ -544,7 +544,7 @@ func TestTicketService_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	result, err := svc.ListByUser(user.ID, 1, 10)
+	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -573,7 +573,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 status=1 筛选
-	result, err := svc.ListAll(1, 0, 1, 10)
+	result, err := svc.ListAll(bgCtx, 1, 0, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -582,7 +582,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 urgency=3 筛选
-	result, err = svc.ListAll(-1, 3, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 3, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -591,7 +591,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 全部
-	result, err = svc.ListAll(-1, 0, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 0, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -621,7 +621,7 @@ func TestTicketService_GetDetail(t *testing.T) {
 	record := &model.TicketRecord{TicketID: ticket.ID, OperatorID: user.ID, Action: "create", Content: "创建"}
 	requireNoErr(t, db.Create(record).Error)
 
-	result, err := svc.GetDetail(ticket.ID, 0) // 0=后台，不限所有权
+	result, err := svc.GetDetail(bgCtx, ticket.ID, 0) // 0=后台，不限所有权
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

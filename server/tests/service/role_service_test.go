@@ -37,8 +37,9 @@ func init() {
 func setupRoleService(t *testing.T) *service.RoleService {
 	t.Helper()
 	repo := repository.NewRoleRepo(roleSvcDB)
-	userRepo := repository.NewUserRepo(roleSvcDB)
-	return service.NewRoleService(repo, userRepo, roleSvcDB)
+	menuRepo := repository.NewMenuRepo(roleSvcDB)
+	auditRepo := repository.NewAuditRepo(roleSvcDB)
+	return service.NewRoleService(repo, menuRepo, auditRepo, roleSvcDB)
 }
 
 func seedTestRole(t *testing.T, name string) *model.Role {
@@ -57,7 +58,7 @@ func TestRoleService_Create_Success(t *testing.T) {
 	svc := setupRoleService(t)
 	roleSvcDB.Where("name = ?", "test_role_create").Delete(&model.Role{})
 
-	err := svc.Create("test_role_create", "测试角色", []string{"ticket:read", "knowledge:read"})
+	err := svc.Create(bgCtx, "test_role_create", "测试角色", []string{"ticket:read", "knowledge:read"})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -73,7 +74,7 @@ func TestRoleService_Create_Duplicate(t *testing.T) {
 	svc := setupRoleService(t)
 	seedTestRole(t, "test_role_dup")
 
-	err := svc.Create("test_role_dup", "重复角色", []string{"ticket:read"})
+	err := svc.Create(bgCtx, "test_role_dup", "重复角色", []string{"ticket:read"})
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -86,7 +87,7 @@ func TestRoleService_GetByID_Success(t *testing.T) {
 	svc := setupRoleService(t)
 	role := seedTestRole(t, "test_role_getbyid")
 
-	result, err := svc.GetByID(role.ID)
+	result, err := svc.GetByID(bgCtx, role.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -98,7 +99,7 @@ func TestRoleService_GetByID_Success(t *testing.T) {
 func TestRoleService_GetByID_NotFound(t *testing.T) {
 	svc := setupRoleService(t)
 
-	_, err := svc.GetByID(999999)
+	_, err := svc.GetByID(bgCtx, 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -111,7 +112,7 @@ func TestRoleService_List_Success(t *testing.T) {
 	svc := setupRoleService(t)
 	seedTestRole(t, "test_role_list")
 
-	roles, total, err := svc.List(1, 10)
+	roles, total, err := svc.List(bgCtx, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -129,7 +130,7 @@ func TestRoleService_Update_Success(t *testing.T) {
 	roleSvcDB.Where("name = ?", "test_role_updated").Delete(&model.Role{})
 	role := seedTestRole(t, "test_role_update")
 
-	err := svc.Update(role.ID, "test_role_updated", "更新后的角色", []string{"ticket:read", "ticket:write", "system:config"})
+	err := svc.Update(bgCtx, role.ID, "test_role_updated", "更新后的角色", []string{"ticket:read", "ticket:write", "system:config"})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -144,7 +145,7 @@ func TestRoleService_Update_Success(t *testing.T) {
 func TestRoleService_Update_NotFound(t *testing.T) {
 	svc := setupRoleService(t)
 
-	err := svc.Update(999999, "不存在", "不存在", []string{"ticket:read"})
+	err := svc.Update(bgCtx, 999999, "不存在", "不存在", []string{"ticket:read"})
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -154,7 +155,7 @@ func TestRoleService_Delete_Success(t *testing.T) {
 	svc := setupRoleService(t)
 	role := seedTestRole(t, "test_role_delete")
 
-	err := svc.Delete(role.ID)
+	err := svc.Delete(bgCtx, role.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -169,7 +170,7 @@ func TestRoleService_Delete_Success(t *testing.T) {
 func TestRoleService_Delete_NotFound(t *testing.T) {
 	svc := setupRoleService(t)
 
-	err := svc.Delete(999999)
+	err := svc.Delete(bgCtx, 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}

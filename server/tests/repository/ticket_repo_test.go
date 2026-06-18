@@ -8,6 +8,7 @@
 package repository_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -102,7 +103,7 @@ func TestTicketRepo_Create(t *testing.T) {
 		Source:       1,
 	}
 
-	err := repo.Create(ticket)
+	err := repo.Create(context.Background(), ticket)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -127,7 +128,7 @@ func TestTicketRepo_FindByID(t *testing.T) {
 	record := &model.TicketRecord{TicketID: ticket.ID, OperatorID: user.ID, Action: "create", Content: "创建申告"}
 	requireNoErr(t, db.Create(record).Error)
 
-	got, err := repo.FindByID(ticket.ID)
+	got, err := repo.FindByID(context.Background(), ticket.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -148,7 +149,7 @@ func TestTicketRepo_FindByID_NotFound(t *testing.T) {
 	db := setupTicketTestDB(t)
 	repo := repository.NewTicketRepo(db)
 
-	got, err := repo.FindByID(999999)
+	got, err := repo.FindByID(context.Background(), 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -174,7 +175,7 @@ func TestTicketRepo_Update(t *testing.T) {
 
 	ticket.Title = "新标题"
 	ticket.Description = "新描述"
-	err := repo.Update(ticket)
+	err := repo.Update(context.Background(), ticket)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -198,7 +199,7 @@ func TestTicketRepo_UpdateStatus(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	rows, err := repo.UpdateStatus(ticket.ID, int(ticket.Status), 2) // 待处理 → 处理中 (CAS)
+	rows, err := repo.UpdateStatus(context.Background(), ticket.ID, int(ticket.Status), 2) // 待处理 → 处理中 (CAS)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -226,7 +227,7 @@ func TestTicketRepo_IncrementSupplementCount(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	ok, err := repo.IncrementSupplementCount(ticket.ID)
+	ok, err := repo.IncrementSupplementCount(context.Background(), ticket.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -260,7 +261,7 @@ func TestTicketRepo_IncrementSupplementCount_Exceeded(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
-	ok, err := repo.IncrementSupplementCount(ticket.ID)
+	ok, err := repo.IncrementSupplementCount(context.Background(), ticket.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -290,7 +291,7 @@ func TestTicketRepo_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	tickets, total, err := repo.ListByUser(user.ID, 1, 10)
+	tickets, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -319,7 +320,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 	}
 
 	// 过滤 status=1
-	result, total, err := repo.ListAll(1, 0, 1, 10)
+	result, total, err := repo.ListAll(context.Background(), 1, 0, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -328,7 +329,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 	}
 
 	// 全查询
-	result, total, err = repo.ListAll(-1, 0, 1, 10)
+	result, total, err = repo.ListAll(context.Background(), -1, 0, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -361,7 +362,7 @@ func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 	requireNoErr(t, db.Create(&recent).Error)
 
 	// 关闭 7 天前的申告
-	ids, err := repo.AutoCloseTickets(time.Now().Add(-7 * 24 * time.Hour))
+	ids, err := repo.AutoCloseTickets(context.Background(), time.Now().Add(-7 * 24 * time.Hour))
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -408,7 +409,7 @@ func TestTicketRepo_CreateRecord(t *testing.T) {
 		Content:    "开始处理申告",
 	}
 
-	err := repo.CreateRecord(record)
+	err := repo.CreateRecord(context.Background(), record)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -438,7 +439,7 @@ func TestTicketRepo_FindByTicketID(t *testing.T) {
 		requireNoErr(t, db.Create(&records[i]).Error)
 	}
 
-	got, err := repo.FindByTicketID(ticket.ID)
+	got, err := repo.FindByTicketID(context.Background(), ticket.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

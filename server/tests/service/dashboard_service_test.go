@@ -175,7 +175,7 @@ func TestDashboardService_GetStats(t *testing.T) {
 	svc := setupDashboardTest(t)
 	seedDashboardData(t)
 
-	resp, err := svc.GetStats()
+	resp, err := svc.GetStats(bgCtx)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -221,7 +221,7 @@ func TestDashboardService_GetStats_Empty(t *testing.T) {
 	svc := setupDashboardTest(t)
 	// 不插入任何数据
 
-	resp, err := svc.GetStats()
+	resp, err := svc.GetStats(bgCtx)
 	if err != nil {
 		t.Fatalf("空数据时不应报错, got %v", err)
 	}
@@ -264,7 +264,7 @@ func TestDashboardService_GetTrends(t *testing.T) {
 		Granularity: "day",
 	}
 
-	resp, err := svc.GetTrends(req)
+	resp, err := svc.GetTrends(bgCtx, req)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -297,7 +297,7 @@ func TestDashboardService_GetTrends_DateRange(t *testing.T) {
 		Granularity: "day",
 	}
 
-	resp, err := svc.GetTrends(req)
+	resp, err := svc.GetTrends(bgCtx, req)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -328,7 +328,7 @@ func TestDashboardService_GetTrends_InvalidGranularity(t *testing.T) {
 	}
 
 	// 无效粒度应降级为 day，不应报错
-	resp, err := svc.GetTrends(req)
+	resp, err := svc.GetTrends(bgCtx, req)
 	if err != nil {
 		t.Fatalf("无效粒度时不应报错, got %v", err)
 	}
@@ -349,7 +349,7 @@ func TestDashboardService_GetTrends_EmptyRange(t *testing.T) {
 		Granularity: "day",
 	}
 
-	resp, err := svc.GetTrends(req)
+	resp, err := svc.GetTrends(bgCtx, req)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

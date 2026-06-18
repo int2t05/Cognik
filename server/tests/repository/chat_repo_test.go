@@ -8,6 +8,7 @@
 package repository_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -109,7 +110,7 @@ func TestChatRepo_CreateSession(t *testing.T) {
 		DurationMs: 320,
 	}
 
-	err := repo.Create(session)
+	err := repo.Create(context.Background(), session)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -131,7 +132,7 @@ func TestChatRepo_FindByID(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(session).Error)
 
-	got, err := repo.FindByID(session.ID)
+	got, err := repo.FindByID(context.Background(), session.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -147,7 +148,7 @@ func TestChatRepo_FindByID_NotFound(t *testing.T) {
 	db := setupChatTestDB(t)
 	repo := repository.NewChatRepo(db)
 
-	got, err := repo.FindByID(999999)
+	got, err := repo.FindByID(context.Background(), 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -172,7 +173,7 @@ func TestChatRepo_UpdateFeedback(t *testing.T) {
 	}
 	requireNoErr(t, db.Create(session).Error)
 
-	err := repo.UpdateFeedback(session.ID, 1) // 已解决
+	err := repo.UpdateFeedback(context.Background(), session.ID, 1) // 已解决
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -199,7 +200,7 @@ func TestChatRepo_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(session).Error)
 	}
 
-	sessions, total, err := repo.ListByUser(user.ID, 1, 10)
+	sessions, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -227,7 +228,7 @@ func TestChatRepo_ListByUser_Pagination(t *testing.T) {
 	}
 
 	// 第 1 页，每页 2 条
-	sessions, total, err := repo.ListByUser(user.ID, 1, 2)
+	sessions, total, err := repo.ListByUser(context.Background(), user.ID, 1, 2)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -239,7 +240,7 @@ func TestChatRepo_ListByUser_Pagination(t *testing.T) {
 	}
 
 	// 第 2 页，每页 2 条
-	sessions, total, err = repo.ListByUser(user.ID, 2, 2)
+	sessions, total, err = repo.ListByUser(context.Background(), user.ID, 2, 2)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -263,7 +264,7 @@ func TestChatRepo_CreateBatch(t *testing.T) {
 		{SessionID: 1, Role: "assistant", Content: "请前往设置页面修改密码。", Confidence: 0.85, CreatedAt: time.Now().Add(100 * time.Millisecond)},
 	}
 
-	err := repo.CreateBatch(messages)
+	err := repo.CreateBatch(context.Background(), messages)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -290,7 +291,7 @@ func TestChatRepo_CreateBatch_Empty(t *testing.T) {
 	repo := repository.NewChatRepo(db)
 
 	// 空切片不应报错
-	err := repo.CreateBatch([]model.ChatMessage{})
+	err := repo.CreateBatch(context.Background(), []model.ChatMessage{})
 	if err != nil {
 		t.Fatalf("空切片期望无错误, got %v", err)
 	}

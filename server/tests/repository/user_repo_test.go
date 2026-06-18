@@ -7,6 +7,7 @@
 package repository_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -85,7 +86,7 @@ func TestUserRepo_GetByID_Existing(t *testing.T) {
 	require.NoError(t, db.Create(user).Error)
 	require.NotZero(t, user.ID)
 
-	got, err := repo.GetByID(user.ID)
+	got, err := repo.GetByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, got.ID)
 	assert.Equal(t, "test_getbyid", got.Username)
@@ -101,7 +102,7 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
 	repo := repository.NewUserRepo(db)
 
-	got, err := repo.GetByID(999999)
+	got, err := repo.GetByID(context.Background(), 999999)
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Equal(t, gorm.ErrRecordNotFound, err)
@@ -126,7 +127,7 @@ func TestUserRepo_GetByUsername_Existing(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 
-	got, err := repo.GetByUsername("test_getbyusername")
+	got, err := repo.GetByUsername(context.Background(), "test_getbyusername")
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, got.ID)
 	assert.Equal(t, "test_getbyusername", got.Username)
@@ -137,7 +138,7 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
 	repo := repository.NewUserRepo(db)
 
-	got, err := repo.GetByUsername("nonexistent_user_xyz")
+	got, err := repo.GetByUsername(context.Background(), "nonexistent_user_xyz")
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Equal(t, gorm.ErrRecordNotFound, err)
@@ -162,7 +163,7 @@ func TestUserRepo_GetByPhone_Existing(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 
-	got, err := repo.GetByPhone("13800000003")
+	got, err := repo.GetByPhone(context.Background(), "13800000003")
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, got.ID)
 	assert.Equal(t, "13800000003", got.Phone)
@@ -173,7 +174,7 @@ func TestUserRepo_GetByPhone_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
 	repo := repository.NewUserRepo(db)
 
-	got, err := repo.GetByPhone("99999999999")
+	got, err := repo.GetByPhone(context.Background(), "99999999999")
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Equal(t, gorm.ErrRecordNotFound, err)
@@ -198,7 +199,7 @@ func TestUserRepo_ExistsByPhone_True(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 
-	exists, err := repo.ExistsByPhone("13800000004")
+	exists, err := repo.ExistsByPhone(context.Background(), "13800000004")
 	require.NoError(t, err)
 	assert.True(t, exists)
 }
@@ -208,7 +209,7 @@ func TestUserRepo_ExistsByPhone_False(t *testing.T) {
 	db := setupUserTestDB(t)
 	repo := repository.NewUserRepo(db)
 
-	exists, err := repo.ExistsByPhone("99999999999")
+	exists, err := repo.ExistsByPhone(context.Background(), "99999999999")
 	require.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -232,12 +233,12 @@ func TestUserRepo_Create(t *testing.T) {
 		UpdatedAt:    now,
 	}
 
-	err := repo.Create(user)
+	err := repo.Create(context.Background(), user)
 	require.NoError(t, err)
 	assert.NotZero(t, user.ID, "Create 后应自动填充 ID")
 
 	// 验证可查回
-	got, err := repo.GetByID(user.ID)
+	got, err := repo.GetByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "test_create", got.Username)
 	assert.Equal(t, "新用户", got.RealName)
@@ -262,7 +263,7 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	require.NoError(t, repo.Create(user1))
+	require.NoError(t, repo.Create(context.Background(), user1))
 
 	user2 := &model.User{
 		Username:     "test_dup_user", // 同名
@@ -274,6 +275,6 @@ func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	err := repo.Create(user2)
+	err := repo.Create(context.Background(), user2)
 	assert.Error(t, err, "用户名重复应返回错误")
 }

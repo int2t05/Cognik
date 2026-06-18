@@ -36,7 +36,8 @@ func init() {
 func setupUserService(t *testing.T) (*service.UserService, *model.User) {
 	t.Helper()
 	repo := repository.NewUserRepo(userSvcDB)
-	svc := service.NewUserService(repo, userSvcDB)
+	auditRepo := repository.NewAuditRepo(userSvcDB)
+	svc := service.NewUserService(repo, auditRepo, userSvcDB)
 
 	// 创建测试用户
 	user := &model.User{
@@ -54,7 +55,7 @@ func setupUserService(t *testing.T) (*service.UserService, *model.User) {
 func TestUserService_GetByID_Success(t *testing.T) {
 	svc, user := setupUserService(t)
 
-	result, err := svc.GetByID(user.ID)
+	result, err := svc.GetByID(bgCtx, user.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -66,7 +67,7 @@ func TestUserService_GetByID_Success(t *testing.T) {
 func TestUserService_GetByID_NotFound(t *testing.T) {
 	svc, _ := setupUserService(t)
 
-	_, err := svc.GetByID(999999)
+	_, err := svc.GetByID(bgCtx, 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -78,7 +79,7 @@ func TestUserService_GetByID_NotFound(t *testing.T) {
 func TestUserService_List_Success(t *testing.T) {
 	svc, _ := setupUserService(t)
 
-	result, err := svc.List(1, 10, "")
+	result, err := svc.List(bgCtx, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -93,7 +94,7 @@ func TestUserService_List_Success(t *testing.T) {
 func TestUserService_List_WithKeyword(t *testing.T) {
 	svc, _ := setupUserService(t)
 
-	result, err := svc.List(1, 10, "test_svcuser_1")
+	result, err := svc.List(bgCtx, 1, 10, "test_svcuser_1")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -105,7 +106,7 @@ func TestUserService_List_WithKeyword(t *testing.T) {
 func TestUserService_Freeze_Success(t *testing.T) {
 	svc, user := setupUserService(t)
 
-	err := svc.Freeze(user.ID)
+	err := svc.Freeze(bgCtx, user.ID, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -121,7 +122,7 @@ func TestUserService_Freeze_AlreadyFrozen(t *testing.T) {
 	svc, user := setupUserService(t)
 	userSvcDB.Model(user).Update("status", 2)
 
-	err := svc.Freeze(user.ID)
+	err := svc.Freeze(bgCtx, user.ID, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -133,7 +134,7 @@ func TestUserService_Freeze_AlreadyFrozen(t *testing.T) {
 func TestUserService_Freeze_NotFound(t *testing.T) {
 	svc, _ := setupUserService(t)
 
-	err := svc.Freeze(999999)
+	err := svc.Freeze(bgCtx, 999999, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -143,7 +144,7 @@ func TestUserService_Restore_Success(t *testing.T) {
 	svc, user := setupUserService(t)
 	userSvcDB.Model(user).Update("status", 2)
 
-	err := svc.Restore(user.ID)
+	err := svc.Restore(bgCtx, user.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -158,7 +159,7 @@ func TestUserService_Restore_Success(t *testing.T) {
 func TestUserService_Restore_AlreadyActive(t *testing.T) {
 	svc, user := setupUserService(t)
 
-	err := svc.Restore(user.ID)
+	err := svc.Restore(bgCtx, user.ID)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -170,7 +171,7 @@ func TestUserService_Restore_AlreadyActive(t *testing.T) {
 func TestUserService_Restore_NotFound(t *testing.T) {
 	svc, _ := setupUserService(t)
 
-	err := svc.Restore(999999)
+	err := svc.Restore(bgCtx, 999999)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}

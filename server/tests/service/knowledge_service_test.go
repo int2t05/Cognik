@@ -95,7 +95,7 @@ func createTestArticle(t *testing.T, _ *service.KnowledgeService, kbID int64, st
 func TestKnowledgeService_CreateKB(t *testing.T) {
 	svc := setupKnowledgeService(t)
 
-	err := svc.CreateKB(request.CreateKBRequest{
+	err := svc.CreateKB(bgCtx, request.CreateKBRequest{
 		Name:        "测试知识库",
 		Description: "测试描述",
 	}, 1)
@@ -119,7 +119,7 @@ func TestKnowledgeService_UpdateKB(t *testing.T) {
 	svc := setupKnowledgeService(t)
 	kb := createTestKB(t, svc, "旧名称")
 
-	err := svc.UpdateKB(kb.ID, request.UpdateKBRequest{
+	err := svc.UpdateKB(bgCtx, kb.ID, request.UpdateKBRequest{
 		Name:        "新名称",
 		Description: "新描述",
 	})
@@ -139,7 +139,7 @@ func TestKnowledgeService_UpdateKB(t *testing.T) {
 func TestKnowledgeService_UpdateKB_NotFound(t *testing.T) {
 	svc := setupKnowledgeService(t)
 
-	err := svc.UpdateKB(99999, request.UpdateKBRequest{
+	err := svc.UpdateKB(bgCtx, 99999, request.UpdateKBRequest{
 		Name: "不存在",
 	})
 	if err == nil {
@@ -153,7 +153,7 @@ func TestKnowledgeService_ListKBs(t *testing.T) {
 	createTestKB(t, svc, "知识库1")
 	createTestKB(t, svc, "知识库2")
 
-	kbs, err := svc.ListKBs()
+	kbs, err := svc.ListKBs(bgCtx)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -171,7 +171,7 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 	svc := setupKnowledgeService(t)
 	kb := createTestKB(t, svc, "文章测试库")
 
-	err := svc.CreateArticle(request.CreateArticleRequest{
+	err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
 		KBID:     kb.ID,
 		Title: "如何重置密码？",
 		Content:   "请访问设置页面。",
@@ -197,7 +197,7 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 func TestKnowledgeService_CreateArticle_KBNotFound(t *testing.T) {
 	svc := setupKnowledgeService(t)
 
-	err := svc.CreateArticle(request.CreateArticleRequest{
+	err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
 		KBID:     99999,
 		Title: "问题",
 		Content:   "答案",
@@ -213,11 +213,11 @@ func TestKnowledgeService_UpdateArticle_Draft(t *testing.T) {
 	kb := createTestKB(t, svc, "编辑测试库")
 	article := createTestArticle(t, svc, kb.ID, 1) // 草稿
 
-	err := svc.UpdateArticle(article.ID, request.UpdateArticleRequest{
+	err := svc.UpdateArticle(bgCtx, article.ID, request.UpdateArticleRequest{
 		Title: "更新后的问题",
 		Content:   "更新后的答案",
 		Category: "新分类",
-	}, 1)
+	})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -235,10 +235,10 @@ func TestKnowledgeService_UpdateArticle_NotEditable(t *testing.T) {
 	kb := createTestKB(t, svc, "不可编辑测试")
 	article := createTestArticle(t, svc, kb.ID, 3) // 已发布
 
-	err := svc.UpdateArticle(article.ID, request.UpdateArticleRequest{
+	err := svc.UpdateArticle(bgCtx, article.ID, request.UpdateArticleRequest{
 		Title: "尝试修改",
 		Content:   "应该失败",
-	}, 1)
+	})
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -250,7 +250,7 @@ func TestKnowledgeService_SubmitReview(t *testing.T) {
 	kb := createTestKB(t, svc, "审核测试库")
 	article := createTestArticle(t, svc, kb.ID, 1) // 草稿
 
-	err := svc.SubmitReview(article.ID, 1)
+	err := svc.SubmitReview(bgCtx, article.ID, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -268,7 +268,7 @@ func TestKnowledgeService_SubmitReview_WrongStatus(t *testing.T) {
 	kb := createTestKB(t, svc, "错误审核测试")
 	article := createTestArticle(t, svc, kb.ID, 3) // 已发布
 
-	err := svc.SubmitReview(article.ID, 1)
+	err := svc.SubmitReview(bgCtx, article.ID, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
@@ -280,7 +280,7 @@ func TestKnowledgeService_Review_Approve(t *testing.T) {
 	kb := createTestKB(t, svc, "审核通过测试")
 	article := createTestArticle(t, svc, kb.ID, 2) // 待审核
 
-	err := svc.Review(article.ID, 2, request.ReviewRequest{ // reviewerID=2, creator=1
+	err := svc.Review(bgCtx, article.ID, 2, request.ReviewRequest{ // reviewerID=2, creator=1
 		Approved: true,
 	})
 	if err != nil {
@@ -303,7 +303,7 @@ func TestKnowledgeService_Review_Reject(t *testing.T) {
 	kb := createTestKB(t, svc, "审核驳回测试")
 	article := createTestArticle(t, svc, kb.ID, 2) // 待审核
 
-	err := svc.Review(article.ID, 2, request.ReviewRequest{
+	err := svc.Review(bgCtx, article.ID, 2, request.ReviewRequest{
 		Approved:      false,
 		ReviewComment: "答案不完整，请补充。",
 	})
@@ -331,7 +331,7 @@ func TestKnowledgeService_Review_RejectNoComment(t *testing.T) {
 	kb := createTestKB(t, svc, "驳回无意见测试")
 	article := createTestArticle(t, svc, kb.ID, 2) // 待审核
 
-	err := svc.Review(article.ID, 2, request.ReviewRequest{
+	err := svc.Review(bgCtx, article.ID, 2, request.ReviewRequest{
 		Approved: false,
 		// ReviewComment 为空
 	})
@@ -347,7 +347,7 @@ func TestKnowledgeService_Review_SameAsCreator(t *testing.T) {
 	article := createTestArticle(t, svc, kb.ID, 2) // 待审核，CreatedBy=1
 
 	// reviewerID=1，与创建人相同
-	err := svc.Review(article.ID, 1, request.ReviewRequest{
+	err := svc.Review(bgCtx, article.ID, 1, request.ReviewRequest{
 		Approved: true,
 	})
 	if err == nil {
@@ -362,7 +362,7 @@ func TestKnowledgeService_Publish(t *testing.T) {
 	kb := createTestKB(t, svc, "发布测试库")
 	article := createTestArticle(t, svc, kb.ID, 3) // 已通过
 
-	err := svc.Publish(context.Background(), article.ID, 2)
+	err := svc.Publish(bgCtx, article.ID, 2)
 	if err == nil {
 		// 有真实管道时验证状态
 		var updated model.KnowledgeArticle
@@ -386,7 +386,7 @@ func TestKnowledgeService_Disable(t *testing.T) {
 	kb := createTestKB(t, svc, "停用测试库")
 	article := createTestArticle(t, svc, kb.ID, 4) // 已发布
 
-	err := svc.Disable(context.Background(), article.ID)
+	err := svc.Disable(bgCtx, article.ID, 1)
 	if err == nil {
 		// 成功停用时验证 status=ArticleStatusDisabled(0)
 		var updated model.KnowledgeArticle
@@ -408,7 +408,7 @@ func TestKnowledgeService_ListArticles(t *testing.T) {
 		createTestArticle(t, svc, kb.ID, 1)
 	}
 
-	result, err := svc.ListArticles(kb.ID, -1, 1, 10)
+	result, err := svc.ListArticles(bgCtx, kb.ID, -1, 0, "", 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -435,7 +435,7 @@ func TestKnowledgeService_GetArticleDetail(t *testing.T) {
 	}
 	knowledgeSvcDB.Create(&chunk)
 
-	result, err := svc.GetArticleDetail(article.ID)
+	result, err := svc.GetArticleDetail(bgCtx, article.ID)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -449,4 +449,3 @@ func TestKnowledgeService_GetArticleDetail(t *testing.T) {
 		t.Errorf("期望切片内容 '切片内容', got '%s'", result.Chunks[0].Content)
 	}
 }
-
