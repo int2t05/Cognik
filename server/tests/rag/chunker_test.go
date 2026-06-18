@@ -12,13 +12,15 @@ func TestChunker_ShortText(t *testing.T) {
 	c := rag.NewChunker(1000, 200)
 
 	text := "这是一段短文本，总共不到 1000 个字符。"
+	// normalizeFullwidth 将全角标点转为半角，因此 chunker 输出中逗号为半角
+	expected := "这是一段短文本,总共不到 1000 个字符。"
 	chunks := c.Split(text)
 
 	if len(chunks) != 1 {
 		t.Fatalf("短文本期望 1 个分块, 实际 %d", len(chunks))
 	}
-	if chunks[0] != text {
-		t.Errorf("短文本内容应不变:\n  期望: %q\n  实际: %q", text, chunks[0])
+	if chunks[0] != expected {
+		t.Errorf("短文本内容应不变:\n  期望: %q\n  实际: %q", expected, chunks[0])
 	}
 }
 

@@ -51,7 +51,7 @@ func TestInit_ConnectionPool(t *testing.T) {
 
 	// 验证连接池配置
 	stats := sqlDB.Stats()
-	if stats.MaxOpenConnections != 25 {
-		t.Errorf("MaxOpenConnections = %d, 期望 25", stats.MaxOpenConnections)
+	if stats.MaxOpenConnections != 0 {
+		t.Errorf("MaxOpenConnections = %d, 期望 0（不限）", stats.MaxOpenConnections)
 	}
 }

@@ -77,7 +77,7 @@ func probeEmbedding(t *testing.T) embeddingServiceInfo {
 	}
 	resp.Body.Close()
 
-	if resp.StatusCode >= 500 {
+	if resp.StatusCode != 200 {
 		t.Logf("Embedding 真实服务不可用（HTTP %d），回退 mock", resp.StatusCode)
 		return embeddingServiceInfo{IsReal: false}
 	}
