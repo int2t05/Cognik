@@ -5,6 +5,7 @@
 package service
 
 import (
+	"context"
 	"opsmind/internal/dto/response"
 	"opsmind/internal/repository"
 )
@@ -20,8 +21,8 @@ func NewAuditService(auditRepo *repository.AuditRepo) *AuditService {
 }
 
 // List 分页查询审计日志（含操作人姓名，operatorID=0 映射为"系统"）。
-func (s *AuditService) List(f repository.AuditFilter) ([]response.AuditLogItem, int64, error) {
-	rows, total, err := s.auditRepo.List(f)
+func (s *AuditService) List(ctx context.Context, f repository.AuditFilter) ([]response.AuditLogItem, int64, error) {
+	rows, total, err := s.auditRepo.List(ctx, f)
 	if err != nil {
 		return nil, 0, err
 	}

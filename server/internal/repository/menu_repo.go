@@ -1,10 +1,11 @@
 // Package repository 实现菜单数据访问层。
 //
-// MenuRepo 从 UserRepo 中拆分出来，独立管理 menus/role_menus 表操作。
-// 拆分原因：UserRepo 承担了用户、角色、菜单三种职责，违反单一职责原则。
+// MenuRepo 独立管理 menus/role_menus 表操作。
 package repository
 
 import (
+	"context"
+
 	"opsmind/internal/model"
 
 	"gorm.io/gorm"
@@ -20,30 +21,27 @@ func NewMenuRepo(db *gorm.DB) *MenuRepo {
 	return &MenuRepo{db: db}
 }
 
-// ListMenus 查询全部菜单（按排序字段升序）。
-func (r *MenuRepo) ListMenus() ([]model.Menu, error) {
+func (r *MenuRepo) ListMenus(ctx context.Context) ([]model.Menu, error) {
 	var menus []model.Menu
-	err := r.db.Order("sort_order ASC, id ASC").Find(&menus).Error
+	err := r.db.WithContext(ctx).Order("sort_order ASC, id ASC").Find(&menus).Error
 	return menus, err
 }
 
-// GetRoleMenus 查询角色关联的菜单列表。
-func (r *MenuRepo) GetRoleMenus(roleID int64) ([]model.Menu, error) {
+func (r *MenuRepo) GetRoleMenus(ctx context.Context, roleID int64) ([]model.Menu, error) {
 	var menus []model.Menu
-	err := r.db.Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
+	err := r.db.WithContext(ctx).Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
 		Where("role_menus.role_id = ?", roleID).
 		Order("menus.sort_order ASC, menus.id ASC").
 		Find(&menus).Error
 	return menus, err
 }
 
-// BatchGetRoleMenus 批量查询多个角色的菜单（去重）。
-func (r *MenuRepo) BatchGetRoleMenus(roleIDs []int64) ([]model.Menu, error) {
+func (r *MenuRepo) BatchGetRoleMenus(ctx context.Context, roleIDs []int64) ([]model.Menu, error) {
 	if len(roleIDs) == 0 {
 		return nil, nil
 	}
 	var menus []model.Menu
-	err := r.db.Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
+	err := r.db.WithContext(ctx).Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
 		Where("role_menus.role_id IN ?", roleIDs).
 		Order("menus.sort_order ASC, menus.id ASC").
 		Distinct().
@@ -51,15 +49,12 @@ func (r *MenuRepo) BatchGetRoleMenus(roleIDs []int64) ([]model.Menu, error) {
 	return menus, err
 }
 
-// ValidateMenuIDs 校验菜单 ID 列表是否全部存在。
-//
-// 返回不存在的 ID 列表，用于 UpdateRoleMenus 前置校验。
-func (r *MenuRepo) ValidateMenuIDs(menuIDs []int64) ([]int64, error) {
+func (r *MenuRepo) ValidateMenuIDs(ctx context.Context, menuIDs []int64) ([]int64, error) {
 	if len(menuIDs) == 0 {
 		return nil, nil
 	}
 	var existing []int64
-	if err := r.db.Model(&model.Menu{}).Where("id IN ?", menuIDs).Pluck("id", &existing).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.Menu{}).Where("id IN ?", menuIDs).Pluck("id", &existing).Error; err != nil {
 		return nil, err
 	}
 	existingSet := make(map[int64]bool, len(existing))
@@ -75,9 +70,8 @@ func (r *MenuRepo) ValidateMenuIDs(menuIDs []int64) ([]int64, error) {
 	return missing, nil
 }
 
-// UpdateRoleMenus 更新角色菜单关联（先删后批量插入，单事务保证原子性）。
-func (r *MenuRepo) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *MenuRepo) UpdateRoleMenus(ctx context.Context, roleID int64, menuIDs []int64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", roleID).Delete(&model.RoleMenu{}).Error; err != nil {
 			return err
 		}

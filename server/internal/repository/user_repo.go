@@ -6,6 +6,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 
@@ -27,9 +28,9 @@ func NewUserRepo(db *gorm.DB) *UserRepo {
 // GetByID 按 ID 查询用户。
 //
 // ID 是主键，查询不到时返回 gorm.ErrRecordNotFound。
-func (r *UserRepo) GetByID(id int64) (*model.User, error) {
+func (r *UserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("id = ?", id).First(&user).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -39,9 +40,9 @@ func (r *UserRepo) GetByID(id int64) (*model.User, error) {
 // GetByUsername 按用户名查询用户。
 //
 // username 具有唯一索引，用于登录验证。
-func (r *UserRepo) GetByUsername(username string) (*model.User, error) {
+func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("username = ?", username).First(&user).Error
+	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -49,21 +50,21 @@ func (r *UserRepo) GetByUsername(username string) (*model.User, error) {
 }
 
 // FindByIDs 按 ID 列表批量查询用户（仅返回 id + real_name，供审计等服务使用）。
-func (r *UserRepo) FindByIDs(ids []int64) ([]model.User, error) {
+func (r *UserRepo) FindByIDs(ctx context.Context, ids []int64) ([]model.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	var users []model.User
-	err := r.db.Where("id IN ?", ids).Select("id, real_name").Find(&users).Error
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Select("id, real_name").Find(&users).Error
 	return users, err
 }
 
 // GetByPhone 按手机号查询用户。
 //
 // phone 用于报障人身份识别和注册校验。
-func (r *UserRepo) GetByPhone(phone string) (*model.User, error) {
+func (r *UserRepo) GetByPhone(ctx context.Context, phone string) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("phone = ?", phone).First(&user).Error
+	err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +75,12 @@ func (r *UserRepo) GetByPhone(phone string) (*model.User, error) {
 //
 // 为什么单独封装而非复用 GetByPhone：
 // 语义更清晰（布尔返回值 vs 结构体），优化为 SELECT 1 提升性能。
-func (r *UserRepo) ExistsByPhone(phone string) (bool, error) {
-	// 输入验证
+func (r *UserRepo) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
 	if phone == "" {
 		return false, nil
 	}
-
 	var id uint
-	err := r.db.Model(&model.User{}).Where("phone = ?", phone).Limit(1).Pluck("id", &id).Error
+	err := r.db.WithContext(ctx).Model(&model.User{}).Where("phone = ?", phone).Limit(1).Pluck("id", &id).Error
 	if err != nil {
 		return false, err
 	}
@@ -92,24 +91,24 @@ func (r *UserRepo) ExistsByPhone(phone string) (bool, error) {
 //
 // 创建后 user.ID 会被 GORM 自动填充（autoIncrement）。
 // 用户名唯一约束由数据库保证，重复时返回 PostgreSQL 错误。
-func (r *UserRepo) Create(user *model.User) error {
-	return r.db.Create(user).Error
+func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
+	return r.db.WithContext(ctx).Create(user).Error
 }
 
 // Update 更新用户全部字段。
 //
 // 为什么用 Save 而非 Updates：Save 会更新所有字段（包括零值），
 // 适用于修改密码等需要更新 password_hash、first_login、updated_at 的场景。
-func (r *UserRepo) Update(user *model.User) error {
-	return r.db.Save(user).Error
+func (r *UserRepo) Update(ctx context.Context, user *model.User) error {
+	return r.db.WithContext(ctx).Save(user).Error
 }
 
 // List 分页查询用户列表，支持关键词搜索。
-func (r *UserRepo) List(page, pageSize int, keyword string) ([]model.User, int64, error) {
+func (r *UserRepo) List(ctx context.Context, page, pageSize int, keyword string) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
 
-	query := r.db.Model(&model.User{})
+	query := r.db.WithContext(ctx).Model(&model.User{})
 	if keyword != "" {
 		query = query.Where("username LIKE ? OR real_name LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -129,19 +128,17 @@ func (r *UserRepo) List(page, pageSize int, keyword string) ([]model.User, int64
 // UpdateStatus 更新用户状态（冻结/恢复）。
 //
 // 为什么单独封装而非复用 Update：仅更新 status 字段，避免意外覆盖其他字段。
-func (r *UserRepo) UpdateStatus(id int64, status int) error {
-	return r.db.Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
+func (r *UserRepo) UpdateStatus(ctx context.Context, id int64, status int) error {
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("status", status).Error
 }
 
 // ExistsByUsername 检查用户名是否已存在。
-func (r *UserRepo) ExistsByUsername(username string) (bool, error) {
-	// 输入验证
+func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	if username == "" {
 		return false, nil
 	}
-
 	var id uint
-	err := r.db.Model(&model.User{}).Where("username = ?", username).Limit(1).Pluck("id", &id).Error
+	err := r.db.WithContext(ctx).Model(&model.User{}).Where("username = ?", username).Limit(1).Pluck("id", &id).Error
 	if err != nil {
 		return false, err
 	}
@@ -151,16 +148,16 @@ func (r *UserRepo) ExistsByUsername(username string) (bool, error) {
 // --- 角色关联查询 ---
 
 // GetUserRoles 查询用户关联的角色列表。
-func (r *UserRepo) GetUserRoles(userID int64) ([]model.Role, error) {
+func (r *UserRepo) GetUserRoles(ctx context.Context, userID int64) ([]model.Role, error) {
 	var roles []model.Role
-	err := r.db.Joins("JOIN user_roles ON user_roles.role_id = roles.id").
+	err := r.db.WithContext(ctx).Joins("JOIN user_roles ON user_roles.role_id = roles.id").
 		Where("user_roles.user_id = ?", userID).
 		Find(&roles).Error
 	return roles, err
 }
 
 // BatchGetUserRoles 批量查询多个用户的角色名（用于列表场景消除 N+1）。
-func (r *UserRepo) BatchGetUserRoles(userIDs []int64) (map[int64][]string, error) {
+func (r *UserRepo) BatchGetUserRoles(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
@@ -169,7 +166,7 @@ func (r *UserRepo) BatchGetUserRoles(userIDs []int64) (map[int64][]string, error
 		RoleName string `gorm:"column:role_name"`
 	}
 	var rows []row
-	err := r.db.Table("user_roles").
+	err := r.db.WithContext(ctx).Table("user_roles").
 		Select("user_roles.user_id, roles.name AS role_name").
 		Joins("JOIN roles ON roles.id = user_roles.role_id").
 		Where("user_roles.user_id IN ?", userIDs).
@@ -187,9 +184,9 @@ func (r *UserRepo) BatchGetUserRoles(userIDs []int64) (map[int64][]string, error
 // CountActiveAdmins 统计除指定用户外的活跃系统管理员数量。
 //
 // 用于冻结/降级管理员前的安全检查：确保至少还有一个活跃管理员可操作系统。
-func (r *UserRepo) CountActiveAdmins(excludeUserID int64) (int64, error) {
+func (r *UserRepo) CountActiveAdmins(ctx context.Context, excludeUserID int64) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.UserRole{}).
+	err := r.db.WithContext(ctx).Model(&model.UserRole{}).
 		Joins("JOIN users ON users.id = user_roles.user_id").
 		Joins("JOIN roles ON roles.id = user_roles.role_id").
 		Where("roles.name = ?", "系统管理员").
@@ -202,16 +199,16 @@ func (r *UserRepo) CountActiveAdmins(excludeUserID int64) (int64, error) {
 // CountUsersByRole 统计拥有指定角色的用户数。
 //
 // 用于角色删除前校验：若关联用户 > 0 则拒绝删除，避免产生孤儿 user_roles 记录。
-func (r *UserRepo) CountUsersByRole(roleID int64) (int64, error) {
+func (r *UserRepo) CountUsersByRole(ctx context.Context, roleID int64) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.UserRole{}).Where("role_id = ?", roleID).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.UserRole{}).Where("role_id = ?", roleID).Count(&count).Error
 	return count, err
 }
 
 // AssignRoles 分配用户角色（先删后插，无内部事务，由调用方管理事务边界）。
 //
 // 自动过滤 roleID ≤ 0 的非法值并去重，避免重复主键和无效外键。
-func (r *UserRepo) AssignRoles(userID int64, roleIDs []int64) error {
+func (r *UserRepo) AssignRoles(ctx context.Context, userID int64, roleIDs []int64) error {
 	seen := make(map[int64]bool)
 	valid := make([]int64, 0, len(roleIDs))
 	for _, rid := range roleIDs {
@@ -221,11 +218,11 @@ func (r *UserRepo) AssignRoles(userID int64, roleIDs []int64) error {
 		}
 	}
 
-	if err := r.db.Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.UserRole{}).Error; err != nil {
 		return err
 	}
 	for _, roleID := range valid {
-		if err := r.db.Create(&model.UserRole{UserID: userID, RoleID: roleID}).Error; err != nil {
+		if err := r.db.WithContext(ctx).Create(&model.UserRole{UserID: userID, RoleID: roleID}).Error; err != nil {
 			return err
 		}
 	}
@@ -236,9 +233,9 @@ func (r *UserRepo) AssignRoles(userID int64, roleIDs []int64) error {
 //
 // 权限从 Role.Permissions (jsonb) 字段解析，不再使用硬编码映射。
 // 新增角色或修改权限无需改代码，只需更新数据库 role 记录即可生效。
-func (r *UserRepo) GetUserPermissions(userID int64) ([]string, error) {
+func (r *UserRepo) GetUserPermissions(ctx context.Context, userID int64) ([]string, error) {
 	var roles []model.Role
-	if err := r.db.Model(&model.Role{}).
+	if err := r.db.WithContext(ctx).Model(&model.Role{}).
 		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
 		Where("user_roles.user_id = ?", userID).
 		Find(&roles).Error; err != nil {
@@ -250,8 +247,6 @@ func (r *UserRepo) GetUserPermissions(userID int64) ([]string, error) {
 		var perms []string
 		if len(role.Permissions) > 0 {
 			if err := json.Unmarshal(role.Permissions, &perms); err != nil {
-				// 角色权限 JSON 损坏时记录告警但继续处理其他角色，
-				// 避免单个角色数据损坏导致全体权限失效。
 				slog.Warn("角色权限 JSON 解析失败，已跳过", "role_id", role.ID, "role_name", role.Name, "error", err)
 				continue
 			}
@@ -267,4 +262,3 @@ func (r *UserRepo) GetUserPermissions(userID int64) ([]string, error) {
 	}
 	return result, nil
 }
-

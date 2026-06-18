@@ -5,6 +5,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ func NewDashboardService(repo *repository.DashboardRepo) *DashboardService {
 }
 
 // GetStats 获取看板统计数据（7 项查询并行执行）。
-func (s *DashboardService) GetStats() (*response.StatsResponse, error) {
+func (s *DashboardService) GetStats(ctx context.Context) (*response.StatsResponse, error) {
 	var (
 		resp         response.StatsResponse
 		mu           sync.Mutex
@@ -42,13 +43,13 @@ func (s *DashboardService) GetStats() (*response.StatsResponse, error) {
 	}
 
 	wg.Add(7)
-	go func() { defer wg.Done(); c, e := s.repo.CountTodayTickets(); mu.Lock(); resp.TodayTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(1); mu.Lock(); resp.PendingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(2); mu.Lock(); resp.ProcessingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(4); mu.Lock(); resp.ResolvedTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountTodayChats(); mu.Lock(); resp.TodayChats = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); a, e := s.repo.AvgTodayConfidence(); mu.Lock(); resp.AvgConfidence = a; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountKnowledgeArticles(); mu.Lock(); resp.KnowledgeCount = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountTodayTickets(ctx); mu.Lock(); resp.TodayTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 1); mu.Lock(); resp.PendingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 2); mu.Lock(); resp.ProcessingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 4); mu.Lock(); resp.ResolvedTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountTodayChats(ctx); mu.Lock(); resp.TodayChats = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); a, e := s.repo.AvgTodayConfidence(ctx); mu.Lock(); resp.AvgConfidence = a; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() { defer wg.Done(); c, e := s.repo.CountKnowledgeArticles(ctx); mu.Lock(); resp.KnowledgeCount = c; mu.Unlock(); if e != nil { setErr(e) } }()
 
 	wg.Wait()
 	if firstErr != nil {
@@ -58,7 +59,7 @@ func (s *DashboardService) GetStats() (*response.StatsResponse, error) {
 }
 
 // GetTrends 获取趋势数据（支持 day/week 粒度，上限 90 天）。
-func (s *DashboardService) GetTrends(req request.TrendRequest) (*response.TrendResponse, error) {
+func (s *DashboardService) GetTrends(ctx context.Context, req request.TrendRequest) (*response.TrendResponse, error) {
 	startDate, err := time.Parse("2006-01-02", req.StartDate)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "开始日期格式错误，格式应为 YYYY-MM-DD"}
@@ -105,7 +106,7 @@ func (s *DashboardService) GetTrends(req request.TrendRequest) (*response.TrendR
 	}
 
 	// 查询趋势（已支持 granularity 参数）
-	ticketCounts, err := s.repo.GetTicketTrends(req.StartDate, req.EndDate, granularity)
+	ticketCounts, err := s.repo.GetTicketTrends(ctx, req.StartDate, req.EndDate, granularity)
 	if err != nil {
 		return nil, fmt.Errorf("查询每日申告数失败: %w", err)
 	}
@@ -114,7 +115,7 @@ func (s *DashboardService) GetTrends(req request.TrendRequest) (*response.TrendR
 		ticketMap[tc.Date] = tc.Count
 	}
 
-	chatCounts, err := s.repo.GetChatTrends(req.StartDate, req.EndDate, granularity)
+	chatCounts, err := s.repo.GetChatTrends(ctx, req.StartDate, req.EndDate, granularity)
 	if err != nil {
 		return nil, fmt.Errorf("查询每日问答数失败: %w", err)
 	}

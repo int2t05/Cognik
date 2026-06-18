@@ -4,6 +4,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,12 +18,21 @@ import (
 )
 
 // LLMConfigManager 管理当前生效的 LLM 配置（热替换）。
+//
+// onChange 在默认配置变更时被调用，用于触发 LLM/Embedding 客户端重建。
+// 如果回调未注册（nil），配置变更仅更新内存缓存，客户端保持不变。
 type LLMConfigManager struct {
-	current atomic.Value // *model.LlmConfig
+	current  atomic.Value // *model.LlmConfig
+	onChange func()       // 默认配置变更回调
 }
 
 func NewLLMConfigManager() *LLMConfigManager {
 	return &LLMConfigManager{}
+}
+
+// OnChange 注册默认配置变更回调。仅允许注册一次（覆盖式）。
+func (m *LLMConfigManager) OnChange(fn func()) {
+	m.onChange = fn
 }
 
 // GetConfig 返回当前生效的配置（零锁读取），可能为 nil。
@@ -34,21 +44,24 @@ func (m *LLMConfigManager) GetConfig() *model.LlmConfig {
 	return v.(*model.LlmConfig)
 }
 
-// store 原子替换配置（深拷贝，防止调用方修改原对象影响热配置）。
+// store 原子替换配置并触发变更回调。
 func (m *LLMConfigManager) store(cfg *model.LlmConfig) {
 	clone := *cfg
 	m.current.Store(&clone)
+	if m.onChange != nil {
+		m.onChange()
+	}
 }
 
 // llmConfigRepo 定义 LLM 配置仓库接口（消费者定义接口）。
 type llmConfigRepo interface {
-	Create(cfg *model.LlmConfig) error
-	FindByID(id int64) (*model.LlmConfig, error)
-	FindDefault() (*model.LlmConfig, error)
-	List() ([]model.LlmConfig, error)
-	Update(cfg *model.LlmConfig) error
-	Delete(id int64) error
-	ClearDefault() error
+	Create(ctx context.Context, cfg *model.LlmConfig) error
+	FindByID(ctx context.Context, id int64) (*model.LlmConfig, error)
+	FindDefault(ctx context.Context) (*model.LlmConfig, error)
+	List(ctx context.Context) ([]model.LlmConfig, error)
+	Update(ctx context.Context, cfg *model.LlmConfig) error
+	Delete(ctx context.Context, id int64) error
+	ClearDefault(ctx context.Context) error
 }
 
 type txRepoFactory func(tx *gorm.DB) llmConfigRepo
@@ -82,7 +95,7 @@ func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
 		return nil, fmt.Errorf("NewLLMConfigService: unsupported repo type %T", repo)
 	}
 
-	if cfg, err := svc.repo.FindDefault(); err == nil {
+	if cfg, err := svc.repo.FindDefault(context.Background()); err == nil {
 		svc.manager.store(cfg)
 	}
 
@@ -92,7 +105,7 @@ func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
 func (s *LLMConfigService) GetManager() *LLMConfigManager { return s.manager }
 
 // CreateConfig 创建 LLM 配置。is_default=true 时先清空其他默认（事务保证原子性）。
-func (s *LLMConfigService) CreateConfig(name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
+func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, AppError{Code: errcode.ErrParam, Message: "名称不能为空"}
 	}
@@ -117,23 +130,23 @@ func (s *LLMConfigService) CreateConfig(name string, providerType int16, baseURL
 	}
 
 	if s.db != nil && isDefault {
-		err := s.db.Transaction(func(tx *gorm.DB) error {
+		err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			txRepo := s.newRepo(tx)
-			if err := txRepo.ClearDefault(); err != nil {
+			if err := txRepo.ClearDefault(ctx); err != nil {
 				return AppError{Code: errcode.ErrUnknown, Message: "清空默认配置失败"}
 			}
-			return txRepo.Create(cfg)
+			return txRepo.Create(ctx, cfg)
 		})
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		if isDefault {
-			if err := s.repo.ClearDefault(); err != nil {
+			if err := s.repo.ClearDefault(ctx); err != nil {
 				return nil, AppError{Code: errcode.ErrUnknown, Message: "清空默认配置失败"}
 			}
 		}
-		if err := s.repo.Create(cfg); err != nil {
+		if err := s.repo.Create(ctx, cfg); err != nil {
 			return nil, AppError{Code: errcode.ErrUnknown, Message: "创建 LLM 配置失败"}
 		}
 	}
@@ -145,10 +158,10 @@ func (s *LLMConfigService) CreateConfig(name string, providerType int16, baseURL
 }
 
 // UpdateConfig 更新 LLM 配置。api_key 为空时保留原值。
-func (s *LLMConfigService) UpdateConfig(cfg *model.LlmConfig) error {
+func (s *LLMConfigService) UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error {
 	// api_key 为空时保留数据库中原值
 	if cfg.APIKey == "" {
-		existing, err := s.repo.FindByID(cfg.ID)
+		existing, err := s.repo.FindByID(ctx, cfg.ID)
 		if err != nil {
 			return AppError{Code: errcode.ErrNotFound, Message: "LLM 配置不存在"}
 		}
@@ -156,23 +169,23 @@ func (s *LLMConfigService) UpdateConfig(cfg *model.LlmConfig) error {
 	}
 
 	if s.db != nil && cfg.IsDefault {
-		err := s.db.Transaction(func(tx *gorm.DB) error {
+		err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			txRepo := s.newRepo(tx)
-			if err := txRepo.ClearDefault(); err != nil {
+			if err := txRepo.ClearDefault(ctx); err != nil {
 				return AppError{Code: errcode.ErrUnknown, Message: "清空默认配置失败"}
 			}
-			return txRepo.Update(cfg)
+			return txRepo.Update(ctx, cfg)
 		})
 		if err != nil {
 			return err
 		}
 	} else {
 		if cfg.IsDefault {
-			if err := s.repo.ClearDefault(); err != nil {
+			if err := s.repo.ClearDefault(ctx); err != nil {
 				return AppError{Code: errcode.ErrUnknown, Message: "清空默认配置失败"}
 			}
 		}
-		if err := s.repo.Update(cfg); err != nil {
+		if err := s.repo.Update(ctx, cfg); err != nil {
 			return AppError{Code: errcode.ErrUnknown, Message: "更新 LLM 配置失败"}
 		}
 	}
@@ -182,7 +195,7 @@ func (s *LLMConfigService) UpdateConfig(cfg *model.LlmConfig) error {
 	}
 	// 审计：更新 LLM 配置
 	if s.auditRepo != nil {
-		s.auditRepo.Create(&model.AuditLog{
+		s.auditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: 0, Action: "llm_config.update",
 			TargetType: "llm_config", TargetID: cfg.ID,
 		})
@@ -190,8 +203,8 @@ func (s *LLMConfigService) UpdateConfig(cfg *model.LlmConfig) error {
 	return nil
 }
 
-func (s *LLMConfigService) ListConfigs() ([]LlmConfigResponse, error) {
-	configs, err := s.repo.List()
+func (s *LLMConfigService) ListConfigs(ctx context.Context) ([]LlmConfigResponse, error) {
+	configs, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -208,16 +221,16 @@ func (s *LLMConfigService) ListConfigs() ([]LlmConfigResponse, error) {
 	return result, nil
 }
 
-func (s *LLMConfigService) GetConfig(id int64) (*model.LlmConfig, error) {
-	cfg, err := s.repo.FindByID(id)
+func (s *LLMConfigService) GetConfig(ctx context.Context, id int64) (*model.LlmConfig, error) {
+	cfg, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, AppError{Code: errcode.ErrNotFound, Message: "LLM 配置不存在"}
 	}
 	return cfg, nil
 }
 
-func (s *LLMConfigService) DeleteConfig(id int64) error {
-	cfg, err := s.repo.FindByID(id)
+func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
+	cfg, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return AppError{Code: errcode.ErrNotFound, Message: "LLM 配置不存在"}
 	}
@@ -226,7 +239,7 @@ func (s *LLMConfigService) DeleteConfig(id int64) error {
 	}
 	// 检查知识库引用
 	if r, ok := s.repo.(*repository.LlmConfigRepo); ok {
-		count, err := r.CountReferencingKBs(id)
+		count, err := r.CountReferencingKBs(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -234,7 +247,7 @@ func (s *LLMConfigService) DeleteConfig(id int64) error {
 			return AppError{Code: errcode.ErrConflict, Message: "该配置被知识库引用，无法删除"}
 		}
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(ctx, id)
 }
 
 // =============================================================================

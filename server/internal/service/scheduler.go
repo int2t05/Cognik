@@ -13,7 +13,7 @@ import (
 
 // ticketAutoCloseService Scheduler 需要的 TicketService 方法子集（消费者定义接口）。
 type ticketAutoCloseService interface {
-	AutoClose(olderThan time.Time) (int64, error)
+	AutoClose(ctx context.Context, olderThan time.Time) (int64, error)
 }
 
 // Scheduler 后台调度器。
@@ -67,7 +67,7 @@ func (s *Scheduler) runAutoCloseLoop(ctx context.Context) {
 }
 
 func (s *Scheduler) doAutoClose() {
-	closed, err := s.ticketSvc.AutoClose(time.Now().Add(-7 * 24 * time.Hour))
+	closed, err := s.ticketSvc.AutoClose(context.Background(), time.Now().Add(-7*24*time.Hour))
 	if err != nil {
 		slog.Error("自动关闭申告失败", "error", err)
 	} else if closed > 0 {
@@ -77,5 +77,5 @@ func (s *Scheduler) doAutoClose() {
 
 // RunAutoClose 手动关闭超期申告（暴露给测试使用）。
 func (s *Scheduler) RunAutoClose(olderThan time.Time) (int64, error) {
-	return s.ticketSvc.AutoClose(olderThan)
+	return s.ticketSvc.AutoClose(context.Background(), olderThan)
 }

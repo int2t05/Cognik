@@ -33,7 +33,7 @@ func (h *ConfigHandler) Get(c *gin.Context) {
 		return
 	}
 
-	val, err := h.svc.GetConfig(key)
+	val, err := h.svc.GetConfig(c.Request.Context(), key)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -80,7 +80,7 @@ func (h *ConfigHandler) Update(c *gin.Context) {
 	}
 
 	updatedBy, _ := getCurrentUserID(c)
-	if err := h.svc.UpdateConfig(key, val, updatedBy); err != nil {
+	if err := h.svc.UpdateConfig(c.Request.Context(), key, val, updatedBy); err != nil {
 		handleServiceError(c, err)
 		return
 	}

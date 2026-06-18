@@ -38,6 +38,11 @@ func NewEmbedder(client adapter.EmbeddingClient, batchSize int) *Embedder {
 	}
 }
 
+// SetClient 替换内部 Embedding 客户端（默认配置变更时由回调调用）。
+func (e *Embedder) SetClient(client adapter.EmbeddingClient) {
+	e.client = client
+}
+
 // Embed 将文本列表批量转换为向量。
 //
 // 返回的向量列表顺序与输入 texts 严格一致。

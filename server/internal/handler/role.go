@@ -30,7 +30,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Create(req.Name, req.Description, req.Permissions); err != nil {
+	if err := h.svc.Create(c.Request.Context(), req.Name, req.Description, req.Permissions); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -45,7 +45,7 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	role, svcErr := h.svc.GetByID(id)
+	role, svcErr := h.svc.GetByID(c.Request.Context(), id)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -59,7 +59,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 	page, pageSize := parsePagination(c)
 	keyword := c.Query("keyword")
 
-	roles, total, err := h.svc.List(page, pageSize, keyword)
+	roles, total, err := h.svc.List(c.Request.Context(), page, pageSize, keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -81,7 +81,7 @@ func (h *RoleHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Update(id, req.Name, req.Description, req.Permissions); err != nil {
+	if err := h.svc.Update(c.Request.Context(), id, req.Name, req.Description, req.Permissions); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -96,7 +96,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Delete(id); err != nil {
+	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -112,7 +112,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 //
 // GET /api/v1/admin/menus
 func (h *RoleHandler) ListMenus(c *gin.Context) {
-	menus, err := h.svc.ListMenus()
+	menus, err := h.svc.ListMenus(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -137,7 +137,7 @@ func (h *RoleHandler) UpdateRoleMenus(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdateRoleMenus(id, body.MenuIDs); err != nil {
+	if err := h.svc.UpdateRoleMenus(c.Request.Context(), id, body.MenuIDs); err != nil {
 		handleServiceError(c, err)
 		return
 	}

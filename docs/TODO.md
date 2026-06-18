@@ -29,18 +29,14 @@
 
 ## 5. 数据看板与审计
 
-- 🟡 [tests/repository/audit_repo_test.go](/server/tests/repository/audit_repo_test.go) — 测试使用 `init()` 直接 panic + 硬编码数据库凭据
 - 🟡 缺少 Service 层审计写入集成测试
 
 ## 6. 系统管理与配置
 
-- 🟡 [service/llm_config_service.go](/server/internal/service/llm_config_service.go) — 默认配置切换后未重建 LLM/Embedding 客户端
-- 🟡 [model/system.go](/server/internal/model/system.go) — `system_configs.description` 未设置，配置说明永远为空
+（无）
 
 ## 7. 基础设施
 
-- 🔴 [repository/](/server/internal/repository/) — 所有 Repo 方法缺 `context.Context`，HTTP 取消不传播到 DB 查询
-- 🔴 [model/chat.go](/server/internal/model/chat.go) — `chat_sessions.sources` 未填充，检索引用证据永远为空
 - 🟢 [pkg/hash/hash.go](/server/pkg/hash/hash.go) — bcrypt cost=10 硬编码
 
 ---
@@ -158,10 +154,10 @@
 | 1. 认证与授权 | — | 1 | — | — |
 | 2. 智能问答 | — | — | 2 | — |
 | 4. 申告管理 | — | — | — | 3 |
-| 5. 数据看板与审计 | — | 2 | — | — |
-| 6. 系统管理与配置 | — | 2 | — | — |
-| 7. 基础设施 | 2 | — | 1 | — |
-| **后端合计** | **2** | **5** | **3** | **3** |
+| 5. 数据看板与审计 | — | 1 | — | — |
+| 6. 系统管理与配置 | — | — | — | — |
+| 7. 基础设施 | — | — | 1 | — |
+| **后端合计** | **0** | **2** | **3** | **3** |
 
 ### 前端
 
@@ -180,8 +176,8 @@
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
-| 后端 | 2 | 5 | 3 | 3 |
+| 后端 | 0 | 2 | 3 | 3 |
 | 前端 | 12 | 28 | 5 | 31 |
-| **合计** | **14** | **33** | **8** | **34** |
+| **合计** | **12** | **30** | **8** | **34** |
 
 > 34 个代码 TODO（后端 3 + 前端 31）全部在上表中有对应条目，双向一致。

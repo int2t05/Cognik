@@ -45,7 +45,7 @@ func (h *MessageHandler) ListMessages(c *gin.Context) {
 	}
 	filter.Type = c.Query("type")
 
-	msgs, total, err := h.svc.ListMessages(userID, page, pageSize, filter)
+	msgs, total, err := h.svc.ListMessages(c.Request.Context(), userID, page, pageSize, filter)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -67,7 +67,7 @@ func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	count, err := h.svc.MarkAsReadAndCount(id, userID)
+	count, err := h.svc.MarkAsReadAndCount(c.Request.Context(), id, userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -82,7 +82,7 @@ func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 func (h *MessageHandler) CountUnread(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 
-	count, err := h.svc.CountUnread(userID)
+	count, err := h.svc.CountUnread(c.Request.Context(), userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return

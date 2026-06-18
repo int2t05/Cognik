@@ -5,7 +5,9 @@
 package repository
 
 import (
+	"context"
 	"errors"
+
 	"opsmind/internal/model"
 
 	"gorm.io/gorm"
@@ -22,14 +24,14 @@ func NewRoleRepo(db *gorm.DB) *RoleRepo {
 }
 
 // Create 创建角色。
-func (r *RoleRepo) Create(role *model.Role) error {
-	return r.db.Create(role).Error
+func (r *RoleRepo) Create(ctx context.Context, role *model.Role) error {
+	return r.db.WithContext(ctx).Create(role).Error
 }
 
 // GetByID 根据 ID 获取角色。
-func (r *RoleRepo) GetByID(id int64) (*model.Role, error) {
+func (r *RoleRepo) GetByID(ctx context.Context, id int64) (*model.Role, error) {
 	var role model.Role
-	err := r.db.First(&role, id).Error
+	err := r.db.WithContext(ctx).First(&role, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -40,9 +42,9 @@ func (r *RoleRepo) GetByID(id int64) (*model.Role, error) {
 //
 // 用于 Service 层唯一性校验，避免绕过 Repository 直接操作 DB。
 // excludeID > 0 时排除自身（用于修改场景）。
-func (r *RoleRepo) ExistsByName(name string, excludeID int64) (bool, error) {
+func (r *RoleRepo) ExistsByName(ctx context.Context, name string, excludeID int64) (bool, error) {
 	var count int64
-	query := r.db.Model(&model.Role{}).Where("name = ?", name)
+	query := r.db.WithContext(ctx).Model(&model.Role{}).Where("name = ?", name)
 	if excludeID > 0 {
 		query = query.Where("id != ?", excludeID)
 	}
@@ -53,11 +55,11 @@ func (r *RoleRepo) ExistsByName(name string, excludeID int64) (bool, error) {
 }
 
 // List 查询角色列表（分页 + 关键词搜索）。
-func (r *RoleRepo) List(page, pageSize int, keyword string) ([]model.Role, int64, error) {
+func (r *RoleRepo) List(ctx context.Context, page, pageSize int, keyword string) ([]model.Role, int64, error) {
 	var roles []model.Role
 	var total int64
 
-	query := r.db.Model(&model.Role{})
+	query := r.db.WithContext(ctx).Model(&model.Role{})
 	if keyword != "" {
 		query = query.Where("name LIKE ? OR description LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
@@ -74,19 +76,19 @@ func (r *RoleRepo) List(page, pageSize int, keyword string) ([]model.Role, int64
 }
 
 // Update 更新角色。
-func (r *RoleRepo) Update(role *model.Role) error {
-	return r.db.Save(role).Error
+func (r *RoleRepo) Update(ctx context.Context, role *model.Role) error {
+	return r.db.WithContext(ctx).Save(role).Error
 }
 
 // Delete 删除角色。
 //
 // 添加 id <= 0 守卫防止 GORM 零值陷阱（Delete(&Role{}, 0) 会删除全部角色）。
 // 返回 ErrDeleteFailed 当 RowsAffected == 0（已被并发删除或 id 不存在）。
-func (r *RoleRepo) Delete(id int64) error {
+func (r *RoleRepo) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return gorm.ErrRecordNotFound
 	}
-	result := r.db.Where("id = ?", id).Delete(&model.Role{})
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Role{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -97,9 +99,9 @@ func (r *RoleRepo) Delete(id int64) error {
 }
 
 // IsBuiltinRole 判断角色是否为系统内置角色（不可删除）。
-func (r *RoleRepo) IsBuiltinRole(id int64) (bool, error) {
+func (r *RoleRepo) IsBuiltinRole(ctx context.Context, id int64) (bool, error) {
 	var role model.Role
-	err := r.db.Where("id = ? AND is_system = ?", id, true).First(&role).Error
+	err := r.db.WithContext(ctx).Where("id = ? AND is_system = ?", id, true).First(&role).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}

@@ -27,20 +27,20 @@ const (
 // 消费者接口——ChatService 仅暴露它实际使用的依赖方法，
 // 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
 type chatKnowledgeRepo interface {
-	FindKBByID(id int64) (*model.KnowledgeBase, error)
+	FindKBByID(ctx context.Context, id int64) (*model.KnowledgeBase, error)
 }
 
 type chatSessionRepo interface {
-	Create(session *model.ChatSession) error
-	CreateBatch(messages []model.ChatMessage) error
-	FindByID(id int64) (*model.ChatSession, error)
-	FindMessagesBySession(sessionID int64) ([]model.ChatMessage, error)
-	UpdateFeedback(id int64, feedback int16) error
-	UpdateSession(session *model.ChatSession) error
-	ListByUser(userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
-	DeleteSession(id, userID int64) error
-	CountMessagesBySession(sessionID int64) (int64, error)
-	CountMessagesBySessions(sessionIDs []int64) (map[int64]int64, error)
+	Create(ctx context.Context, session *model.ChatSession) error
+	CreateBatch(ctx context.Context, messages []model.ChatMessage) error
+	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
+	FindMessagesBySession(ctx context.Context, sessionID int64) ([]model.ChatMessage, error)
+	UpdateFeedback(ctx context.Context, id int64, feedback int16) error
+	UpdateSession(ctx context.Context, session *model.ChatSession) error
+	ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
+	DeleteSession(ctx context.Context, id, userID int64) error
+	CountMessagesBySession(ctx context.Context, sessionID int64) (int64, error)
+	CountMessagesBySessions(ctx context.Context, sessionIDs []int64) (map[int64]int64, error)
 }
 
 // RAGDefaults RAG 管道默认开关（从 env 配置读取）。
@@ -86,7 +86,7 @@ func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, l
 // 与 StreamChat 分离的原因是：会话生命周期与 AI 调用解耦，避免 LLM 超时阻塞 HTTP 请求。
 func (s *ChatService) CreateSession(ctx context.Context, req request.CreateSessionRequest, userID int64) (*model.ChatSession, error) {
 	if s.knowledgeRepo != nil {
-		if _, err := s.knowledgeRepo.FindKBByID(req.KBID); err != nil {
+		if _, err := s.knowledgeRepo.FindKBByID(ctx, req.KBID); err != nil {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
 	}
@@ -104,7 +104,7 @@ func (s *ChatService) CreateSession(ctx context.Context, req request.CreateSessi
 		KBID:     req.KBID,
 		Question: title,
 	}
-	if err := s.chatRepo.Create(session); err != nil {
+	if err := s.chatRepo.Create(ctx, session); err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建会话失败"}
 	}
 
@@ -130,7 +130,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	}
 
 	// 加载会话并校验归属
-	session, err := s.chatRepo.FindByID(sessionID)
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
@@ -140,7 +140,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 
 	// 加载历史消息（用于 LLM 上下文 + RAG 查询改写消歧）
 	var history []adapter.ChatMessage
-	msgs, msgErr := s.chatRepo.FindMessagesBySession(sessionID)
+	msgs, msgErr := s.chatRepo.FindMessagesBySession(ctx, sessionID)
 	if msgErr != nil {
 		slog.Warn("加载会话历史消息失败，多轮上下文降级为单轮", "session_id", sessionID, "error", msgErr)
 	}
@@ -188,7 +188,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 				pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
 
 				// 更新会话摘要
-				if err := s.chatRepo.UpdateSession(&model.ChatSession{
+				if err := s.chatRepo.UpdateSession(ctx, &model.ChatSession{
 					ID:         sessionID,
 					Answer:     evt.Metadata.Answer,
 					Sources:    srcJSON,
@@ -199,7 +199,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 				}
 
 				// 持久化消息（user + assistant）
-				if err := s.chatRepo.CreateBatch([]model.ChatMessage{
+				if err := s.chatRepo.CreateBatch(ctx, []model.ChatMessage{
 					{Role: "user", Content: question, SessionID: sessionID},
 					{Role: "assistant", Content: evt.Metadata.Answer, SessionID: sessionID,
 						Sources: srcJSON, Confidence: evt.Metadata.Confidence, PipelineMetrics: pipelineJSON},
@@ -228,21 +228,21 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 // SubmitFeedback 提交问答反馈。
 //
 // 校验规则在 Service 层集中管理，不依赖 Handler 层参数校验。
-func (s *ChatService) SubmitFeedback(sessionID int64, userID int64, feedback int16) error {
+func (s *ChatService) SubmitFeedback(ctx context.Context, sessionID int64, userID int64, feedback int16) error {
 	if s.chatRepo == nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
 	if feedback < 0 || feedback > 2 {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 0（未反馈）/1（已解决）/2（未解决）"}
 	}
-	session, err := s.chatRepo.FindByID(sessionID)
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
 	if session.UserID != userID {
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权操作该会话"}
 	}
-	return s.chatRepo.UpdateFeedback(sessionID, feedback)
+	return s.chatRepo.UpdateFeedback(ctx, sessionID, feedback)
 }
 
 // =============================================================================
@@ -250,11 +250,11 @@ func (s *ChatService) SubmitFeedback(sessionID int64, userID int64, feedback int
 // =============================================================================
 
 // GetChatDetail 查询问答会话详情（含多轮对话消息历史 + 归属校验）。
-func (s *ChatService) GetChatDetail(sessionID int64, userID int64) (*response.ChatSessionResponse, error) {
+func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID int64) (*response.ChatSessionResponse, error) {
 	if s.chatRepo == nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
-	session, err := s.chatRepo.FindByID(sessionID)
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
@@ -271,7 +271,7 @@ func (s *ChatService) GetChatDetail(sessionID int64, userID int64) (*response.Ch
 
 	// 加载消息历史
 	var messages []response.MessageItem
-	if msgs, msgErr := s.chatRepo.FindMessagesBySession(sessionID); msgErr == nil {
+	if msgs, msgErr := s.chatRepo.FindMessagesBySession(ctx, sessionID); msgErr == nil {
 		for _, m := range msgs {
 			var msgSources []response.SourceItem
 			if len(m.Sources) > 0 {
@@ -311,11 +311,11 @@ func (s *ChatService) GetChatDetail(sessionID int64, userID int64) (*response.Ch
 // ListSessions 分页查询用户的问答会话列表。
 //
 // 每条会话返回首轮问题标题 + 最后一条回复摘要 + 消息总数。
-func (s *ChatService) ListSessions(userID int64, page, pageSize int) ([]response.SessionListItem, int64, error) {
+func (s *ChatService) ListSessions(ctx context.Context, userID int64, page, pageSize int) ([]response.SessionListItem, int64, error) {
 	if s.chatRepo == nil {
 		return nil, 0, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
-	sessions, total, err := s.chatRepo.ListByUser(userID, page, pageSize)
+	sessions, total, err := s.chatRepo.ListByUser(ctx, userID, page, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -325,7 +325,7 @@ func (s *ChatService) ListSessions(userID int64, page, pageSize int) ([]response
 	for i, sess := range sessions {
 		sessionIDs[i] = sess.ID
 	}
-	msgCounts, countErr := s.chatRepo.CountMessagesBySessions(sessionIDs)
+	msgCounts, countErr := s.chatRepo.CountMessagesBySessions(ctx, sessionIDs)
 	if countErr != nil {
 		slog.Warn("批量获取会话消息数失败", "error", countErr)
 		msgCounts = map[int64]int64{}
@@ -347,18 +347,18 @@ func (s *ChatService) ListSessions(userID int64, page, pageSize int) ([]response
 }
 
 // DeleteSession 删除会话及其全部消息（含归属校验）。
-func (s *ChatService) DeleteSession(sessionID, userID int64) error {
+func (s *ChatService) DeleteSession(ctx context.Context, sessionID, userID int64) error {
 	if s.chatRepo == nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
-	session, err := s.chatRepo.FindByID(sessionID)
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
 	if session.UserID != userID {
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权删除该会话"}
 	}
-	return s.chatRepo.DeleteSession(sessionID, userID)
+	return s.chatRepo.DeleteSession(ctx, sessionID, userID)
 }
 
 // truncateText 截断文本到 maxRunes 个字符，超出加 "..."

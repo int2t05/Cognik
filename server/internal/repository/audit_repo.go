@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"context"
 	"strings"
 
 	"gorm.io/gorm"
@@ -45,15 +46,14 @@ func NewAuditRepo(db *gorm.DB) *AuditRepo {
 	return &AuditRepo{db: db}
 }
 
-// Create 写入一条审计日志。写入失败返回 error，由调用方决定是否阻断主流程。
-func (r *AuditRepo) Create(log interface{}) error {
-	return r.db.Create(log).Error
+// Create 写入一条审计日志。
+func (r *AuditRepo) Create(ctx context.Context, log interface{}) error {
+	return r.db.WithContext(ctx).Create(log).Error
 }
 
 // List 分页查询审计日志（LEFT JOIN users 获取操作人姓名），支持多维过滤。
-func (r *AuditRepo) List(f AuditFilter) ([]AuditLogRow, int64, error) {
-	// audit_logs LEFT JOIN users，一次查询获取操作人姓名
-	query := r.db.Table("audit_logs").
+func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]AuditLogRow, int64, error) {
+	query := r.db.WithContext(ctx).Table("audit_logs").
 		Select(`audit_logs.id, audit_logs.operator_id, audit_logs.action,
 			audit_logs.target_type, audit_logs.target_id,
 			COALESCE(users.real_name, '') AS operator_name,

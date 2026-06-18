@@ -46,7 +46,7 @@ func (h *AuditHandler) List(c *gin.Context) {
 		PageSize:   pageSize,
 	}
 
-	items, total, err := h.svc.List(f)
+	items, total, err := h.svc.List(c.Request.Context(), f)
 	if err != nil {
 		handleServiceError(c, err)
 		return

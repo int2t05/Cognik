@@ -28,7 +28,7 @@ func NewDashboardHandler(svc *service.DashboardService) *DashboardHandler {
 //
 // GET /api/v1/admin/dashboard/stats
 func (h *DashboardHandler) GetStats(c *gin.Context) {
-	resp, err := h.svc.GetStats()
+	resp, err := h.svc.GetStats(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -47,7 +47,7 @@ func (h *DashboardHandler) GetTrends(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.GetTrends(req)
+	resp, err := h.svc.GetTrends(c.Request.Context(), req)
 	if err != nil {
 		handleServiceError(c, err)
 		return

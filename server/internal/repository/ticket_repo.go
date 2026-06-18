@@ -6,6 +6,7 @@
 package repository
 
 import (
+	"context"
 	"time"
 
 	"opsmind/internal/model"
@@ -28,21 +29,14 @@ func NewTicketRepo(db *gorm.DB) *TicketRepo {
 // =============================================================================
 
 // Create 创建申告工单。
-//
-// 创建后 ticket.ID 会被 GORM 自动填充。
-// ticket_no 唯一约束由数据库保证。
-func (r *TicketRepo) Create(ticket *model.Ticket) error {
-	return r.db.Create(ticket).Error
+func (r *TicketRepo) Create(ctx context.Context, ticket *model.Ticket) error {
+	return r.db.WithContext(ctx).Create(ticket).Error
 }
 
 // FindByID 按 ID 查询申告，预加载 User 和 TicketRecords。
-//
-// 为什么预加载 User：详情页需要显示提交人信息（姓名、手机号）。
-// 为什么预加载 TicketRecords：详情页需要展示处理记录时间线。
-// TicketRecords 按 created_at 升序排列（最早在前）。
-func (r *TicketRepo) FindByID(id int64) (*model.Ticket, error) {
+func (r *TicketRepo) FindByID(ctx context.Context, id int64) (*model.Ticket, error) {
 	var ticket model.Ticket
-	err := r.db.Preload("User").
+	err := r.db.WithContext(ctx).Preload("User").
 		Preload("TicketRecords", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at ASC")
 		}).
@@ -55,43 +49,31 @@ func (r *TicketRepo) FindByID(id int64) (*model.Ticket, error) {
 }
 
 // Update 更新申告全部字段。
-//
-// 为什么用 Save 而非 Updates：Service 层修改多个字段后全量保存，
-// Save 会更新所有字段（包括零值），确保数据一致性。
-func (r *TicketRepo) Update(ticket *model.Ticket) error {
-	return r.db.Save(ticket).Error
+func (r *TicketRepo) Update(ctx context.Context, ticket *model.Ticket) error {
+	return r.db.WithContext(ctx).Save(ticket).Error
 }
 
-// UpdateStatus 以 CAS（Compare-And-Swap）方式更新申告状态。
-//
-// WHERE id=? AND status=? 保证只有当前状态匹配时才执行更新，
-// 防止两操作者从同一旧状态并发操作产生双重记录。
-// 返回 RowsAffected：1=成功，0=状态已变更或不存在。
-func (r *TicketRepo) UpdateStatus(id int64, expectedStatus, newStatus int) (int64, error) {
-	result := r.db.Model(&model.Ticket{}).
+// UpdateStatus 以 CAS 方式更新申告状态。
+func (r *TicketRepo) UpdateStatus(ctx context.Context, id int64, expectedStatus, newStatus int) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&model.Ticket{}).
 		Where("id = ? AND status = ?", id, expectedStatus).
 		Update("status", newStatus)
 	return result.RowsAffected, result.Error
 }
 
 // IncrementSupplementCount 原子自增补充信息计数。
-//
-// 使用 WHERE supplement_count < 3 条件保证原子性，并发请求不会被绕过上限。
-// 返回 ok=true 表示自增成功，ok=false 表示已达上限（3 次）未执行自增。
-func (r *TicketRepo) IncrementSupplementCount(id int64) (bool, error) {
-	result := r.db.Model(&model.Ticket{}).Where("id = ? AND supplement_count < 3", id).
+func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bool, error) {
+	result := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("id = ? AND supplement_count < 3", id).
 		UpdateColumn("supplement_count", gorm.Expr("supplement_count + 1"))
 	return result.RowsAffected > 0, result.Error
 }
 
 // ListByUser 分页查询指定用户的申告列表。
-//
-// 按 id DESC 排序（最新在前），返回总数和列表。
-func (r *TicketRepo) ListByUser(userID int64, page, pageSize int) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
-	query := r.db.Model(&model.Ticket{}).Where("user_id = ?", userID)
+	query := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("user_id = ?", userID)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -106,16 +88,11 @@ func (r *TicketRepo) ListByUser(userID int64, page, pageSize int) ([]model.Ticke
 }
 
 // ListAll 分页查询全部申告，支持按状态和紧急程度筛选。
-//
-// 参数说明：
-//   - status: -1 表示不过滤，其他值按精确匹配
-//   - urgency: 0 表示不过滤，其他值按精确匹配
-func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]model.Ticket, int64, error) {
-	// 批量填充用户名的二次查询失败时返回 error（不再静默忽略）
+func (r *TicketRepo) ListAll(ctx context.Context, status int, urgency int, page, pageSize int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
-	query := r.db.Model(&model.Ticket{})
+	query := r.db.WithContext(ctx).Model(&model.Ticket{})
 	if status >= 0 {
 		query = query.Where("status = ?", status)
 	}
@@ -132,14 +109,14 @@ func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]mod
 		return nil, 0, err
 	}
 
-	// 批量查询用户名并填充（GORM Preload 在 Count 后不可靠）
+	// 批量查询用户名并填充
 	if len(tickets) > 0 {
 		ids := make([]int64, len(tickets))
 		for i, t := range tickets {
 			ids[i] = t.UserID
 		}
 		var users []model.User
-		if err := r.db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+		if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error; err != nil {
 			return nil, 0, err
 		}
 		userMap := make(map[int64]model.User, len(users))
@@ -157,12 +134,9 @@ func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]mod
 }
 
 // AutoCloseTickets 原子关闭超期申告并返回被关闭的 ticket ID 列表。
-//
-// 使用 UPDATE ... RETURNING id 在单条 SQL 中完成"查询+关闭"，
-// 消除 SELECT-then-UPDATE 的 TOCTOU 竞态窗口。
-func (r *TicketRepo) AutoCloseTickets(olderThan time.Time) ([]int64, error) {
+func (r *TicketRepo) AutoCloseTickets(ctx context.Context, olderThan time.Time) ([]int64, error) {
 	var ids []int64
-	err := r.db.Raw(
+	err := r.db.WithContext(ctx).Raw(
 		`UPDATE tickets SET status = ?, updated_at = NOW()
 		 WHERE status IN (?,?,?) AND created_at < ?
 		 RETURNING id`,
@@ -181,18 +155,14 @@ func (r *TicketRepo) AutoCloseTickets(olderThan time.Time) ([]int64, error) {
 // =============================================================================
 
 // CreateRecord 创建申告处理记录。
-//
-// 创建后 record.ID 会被 GORM 自动填充。
-func (r *TicketRepo) CreateRecord(record *model.TicketRecord) error {
-	return r.db.Create(record).Error
+func (r *TicketRepo) CreateRecord(ctx context.Context, record *model.TicketRecord) error {
+	return r.db.WithContext(ctx).Create(record).Error
 }
 
 // FindByTicketID 按申告 ID 查询全部处理记录。
-//
-// 按 created_at ASC 排序（最早在前），形成处理时间线。
-func (r *TicketRepo) FindByTicketID(ticketID int64) ([]model.TicketRecord, error) {
+func (r *TicketRepo) FindByTicketID(ctx context.Context, ticketID int64) ([]model.TicketRecord, error) {
 	var records []model.TicketRecord
-	err := r.db.Where("ticket_id = ?", ticketID).Order("created_at ASC").Find(&records).Error
+	err := r.db.WithContext(ctx).Where("ticket_id = ?", ticketID).Order("created_at ASC").Find(&records).Error
 	if err != nil {
 		return nil, err
 	}

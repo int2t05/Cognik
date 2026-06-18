@@ -63,6 +63,9 @@ func main() {
 // 为什么拆分为独立函数：
 // main 原先同时负责配置加载、DB/Adapter/Service/Handler 初始化和 HTTP 生命周期，
 // 400+ 行混合了装配逻辑和运行时逻辑，不利于集成测试复用装配流程。
+//
+// 注意：当前 wireApp 中无直接 repo 调用（所有 repo 访问都在 service 构造器内部）。
+// 如果将来添加直接 repo 调用，应该在此函数顶部创建 ctx := context.Background() 并传入。
 func wireApp() (*app, error) {
 	a := &app{}
 
@@ -256,6 +259,34 @@ func wireApp() (*app, error) {
 
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
+
+	// LLM 默认配置变更回调：重建 LLM/Embedding 客户端以反映新的 BaseURL/APIKey/Model
+	llmConfigSvc.GetManager().OnChange(func() {
+		newCfg := llmConfigSvc.GetManager().GetConfig()
+		if newCfg == nil {
+			return
+		}
+		newLLM, err := adapter.NewOpenAIClient(newCfg.BaseURL, newCfg.APIKey, llmTimeout)
+		if err != nil {
+			slog.Error("LLM 配置变更后重建客户端失败", "error", err)
+			return
+		}
+		llmService.SetLLMClient(newLLM)
+
+		embedBase := newCfg.EmbeddingBaseURL
+		if embedBase == "" {
+			embedBase = newCfg.BaseURL
+		}
+		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, newCfg.APIKey, newCfg.EmbeddingModel, embedTimeout)
+		embedder.SetClient(newEmbed)
+
+		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
+			"base_url", newCfg.BaseURL,
+			"embedding_base_url", embedBase,
+			"llm_model", newCfg.LLMModel,
+			"embedding_model", newCfg.EmbeddingModel,
+		)
+	})
 
 	chatService := service.NewChatService(knowledgeRepo, chatRepo, llmService, service.RAGDefaults{
 		TopK:         cfg.AI.DefaultTopK,

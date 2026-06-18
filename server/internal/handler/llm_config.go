@@ -29,11 +29,11 @@ type LLMConfigHandler struct {
 
 // llmConfigService 定义 Handler 需要的 Service 方法（消费者定义接口）。
 type llmConfigService interface {
-	CreateConfig(name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
-	ListConfigs() ([]service.LlmConfigResponse, error)
-	GetConfig(id int64) (*model.LlmConfig, error)
-	UpdateConfig(cfg *model.LlmConfig) error
-	DeleteConfig(id int64) error
+	CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
+	ListConfigs(ctx context.Context) ([]service.LlmConfigResponse, error)
+	GetConfig(ctx context.Context, id int64) (*model.LlmConfig, error)
+	UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error
+	DeleteConfig(ctx context.Context, id int64) error
 	GetManager() *service.LLMConfigManager
 }
 
@@ -50,7 +50,7 @@ func NewLLMConfigHandler(svc llmConfigService) *LLMConfigHandler {
 //
 // GET /api/v1/admin/llm-configs
 func (h *LLMConfigHandler) ListConfigs(c *gin.Context) {
-	configs, err := h.svc.ListConfigs()
+	configs, err := h.svc.ListConfigs(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -68,7 +68,7 @@ func (h *LLMConfigHandler) CreateConfig(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.svc.CreateConfig(req.Name, req.ProviderType, req.BaseURL, req.EmbeddingBaseURL, req.APIKey,
+	cfg, err := h.svc.CreateConfig(c.Request.Context(), req.Name, req.ProviderType, req.BaseURL, req.EmbeddingBaseURL, req.APIKey,
 		req.LLMModel, req.EmbeddingModel, req.MaxTokens, req.VectorDimension, req.IsDefault)
 	if err != nil {
 		handleServiceError(c, err)
@@ -87,7 +87,7 @@ func (h *LLMConfigHandler) GetConfig(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.svc.GetConfig(id)
+	cfg, err := h.svc.GetConfig(c.Request.Context(), id)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -126,7 +126,7 @@ func (h *LLMConfigHandler) UpdateConfig(c *gin.Context) {
 		IsDefault:       req.IsDefault,
 	}
 
-	if err := h.svc.UpdateConfig(cfg); err != nil {
+	if err := h.svc.UpdateConfig(c.Request.Context(), cfg); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -143,7 +143,7 @@ func (h *LLMConfigHandler) DeleteConfig(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteConfig(id); err != nil {
+	if err := h.svc.DeleteConfig(c.Request.Context(), id); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -160,7 +160,7 @@ func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.svc.GetConfig(id)
+	cfg, err := h.svc.GetConfig(c.Request.Context(), id)
 	if err != nil {
 		handleServiceError(c, err)
 		return

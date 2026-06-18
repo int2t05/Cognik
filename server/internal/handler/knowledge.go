@@ -40,7 +40,7 @@ func NewKnowledgeHandler(svc *service.KnowledgeService) *KnowledgeHandler {
 //
 // GET /api/v1/portal/knowledge-bases
 func (h *KnowledgeHandler) ListKBsForPortal(c *gin.Context) {
-	kbs, err := h.svc.ListKBs()
+	kbs, err := h.svc.ListKBs(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -69,7 +69,7 @@ func (h *KnowledgeHandler) CreateKB(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if err := h.svc.CreateKB(req, userID); err != nil {
+	if err := h.svc.CreateKB(c.Request.Context(), req, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -92,7 +92,7 @@ func (h *KnowledgeHandler) UpdateKB(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.UpdateKB(id, req); svcErr != nil {
+	if svcErr := h.svc.UpdateKB(c.Request.Context(), id, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -109,7 +109,7 @@ func (h *KnowledgeHandler) DeleteKB(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.DeleteKB(id); svcErr != nil {
+	if svcErr := h.svc.DeleteKB(c.Request.Context(), id); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -121,7 +121,7 @@ func (h *KnowledgeHandler) DeleteKB(c *gin.Context) {
 //
 // GET /api/v1/admin/knowledge-bases
 func (h *KnowledgeHandler) ListKBs(c *gin.Context) {
-	kbs, err := h.svc.ListKBs()
+	kbs, err := h.svc.ListKBs(c.Request.Context())
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -151,7 +151,7 @@ func (h *KnowledgeHandler) CreateArticle(c *gin.Context) {
 	req.KBID = kbID
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.CreateArticle(req, userID); svcErr != nil {
+	if svcErr := h.svc.CreateArticle(c.Request.Context(), req, userID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -174,7 +174,7 @@ func (h *KnowledgeHandler) UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.UpdateArticle(id, req); svcErr != nil {
+	if svcErr := h.svc.UpdateArticle(c.Request.Context(), id, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -192,7 +192,7 @@ func (h *KnowledgeHandler) SubmitReview(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.SubmitReview(id, userID); svcErr != nil {
+	if svcErr := h.svc.SubmitReview(c.Request.Context(), id, userID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -216,7 +216,7 @@ func (h *KnowledgeHandler) Review(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.Review(id, userID, req); svcErr != nil {
+	if svcErr := h.svc.Review(c.Request.Context(), id, userID, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -292,7 +292,7 @@ func (h *KnowledgeHandler) ListArticles(c *gin.Context) {
 	sourceType, _ := strconv.Atoi(c.DefaultQuery("source_type", "0"))
 	processStatus := c.DefaultQuery("process_status", "")
 
-	result, svcErr := h.svc.ListArticles(kbID, status, sourceType, processStatus, page, pageSize)
+	result, svcErr := h.svc.ListArticles(c.Request.Context(), kbID, status, sourceType, processStatus, page, pageSize)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -310,7 +310,7 @@ func (h *KnowledgeHandler) GetArticleDetail(c *gin.Context) {
 		return
 	}
 
-	result, svcErr := h.svc.GetArticleDetail(id)
+	result, svcErr := h.svc.GetArticleDetail(c.Request.Context(), id)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -357,7 +357,7 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		}
 		defer reader.Close()
 
-		article, err := h.svc.UploadDocuments(kbID, userID, fh.Filename, fileType, fh.Size, reader)
+		article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, reader)
 		if err != nil {
 			handleServiceError(c, err)
 			return
@@ -442,7 +442,7 @@ func (h *KnowledgeHandler) GetDocumentStatus(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetDocumentStatus(kbID, articleID)
+	result, err := h.svc.GetDocumentStatus(c.Request.Context(), kbID, articleID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -464,7 +464,7 @@ func (h *KnowledgeHandler) RetryDocument(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RetryDocument(kbID, articleID); err != nil {
+	if err := h.svc.RetryDocument(c.Request.Context(), kbID, articleID); err != nil {
 		handleServiceError(c, err)
 		return
 	}

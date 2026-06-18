@@ -89,7 +89,7 @@ func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
 	db.Create(&model.SystemConfig{Key: "ai.confidence_threshold", Value: datatypes.JSON(`{"threshold":0.6}`), UpdatedBy: 1})
-	err := repo.Upsert("ai.confidence_threshold", datatypes.JSON(`{"threshold":0.8}`), 2)
+	err := repo.Upsert("ai.confidence_threshold", "AI 置信度阈值", datatypes.JSON(`{"threshold":0.8}`), 2)
 	if err != nil {
 		t.Fatalf("Upsert 更新失败: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 func TestConfigRepo_Upsert_InsertNew(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
-	err := repo.Upsert("system.max_retries", datatypes.JSON(`{"max_retries":3}`), 1)
+	err := repo.Upsert("system.max_retries", "系统最大重试次数", datatypes.JSON(`{"max_retries":3}`), 1)
 	if err != nil {
 		t.Fatalf("Upsert 插入失败: %v", err)
 	}
@@ -156,7 +156,8 @@ func setupConfigService(t *testing.T) *service.ConfigService {
 	t.Helper()
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
-	return service.NewConfigService(repo)
+	auditRepo := repository.NewAuditRepo(db)
+	return service.NewConfigService(repo, auditRepo)
 }
 
 // TestConfigService_GetConfig_Existing 验证获取已有配置返回正确的值。

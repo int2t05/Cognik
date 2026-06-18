@@ -48,25 +48,25 @@ type knowledgeDocParser interface {
 
 // knowledgeRepo KnowledgeService 使用的仓库方法子集。
 type knowledgeRepo interface {
-	FindKBByID(id int64) (*model.KnowledgeBase, error)
-	FindArticleByID(id int64) (*model.KnowledgeArticle, error)
-	CreateArticle(article *model.KnowledgeArticle) error
-	UpdateArticle(article *model.KnowledgeArticle) error
-	UpdateArticleStatus(id int64, status int) error
-	UpdateArticleProcessStatus(id int64, processStatus, processError string) error
-	UpdateArticleMetrics(id int64, wordCount, chunkCount int) error
-	CreateKB(kb *model.KnowledgeBase) error
-	UpdateKB(kb *model.KnowledgeBase) error
-	DeleteKB(id int64) error
-	ListKBs() ([]model.KnowledgeBase, error)
-	CountArticlesByKB() (map[int64]int, error)
-	ListArticles(kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
-	FindChunksByArticleID(articleID int64) ([]model.KnowledgeChunk, error)
+	FindKBByID(ctx context.Context, id int64) (*model.KnowledgeBase, error)
+	FindArticleByID(ctx context.Context, id int64) (*model.KnowledgeArticle, error)
+	CreateArticle(ctx context.Context, article *model.KnowledgeArticle) error
+	UpdateArticle(ctx context.Context, article *model.KnowledgeArticle) error
+	UpdateArticleStatus(ctx context.Context, id int64, status int) error
+	UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error
+	UpdateArticleMetrics(ctx context.Context, id int64, wordCount, chunkCount int) error
+	CreateKB(ctx context.Context, kb *model.KnowledgeBase) error
+	UpdateKB(ctx context.Context, kb *model.KnowledgeBase) error
+	DeleteKB(ctx context.Context, id int64) error
+	ListKBs(ctx context.Context) ([]model.KnowledgeBase, error)
+	CountArticlesByKB(ctx context.Context) (map[int64]int, error)
+	ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
+	FindChunksByArticleID(ctx context.Context, articleID int64) ([]model.KnowledgeChunk, error)
 }
 
 // userNameResolver 按 ID 列表批量查询用户名称（仅 id + real_name）。
 type userNameResolver interface {
-	FindByIDs(ids []int64) ([]model.User, error)
+	FindByIDs(ctx context.Context, ids []int64) ([]model.User, error)
 }
 
 // KnowledgeService 知识库管理服务。
@@ -155,7 +155,7 @@ func NewKnowledgeService(repo knowledgeRepo, opts ...KnowledgeServiceOption) *Kn
 // =============================================================================
 
 // CreateKB 创建知识库（仅写 PostgreSQL）。
-func (s *KnowledgeService) CreateKB(req request.CreateKBRequest, userID int64) error {
+func (s *KnowledgeService) CreateKB(ctx context.Context, req request.CreateKBRequest, userID int64) error {
 	// 生成唯一 workspace slug，避免空字符串触发唯一索引冲突
 	slug := strings.TrimSpace(req.Name)
 	if slug == "" {
@@ -170,12 +170,12 @@ func (s *KnowledgeService) CreateKB(req request.CreateKBRequest, userID int64) e
 		LlmConfigID:      req.LlmConfigID,
 		CreatedBy:        userID,
 	}
-	return s.repo.CreateKB(kb)
+	return s.repo.CreateKB(ctx, kb)
 }
 
 // UpdateKB 更新知识库信息。
-func (s *KnowledgeService) UpdateKB(id int64, req request.UpdateKBRequest) error {
-	kb, err := s.repo.FindKBByID(id)
+func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.UpdateKBRequest) error {
+	kb, err := s.repo.FindKBByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
@@ -190,7 +190,7 @@ func (s *KnowledgeService) UpdateKB(id int64, req request.UpdateKBRequest) error
 	if req.VectorDimension > 0 {
 		kb.VectorDimension = req.VectorDimension
 	}
-	return s.repo.UpdateKB(kb)
+	return s.repo.UpdateKB(ctx, kb)
 }
 
 // DeleteKB 删除知识库及其下所有内容。
@@ -199,9 +199,9 @@ func (s *KnowledgeService) UpdateKB(id int64, req request.UpdateKBRequest) error
 // 为什么先删向量再删数据库：VectorStore 删除可能失败（DB 连接问题），
 // 如果先删数据库记录再失败则向量成为孤儿数据。
 // MinIO 文档文件和 BM25 缓存在后续迭代中完善。
-func (s *KnowledgeService) DeleteKB(id int64) error {
+func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 	// 1. 校验知识库存在
-	_, err := s.repo.FindKBByID(id)
+	_, err := s.repo.FindKBByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
@@ -211,19 +211,19 @@ func (s *KnowledgeService) DeleteKB(id int64) error {
 
 	// 2. 删除 pgvector 中该知识库的所有向量分块
 	if s.store != nil {
-		if err := s.store.DeleteByKB(context.Background(), id); err != nil {
+		if err := s.store.DeleteByKB(ctx, id); err != nil {
 			slog.Warn("删除知识库向量分块失败", "kb_id", id, "error", err)
 			// 向量删除失败不阻塞数据库删除，由后续清理任务处理孤儿向量
 		}
 	}
 
 	// 3. 级联删除文章和知识库
-	return s.repo.DeleteKB(id)
+	return s.repo.DeleteKB(ctx, id)
 }
 
 // ListKBs 列出全部知识库（含文章数量统计）。
-func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
-	kbs, err := s.repo.ListKBs()
+func (s *KnowledgeService) ListKBs(ctx context.Context) ([]response.KBResponse, error) {
+	kbs, err := s.repo.ListKBs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
 	counts := map[int64]int{}
 	if s.repo != nil {
 		var countErr error
-		counts, countErr = s.repo.CountArticlesByKB()
+		counts, countErr = s.repo.CountArticlesByKB(ctx)
 		if countErr != nil {
 			slog.Warn("批量获取文章计数失败，所有 KB 计数将显示为 0", "error", countErr)
 		}
@@ -261,8 +261,8 @@ func (s *KnowledgeService) ListKBs() ([]response.KBResponse, error) {
 // =============================================================================
 
 // CreateArticle 创建知识文章（草稿状态）。
-func (s *KnowledgeService) CreateArticle(req request.CreateArticleRequest, userID int64) error {
-	_, err := s.repo.FindKBByID(req.KBID)
+func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) error {
+	_, err := s.repo.FindKBByID(ctx, req.KBID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
@@ -286,12 +286,12 @@ func (s *KnowledgeService) CreateArticle(req request.CreateArticleRequest, userI
 		CreatedBy:  userID,
 		WordCount:  len([]rune(req.Content)),
 	}
-	return s.repo.CreateArticle(article)
+	return s.repo.CreateArticle(ctx, article)
 }
 
 // UpdateArticle 更新文章（仅草稿/驳回状态可编辑）。
-func (s *KnowledgeService) UpdateArticle(id int64, req request.UpdateArticleRequest) error {
-	article, err := s.repo.FindArticleByID(id)
+func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req request.UpdateArticleRequest) error {
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -305,12 +305,12 @@ func (s *KnowledgeService) UpdateArticle(id int64, req request.UpdateArticleRequ
 	article.Content = req.Content
 	article.Category = req.Category
 	article.Tags = marshalTags(req.Tags)
-	return s.repo.UpdateArticle(article)
+	return s.repo.UpdateArticle(ctx, article)
 }
 
 // SubmitReview 提交审核（草稿→待审核）。
-func (s *KnowledgeService) SubmitReview(id int64, userID int64) error {
-	article, err := s.repo.FindArticleByID(id)
+func (s *KnowledgeService) SubmitReview(ctx context.Context, id int64, userID int64) error {
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -320,12 +320,12 @@ func (s *KnowledgeService) SubmitReview(id int64, userID int64) error {
 	if article.Status != model.ArticleStatusDraft {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿状态可提交审核"}
 	}
-	return s.repo.UpdateArticleStatus(id, int(model.ArticleStatusReviewing))
+	return s.repo.UpdateArticleStatus(ctx, id, int(model.ArticleStatusReviewing))
 }
 
 // Review 审核文章（待审核→已通过/已驳回）。
-func (s *KnowledgeService) Review(id int64, reviewerID int64, req request.ReviewRequest) error {
-	article, err := s.repo.FindArticleByID(id)
+func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int64, req request.ReviewRequest) error {
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -341,7 +341,7 @@ func (s *KnowledgeService) Review(id int64, reviewerID int64, req request.Review
 	if req.Approved {
 		article.Status = model.ArticleStatusApproved
 		article.ReviewedBy = &reviewerID
-		return s.repo.UpdateArticle(article)
+		return s.repo.UpdateArticle(ctx, article)
 	}
 	if strings.TrimSpace(req.ReviewComment) == "" {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "驳回时必须填写审核意见"}
@@ -349,7 +349,7 @@ func (s *KnowledgeService) Review(id int64, reviewerID int64, req request.Review
 	article.Status = model.ArticleStatusRejected
 	article.ReviewComment = req.ReviewComment
 	article.ReviewedBy = &reviewerID
-	return s.repo.UpdateArticle(article)
+	return s.repo.UpdateArticle(ctx, article)
 }
 
 // =============================================================================
@@ -369,7 +369,7 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 管道未初始化（chunker/embedder/store 为空）"}
 	}
 
-	article, err := s.repo.FindArticleByID(id)
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -412,11 +412,11 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	// Step 2: Embedding
 	vectors, dimension, err := s.embedder.Embed(ctx, chunks)
 	if err != nil {
-		s.recordPublishFailure(article, "生成向量失败: "+err.Error())
+		s.recordPublishFailure(ctx, article, "生成向量失败: "+err.Error())
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "生成向量失败: " + err.Error()}
 	}
 	if len(vectors) != len(chunks) {
-		s.recordPublishFailure(article, fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks)))
+		s.recordPublishFailure(ctx, article, fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks)))
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks))}
 	}
 
@@ -434,7 +434,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		}
 	}
 	if err := s.store.BatchInsert(ctx, vc); err != nil {
-		s.recordPublishFailure(article, "写入向量失败: "+err.Error())
+		s.recordPublishFailure(ctx, article, "写入向量失败: "+err.Error())
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "写入向量失败: " + err.Error()}
 	}
 
@@ -447,12 +447,12 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	// Step 5: 更新状态
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
-	if err := s.repo.UpdateArticle(article); err != nil {
+	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return err
 	}
 	// 审计：发布文章
 	if s.auditRepo != nil {
-		s.auditRepo.Create(&model.AuditLog{
+		s.auditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: publisherID, Action: "knowledge.publish",
 			TargetType: "knowledge_article", TargetID: id,
 		})
@@ -465,8 +465,8 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 // 为什么 publish 失败要写 process_status：
 // 文章停留在"审核通过"状态时，用户无法区分"还没发布"和"发布失败"。
 // process_status=failed + process_error 让前端可展示失败原因并提供重试按钮。
-func (s *KnowledgeService) recordPublishFailure(article *model.KnowledgeArticle, errMsg string) {
-	if err := s.repo.UpdateArticleProcessStatus(article.ID, "failed", errMsg); err != nil {
+func (s *KnowledgeService) recordPublishFailure(ctx context.Context, article *model.KnowledgeArticle, errMsg string) {
+	if err := s.repo.UpdateArticleProcessStatus(ctx, article.ID, "failed", errMsg); err != nil {
 		slog.Warn("记录发布失败状态时出错", "article_id", article.ID, "error", err)
 	}
 }
@@ -476,7 +476,7 @@ func (s *KnowledgeService) recordPublishFailure(article *model.KnowledgeArticle,
 // 状态机：仅 Published → Disabled。停用前必须先经过审核发布流程，
 // 草稿/待审核/审核通过/已驳回状态不应直接 Disable（应通过驳回或回退路径处理）。
 func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int64) error {
-	article, err := s.repo.FindArticleByID(id)
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -494,12 +494,12 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 	}
 
 	article.Status = model.ArticleStatusDisabled
-	if err := s.repo.UpdateArticle(article); err != nil {
+	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return err
 	}
 	// 审计：停用文章
 	if s.auditRepo != nil {
-		s.auditRepo.Create(&model.AuditLog{
+		s.auditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: operatorID, Action: "knowledge.disable",
 			TargetType: "knowledge_article", TargetID: id,
 		})
@@ -513,7 +513,7 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 // 复用 Publish 内部状态机校验之外的逻辑：状态校验在本函数入口完成，
 // 剩余分块/embedding/写入路径与 Publish 共用。
 func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int64) error {
-	article, err := s.repo.FindArticleByID(id)
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -533,14 +533,14 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 // =============================================================================
 
 // ListArticles 分页查询文章列表，支持按 sourceType/processStatus 筛选。
-func (s *KnowledgeService) ListArticles(kbID int64, status int, sourceType int, processStatus string, page, pageSize int) (*response.ArticleListResponse, error) {
-	articles, total, err := s.repo.ListArticles(kbID, status, sourceType, processStatus, page, pageSize)
+func (s *KnowledgeService) ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, page, pageSize int) (*response.ArticleListResponse, error) {
+	articles, total, err := s.repo.ListArticles(ctx, kbID, status, sourceType, processStatus, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
 	// 批量获取用户名，避免 N+1
-	userNames := s.resolveUserNames(articles)
+	userNames := s.resolveUserNames(ctx, articles)
 
 	result := make([]response.ArticleResponse, len(articles))
 	for i, a := range articles {
@@ -580,8 +580,8 @@ func (s *KnowledgeService) ListArticles(kbID int64, status int, sourceType int, 
 }
 
 // GetArticleDetail 获取文章详情（含切片）。
-func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailResponse, error) {
-	article, err := s.repo.FindArticleByID(id)
+func (s *KnowledgeService) GetArticleDetail(ctx context.Context, id int64) (*response.ArticleDetailResponse, error) {
+	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
@@ -589,12 +589,12 @@ func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailRe
 		return nil, err
 	}
 
-	chunks, err := s.repo.FindChunksByArticleID(id)
+	chunks, err := s.repo.FindChunksByArticleID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	userNames := s.resolveUserNames([]model.KnowledgeArticle{*article})
+	userNames := s.resolveUserNames(ctx, []model.KnowledgeArticle{*article})
 
 	chunkResponses := make([]response.ChunkResponse, len(chunks))
 	for i, c := range chunks {
@@ -648,9 +648,9 @@ func (s *KnowledgeService) GetArticleDetail(id int64) (*response.ArticleDetailRe
 // UploadDocuments 上传文档到知识库（解析→创建文章→入队异步处理）。
 //
 // fileSize 用于大小上限校验（最大 50MB），fileType 用于格式白名单校验。
-func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename string, fileType string, fileSize int64, content io.Reader) (*model.KnowledgeArticle, error) {
+func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, userID int64, filename string, fileType string, fileSize int64, content io.Reader) (*model.KnowledgeArticle, error) {
 	// 校验知识库存在——防止孤儿文章
-	if _, err := s.repo.FindKBByID(kbID); err != nil {
+	if _, err := s.repo.FindKBByID(ctx, kbID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
@@ -689,7 +689,7 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 		// 写入 MinIO 对象存储，processor 异步下载解析
 		bucket := "opsmind-documents"
 		key := fmt.Sprintf("documents/%d_%s", time.Now().UnixNano(), filename)
-		if _, err := s.storage.Upload(context.Background(), bucket, key, bytes.NewReader(data), int64(len(data)), ""); err != nil {
+		if _, err := s.storage.Upload(ctx, bucket, key, bytes.NewReader(data), int64(len(data)), ""); err != nil {
 			slog.Error("上传文件到 MinIO 失败", "bucket", bucket, "key", key, "error", err)
 			return nil, errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文件到对象存储失败"}
 		}
@@ -700,8 +700,8 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 			Bucket:         bucket,
 			Key:            key,
 			FileType:       fileType,
-			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics:      s.onProcessMetrics,
+			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
+			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
 		}
 	} else {
 		// 无 StorageClient 时降级：同步解析文本，processor 直接分块
@@ -720,15 +720,15 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 			ArticleID:      article.ID,
 			KBID:           kbID,
 			Content:        text,
-			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics:      s.onProcessMetrics,
+			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
+			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
 		}
 	}
 
-	if err := s.repo.CreateArticle(article); err != nil {
+	if err := s.repo.CreateArticle(ctx, article); err != nil {
 		if s.storage != nil && article.MinioPath != "" {
 			b, k := splitMinioPath(article.MinioPath)
-			if delErr := s.storage.Delete(context.Background(), b, k); delErr != nil {
+			if delErr := s.storage.Delete(ctx, b, k); delErr != nil {
 				slog.Warn("清理 MinIO 孤立文件失败", "path", article.MinioPath, "error", delErr)
 			}
 		}
@@ -747,8 +747,8 @@ func (s *KnowledgeService) UploadDocuments(kbID int64, userID int64, filename st
 // GetDocumentStatus 查询文档处理状态。
 //
 // kbID 用于校验 URL 资源层级一致性——文章必须属于指定知识库，否则返回 ErrNotFound。
-func (s *KnowledgeService) GetDocumentStatus(kbID int64, articleID int64) (*response.DocumentStatusResponse, error) {
-	article, err := s.repo.FindArticleByID(articleID)
+func (s *KnowledgeService) GetDocumentStatus(ctx context.Context, kbID int64, articleID int64) (*response.DocumentStatusResponse, error) {
+	article, err := s.repo.FindArticleByID(ctx, articleID)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 	}
@@ -768,8 +768,8 @@ func (s *KnowledgeService) GetDocumentStatus(kbID int64, articleID int64) (*resp
 // kbID 用于校验 URL 资源层级一致性——文章必须属于指定知识库。
 // 状态机：仅允许 ProcessStatus == "failed" 的文章重试（避免对已成功或处理中文档重复入队）。
 // 重试不修改 Article.Status（审核状态），仅清空 ProcessError 让前端重新展示错误。
-func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
-	article, err := s.repo.FindArticleByID(articleID)
+func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articleID int64) error {
+	article, err := s.repo.FindArticleByID(ctx, articleID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 	}
@@ -784,7 +784,7 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 	}
 
 	// 重置 process_status 为 pending，processor 在新一轮处理开始时会再覆盖
-	if err := s.repo.UpdateArticleProcessStatus(articleID, "pending", ""); err != nil {
+	if err := s.repo.UpdateArticleProcessStatus(ctx, articleID, "pending", ""); err != nil {
 		slog.Warn("重置处理状态失败，不阻断主流程", "article_id", articleID, "error", err)
 	}
 	var task rag.ProcessTask
@@ -796,16 +796,16 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 			Bucket:         bucket,
 			Key:            key,
 			FileType:       article.FileType,
-			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics:      s.onProcessMetrics,
+			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
+			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
 		}
 	} else {
 		task = rag.ProcessTask{
 			ArticleID:      articleID,
 			KBID:           article.KBID,
 			Content:        article.Content,
-			OnStatusChange: s.onProcessStatusChange,
-			OnMetrics:      s.onProcessMetrics,
+			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
+			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
 		}
 	}
 	if err := s.processor.Submit(task); err != nil {
@@ -822,15 +822,15 @@ func (s *KnowledgeService) RetryDocument(kbID int64, articleID int64) error {
 //
 // 作为 Processor 回调使用——Processor 在异步 goroutine 中运行，
 // 状态更新失败不应 panic，仅记录日志供排查。
-func (s *KnowledgeService) onProcessStatusChange(aID int64, status, errMsg string) {
-	if err := s.repo.UpdateArticleProcessStatus(aID, status, errMsg); err != nil {
+func (s *KnowledgeService) onProcessStatusChange(ctx context.Context, aID int64, status, errMsg string) {
+	if err := s.repo.UpdateArticleProcessStatus(ctx, aID, status, errMsg); err != nil {
 		slog.Warn("更新文档处理状态失败", "article_id", aID, "status", status, "error", err)
 	}
 }
 
 // onProcessMetrics 更新文档指标（字数/分块数），失败时记录日志但不阻塞流程。
-func (s *KnowledgeService) onProcessMetrics(aID int64, wordCount, chunkCount int) {
-	if err := s.repo.UpdateArticleMetrics(aID, wordCount, chunkCount); err != nil {
+func (s *KnowledgeService) onProcessMetrics(ctx context.Context, aID int64, wordCount, chunkCount int) {
+	if err := s.repo.UpdateArticleMetrics(ctx, aID, wordCount, chunkCount); err != nil {
 		slog.Warn("更新文档指标失败", "article_id", aID, "error", err)
 	}
 }
@@ -839,7 +839,7 @@ func (s *KnowledgeService) onProcessMetrics(aID int64, wordCount, chunkCount int
 //
 // 为什么一次查询而非每个文章单独查：列表页 20 篇文章会产生 ~40 次用户查询，
 // 批量去重后一次搞定，避免 N+1 往返。
-func (s *KnowledgeService) resolveUserNames(articles []model.KnowledgeArticle) map[int64]string {
+func (s *KnowledgeService) resolveUserNames(ctx context.Context, articles []model.KnowledgeArticle) map[int64]string {
 	if s.userNames == nil || len(articles) == 0 {
 		return map[int64]string{}
 	}
@@ -859,7 +859,7 @@ func (s *KnowledgeService) resolveUserNames(articles []model.KnowledgeArticle) m
 	for id := range ids {
 		idList = append(idList, id)
 	}
-	users, err := s.userNames.FindByIDs(idList)
+	users, err := s.userNames.FindByIDs(ctx, idList)
 	if err != nil {
 		slog.Warn("批量查询用户名失败", "error", err)
 		return map[int64]string{}

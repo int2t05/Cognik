@@ -42,7 +42,7 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if err := h.svc.CreateTicket(req, userID); err != nil {
+	if err := h.svc.CreateTicket(c.Request.Context(), req, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -57,7 +57,7 @@ func (h *TicketHandler) ListByUser(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	page, pageSize := parsePagination(c)
 
-	result, err := h.svc.ListByUser(userID, page, pageSize)
+	result, err := h.svc.ListByUser(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -83,7 +83,7 @@ func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.SupplementTicket(id, userID, req); svcErr != nil {
+	if svcErr := h.svc.SupplementTicket(c.Request.Context(), id, userID, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -103,7 +103,7 @@ func (h *TicketHandler) ListAll(c *gin.Context) {
 	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
 	urgency, _ := strconv.Atoi(c.DefaultQuery("urgency", "0"))
 
-	result, err := h.svc.ListAll(status, urgency, page, pageSize)
+	result, err := h.svc.ListAll(c.Request.Context(), status, urgency, page, pageSize)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -129,7 +129,7 @@ func (h *TicketHandler) GetDetail(c *gin.Context) {
 		userID = 0 // 后台不限制所有权
 	}
 
-	result, svcErr := h.svc.GetDetail(id, userID)
+	result, svcErr := h.svc.GetDetail(c.Request.Context(), id, userID)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -155,7 +155,7 @@ func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.UpdateStatus(id, userID, req); svcErr != nil {
+	if svcErr := h.svc.UpdateStatus(c.Request.Context(), id, userID, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -180,7 +180,7 @@ func (h *TicketHandler) AddRecord(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.AddRecord(id, userID, req); svcErr != nil {
+	if svcErr := h.svc.AddRecord(c.Request.Context(), id, userID, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -211,7 +211,7 @@ func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if err := h.svc.CreateKnowledgeCandidate(id, body.KBID, userID); err != nil {
+	if err := h.svc.CreateKnowledgeCandidate(c.Request.Context(), id, body.KBID, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}

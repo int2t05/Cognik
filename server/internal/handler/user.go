@@ -33,7 +33,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Create(req); svcErr != nil {
+	if svcErr := h.svc.Create(c.Request.Context(), req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -50,7 +50,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	user, svcErr := h.svc.GetByID(id)
+	user, svcErr := h.svc.GetByID(c.Request.Context(), id)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -66,7 +66,7 @@ func (h *UserHandler) List(c *gin.Context) {
 	page, pageSize := parsePagination(c)
 	keyword := c.Query("keyword")
 
-	result, err := h.svc.List(page, pageSize, keyword)
+	result, err := h.svc.List(c.Request.Context(), page, pageSize, keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -90,7 +90,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Update(id, req); svcErr != nil {
+	if svcErr := h.svc.Update(c.Request.Context(), id, req); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -109,7 +109,7 @@ func (h *UserHandler) Freeze(c *gin.Context) {
 
 	operatorID, _ := getCurrentUserID(c)
 
-	if svcErr := h.svc.Freeze(id, operatorID); svcErr != nil {
+	if svcErr := h.svc.Freeze(c.Request.Context(), id, operatorID); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
@@ -126,7 +126,7 @@ func (h *UserHandler) Restore(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Restore(id); svcErr != nil {
+	if svcErr := h.svc.Restore(c.Request.Context(), id); svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}

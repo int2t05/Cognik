@@ -99,6 +99,11 @@ func NewLLMService(llmClient adapter.LLMClient, configMgr *LLMConfigManager, def
 	}
 }
 
+// SetLLMClient 替换 LLM 客户端（默认配置变更时由回调调用）。
+func (s *LLMService) SetLLMClient(client adapter.LLMClient) {
+	s.llmClient = client
+}
+
 // =============================================================================
 // SyncChat — 非流式问答
 // =============================================================================

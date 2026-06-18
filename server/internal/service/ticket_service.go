@@ -57,7 +57,7 @@ func (s *TicketService) SetKnowledgeService(kbSvc *KnowledgeService) {
 //   - urgency 必须为 TicketUrgencyLow/Medium/High
 //   - ticket_no 格式：TK-YYYYMMDD-XXXX（XXXX 为随机 6 位后缀）
 //   - 新建申告 status=TicketStatusPending、source=TicketSourcePortal
-func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int64) error {
+func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTicketRequest, userID int64) error {
 	// 参数校验
 	if strings.TrimSpace(req.Title) == "" {
 		return AppError{Code: errcode.ErrParam, Message: "标题不能为空"}
@@ -110,7 +110,7 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 		Source:          model.TicketSourcePortal,
 	}
 
-	return s.repo.Create(ticket)
+	return s.repo.Create(ctx, ticket)
 }
 
 // =============================================================================
@@ -124,8 +124,8 @@ func (s *TicketService) CreateTicket(req request.CreateTicketRequest, userID int
 //   - 仅"需补充信息"状态可补充
 //   - 补充后状态变为"处理中"，使用 CAS 防止并发双重操作
 //   - CreateRecord + UpdateStatus 在同一事务中原子执行
-func (s *TicketService) SupplementTicket(id int64, userID int64, req request.SupplementTicketRequest) error {
-	ticket, err := s.repo.FindByID(id)
+func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID int64, req request.SupplementTicketRequest) error {
+	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
@@ -144,7 +144,7 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 	}
 
 	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)，避免孤立记录
-	return s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
+	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		record := &model.TicketRecord{
@@ -153,12 +153,12 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 			Action:     model.TicketActionSupplement,
 			Content:    req.Content,
 		}
-		if err := txRepo.CreateRecord(record); err != nil {
+		if err := txRepo.CreateRecord(ctx, record); err != nil {
 			return err
 		}
 
 		// CAS: 仅在 status=NeedSupplement 时更新为 Processing
-		rows, err := txRepo.UpdateStatus(id, int(model.TicketStatusNeedSupplement), int(model.TicketStatusProcessing))
+		rows, err := txRepo.UpdateStatus(ctx, id, int(model.TicketStatusNeedSupplement), int(model.TicketStatusProcessing))
 		if err != nil {
 			return err
 		}
@@ -184,8 +184,8 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 //
 // 所有转换使用 CAS（WHERE id=? AND status=?），防止并发双重操作。
 // 每次状态转换都会创建 TicketRecord。
-func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.UpdateTicketStatusRequest) error {
-	ticket, err := s.repo.FindByID(id)
+func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID int64, req request.UpdateTicketStatusRequest) error {
+	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
@@ -209,7 +209,7 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 			return AppError{Code: errcode.ErrParam, Message: "仅处理中状态可请求补充信息"}
 		}
 		// 原子自增 supplement_count，WHERE supplement_count < 3 保证并发安全
-		ok, err := s.repo.IncrementSupplementCount(id)
+		ok, err := s.repo.IncrementSupplementCount(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -242,11 +242,11 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 	}
 
 	// 事务内原子执行：UpdateStatus(CAS) + CreateRecord
-	err = s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
+	err = s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		// CAS: 仅在状态未变化时执行更新，防止并发双重操作
-		rows, err := txRepo.UpdateStatus(id, int(ticket.Status), int(newStatus))
+		rows, err := txRepo.UpdateStatus(ctx, id, int(ticket.Status), int(newStatus))
 		if err != nil {
 			return err
 		}
@@ -260,11 +260,11 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 			Action:     recordAction,
 			Content:    req.Result,
 		}
-		if err := txRepo.CreateRecord(record); err != nil {
+		if err := txRepo.CreateRecord(ctx, record); err != nil {
 			return err
 		}
 		txAuditRepo := repository.NewAuditRepo(tx)
-		txAuditRepo.Create(&model.AuditLog{
+		txAuditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: operatorID, Action: "ticket." + req.Action,
 			TargetType: "ticket", TargetID: id,
 		})
@@ -276,7 +276,7 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 
 	// request_info 成功后同步通知申告人
 	if recordAction == model.TicketActionRequestInfo && s.msgSvc != nil {
-		if notifyErr := s.msgSvc.NotifySupplement(id, ticket.UserID, ticket.Title); notifyErr != nil {
+		if notifyErr := s.msgSvc.NotifySupplement(ctx, id, ticket.UserID, ticket.Title); notifyErr != nil {
 			slog.Warn("补充信息通知失败", "ticket_id", id, "user_id", ticket.UserID, "error", notifyErr)
 		}
 	}
@@ -295,14 +295,14 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 // 用于记录处理过程中的备注、沟通记录等。
 // action 仅允许白名单值，防止审计数据污染。
 // detail 若提供则校验为合法 JSON。
-func (s *TicketService) AddRecord(id int64, operatorID int64, req request.CreateTicketRecordRequest) error {
+func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int64, req request.CreateTicketRecordRequest) error {
 	// action 白名单校验
 	if !isValidRecordAction(req.Action) {
 		return AppError{Code: errcode.ErrParam, Message: "不支持的记录类型: " + req.Action}
 	}
 
 	// 验证申告存在
-	_, err := s.repo.FindByID(id)
+	_, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
@@ -325,7 +325,7 @@ func (s *TicketService) AddRecord(id int64, operatorID int64, req request.Create
 		Content:    req.Content,
 		Detail:     detailJSON,
 	}
-	return s.repo.CreateRecord(record)
+	return s.repo.CreateRecord(ctx, record)
 }
 
 // =============================================================================
@@ -333,8 +333,8 @@ func (s *TicketService) AddRecord(id int64, operatorID int64, req request.Create
 // =============================================================================
 
 // ListByUser 分页查询当前用户的申告列表。
-func (s *TicketService) ListByUser(userID int64, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListByUser(userID, page, pageSize)
+func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -353,8 +353,8 @@ func (s *TicketService) ListByUser(userID int64, page, pageSize int) (*response.
 // ListAll 分页查询全部申告（支持按状态和紧急程度筛选）。
 //
 // status=-1 表示不过滤，urgency=0 表示不过滤。
-func (s *TicketService) ListAll(status, urgency, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListAll(status, urgency, page, pageSize)
+func (s *TicketService) ListAll(ctx context.Context, status, urgency, page, pageSize int) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListAll(ctx, status, urgency, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -375,8 +375,8 @@ func (s *TicketService) ListAll(status, urgency, page, pageSize int) (*response.
 // userID 用于门户端越权检查：
 //   - userID > 0（门户端）：仅允许查自己的申告，非本人返回 ErrForbidden
 //   - userID == 0（后台管理）：跳过所有权检查，可查全部
-func (s *TicketService) GetDetail(id int64, userID int64) (*response.TicketDetailResponse, error) {
-	ticket, err := s.repo.FindByID(id)
+func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (*response.TicketDetailResponse, error) {
+	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
@@ -483,13 +483,13 @@ func unmarshalTicketTags(data datatypes.JSON) []string {
 // 业务规则：status IN (1,2,3) AND created_at < olderThan 的申告自动关闭。
 // UPDATE + TicketRecord 创建在同一事务中原子执行，
 // 避免工单已关闭但缺少 auto_close 时间线记录。
-func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
+func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int64, error) {
 	var closedCount int64
 
-	err := s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
+	err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
-		ids, err := txRepo.AutoCloseTickets(olderThan)
+		ids, err := txRepo.AutoCloseTickets(ctx, olderThan)
 		if err != nil {
 			return err
 		}
@@ -510,7 +510,7 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 				return err
 			}
 			txAuditRepo := repository.NewAuditRepo(tx)
-			txAuditRepo.Create(&model.AuditLog{
+			txAuditRepo.Create(ctx, &model.AuditLog{
 				OperatorID: 0, Action: "ticket.auto_close",
 				TargetType: "ticket", TargetID: id,
 			})
@@ -531,8 +531,8 @@ func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 //
 // 为什么放在 TicketService 而非 Handler 直接调用 KnowledgeService：
 // 统一的 Service 层编排便于加入事务边界和审计日志，避免 Handler 层跨 Service 调用。
-func (s *TicketService) CreateKnowledgeCandidate(id int64, kbID int64, userID int64) error {
-	detail, err := s.GetDetail(id, 0)
+func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, kbID int64, userID int64) error {
+	detail, err := s.GetDetail(ctx, id, 0)
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ func (s *TicketService) CreateKnowledgeCandidate(id int64, kbID int64, userID in
 	if s.kbSvc == nil {
 		return AppError{Code: errcode.ErrUnknown, Message: "知识库服务未初始化"}
 	}
-	if err := s.kbSvc.CreateArticle(articleReq, userID); err != nil {
+	if err := s.kbSvc.CreateArticle(ctx, articleReq, userID); err != nil {
 		return err
 	}
 

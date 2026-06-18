@@ -64,7 +64,7 @@ func (h *ChatHandler) ListSessions(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	page, pageSize := parsePagination(c)
 
-	items, total, err := h.svc.ListSessions(userID, page, pageSize)
+	items, total, err := h.svc.ListSessions(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -83,7 +83,7 @@ func (h *ChatHandler) DeleteSession(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteSession(id, userID); err != nil {
+	if err := h.svc.DeleteSession(c.Request.Context(), id, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -110,7 +110,7 @@ func (h *ChatHandler) SubmitFeedback(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if err := h.svc.SubmitFeedback(id, userID, req.Feedback); err != nil {
+	if err := h.svc.SubmitFeedback(c.Request.Context(), id, userID, req.Feedback); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -130,7 +130,7 @@ func (h *ChatHandler) GetChatDetail(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	resp, err := h.svc.GetChatDetail(id, userID)
+	resp, err := h.svc.GetChatDetail(c.Request.Context(), id, userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return

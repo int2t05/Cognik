@@ -6,6 +6,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strings"
@@ -33,8 +34,8 @@ func NewUserService(repo *repository.UserRepo, auditRepo *repository.AuditRepo, 
 }
 
 // GetByID 根据 ID 获取用户详情（含角色列表）。
-func (s *UserService) GetByID(id int64) (*response.UserDetailResponse, error) {
-	user, err := s.repo.GetByID(id)
+func (s *UserService) GetByID(ctx context.Context, id int64) (*response.UserDetailResponse, error) {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, AppError{Code: errcode.ErrNotFound, Message: "用户不存在"}
@@ -42,14 +43,14 @@ func (s *UserService) GetByID(id int64) (*response.UserDetailResponse, error) {
 		return nil, err
 	}
 
-	return s.toDetailResponse(user)
+	return s.toDetailResponse(ctx, user)
 }
 
 // List 查询用户列表（分页 + 关键词搜索）。
 //
 // 使用 BatchGetUserRoles 一次查询所有用户的角色名，消除 N+1 问题。
-func (s *UserService) List(page, pageSize int, keyword string) (*response.UserListResponse, error) {
-	users, total, err := s.repo.List(page, pageSize, keyword)
+func (s *UserService) List(ctx context.Context, page, pageSize int, keyword string) (*response.UserListResponse, error) {
+	users, total, err := s.repo.List(ctx, page, pageSize, keyword)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +60,7 @@ func (s *UserService) List(page, pageSize int, keyword string) (*response.UserLi
 	for i, u := range users {
 		userIDs[i] = u.ID
 	}
-	roleNames, err := s.repo.BatchGetUserRoles(userIDs)
+	roleNames, err := s.repo.BatchGetUserRoles(ctx, userIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +95,9 @@ func (s *UserService) List(page, pageSize int, keyword string) (*response.UserLi
 //
 // 流程：校验用户名唯一 → 校验密码策略 → bcrypt 哈希 → 事务(创建用户 + 分配角色)。
 // 为什么包裹在事务中：若用户创建成功但角色分配失败，事务回滚保证数据一致性。
-func (s *UserService) Create(req request.CreateUserRequest) error {
+func (s *UserService) Create(ctx context.Context, req request.CreateUserRequest) error {
 	// 校验用户名唯一
-	exists, err := s.repo.ExistsByUsername(req.Username)
+	exists, err := s.repo.ExistsByUsername(ctx, req.Username)
 	if err != nil {
 		return err
 	}
@@ -132,20 +133,21 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 
 	// 包裹在事务中：Create + AssignRoles 原子执行。
 	// AssignRoles 不再自开事务，直接使用当前 tx 保证同一事务边界。
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
 			return err
 		}
 
 		if len(req.RoleIDs) > 0 {
 			txRepo := repository.NewUserRepo(tx)
-			if err := txRepo.AssignRoles(user.ID, req.RoleIDs); err != nil {
+			if err := txRepo.AssignRoles(ctx, user.ID, req.RoleIDs); err != nil {
 				return err
 			}
 		}
 
 		// 审计：创建用户
-		s.auditRepo.Create(&model.AuditLog{
+		txAuditRepo := repository.NewAuditRepo(tx)
+		txAuditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: 0, Action: "user.create", TargetType: "user", TargetID: user.ID,
 		})
 		return nil
@@ -157,8 +159,8 @@ func (s *UserService) Create(req request.CreateUserRequest) error {
 // 仅更新 RealName/Phone/Email 和角色分配，密码修改走独立接口。
 // 使用 UpdateColumns 只写三列，避免并发 ChangePassword 的密码哈希被 Save 全字段覆盖。
 // 包裹在事务中保证 Update + AssignRoles 原子性。
-func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
-	user, err := s.repo.GetByID(id)
+func (s *UserService) Update(ctx context.Context, id int64, req request.UpdateUserRequest) error {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "用户不存在"}
@@ -167,7 +169,7 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 	}
 
 	// 包裹在事务中：Update + AssignRoles 原子执行
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 使用 UpdateColumns 只写目标列，避免 Save 全字段覆盖（特别是 password_hash）
 		if err := tx.Model(user).UpdateColumns(map[string]interface{}{
 			"real_name": strings.TrimSpace(req.RealName),
@@ -178,11 +180,12 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 		}
 
 		txRepo := repository.NewUserRepo(tx)
-		if err := txRepo.AssignRoles(id, req.RoleIDs); err != nil {
+		if err := txRepo.AssignRoles(ctx, id, req.RoleIDs); err != nil {
 			return err
 		}
 
-		s.auditRepo.Create(&model.AuditLog{
+		txAuditRepo := repository.NewAuditRepo(tx)
+		txAuditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: 0, Action: "user.update", TargetType: "user", TargetID: id,
 		})
 		return nil
@@ -192,13 +195,13 @@ func (s *UserService) Update(id int64, req request.UpdateUserRequest) error {
 // Freeze 冻结用户。
 //
 // 冻结前校验：目标存在、非自己、非最后一个系统管理员。
-func (s *UserService) Freeze(id int64, operatorID int64) error {
+func (s *UserService) Freeze(ctx context.Context, id int64, operatorID int64) error {
 	// 禁止冻结自己
 	if id == operatorID {
 		return AppError{Code: errcode.ErrParam, Message: "不能冻结自己的账号"}
 	}
 
-	target, err := s.repo.GetByID(id)
+	target, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "用户不存在"}
@@ -211,14 +214,14 @@ func (s *UserService) Freeze(id int64, operatorID int64) error {
 	}
 
 	// 检查目标是否为最后一个系统管理员
-	if err := s.assertNotLastAdmin(id); err != nil {
+	if err := s.assertNotLastAdmin(ctx, id); err != nil {
 		return err
 	}
 
-	if err := s.repo.UpdateStatus(id, int(model.StatusInactive)); err != nil {
+	if err := s.repo.UpdateStatus(ctx, id, int(model.StatusInactive)); err != nil {
 		return err
 	}
-	s.auditRepo.Create(&model.AuditLog{
+	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: operatorID, Action: "user.freeze", TargetType: "user", TargetID: id,
 	})
 	return nil
@@ -227,8 +230,8 @@ func (s *UserService) Freeze(id int64, operatorID int64) error {
 // Restore 恢复已冻结用户。
 //
 // 恢复前校验：目标存在、已处于冻结状态。
-func (s *UserService) Restore(id int64) error {
-	user, err := s.repo.GetByID(id)
+func (s *UserService) Restore(ctx context.Context, id int64) error {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "用户不存在"}
@@ -240,10 +243,10 @@ func (s *UserService) Restore(id int64) error {
 		return AppError{Code: errcode.ErrAlreadyActive, Message: "用户已处于正常状态"}
 	}
 
-	if err := s.repo.UpdateStatus(id, int(model.StatusActive)); err != nil {
+	if err := s.repo.UpdateStatus(ctx, id, int(model.StatusActive)); err != nil {
 		return err
 	}
-	s.auditRepo.Create(&model.AuditLog{
+	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: 0, Action: "user.restore", TargetType: "user", TargetID: id,
 	})
 	return nil
@@ -253,9 +256,9 @@ func (s *UserService) Restore(id int64) error {
 //
 // 系统管理员角色 id=1（name="系统管理员"），冻结或移除该角色前必须确保至少
 // 还有另一个活跃管理员可操作系统。
-func (s *UserService) assertNotLastAdmin(targetUserID int64) error {
+func (s *UserService) assertNotLastAdmin(ctx context.Context, targetUserID int64) error {
 	// 检查目标是否拥有系统管理员角色
-	roles, err := s.repo.GetUserRoles(targetUserID)
+	roles, err := s.repo.GetUserRoles(ctx, targetUserID)
 	if err != nil {
 		return err
 	}
@@ -271,7 +274,7 @@ func (s *UserService) assertNotLastAdmin(targetUserID int64) error {
 	}
 
 	// 统计其他活跃系统管理员数量
-	adminCount, err := s.repo.CountActiveAdmins(targetUserID)
+	adminCount, err := s.repo.CountActiveAdmins(ctx, targetUserID)
 	if err != nil {
 		return err
 	}
@@ -306,8 +309,8 @@ func validateUserInput(username, realName, phone, email string) error {
 }
 
 // toDetailResponse 将 User 模型转换为 UserDetailResponse。
-func (s *UserService) toDetailResponse(user *model.User) (*response.UserDetailResponse, error) {
-	roles, err := s.repo.GetUserRoles(user.ID)
+func (s *UserService) toDetailResponse(ctx context.Context, user *model.User) (*response.UserDetailResponse, error) {
+	roles, err := s.repo.GetUserRoles(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}

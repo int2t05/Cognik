@@ -170,7 +170,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*re
 		return nil, err
 	}
 
-	user, err := s.userRepo.GetByUsername(username)
+	user, err := s.userRepo.GetByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			s.rateLimiter.recordFail(username)
@@ -193,7 +193,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*re
 
 	s.rateLimiter.recordSuccess(username)
 	slog.Info("登录成功", "user_id", user.ID, "username", username)
-	return s.buildLoginResponse(user)
+	return s.buildLoginResponse(ctx, user)
 }
 
 // Logout 使当前 refresh token 失效。
@@ -240,7 +240,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*r
 		return nil, AppError{Code: 10001, Message: "令牌类型错误，请使用刷新令牌"}
 	}
 
-	user, err := s.userRepo.GetByID(claims.UserID)
+	user, err := s.userRepo.GetByID(ctx, claims.UserID)
 	if err != nil {
 		return nil, AppError{Code: 10001, Message: "用户不存在"}
 	}
@@ -251,7 +251,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*r
 	}
 
 	slog.Info("令牌刷新成功", "user_id", user.ID)
-	return s.buildLoginResponse(user)
+	return s.buildLoginResponse(ctx, user)
 }
 
 // ChangePassword 修改密码。
@@ -259,7 +259,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*r
 // 流程：查用户 → 校验旧密码 → 校验新密码策略 → 更新哈希 → 设置 first_login=false。
 // 为什么先校验旧密码再校验新密码策略：旧密码错误是更常见的场景，先返回更有用的错误信息。
 func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, newPwd string) error {
-	user, err := s.userRepo.GetByID(userID)
+	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return AppError{Code: errcode.ErrUnknown, Message: "查询用户失败: " + err.Error()}
 	}
@@ -280,7 +280,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, 
 	}
 
 	// 仅更新 password_hash 和 first_login，避免 Save 全字段覆盖并发的 user.Update
-	if err := s.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+	if err := s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"password_hash": newHash,
 		"first_login":   false,
 	}).Error; err != nil {
@@ -295,9 +295,9 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, 
 //
 // 查询用户角色、权限、菜单树，组装完整的 LoginResponse。
 // 菜单树构建思路：先从全部菜单中分离一级菜单，再递归挂载子菜单。
-func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginResponse, error) {
+func (s *AuthService) buildLoginResponse(ctx context.Context, user *model.User) (*response.LoginResponse, error) {
 	// 查询用户角色
-	roles, err := s.userRepo.GetUserRoles(user.ID)
+	roles, err := s.userRepo.GetUserRoles(ctx, user.ID)
 	if err != nil {
 		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户角色失败: " + err.Error()}
 	}
@@ -308,7 +308,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 	}
 
 	// 查询用户权限
-	permissions, err := s.userRepo.GetUserPermissions(user.ID)
+	permissions, err := s.userRepo.GetUserPermissions(ctx, user.ID)
 	if err != nil {
 		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户权限失败: " + err.Error()}
 	}
@@ -317,7 +317,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 	}
 
 	// 查询用户菜单树
-	menuTree, err := s.buildMenuTree(roles)
+	menuTree, err := s.buildMenuTree(ctx, roles)
 	if err != nil {
 		return nil, AppError{Code: errcode.ErrUnknown, Message: "查询用户菜单失败: " + err.Error()}
 	}
@@ -361,7 +361,7 @@ func (s *AuthService) buildLoginResponse(user *model.User) (*response.LoginRespo
 // 树构建是展示逻辑，属于业务层的职责。Repository 只负责数据查询。
 //
 // 系统管理员自动获得全部菜单。
-func (s *AuthService) buildMenuTree(roles []model.Role) ([]response.MenuItem, error) {
+func (s *AuthService) buildMenuTree(ctx context.Context, roles []model.Role) ([]response.MenuItem, error) {
 	// 判断是否为系统管理员
 	isAdmin := false
 	for _, role := range roles {
@@ -376,14 +376,14 @@ func (s *AuthService) buildMenuTree(roles []model.Role) ([]response.MenuItem, er
 
 	if isAdmin {
 		// 系统管理员获取全部菜单
-		menus, err = s.menuRepo.ListMenus()
+		menus, err = s.menuRepo.ListMenus(ctx)
 	} else {
 		// 其他用户：批量查询所有角色的菜单（一次 DB 查询，避免 N+1）
 		roleIDSlice := make([]int64, len(roles))
 		for i, role := range roles {
 			roleIDSlice[i] = role.ID
 		}
-		allMenus, menuErr := s.menuRepo.BatchGetRoleMenus(roleIDSlice)
+		allMenus, menuErr := s.menuRepo.BatchGetRoleMenus(ctx, roleIDSlice)
 		if menuErr != nil {
 			return nil, menuErr
 		}

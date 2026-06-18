@@ -5,6 +5,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"encoding/json"
 
@@ -60,14 +61,14 @@ func validatePermissions(perms []string) error {
 // Create 创建角色。
 //
 // 校验角色名唯一性，重复返回 10005。
-func (s *RoleService) Create(name, description string, permissions []string) error {
+func (s *RoleService) Create(ctx context.Context, name, description string, permissions []string) error {
 	// 校验权限白名单
 	if err := validatePermissions(permissions); err != nil {
 		return err
 	}
 
 	// 校验角色名唯一（通过 Repository 层，保证三层架构一致）
-	exists, err := s.repo.ExistsByName(name, 0)
+	exists, err := s.repo.ExistsByName(ctx, name, 0)
 	if err != nil {
 		return err
 	}
@@ -86,18 +87,18 @@ func (s *RoleService) Create(name, description string, permissions []string) err
 		Permissions: datatypes.JSON(permsJSON),
 	}
 
-	if err := s.repo.Create(role); err != nil {
+	if err := s.repo.Create(ctx, role); err != nil {
 		return err
 	}
-	s.auditRepo.Create(&model.AuditLog{
+	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: 0, Action: "role.create", TargetType: "role", TargetID: role.ID,
 	})
 	return nil
 }
 
 // GetByID 根据 ID 获取角色。
-func (s *RoleService) GetByID(id int64) (*model.Role, error) {
-	role, err := s.repo.GetByID(id)
+func (s *RoleService) GetByID(ctx context.Context, id int64) (*model.Role, error) {
+	role, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
@@ -108,16 +109,16 @@ func (s *RoleService) GetByID(id int64) (*model.Role, error) {
 }
 
 // List 查询角色列表（分页 + 关键词搜索）。
-func (s *RoleService) List(page, pageSize int, keyword string) ([]model.Role, int64, error) {
-	return s.repo.List(page, pageSize, keyword)
+func (s *RoleService) List(ctx context.Context, page, pageSize int, keyword string) ([]model.Role, int64, error) {
+	return s.repo.List(ctx, page, pageSize, keyword)
 }
 
 // Update 更新角色。
 //
 // 校验新名称是否与其他角色冲突（排除自身），
 // 与 Create 保持一致的唯一性约束。
-func (s *RoleService) Update(id int64, name, description string, permissions []string) error {
-	role, err := s.repo.GetByID(id)
+func (s *RoleService) Update(ctx context.Context, id int64, name, description string, permissions []string) error {
+	role, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
@@ -131,7 +132,7 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 	}
 
 	// 校验角色名唯一（排除自身，通过 Repository 层）
-	exists, err := s.repo.ExistsByName(name, id)
+	exists, err := s.repo.ExistsByName(ctx, name, id)
 	if err != nil {
 		return err
 	}
@@ -148,10 +149,10 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 	role.Description = description
 	role.Permissions = datatypes.JSON(permsJSON)
 
-	if err := s.repo.Update(role); err != nil {
+	if err := s.repo.Update(ctx, role); err != nil {
 		return err
 	}
-	s.auditRepo.Create(&model.AuditLog{
+	s.auditRepo.Create(ctx, &model.AuditLog{
 		OperatorID: 0, Action: "role.update", TargetType: "role", TargetID: id,
 	})
 	return nil
@@ -161,26 +162,26 @@ func (s *RoleService) Update(id int64, name, description string, permissions []s
 //
 // 使用事务包裹存在性检查+删除，防止 TOCTOU 竞态：
 // 并发 AssignRoles 可能在 CountUsersByRole 检查通过后分配用户到此角色。
-func (s *RoleService) Delete(id int64) error {
+func (s *RoleService) Delete(ctx context.Context, id int64) error {
 	// 禁止删除内置角色
-	if isBuiltin, err := s.repo.IsBuiltinRole(id); err != nil {
+	if isBuiltin, err := s.repo.IsBuiltinRole(ctx, id); err != nil {
 		return err
 	} else if isBuiltin {
 		return AppError{Code: errcode.ErrForbidden, Message: "不能删除系统内置角色"}
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txRepo := repository.NewRoleRepo(tx)
 		txUserRepo := repository.NewUserRepo(tx)
 
-		if _, err := txRepo.GetByID(id); err != nil {
+		if _, err := txRepo.GetByID(ctx, id); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
 			}
 			return err
 		}
 
-		count, err := txUserRepo.CountUsersByRole(id)
+		count, err := txUserRepo.CountUsersByRole(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -188,11 +189,11 @@ func (s *RoleService) Delete(id int64) error {
 			return AppError{Code: errcode.ErrConflict, Message: "角色下存在关联用户，无法删除"}
 		}
 
-		if err := txRepo.Delete(id); err != nil {
+		if err := txRepo.Delete(ctx, id); err != nil {
 			return err
 		}
 		txAuditRepo := repository.NewAuditRepo(tx)
-		txAuditRepo.Create(&model.AuditLog{
+		txAuditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: 0, Action: "role.delete", TargetType: "role", TargetID: id,
 		})
 		return nil
@@ -203,20 +204,20 @@ func (s *RoleService) Delete(id int64) error {
 //
 // 菜单权限绑定是本模块的核心功能之一，Menu 存储在独立的 menus 表中，
 // 但菜单管理归入角色模块，因为菜单是权限的载体。
-func (s *RoleService) ListMenus() ([]model.Menu, error) {
-	return s.menuRepo.ListMenus()
+func (s *RoleService) ListMenus(ctx context.Context) ([]model.Menu, error) {
+	return s.menuRepo.ListMenus(ctx)
 }
 
 // GetRoleMenus 获取指定角色的菜单 ID 列表。
-func (s *RoleService) GetRoleMenus(roleID int64) ([]model.Menu, error) {
+func (s *RoleService) GetRoleMenus(ctx context.Context, roleID int64) ([]model.Menu, error) {
 	// 先确认角色存在
-	if _, err := s.repo.GetByID(roleID); err != nil {
+	if _, err := s.repo.GetByID(ctx, roleID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
 		}
 		return nil, err
 	}
-	return s.menuRepo.GetRoleMenus(roleID)
+	return s.menuRepo.GetRoleMenus(ctx, roleID)
 }
 
 // UpdateRoleMenus 更新角色的菜单权限绑定。
@@ -224,20 +225,20 @@ func (s *RoleService) GetRoleMenus(roleID int64) ([]model.Menu, error) {
 // 采用全量替换策略：先清空角色的所有菜单关联，再插入新关联。
 // 为什么全量替换而非增量更新：前端提交的是完整菜单 ID 列表，
 // 全量替换避免了前端需要追踪增删的复杂性。
-func (s *RoleService) UpdateRoleMenus(roleID int64, menuIDs []int64) error {
+func (s *RoleService) UpdateRoleMenus(ctx context.Context, roleID int64, menuIDs []int64) error {
 	// 校验 menuIDs 是否全部存在
-	if missing, err := s.menuRepo.ValidateMenuIDs(menuIDs); err != nil {
+	if missing, err := s.menuRepo.ValidateMenuIDs(ctx, menuIDs); err != nil {
 		return err
 	} else if len(missing) > 0 {
 		return AppError{Code: errcode.ErrParam, Message: "菜单 ID 不存在"}
 	}
 
 	// 先确认角色存在
-	if _, err := s.repo.GetByID(roleID); err != nil {
+	if _, err := s.repo.GetByID(ctx, roleID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AppError{Code: errcode.ErrNotFound, Message: "角色不存在"}
 		}
 		return err
 	}
-	return s.menuRepo.UpdateRoleMenus(roleID, menuIDs)
+	return s.menuRepo.UpdateRoleMenus(ctx, roleID, menuIDs)
 }
