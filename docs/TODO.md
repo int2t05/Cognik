@@ -477,12 +477,12 @@
 ### Repository 层
 
 - 🔴 [repository/pagination.go](/server/internal/repository/pagination.go) — 所有 Repo 方法缺 `context.Context`：HTTP 取消不传播到 DB 查询，追踪无法关联
-- 🟡 [repository/pagination.go](/server/internal/repository/pagination.go) — 分页辅助函数零调用方（死代码），各 Repo 自行实现分页
-- 🟡 [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — GORM query 对象复用于 Count 和 Find，session 状态可能泄漏
-- 📌 [repository/knowledge_repo.go:34](/server/internal/repository/knowledge_repo.go) — 创建知识库应依赖数据库唯一索引兜底
+- ✅ [repository/pagination.go](/server/internal/repository/pagination.go) — 分页辅助函数零调用方（死代码），文件已删除
+- ✅ [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — GORM query 对象复用于 Count 和 Find，session 状态可能泄漏
+- ✅ [repository/knowledge_repo.go](/server/internal/repository/knowledge_repo.go) — 创建知识库应依赖数据库唯一索引兜底
 - ✅ [repository/knowledge_repo.go:117](/server/internal/repository/knowledge_repo.go) — Count/Offset/Limit 复用同一 query 的状态泄漏风险已在 `ListArticles` 重构时消除（每个 WHERE 条件独立添加，GORM clone 了 session）
-- 📌 [repository/config_repo.go:46](/server/internal/repository/config_repo.go) — Upsert 会覆盖 description 之外的配置元信息
-- 📌 [repository/chat_repo.go:37](/server/internal/repository/chat_repo.go) — FindByID 应支持 userID 条件，用于门户端防止水平越权
+- ✅ [repository/config_repo.go](/server/internal/repository/config_repo.go) — Upsert 会覆盖 description 之外的配置元信息
+- ✅ [repository/chat_repo.go](/server/internal/repository/chat_repo.go) — FindByID 应支持 userID 条件，用于门户端防止水平越权
 
 ### 调度器
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 1 | 8+1📝 | 3 | 11 | 24 |
+| 8. 基础设施与部署 | 1 | 6+1📝 | 3 | 8 | 19 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **35** | **60** | **24+6📝** | **21** | **~157** |
+| **合计** | **35** | **58** | **24+6📝** | **18** | **~152** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

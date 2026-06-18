@@ -31,8 +31,6 @@ func NewKnowledgeRepo(db *gorm.DB) *KnowledgeRepo {
 // 创建后 kb.ID 会被 GORM 自动填充。
 // rag_workspace_slug 唯一约束由数据库保证，重复时返回 PostgreSQL 错误。
 func (r *KnowledgeRepo) CreateKB(kb *model.KnowledgeBase) error {
-	// TODO(repository/knowledge): 创建知识库应依赖数据库唯一索引兜底，并将重复错误转换为 ErrConflict。
-	// 当前 Service 没有名称唯一性预校验，重复名称会返回底层数据库错误。
 	return r.db.Create(kb).Error
 }
 

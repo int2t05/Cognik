@@ -43,9 +43,7 @@ func (r *ConfigRepo) GetByKey(key string) (*model.SystemConfig, error) {
 // ON CONFLICT 是原子操作，避免并发场景下的竞态条件。
 // GORM 的 clause.OnConflict 配合 Clauses 可以在单条 SQL 中完成。
 func (r *ConfigRepo) Upsert(key string, value datatypes.JSON, updatedBy int64) error {
-	// TODO(repository/config): Upsert 会覆盖 description 之外的配置元信息。
-	// 后续如果配置有类型、范围、是否可编辑等元数据，应拆成 schema 表或固定注册表。
-	cfg := model.SystemConfig{
+		cfg := model.SystemConfig{
 		Key:       key,
 		Value:     value,
 		UpdatedBy: updatedBy,

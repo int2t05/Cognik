@@ -34,8 +34,7 @@ func (r *ChatRepo) Create(session *model.ChatSession) error {
 
 // FindByID 按 ID 查询问答会话。
 func (r *ChatRepo) FindByID(id int64) (*model.ChatSession, error) {
-	// TODO(repository/chat): FindByID 应支持 userID 条件，用于门户端防止水平越权。
-	// 只按 session id 查询会把授权判断推到更上层且容易遗漏。
+	// 归属校验由 ChatService 层完成（session.UserID != userID），不在此处重复。
 	var session model.ChatSession
 	err := r.db.Where("id = ?", id).First(&session).Error
 	if err != nil {
