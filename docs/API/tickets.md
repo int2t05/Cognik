@@ -38,7 +38,12 @@ Authorization: Bearer <token>
   "affected_systems": ["Exchange", "Outlook"],
   "contact_phone": "13800001111",
   "contact_email": "user@company.com",
-  "chat_context": "{\"question\":\"邮箱无法登录怎么办？\"}"
+  "chat_context": {
+    "session_id": 42,
+    "question": "邮箱无法登录怎么办？",
+    "answer": "您可以尝试以下步骤...",
+    "confidence": 0.85
+  }
 }
 ```
 
@@ -51,7 +56,7 @@ Authorization: Bearer <token>
 | affected_systems | string[] | | 受影响系统列表 |
 | contact_phone | string | ✓ | 联系电话 |
 | contact_email | string | | 联系邮箱 |
-| chat_context | string | | 从问答转申告时的上下文（JSON 字符串） |
+| chat_context | object | | 从问答转申告时的上下文（结构化对象，含 session_id / question / answer / confidence） |
 
 **响应：**
 

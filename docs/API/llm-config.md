@@ -40,11 +40,12 @@ Authorization: Bearer <token>
       "api_key": "",
       "llm_model": "qwen3-4b",
       "embedding_model": "bge-m3",
+      "system_prompt": "",
       "max_tokens": 8192,
       "vector_dimension": 1024,
       "is_default": true,
-      "created_at": "2026-06-11T19:00:00Z",
-      "updated_at": "2026-06-11T19:00:00Z"
+      "created_at": "2026-06-11 19:00:00",
+      "updated_at": "2026-06-11 19:00:00"
     },
     {
       "id": 2,
@@ -55,11 +56,12 @@ Authorization: Bearer <token>
       "api_key": "sk-****Ab12",
       "llm_model": "gpt-4o-mini",
       "embedding_model": "text-embedding-3-small",
+      "system_prompt": "",
       "max_tokens": 16384,
       "vector_dimension": 1536,
       "is_default": false,
-      "created_at": "2026-06-11T19:30:00Z",
-      "updated_at": "2026-06-11T19:30:00Z"
+      "created_at": "2026-06-11 19:30:00",
+      "updated_at": "2026-06-11 19:30:00"
     }
   ]
 }
@@ -75,9 +77,12 @@ Authorization: Bearer <token>
 | api_key | string | API 密钥掩码（如 `****`，空表示无密钥） |
 | llm_model | string | 文本生成模型名称 |
 | embedding_model | string | Embedding 模型名称 |
+| system_prompt | string | 系统提示词（可为空） |
 | max_tokens | int | 最大生成 Token 数 |
 | vector_dimension | int | embedding 向量维度 |
 | is_default | bool | 是否系统默认配置（最多一个 true） |
+| created_at | string | 创建时间（`YYYY-MM-DD HH:MM:SS` 格式） |
+| updated_at | string | 更新时间（`YYYY-MM-DD HH:MM:SS` 格式） |
 
 ---
 
@@ -99,6 +104,7 @@ Authorization: Bearer <token>
   "api_key": "",
   "llm_model": "qwen3-4b",
   "embedding_model": "bge-m3",
+  "system_prompt": "你是一个专业的运维助手，请用简洁准确的中文回答用户问题。",
   "max_tokens": 8192,
   "vector_dimension": 1024,
   "is_default": true
@@ -116,6 +122,7 @@ Authorization: Bearer <token>
   "api_key": "sk-your-api-key",
   "llm_model": "gpt-4o-mini",
   "embedding_model": "text-embedding-3-small",
+  "system_prompt": "你是一个专业的运维助手，请用简洁准确的中文回答用户问题。",
   "max_tokens": 16384,
   "vector_dimension": 1536,
   "is_default": false
@@ -132,6 +139,7 @@ Authorization: Bearer <token>
 | api_key | string | | API 密钥（llama.cpp 通常为空；数据库 AES-256 加密存储） |
 | llm_model | string | ✓ | 文本生成模型名称 |
 | embedding_model | string | ✓ | Embedding 模型名称 |
+| system_prompt | string | | 系统提示词（自定义 LLM 角色和行为，可为空） |
 | max_tokens | int | | 最大生成 Token 数，默认 8192（建议 4096-32768） |
 | vector_dimension | int | | 向量维度，默认 1024（bge-m3=1024, text-embedding-3-small=1536） |
 | is_default | bool | | 是否设为默认配置（设为 true 时自动将旧默认改为 false） |
@@ -155,11 +163,12 @@ Authorization: Bearer <token>
     "api_key": "",
     "llm_model": "qwen3-4b",
     "embedding_model": "bge-m3",
+    "system_prompt": "",
     "max_tokens": 8192,
     "vector_dimension": 1024,
     "is_default": true,
-    "created_at": "2026-06-11T19:00:00Z",
-    "updated_at": "2026-06-11T19:00:00Z"
+    "created_at": "2026-06-11 19:00:00",
+    "updated_at": "2026-06-11 19:00:00"
   }
 }
 ```

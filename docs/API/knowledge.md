@@ -93,9 +93,9 @@ Authorization: Bearer <token>
             "vector_dimension": 1024,
             "llm_config_id": 1,
             "article_count": 120,
-            "created_by": "admin",
-            "created_at": "2026-06-11T19:27:43Z",
-            "updated_at": "2026-06-11T19:27:43Z"
+            "created_by": 1,
+            "created_at": "2026-06-11 19:27:43",
+            "updated_at": "2026-06-11 19:27:43"
         }
     ]
 }
@@ -110,9 +110,9 @@ Authorization: Bearer <token>
 | vector_dimension | int    | 向量维度                  |
 | llm_config_id    | int64  | 关联的 LLM 配置 ID        |
 | article_count    | int    | 文章数量                  |
-| created_by       | string | 创建者用户名              |
-| created_at       | string | 创建时间（RFC3339 格式）  |
-| updated_at       | string | 更新时间（RFC3339 格式）  |
+| created_by       | int64  | 创建者用户 ID              |
+| created_at       | string | 创建时间（`YYYY-MM-DD HH:MM:SS` 格式） |
+| updated_at       | string | 更新时间（`YYYY-MM-DD HH:MM:SS` 格式） |
 
 ### 2. 创建知识库
 

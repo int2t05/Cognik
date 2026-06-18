@@ -317,7 +317,9 @@ Authorization: Bearer <token>
 
 ## 健康检查
 
-> 无需认证，供 Docker/K8s 存活探针使用。
+> 无需认证，供 Docker/K8s 存活探针和就绪探针使用。
+
+### 存活探针
 
 ```http
 GET /health
@@ -330,3 +332,27 @@ GET /health
   "status": "ok"
 }
 ```
+
+### 就绪探针
+
+```http
+GET /readyz
+```
+
+**响应示例（就绪）：**
+
+```json
+{
+  "status": "ready"
+}
+```
+
+**响应示例（未就绪，503）：**
+
+```json
+{
+  "status": "not ready"
+}
+```
+
+> `/readyz` 验证数据库连接可达性。数据库不可达时返回 HTTP 503，K8s 将停止向该 Pod 路由流量。

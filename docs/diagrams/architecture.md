@@ -1,13 +1,13 @@
 # 系统架构总览
 
-> 基于当前代码实际结构绘制。最后更新：2026-06-12
+> 基于当前代码实际结构绘制。最后更新：2026-06-18
 
 ## 1. 分层架构全景
 
 ```mermaid
 flowchart TB
     subgraph Client["客户端层"]
-        Browser["浏览器 (Vue 3 + Naive UI)"]
+        Browser["浏览器 (Vue 3 + Radix Vue)"]
         Portal["门户端 /portal/*<br/>Chat.vue / TicketSubmit.vue / Messages.vue"]
         Admin["后台管理 /admin/*<br/>Dashboard.vue / KnowledgeList.vue / TicketList.vue / LLMConfig.vue"]
     end
