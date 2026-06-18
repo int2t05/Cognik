@@ -284,8 +284,7 @@ func float32ToPgVector(v []float32) string {
 	if len(v) == 0 {
 		return "[]"
 	}
-	// TODO(adapter/vector): 使用 fmt.Sprintf("%.8f") 会损失 embedding 精度。
-	// halfvec 已经会量化，字符串阶段再截断可能进一步影响召回质量。
+	// halfvec(FP16) 精度约 3.3 位十进制有效数字，%.8f 已充分保留原始值
 	var b strings.Builder
 	b.WriteByte('[')
 	for i, f := range v {

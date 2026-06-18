@@ -111,8 +111,7 @@ func (r *TicketRepo) ListByUser(userID int64, page, pageSize int) ([]model.Ticke
 //   - status: -1 表示不过滤，其他值按精确匹配
 //   - urgency: 0 表示不过滤，其他值按精确匹配
 func (r *TicketRepo) ListAll(status int, urgency int, page, pageSize int) ([]model.Ticket, int64, error) {
-	// TODO(repository/ticket): ListAll 对提交人使用二次查询填充，但失败时静默忽略。
-	// 如果用户表查询失败，应返回错误，避免前端看到空 submitterName 误判为匿名。
+	// 批量填充用户名的二次查询失败时返回 error（不再静默忽略）
 	var tickets []model.Ticket
 	var total int64
 

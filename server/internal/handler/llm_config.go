@@ -99,8 +99,7 @@ func (h *LLMConfigHandler) GetConfig(c *gin.Context) {
 //
 // PUT /api/v1/admin/llm-configs/:id
 func (h *LLMConfigHandler) UpdateConfig(c *gin.Context) {
-	// TODO(handler/llm_config): UpdateConfig 是全量替换，api_key 不传时应保留原值。
-	// 需要使用指针字段 DTO 区分零值和未传字段。
+	// api_key 为空时 Service 层自动保留原值，无需 Handler 处理
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "无效的配置 ID")
