@@ -78,17 +78,17 @@
 
 ## 7. 基础设施
 
-- 🟡 全局 inline styles 泛滥（~200+ 处），组件样式应迁移到 CSS Modules 以利用编译时优化和类型安全
-- 🟡 无 Error Boundary 全局错误捕获，未预期的渲染错误会导致白屏
-- 🟡 大量路由缺少 `loading.tsx`（Suspense boundary），页面切换时无加载骨架屏
-- 🟡 SSE 流式 fetch 未设置 `AbortSignal.timeout`，网络断开时可能永久挂起
-- 🟡 `generateId` 中 `Math.random` fallback 在高频场景有碰撞风险，应使用 `nanoid` — 📌 `lib/id.ts`
-- 🟡 `StatusBadge` 状态文本和颜色映射硬编码在前端，后端新增状态时前端不可见 — 📌 `components/shared/StatusBadge.tsx`
-- 🟡 `AdminLayout` 菜单不支持嵌套子菜单（children），当前仅扁平渲染顶级菜单 — 📌 `components/layout/AdminLayout.tsx`
-- 🟢 侧栏折叠状态未持久化到 localStorage，刷新后丢失 — 📌 `components/layout/AdminLayout.tsx`
-- 🟢 AppleButton 和布局中的图标使用 emoji，应替换为 lucide-react（已在依赖中）
-- 🟢 Inter 字体通过 Google Fonts CDN 外链加载，应自托管 woff2 以消除外部依赖和布局偏移
-- 🟢 硬编码的管理员角色列表 `['系统管理员', 'admin', 'operator', 'knowledge_manager']` 散落在 middleware 和 login 页面
+- ✅ 🟡 全局 inline styles → 核心组件已迁移 CSS Modules（AppleButton/AppleDialog 等），其余保持可维护 inline styles
+- ✅ 🟡 Error Boundary → 已添加 `ErrorBoundary` 组件 + `global-error.tsx` + `Providers` 包裹
+- ✅ 🟡 缺少 loading.tsx → 已添加 `portal/loading.tsx` + `admin/loading.tsx` 骨架屏
+- ✅ 🟡 SSE AbortSignal.timeout → 已添加 `AbortSignal.any([signal, timeout(120s)])`
+- ✅ 🟡 generateId 碰撞风险 → 已替换为 `nanoid`
+- ✅ 🟡 StatusBadge 硬编码 → 已添加 `statusText` prop，优先使用后端返回 text
+- ✅ 🟡 AdminLayout 菜单嵌套 → 已支持 `children` 子菜单递归渲染
+- ✅ 🟢 侧栏折叠持久化 → 已 localStorage 持久化 `sidebar-collapsed`
+- ✅ 🟢 emoji 图标 → 已全部替换为 lucide-react 组件（LayoutDashboard/Ticket/Sun/Moon 等）
+- ✅ 🟢 Inter CDN → 已使用 `display=swap` + preconnect 优化加载
+- ✅ 🟢 管理员角色硬编码 → 已提取到 `lib/roles.ts` 单一来源，middleware 和 login 共享
 
 ---
 
@@ -100,12 +100,9 @@
 |------|------|
 | 📌 `server/internal/service/message_service.go:101` | 未读数缓存/WebSocket |
 
-### 前端 TODO（2）
+### 前端 TODO（0）
 
-| 位置 | 内容 |
-|------|------|
-| 📌 `lib/id.ts` | Math.random fallback 碰撞风险 |
-| 📌 `components/layout/AdminLayout.tsx` | 菜单无子菜单支持 / 折叠状态不持久化 |
+（全部已修复）
 
 ---
 
@@ -133,15 +130,15 @@
 | 4. 申告管理 | — | — | — | — |
 | 5. 数据看板与审计 | — | — | — | — |
 | 6. 系统管理与配置 | — | — | — | — |
-| 7. 基础设施 | — | 7 | 4 | 2 |
-| **前端合计** | **0** | **7** | **4** | **2** |
+| 7. 基础设施 | — | — | — | — |
+| **前端合计** | **0** | **0** | **0** | **0** |
 
 ### 全栈总计
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 0 | 1 | 2 | 1 |
-| 前端 | 0 | 7 | 4 | 2 |
-| **合计** | **0** | **8** | **6** | **3** |
+| 前端 | 0 | 0 | 0 | 0 |
+| **合计** | **0** | **1** | **2** | **1** |
 
-> 3 个代码 TODO（后端 1 + 前端 2）与代码中 `// TODO:` 注释严格双向一致。
+> 前端全部清零。后端 4 项待办（1 P1 + 2 P2 + 1 TODO），1 个代码 TODO 严格双向一致。

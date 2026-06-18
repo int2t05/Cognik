@@ -89,7 +89,7 @@ export default function ChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ question }),
-        signal: controller.signal,
+        signal: AbortSignal.timeout ? AbortSignal.any([controller.signal, AbortSignal.timeout(120_000)]) : controller.signal,
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

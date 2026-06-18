@@ -8,6 +8,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { apiFetch } from '@/lib/api/client';
+import { isAdminRole } from '@/lib/roles';
 
 interface LoginResponse {
   access_token: string;
@@ -43,8 +44,7 @@ export default function LoginPage() {
       login(data.access_token, data.refresh_token, data.user, data.roles, data.permissions, data.menus);
 
       // 根据角色跳转
-      const adminRoles = ['系统管理员', 'admin', 'operator', 'knowledge_manager'];
-      const isAdmin = data.roles.some((r) => adminRoles.includes(r));
+      const isAdmin = isAdminRole(data.roles);
       router.push(isAdmin ? '/admin/dashboard' : '/portal/chat');
     } catch (err: unknown) {
       // 直接提取后端 message

@@ -2,10 +2,10 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ADMIN_ROLES } from '@/lib/roles';
 
 const PUBLIC_PATHS = ['/login'];
 const ADMIN_PATH = '/admin';
-const ADMIN_ROLES = ['系统管理员', 'admin', 'operator', 'knowledge_manager'];
 
 interface JwtPayload {
   roles?: string[];

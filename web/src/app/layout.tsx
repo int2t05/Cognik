@@ -3,8 +3,7 @@
  */
 
 import type { Metadata } from 'next';
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { ToastProvider } from '@/hooks/useToast';
+import { Providers } from '@/components/Providers';
 import '@/styles/global.css';
 
 export const metadata: Metadata = {
@@ -34,9 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
