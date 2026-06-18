@@ -1,4 +1,5 @@
 'use client';
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import { getStats, getTrends } from '@/lib/api/dashboard';
 import { StatCard } from '@/components/shared/StatCard';
@@ -10,9 +11,13 @@ import { useToast } from '@/hooks/useToast';
 export default function DashboardPage() {
   const toast = useToast();
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
-  const today = new Date();
-  const start = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10);
-  const end = today.toISOString().slice(0, 10);
+  const { start, end } = useMemo(() => {
+    const today = new Date();
+    return {
+      start: new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10),
+      end: today.toISOString().slice(0, 10),
+    };
+  }, []);
   const { data: trends, mutate: refreshTrends } = useSWR('dashboard-trends', () => getTrends(start, end));
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
@@ -63,7 +68,12 @@ function TrendChart({ data }: { data: { date: string; ticket_count: number; chat
         ))}
       </div>
       <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12, fontSize: 12, color: 'var(--text-muted-48)' }}>
-        <span>■ 申告</span><span style={{ color: 'var(--color-success)' }}>■ 问答</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--accent)' }} /> 申告
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-success)', opacity: 0.7 }} /> 问答
+        </span>
       </div>
     </div>
   );

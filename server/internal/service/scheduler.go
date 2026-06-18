@@ -67,9 +67,9 @@ func (s *Scheduler) runAutoCloseLoop(ctx context.Context) {
 }
 
 func (s *Scheduler) doAutoClose() {
-	// TODO(service/scheduler): context.Background() 使 AutoClose 无法被关闭信号取消，
-	// 优雅关闭时可能截断正在执行的自动关闭 SQL。应用传入 ctx 或使用带超时的 context。
-	closed, err := s.ticketSvc.AutoClose(context.Background(), time.Now().Add(-7*24*time.Hour))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	closed, err := s.ticketSvc.AutoClose(ctx, time.Now().Add(-7*24*time.Hour))
 	if err != nil {
 		slog.Error("自动关闭申告失败", "error", err)
 	} else if closed > 0 {

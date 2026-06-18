@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function NotFound() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-parchment)' }}>
@@ -8,9 +10,9 @@ export default function NotFound() {
         <p style={{ fontSize: 17, color: 'var(--text-muted-48)', marginTop: 8 }}>
           页面不存在
         </p>
-        <a href="/portal/chat" style={{ color: 'var(--accent)', marginTop: 24, display: 'inline-block', fontSize: 17 }}>
+        <Link href="/portal/chat" style={{ color: 'var(--accent)', marginTop: 24, display: 'inline-block', fontSize: 17 }}>
           返回首页
-        </a>
+        </Link>
       </div>
     </div>
   );

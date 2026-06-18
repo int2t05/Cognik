@@ -40,7 +40,14 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'saturate(180%) blur(20px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-          <span onClick={() => router.push('/portal/chat')} style={{ fontSize: 21, fontWeight: 600, letterSpacing: '0.231px', color: 'var(--text-ink)', cursor: 'pointer' }}>
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label="返回首页"
+            onClick={() => router.push('/portal/chat')}
+            onKeyDown={(e) => { if (e.key === 'Enter') router.push('/portal/chat'); }}
+            style={{ fontSize: 21, fontWeight: 600, letterSpacing: '0.231px', color: 'var(--text-ink)', cursor: 'pointer' }}
+          >
             OpsMind
           </span>
           <nav style={{ display: 'flex', gap: 4 }}>
@@ -65,7 +72,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={toggleTheme} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-ink)', display: 'flex', padding: 4 }}>
+          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-ink)', display: 'flex', padding: 4 }}>
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           {isAdmin && (

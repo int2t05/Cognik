@@ -67,14 +67,14 @@ func (r *DashboardRepo) GetTicketTrends(ctx context.Context, startDate, endDate,
 	if granularity == "week" {
 		trunc = "week"
 	}
-	// TODO(repo/dashboard): date_trunc 函数不接受参数化，改用 CASE WHEN 或 pgx 标识符引用避免 SQL 拼接。
+	// 使用 CASE WHEN 替代字符串拼接，避免 SQL 注入风险。
 	err := r.db.WithContext(ctx).Raw(
-		`SELECT TO_CHAR(date_trunc('`+trunc+`', created_at), 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		`SELECT TO_CHAR(CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		 FROM tickets
 		 WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
-		 GROUP BY date_trunc('`+trunc+`', created_at)
-		 ORDER BY date_trunc('`+trunc+`', created_at)`,
-		startDate, endDate,
+		 GROUP BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END
+		 ORDER BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END`,
+		trunc, startDate, endDate, trunc, trunc,
 	).Scan(&points).Error
 	return points, err
 }
@@ -86,12 +86,12 @@ func (r *DashboardRepo) GetChatTrends(ctx context.Context, startDate, endDate st
 		trunc = "week"
 	}
 	err := r.db.WithContext(ctx).Raw(
-		`SELECT TO_CHAR(date_trunc('`+trunc+`', created_at), 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		`SELECT TO_CHAR(CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		 FROM chat_sessions
 		 WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
-		 GROUP BY date_trunc('`+trunc+`', created_at)
-		 ORDER BY date_trunc('`+trunc+`', created_at)`,
-		startDate, endDate,
+		 GROUP BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END
+		 ORDER BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END`,
+		trunc, startDate, endDate, trunc, trunc,
 	).Scan(&points).Error
 	return points, err
 }

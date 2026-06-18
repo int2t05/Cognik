@@ -6,16 +6,22 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/useToast';
 
 export default function MessagesPage() {
   const [page, setPage] = useState(1);
   const router = useRouter();
+  const toast = useToast();
   const { data, error, mutate } = useSWR(`messages-${page}`, () => getMessages(page));
 
   const handleRead = async (id: number, relatedType: string, relatedId: number) => {
-    await markAsRead(id);
-    mutate();
-    if (relatedType === 'ticket') router.push(`/portal/tickets/${relatedId}`);
+    try {
+      await markAsRead(id);
+      mutate();
+      if (relatedType === 'ticket') router.push(`/portal/tickets/${relatedId}`);
+    } catch {
+      toast.error('标记已读失败');
+    }
   };
 
   return (

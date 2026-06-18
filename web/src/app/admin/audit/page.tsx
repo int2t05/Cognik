@@ -1,19 +1,11 @@
 'use client';
 import useSWR from 'swr';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { getAuditLogs } from '@/lib/api/audit';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { formatDate } from '@/lib/date';
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function AuditLogPage() {
   const [page, setPage] = useState(1);

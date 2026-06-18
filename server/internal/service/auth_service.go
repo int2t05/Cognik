@@ -276,6 +276,10 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, 
 		return AppError{Code: 10003, Message: "旧密码错误"}
 	}
 
+	if oldPwd == newPwd {
+		return AppError{Code: errcode.ErrParam, Message: "新密码不能与旧密码相同"}
+	}
+
 	if err := hash.ValidatePassword(newPwd); err != nil {
 		slog.Warn("修改密码失败：新密码不符合策略", "user_id", userID)
 		return AppError{Code: 10003, Message: err.Error()}

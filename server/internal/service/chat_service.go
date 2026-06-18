@@ -235,6 +235,10 @@ func (s *ChatService) SubmitFeedback(ctx context.Context, sessionID int64, userI
 	if feedback < 0 || feedback > 2 {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 0（未反馈）/1（已解决）/2（未解决）"}
 	}
+	// 仅允许从「未反馈」(0) 更新为「已解决」(1) 或「未解决」(2)，禁止用 0 覆盖已有反馈。
+	if feedback == 0 {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 1（已解决）或 2（未解决）"}
+	}
 	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}

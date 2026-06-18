@@ -8,6 +8,7 @@ import (
 	"opsmind/internal/dto/request"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
+	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +30,7 @@ func NewAuditHandler(svc *service.AuditService) *AuditHandler {
 func (h *AuditHandler) List(c *gin.Context) {
 	var req request.AuditLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, 10003, "参数校验失败: "+err.Error())
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
 	}
 

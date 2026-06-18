@@ -102,10 +102,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div style={{ padding: 12, borderTop: '1px solid var(--divider-soft)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button onClick={() => router.push('/portal/messages')} style={sidebarBtn}>
+          <button onClick={() => router.push('/portal/messages')} style={sidebarBtn} aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} style={sidebarBtn}>
+          <button onClick={toggleTheme} style={sidebarBtn} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>
@@ -118,7 +118,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px',
           position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'saturate(180%) blur(20px)',
         }}>
-          <button onClick={() => setCollapsed(!collapsed)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-ink)' }}>
+          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-ink)' }}>
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

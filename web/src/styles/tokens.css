@@ -85,4 +85,9 @@
   --text-muted-48: #666666;
   --divider-soft: rgba(255, 255, 255, 0.08);
   --hairline: rgba(255, 255, 255, 0.12);
+  --badge-success-bg: #1b5e20;  --badge-success-text: #a5d6a7;
+  --badge-warning-bg: #e65100;  --badge-warning-text: #ffcc80;
+  --badge-error-bg: #b71c1c;    --badge-error-text: #ef9a9a;
+  --badge-info-bg: #0d47a1;     --badge-info-text: #90caf9;
+  --badge-neutral-bg: #424242;  --badge-neutral-text: #bdbdbd;
 }

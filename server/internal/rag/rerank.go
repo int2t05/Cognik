@@ -1,6 +1,7 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
 // rerank.go 实现 cross-encoder 驱动的候选文档重排序。
+// 对应适配层为 adapter/rerank_client.go。
 //
 // 为什么从 LLM prompt 方案切换到 cross-encoder：
 // LLM prompt 方案通过编号排序（"仅输出 3,1,2"）做重排，

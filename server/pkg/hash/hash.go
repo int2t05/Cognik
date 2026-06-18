@@ -1,8 +1,6 @@
 // Package hash 提供密码哈希和验证工具。
 //
-// 使用 bcrypt 算法进行密码哈希，cost=10 在 4C8GB 环境下单次哈希约 100ms，
-// 满足登录场景性能要求。
-//
+// 使用 bcrypt 算法进行密码哈希。
 // 密码策略：
 // - 长度 8-32 位
 // - 必须包含大写字母、小写字母和数字
@@ -10,6 +8,8 @@ package hash
 
 import (
 	"errors"
+	"os"
+	"strconv"
 	"unicode"
 	"unicode/utf8"
 
@@ -25,10 +25,20 @@ var ErrPasswordTooLong = errors.New("密码长度超过 32 位")
 // ErrPasswordWeak 密码强度不足
 var ErrPasswordWeak = errors.New("密码必须包含大写字母、小写字母和数字")
 
+// bcryptCost 返回 bcrypt 哈希成本参数。
+// 从环境变量 OPSMIND_BCRYPT_COST 读取，默认 10。
+func bcryptCost() int {
+	if v := os.Getenv("OPSMIND_BCRYPT_COST"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 4 && n <= 31 {
+			return n
+		}
+	}
+	return 10
+}
+
 // HashPassword 使用 bcrypt 对密码进行单向哈希。
-// cost=10 在 4C8GB 环境下单次哈希约 100ms，满足登录场景性能要求。
 func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost())
 	return string(bytes), err
 }
 

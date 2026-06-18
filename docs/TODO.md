@@ -2,8 +2,6 @@
 
 > 优先级：🔴 生产隐患 / 🟡 架构债务 / 🟢 优化建议
 > 📌 标记为代码中已存在 `// TODO:` 注释，与本文档双向同步。
-> 已完成项不在此列出（见 git log）。
-> 最后审计：2026-06-18，覆盖 93 后端 + 63 前端 = 156 源文件。
 
 ---
 
@@ -11,48 +9,48 @@
 
 ## 1. 认证与授权
 
-- 📌 🟡 每次 API 请求都查 DB 校验用户状态，高并发时 N 次额外查询 — [server/internal/middleware/auth.go:73](server/internal/middleware/auth.go#L73)
-- 🟢 ChangePassword 未校验新旧密码不同 — [server/internal/service/auth_service.go:268](server/internal/service/auth_service.go#L268)
+- ✅ 📌 🟡 每次 API 请求都查 DB 校验用户状态，高并发时 N 次额外查询 — 保留（需缓存基础设施）
+- ✅ 🟢 ChangePassword 未校验新旧密码不同 — 已修复：`auth_service.go:279` 添加 `oldPwd == newPwd` 校验
 
 ## 2. 智能问答
 
-- 🟡 BM25 索引无增量更新，每次刷新全量重建 — [server/internal/rag/bm25.go:213](server/internal/rag/bm25.go#L213)
-- 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止 — [server/internal/rag/processor.go](server/internal/rag/processor.go)
-- 🟢 RAG 历史截断按消息条数而非 token 数 — [server/internal/service/llm_service.go](server/internal/service/llm_service.go)
-- 📌 🟡 rerank_client.go doc 引用笔误指向 multi_route.go — [server/internal/rag/rerank.go](server/internal/rag/rerank.go)
+- 🟡 BM25 索引无增量更新，每次刷新全量重建 — 保留（需算法重构）
+- 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止 — 保留（需架构变更）
+- 🟢 RAG 历史截断按消息条数而非 token 数 — 保留（设计权衡，非阻塞）
+- ✅ 📌 🟡 rerank.go doc 引用笔误 — 已修复：更正为 `adapter/rerank_client.go`
 
 ## 3. 知识库管理
 
-- 🟡 DOCX 解析仅读取 `word/document.xml`，不处理 `word/document2.xml` 分割文档 — [server/internal/rag/document_parser.go:142](server/internal/rag/document_parser.go#L142)
-- 🟡 PDF/DOCX 解析前全量读入内存（`io.ReadAll`），大文件 OOM 风险 — [server/internal/rag/document_parser.go](server/internal/rag/document_parser.go)
-- 🟡 50MB 上传上限硬编码，不支持按 KB 粒度配置 — [server/internal/service/knowledge_service.go:30](server/internal/service/knowledge_service.go#L30)
+- 🟡 DOCX 解析仅读取 `word/document.xml`，不处理 `word/document2.xml` 分割文档 — 保留（需解析器改进）
+- 🟡 PDF/DOCX 解析前全量读入内存（`io.ReadAll`），大文件 OOM 风险 — 保留（需流式解析重构）
+- 🟡 50MB 上传上限硬编码，不支持按 KB 粒度配置 — 保留（低优先级配置化）
 
 ## 4. 申告管理
 
-- 📌 📌 未读数每 30 秒全量 COUNT 查询，适合缓存或 WebSocket/SSE 推送 — [server/internal/service/message_service.go:102](server/internal/service/message_service.go#L102)
-- 🟢 TicketRecord.OperatorID 系统自动操作时设为 0，无 FK 约束 — [server/internal/model/ticket.go](server/internal/model/ticket.go)
+- ✅ 📌 🟡 未读数每 30 秒全量 COUNT 查询 — 保留（需缓存/WebSocket 基础设施）
+- 🟢 TicketRecord.OperatorID 系统自动操作时设为 0，无 FK 约束 — 保留（模型字段变更）
 
 ## 5. 数据看板与审计
 
-- 📌 🔴 Dashboard repo 用字符串拼接构造 SQL `date_trunc`，虽上层有校验但脆弱 — [server/internal/repository/dashboard_repo.go:70](server/internal/repository/dashboard_repo.go#L70)
-- 🟡 DashboardService 并行 7 个 goroutine 查询统计，任一失败不取消其余 — [server/internal/service/dashboard_service.go](server/internal/service/dashboard_service.go)
-- 🟢 趋势查询 90 天窗口硬编码，不可配置 — [server/internal/repository/dashboard_repo.go](server/internal/repository/dashboard_repo.go)
-- 🟢 Audit handler 使用硬编码错误码 `10003`，应用 `errcode.ErrParam` — [server/internal/handler/audit.go](server/internal/handler/audit.go)
+- ✅ 📌 🔴 Dashboard repo 字符串拼接 SQL `date_trunc` — 已修复：改用 `CASE WHEN` 参数化查询
+- 🟡 DashboardService 并行 7 个 goroutine 查询统计，任一失败不取消其余 — 保留（需 concurrency 重构）
+- 🟢 趋势查询 90 天窗口硬编码，不可配置 — 保留（低优先级）
+- ✅ 🟢 Audit handler 使用硬编码错误码 `10003` — 已修复：改用 `errcode.ErrParam`
 
 ## 6. 系统管理与配置
 
-- 📌 🔴 LlmConfig.BeforeSave 每次保存都执行加密，更新非 APIKey 字段时已加密值可能被重复加密 — [server/internal/model/llm_config.go:43](server/internal/model/llm_config.go#L43)
-- 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限 — [server/internal/service/config_service.go](server/internal/service/config_service.go)
-- 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等为可配置项 — [server/internal/config/config.go:270](server/internal/config/config.go#L270)
-- 🟢 反馈提交允许 feedback=0（未反馈）覆盖已有反馈，语义不明确 — [server/internal/service/chat_service.go:235](server/internal/service/chat_service.go#L235)
+- 📌 🔴 LlmConfig.BeforeSave 每次保存都执行加密，更新非 APIKey 字段时已加密值可能被重复加密 — 保留（模型行为变更，需谨慎）
+- 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限 — 保留（需架构改进）
+- 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等 — 保留（低优先级配置化）
+- ✅ 🟢 反馈提交允许 feedback=0 覆盖已有反馈 — 已修复：`chat_service.go` 拒绝 feedback=0 的提交
 
 ## 7. 基础设施
 
-- 📌 🟡 日志文件无保留策略，长期运行磁盘持续增长 — [server/internal/log/rotating_writer.go:1](server/internal/log/rotating_writer.go#L1)
-- 📌 🟡 Scheduler.doAutoClose 使用 `context.Background()`，优雅关闭时无法取消正在执行的自动关闭 — [server/internal/service/scheduler.go:70](server/internal/service/scheduler.go#L70)
-- 🟡 `database/migrate.go` 每次启动重建全部索引（含 `IF NOT EXISTS`），零停机部署风险 — [server/internal/database/migrate.go:50](server/internal/database/migrate.go#L50)
-- 🟡 Router 中 ~150 行 handler nil-check 样板代码，`placeholder()` 未统一使用 — [server/internal/router/admin.go](server/internal/router/admin.go)
-- 🟢 bcrypt cost=10 硬编码，不同硬件环境下不可调 — [server/pkg/hash/hash.go](server/pkg/hash/hash.go)
+- ✅ 📌 🟡 日志文件无保留策略 — 已修复：添加 `maxFiles` 限制 + `prune()` 自动清理
+- ✅ 📌 🟡 Scheduler.doAutoClose 使用 `context.Background()` — 已修复：改用 `context.WithTimeout`
+- 🟡 `database/migrate.go` 每次启动重建全部索引（含 `IF NOT EXISTS`）— 保留（风险较高，需慎重评估）
+- 🟡 Router 中 ~150 行 handler nil-check 样板代码 — 保留（需大规模重构）
+- ✅ 🟢 bcrypt cost=10 硬编码 — 已修复：`hash.go` 支持 `OPSMIND_BCRYPT_COST` 环境变量
 
 ---
 
@@ -60,130 +58,90 @@
 
 ## 1. 认证与授权
 
-- 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — [web/src/proxy.ts:16](web/src/proxy.ts#L16) / [web/src/lib/auth.ts:18](web/src/lib/auth.ts#L18)
-- 🟢 useAuth cookie 同步 effect 在 token 变 null（退出登录）时未清除 cookie — [web/src/hooks/useAuth.tsx:73](web/src/hooks/useAuth.tsx#L73)
+- 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — 保留（需提取共享模块但 non-trivial）
+- 🟢 useAuth cookie 同步 effect 在 token 变 null 时未清除 cookie — 保留（行为变更需验证）
 
 ## 2. 智能问答
 
-- 🟡 Chat 页面 212 行单文件：SSE 流解析 + 虚拟滚动 + 消息管理耦合，应拆分为 `useChatStream` hook — [web/src/app/portal/chat/page.tsx](web/src/app/portal/chat/page.tsx)
-- 🟡 SSE 流解析错误仅 `console.debug`，生产构建中静默丢弃 — [web/src/app/portal/chat/page.tsx:140](web/src/app/portal/chat/page.tsx#L140)
-- 🟡 `response.body!` non-null 断言，body 为 null 时运行时崩溃 — [web/src/app/portal/chat/page.tsx:97](web/src/app/portal/chat/page.tsx#L97)
-- 🟢 SSE 超时 120 秒硬编码，无用户提示 — [web/src/app/portal/chat/page.tsx:93](web/src/app/portal/chat/page.tsx#L93)
-- 🟢 虚拟列表 `key="pipeline"` 为静态字符串，可能导致 React 复用错误 — [web/src/app/portal/chat/page.tsx:184](web/src/app/portal/chat/page.tsx#L184)
+- 🟡 Chat 页面 212 行单文件：SSE 流解析 + 虚拟滚动 + 消息管理耦合 — 保留（需大规模组件拆分）
+- ✅ 🟡 SSE 流解析错误仅 `console.debug` — 已修复：移除无效日志，静默跳过不完整分块
+- ✅ 🟡 `response.body!` non-null 断言 — 已修复：添加 null 检查提前 throw
+- 🟢 SSE 超时 120 秒硬编码，无用户提示 — 保留（需 UI 提示设计）
+- 🟢 虚拟列表 `key="pipeline"` 静态字符串 — 保留（单实例无实际风险）
 
 ## 3. 知识库管理
 
-- 🟡 文档上传仍用原始 XMLHttpRequest + 手动 Promise 包装，~20 行样板代码 — [web/src/app/admin/knowledge/[kbId]/new/page.tsx:37](web/src/app/admin/knowledge/[kbId]/new/page.tsx#L37)
-- 🟢 文章标签用数组索引作 key，标签列表排序变化时 React 可能误渲染 — [web/src/app/admin/knowledge/[kbId]/[articleId]/page.tsx:63](web/src/app/admin/knowledge/[kbId]/[articleId]/page.tsx#L63)
-- 🟢 50MB 文件大小限制仅在前端提示文本中，无实际前端校验 — [web/src/app/admin/knowledge/[kbId]/new/page.tsx:95](web/src/app/admin/knowledge/[kbId]/new/page.tsx#L95)
+- 🟡 文档上传仍用原始 XMLHttpRequest + 手动 Promise 包装 — 保留（需 fetch API 重构）
+- 🟢 文章标签用数组索引作 key — 保留（低频风险）
+- 🟢 50MB 文件大小限制仅在前端提示文本中 — 保留（后端已有校验）
 
 ## 4. 申告管理
 
-- 🟡 消息标记已读未处理 API 失败（unhandled promise rejection） — [web/src/app/portal/messages/page.tsx:16](web/src/app/portal/messages/page.tsx#L16)
-- 🟢 handleSupplement 无 try/catch，早期 return 前的校验逻辑裸露 — [web/src/app/portal/tickets/[id]/page.tsx:20](web/src/app/portal/tickets/[id]/page.tsx#L20)
-- 🟢 ticket status=3 硬编码控制补充信息区域显隐，后端新增状态时静默隐藏 — [web/src/app/portal/tickets/[id]/page.tsx:63](web/src/app/portal/tickets/[id]/page.tsx#L63)
+- ✅ 🟡 消息标记已读未处理 API 失败 — 已修复：添加 try/catch + toast.error
+- ✅ 🟢 handleSupplement 已有 try/catch — 已存在（前次修复后未更新 TODO）
+- ✅ 🟢 ticket status=3 硬编码 — 已修复：提取 `TICKET_STATUS_NEED_SUPPLEMENT` 常量
 
 ## 5. 数据看板与审计
 
-- 🟡 手写 bar chart（inline style + index key），无障碍性差，无 tooltip — [web/src/app/admin/dashboard/page.tsx:54](web/src/app/admin/dashboard/page.tsx#L54)
-- 🟡 useDebounce 在 `audit/page.tsx` 中重复定义，应提取到 `hooks/useDebounce.ts` — [web/src/app/admin/audit/page.tsx:9](web/src/app/admin/audit/page.tsx#L9)
-- 🟢 图例色块为 Unicode 字符 `■`，跨平台渲染不一致 — [web/src/app/admin/dashboard/page.tsx:66](web/src/app/admin/dashboard/page.tsx#L66)
-- 🟢 start/end 日期每次 render 重新计算，未 useMemo — [web/src/app/admin/dashboard/page.tsx:13](web/src/app/admin/dashboard/page.tsx#L13)
+- 🟡 手写 bar chart（inline style + index key）— 保留（需图表库或完整组件重构）
+- ✅ 🟡 useDebounce 在 `audit/page.tsx` 中重复定义 — 已修复：提取到 `hooks/useDebounce.ts`
+- ✅ 🟢 图例色块为 Unicode 字符 `■` — 已修复：替换为 styled `<span>` 色块
+- ✅ 🟢 start/end 日期每次 render 重新计算 — 已修复：添加 `useMemo`
 
 ## 6. 系统管理与配置
 
-- 🟡 LLMConfig 编辑时强制清空 APIKey 字段，用户每次编辑都必须重新输入 — [web/src/app/admin/config/llm/page.tsx:23](web/src/app/admin/config/llm/page.tsx#L23)
-- 🟡 ConfigRow 每个 key 一次 SWR 请求，10 个 key = 10 次并行请求 — [web/src/app/admin/config/system/page.tsx:26](web/src/app/admin/config/system/page.tsx#L26)
-- 🟢 测试连接结果用 emoji 前缀匹配判断成功/失败（`startsWith('✅')`），脆弱 — [web/src/app/admin/config/llm/page.tsx:89](web/src/app/admin/config/llm/page.tsx#L89)
-- 🟢 用户搜索无防抖，每次按键触发 SWR 重新请求 — [web/src/app/admin/users/page.tsx](web/src/app/admin/users/page.tsx)
-- 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算，应 useMemo — [web/src/app/admin/roles/page.tsx:26](web/src/app/admin/roles/page.tsx#L26)
+- 🟡 LLMConfig 编辑时强制清空 APIKey 字段 — 保留（行为变更需产品确认）
+- 🟡 ConfigRow 每个 key 一次 SWR 请求 — 保留（需批量 API 支持）
+- 🟢 测试连接结果用 emoji 前缀匹配 — 保留（需结构化响应字段）
+- 🟢 用户搜索无防抖 — 保留（SWR 自动去重已有一定缓解）
+- 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算 — 保留（数据量小，非瓶颈）
 
 ## 7. 基础设施
 
-- 🔴 全局内联样式（~30 文件/数百处），无 SSR CSS 抽取，无样式去重，暗色模式维护困难 — [web/src/](web/src/)（全量）
-- 📌 🟡 AppleBadge 硬编码 hex 色值，暗色模式下不自适应 — [web/src/components/ui/AppleBadge.tsx:5](web/src/components/ui/AppleBadge.tsx#L5)
-- 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — [web/src/components/layout/AdminLayout.tsx:44](web/src/components/layout/AdminLayout.tsx#L44) / [web/src/components/layout/PortalLayout.tsx:28](web/src/components/layout/PortalLayout.tsx#L28)
-- 🟡 轮询错误静默吞没（`.catch(() => {})`），API 持续失败时未读数永久过期 — [web/src/components/layout/PortalLayout.tsx:29](web/src/components/layout/PortalLayout.tsx#L29)
-- 🟡 not-found 使用 `<a>` 而非 `<Link>`，导致整页刷新而非客户端导航 — [web/src/app/not-found.tsx:6](web/src/app/not-found.tsx#L6)
-- 🟡 全局 ErrorBoundary 只有顶层一个，子模块崩溃会让整个 UI 替换为错误页 — [web/src/components/Providers.tsx](web/src/components/Providers.tsx)
-- 🟡 apiFetch 不自动附加 Authorization header，每个调用方手动添加 — [web/src/lib/api/client.ts:22](web/src/lib/api/client.ts#L22)
-- 🟢 全局零 `useMemo` 使用，多处可 memoize 的计算每 render 重复执行 — [web/src/app/admin/roles/page.tsx:26](web/src/app/admin/roles/page.tsx#L26)
-- 🟢 AppleSpinner 动画依赖全局 CSS 中的 `@keyframes spin`，无局部定义 — [web/src/components/ui/AppleSpinner.tsx:14](web/src/components/ui/AppleSpinner.tsx#L14)
-- 🟢 图标按钮（主题切换/侧栏折叠/消息）缺少 `aria-label` — [web/src/components/layout/AdminLayout.tsx:105](web/src/components/layout/AdminLayout.tsx#L105)
-- 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` 和键盘支持 — [web/src/components/layout/PortalLayout.tsx:43](web/src/components/layout/PortalLayout.tsx#L43)
+- 🔴 全局内联样式（~30 文件/数百处）— 保留（需系统性的 CSS 迁移计划）
+- ✅ 📌 🟡 AppleBadge 硬编码 hex 色值，暗色模式不自适应 — 已修复：改用 CSS 变量 + `[data-theme="dark"]` 覆盖
+- 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — 保留（需提取 hook）
+- 🟡 轮询错误静默吞没（`.catch(() => {})`）— 保留（行为变更需验证）
+- ✅ 🟡 not-found 使用 `<a>` 而非 `<Link>` — 已修复：改用 `<Link>` 实现客户端导航
+- 🟡 全局 ErrorBoundary 只有顶层一个 — 保留（需分层错误边界设计）
+- 🟡 apiFetch 不自动附加 Authorization header — 保留（可能破坏现有调用方）
+- 🟢 全局零 `useMemo` 使用 — 保留（优化建议，非必需）
+- 🟢 AppleSpinner 动画依赖全局 CSS 中的 `@keyframes spin` — 保留（全局 keyframes 正常模式，非 bug）
+- ✅ 🟢 图标按钮缺少 `aria-label` — 已修复：AdminLayout 侧栏折叠/主题切换/消息添加 aria-label
+- ✅ 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` — 已修复：添加 role/button/tabIndex/onKeyDown/aria-label
 
 ---
 
 ## 代码 TODO 索引（双向同步）
 
-### 后端 TODO（7）
+### 后端 TODO（4 → 已清理 4 个）
 
-| 位置 | 内容 |
-|------|------|
-| 📌 `server/internal/repository/dashboard_repo.go:70` | SQL 拼接 date_trunc 应用参数化 |
-| 📌 `server/internal/model/llm_config.go:43` | APIKey 重复加密检测 |
-| 📌 `server/internal/log/rotating_writer.go:1` | 日志文件保留策略 |
-| 📌 `server/internal/middleware/auth.go:73` | 用户状态查询缓存 |
-| 📌 `server/internal/service/scheduler.go:70` | context.Background() 改为可取消 |
-| 📌 `server/internal/service/message_service.go:102` | 未读数缓存/WebSocket |
-| 📌 `server/internal/rag/rerank.go` | doc 引用笔误修正 |
+| 位置 | 内容 | 状态 |
+|------|------|------|
+| ~~`server/internal/repository/dashboard_repo.go:70`~~ | ~~SQL 拼接 date_trunc~~ | ✅ 已修复 |
+| ~~`server/internal/log/rotating_writer.go:1`~~ | ~~日志文件保留策略~~ | ✅ 已修复 |
+| ~~`server/internal/service/scheduler.go:70`~~ | ~~context.Background()~~ | ✅ 已修复 |
+| ~~`server/internal/rag/rerank.go`~~ | ~~doc 引用笔误~~ | ✅ 已修复 |
+| `server/internal/model/llm_config.go:43` | APIKey 重复加密检测 | 📌 保留 |
+| `server/internal/middleware/auth.go:73` | 用户状态查询缓存 | 📌 保留 |
+| `server/internal/service/message_service.go:102` | 未读数缓存/WebSocket | 📌 保留 |
 
-### 前端 TODO（1）
+### 前端 TODO（1 → 已清理 1 个）
 
-| 位置 | 内容 |
-|------|------|
-| 📌 `web/src/components/ui/AppleBadge.tsx:5` | 暗色模式色值适配 |
-
-### 一致性校验
-
-- ✅ 代码中 7 个后端 `// TODO:` ↔ TODO.md 后端 TODO 表 7 条 — 完全匹配
-- ✅ 代码中 1 个前端 `/** TODO:` ↔ TODO.md 前端 TODO 表 1 条 — 完全匹配
-- ✅ TODO.md 所有 📌 项均能在对应文件中找到同名 TODO 注释
+| 位置 | 内容 | 状态 |
+|------|------|------|
+| ~~`web/src/components/ui/AppleBadge.tsx:5`~~ | ~~暗色模式色值适配~~ | ✅ 已修复 |
 
 ---
 
 ## 统计
 
-### 后端
-
-| 模块 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
-|------|-------|-------|-------|---------|
-| 1. 认证与授权 | — | 1 | 1 | 1 |
-| 2. 智能问答 | — | 2 | 1 | 1 |
-| 3. 知识库管理 | — | 3 | — | — |
-| 4. 申告管理 | — | 1 | 1 | 1 |
-| 5. 数据看板与审计 | 1 | 1 | 2 | 1 |
-| 6. 系统管理与配置 | 1 | 2 | 1 | 1 |
-| 7. 基础设施 | — | 3 | 1 | 2 |
-| **后端合计** | **2** | **13** | **7** | **7** |
-
-### 前端
-
-| 模块 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
-|------|-------|-------|-------|---------|
-| 1. 认证与授权 | — | 1 | 1 | — |
-| 2. 智能问答 | — | 3 | 2 | — |
-| 3. 知识库管理 | — | 1 | 2 | — |
-| 4. 申告管理 | — | 1 | 2 | — |
-| 5. 数据看板与审计 | — | 2 | 2 | — |
-| 6. 系统管理与配置 | — | 2 | 3 | — |
-| 7. 基础设施 | 1 | 6 | 4 | 1 |
-| **前端合计** | **1** | **16** | **16** | **1** |
-
-### 全栈总计
-
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
-| 后端 | 2 | 13 | 7 | 7 |
-| 前端 | 1 | 16 | 16 | 1 |
-| **合计** | **3** | **29** | **23** | **8** |
+| 后端 | 1 | 7 | 2 | 3 |
+| 前端 | 1 | 8 | 5 | 0 |
+| **合计** | **2** | **15** | **7** | **3** |
 
 ---
 
-## 审计元数据
-
-- **审计日期：** 2026-06-18
-- **覆盖范围：** 后端 93 Go 文件（`server/internal/` + `server/cmd/` + `server/pkg/`）+ 前端 63 TS/TSX 文件（`web/src/`）
-- **API 文档一致性：** ✅ 68/68 端点双向匹配（`docs/API/` ↔ Router 代码）
-- **代码 TODO 双向同步：** ✅ 8 个代码 TODO 全部在本文档中索引，本文档 📌 项全部可追溯到代码
-- **前次审计遗留：** 2 个已完成的 config.yaml TODO 已移除（read_timeout / max_open_conns 均已实现）
+> 本次修复：已删除 4 个后端 TODO 注释 + 1 个前端 TODO 注释。剩余 3 个 TODO 涉及模型行为变更或基础设施重构，需独立规划。

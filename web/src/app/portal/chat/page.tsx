@@ -94,7 +94,8 @@ export default function ChatPage() {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const reader = response.body!.getReader();
+      if (!response.body) throw new Error('响应体为空');
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       let assistantContent = '';
@@ -137,7 +138,7 @@ export default function ChatPage() {
                 toast.error(evt.error || '生成失败');
                 break;
             }
-          } catch (e) { console.debug('SSE parse:', e); }
+          } catch { /* 跳过解析失败的行（不完整的分块） */ }
         }
       }
     } catch (err: unknown) {

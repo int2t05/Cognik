@@ -9,6 +9,9 @@ import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
 
+/** 申告状态：需补充信息 */
+const TICKET_STATUS_NEED_SUPPLEMENT = 3;
+
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: ticket, error } = useSWR(`portal-ticket-${id}`, () => getTicketDetail(Number(id)));
@@ -60,7 +63,7 @@ export default function TicketDetailPage() {
         </div>
       )}
 
-      {ticket.status === 3 && (
+      {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
         <div style={{ background: 'var(--bg-canvas)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', padding: 24 }}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, color: 'var(--text-ink)' }}>补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
