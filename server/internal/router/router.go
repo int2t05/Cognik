@@ -54,11 +54,6 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers)
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// /health — 存活探针（K8s liveness），同时验证基本可达性
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
 	public := r.Group("/api/v1/auth")
 	registerPublicRoutes(public, h)
 
