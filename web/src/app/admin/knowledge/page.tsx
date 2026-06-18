@@ -41,7 +41,7 @@ export default function KnowledgeListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">知识库管理</h1>
+        <h1 className="text-[28px] font-medium text-[var(--color-ink)]">知识库管理</h1>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}>新建知识库</AppleButton>
       </div>
 
@@ -49,7 +49,7 @@ export default function KnowledgeListPage() {
         {!kbs ? <AppleSpinner /> : kbs.map((kb) => (
           <AppleCard key={kb.id} className="flex justify-between items-center cursor-pointer" onClick={() => router.push(`/admin/knowledge/${kb.id}`)}>
             <div>
-              <h3 className="text-[17px] font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h3>
+              <h3 className="text-[17px] font-medium text-[var(--color-ink)] mb-1">{kb.name}</h3>
               <p className="text-[15px] text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

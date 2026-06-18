@@ -40,7 +40,7 @@ export default function AdminTicketDetailPage() {
 
   return (
     <div className="max-w-[800px]">
-      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-6 items-center">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-[13px] text-[var(--color-text-muted-48)]">{ticket.ticket_no} · 提交人: {ticket.submitter_name} · {formatDate(ticket.created_at)}</span>
@@ -62,7 +62,7 @@ export default function AdminTicketDetailPage() {
 
       {/* 知识候选 */}
       <AppleCard className="mb-6">
-        <h3 className="text-[17px] font-semibold mb-3">生成知识候选</h3>
+        <h3 className="text-[17px] font-medium mb-3">生成知识候选</h3>
         <div className="flex gap-3 items-end">
           <select value={kbId} onChange={(e) => setKbId(Number(e.target.value))} className="px-4 py-2 text-[15px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer">
             <option value={0}>选择知识库...</option>
@@ -75,7 +75,7 @@ export default function AdminTicketDetailPage() {
       {/* 处理记录 */}
       {ticket.records && ticket.records.length > 0 && (
         <AppleCard>
-          <h3 className="text-[17px] font-semibold mb-3">处理记录</h3>
+          <h3 className="text-[17px] font-medium mb-3">处理记录</h3>
           {ticket.records.map((r) => (
             <div key={r.id} className="py-2 border-b border-[var(--color-divider-soft)]">
               <span className="text-[13px] font-semibold">{r.action}</span>

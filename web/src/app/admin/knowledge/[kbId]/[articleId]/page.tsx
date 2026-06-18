@@ -32,7 +32,7 @@ export default function ArticleEditPage() {
     <div className="max-w-[800px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">{article.title}</h1>
+          <h1 className="text-[28px] font-medium text-[var(--color-ink)]">{article.title}</h1>
           <div className="flex gap-2 mt-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}

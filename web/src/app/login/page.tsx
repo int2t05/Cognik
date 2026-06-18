@@ -60,13 +60,13 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
       <div className="w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-10">
-          <h1 className="text-[32px] font-semibold tracking-[-0.32px] text-[var(--color-ink)] mb-2">
+          <h1 className="text-[28px] font-medium tracking-[-0.28px] text-[var(--color-ink)] mb-2">
             OpsMind
           </h1>
           <p className="text-[17px] text-[var(--color-text-muted-48)]">
             运维数字员工系统
           </p>
-          <p className="text-[13px] text-[var(--color-text-muted-48)] mt-2">
+          <p className="text-[15px] text-[var(--color-text-muted-48)]">
             智能问答 · 申告管理 · 知识库
           </p>
         </div>

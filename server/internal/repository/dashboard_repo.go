@@ -61,24 +61,31 @@ type TrendPoint struct {
 	Count int64
 }
 
+// GetTicketTrends 按天/周聚合申告创建趋势。
+// 使用 CTE 先计算 date_trunc 再 GROUP BY，避免 TO_CHAR 与 CASE 表达式不一致
+// 导致的 PostgreSQL 42803 错误（column must appear in GROUP BY clause）。
 func (r *DashboardRepo) GetTicketTrends(ctx context.Context, startDate, endDate, granularity string) ([]TrendPoint, error) {
 	var points []TrendPoint
 	trunc := "day"
 	if granularity == "week" {
 		trunc = "week"
 	}
-	// 使用 CASE WHEN 替代字符串拼接，避免 SQL 注入风险。
 	err := r.db.WithContext(ctx).Raw(
-		`SELECT TO_CHAR(CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END, 'YYYY-MM-DD') AS date, COUNT(*) AS count
-		 FROM tickets
-		 WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
-		 GROUP BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END
-		 ORDER BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END`,
-		trunc, startDate, endDate, trunc, trunc,
+		`WITH raw AS (
+  SELECT CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END AS truncated
+  FROM tickets
+  WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
+)
+SELECT TO_CHAR(truncated, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+FROM raw
+GROUP BY truncated
+ORDER BY truncated`,
+		trunc, startDate, endDate,
 	).Scan(&points).Error
 	return points, err
 }
 
+// GetChatTrends 按天/周聚合问答趋势。
 func (r *DashboardRepo) GetChatTrends(ctx context.Context, startDate, endDate string, granularity string) ([]TrendPoint, error) {
 	var points []TrendPoint
 	trunc := "day"
@@ -86,12 +93,16 @@ func (r *DashboardRepo) GetChatTrends(ctx context.Context, startDate, endDate st
 		trunc = "week"
 	}
 	err := r.db.WithContext(ctx).Raw(
-		`SELECT TO_CHAR(CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END, 'YYYY-MM-DD') AS date, COUNT(*) AS count
-		 FROM chat_sessions
-		 WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
-		 GROUP BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END
-		 ORDER BY CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END`,
-		trunc, startDate, endDate, trunc, trunc,
+		`WITH raw AS (
+  SELECT CASE WHEN ? = 'week' THEN date_trunc('week', created_at) ELSE date_trunc('day', created_at) END AS truncated
+  FROM chat_sessions
+  WHERE created_at >= ?::date AND created_at < (?::date + INTERVAL '1 day')
+)
+SELECT TO_CHAR(truncated, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+FROM raw
+GROUP BY truncated
+ORDER BY truncated`,
+		trunc, startDate, endDate,
 	).Scan(&points).Error
 	return points, err
 }

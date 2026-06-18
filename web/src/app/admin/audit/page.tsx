@@ -17,7 +17,7 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">审计日志</h1>
+      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-6">审计日志</h1>
       <div className="flex gap-3 mb-4 flex-wrap">
         <input placeholder="操作人 ID" type="number" className="h-9 px-3 text-sm rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]" onChange={(e) => updateFilter('operator_id', e.target.value)} />
         <input placeholder="操作类型" className="h-9 px-3 text-sm rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]" onChange={(e) => updateFilter('action', e.target.value)} />

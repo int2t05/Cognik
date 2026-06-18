@@ -52,7 +52,7 @@ export default function LLMConfigPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">LLM 配置</h1>
+        <h1 className="text-[28px] font-medium text-[var(--color-ink)]">LLM 配置</h1>
         <AppleButton onClick={openCreate}>新建配置</AppleButton>
       </div>
       <div className="grid gap-4">
@@ -60,7 +60,7 @@ export default function LLMConfigPage() {
           <AppleCard key={c.id}>
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-[17px] font-semibold text-[var(--color-ink)]">{c.name} {c.is_default && <span className="text-[12px] text-[var(--color-accent)] font-normal">（默认）</span>}</h3>
+                <h3 className="text-[17px] font-medium text-[var(--color-ink)]">{c.name} {c.is_default && <span className="text-[12px] text-[var(--color-accent)] font-normal">（默认）</span>}</h3>
                 <p className="text-[13px] text-[var(--color-text-muted-48)] mt-1">{c.provider_type === 1 ? 'llama.cpp' : 'OpenAI-compatible'} · {c.llm_model} · {c.embedding_model}</p>
               </div>
               <div className="flex gap-2">

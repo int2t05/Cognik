@@ -15,7 +15,7 @@ export default function TicketQueryPage() {
 
   return (
     <div>
-      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">我的申告</h1>
+      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-6">我的申告</h1>
       {error && <p className="text-[var(--color-error)] text-sm">加载失败</p>}
       <AppleTable
         columns={[

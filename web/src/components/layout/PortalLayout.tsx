@@ -42,7 +42,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             aria-label="返回首页"
             onClick={() => router.push('/portal/chat')}
             onKeyDown={(e) => { if (e.key === 'Enter') router.push('/portal/chat'); }}
-            className="text-[21px] font-semibold tracking-[0.231px] text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
+            className="text-[21px] font-medium tracking-[0.231px] text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
           >
             OpsMind
           </span>
@@ -57,7 +57,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-white text-[10px] font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-white text-[11px] font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}
