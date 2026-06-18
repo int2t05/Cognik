@@ -1,3 +1,5 @@
+// TODO: 趋势图缺少可访问性标签和无数据空状态。
+// TODO: 缺少手动刷新按钮，数据依赖 SWR 默认 revalidate 策略。
 'use client';
 import useSWR from 'swr';
 import { getStats, getTrends, type TrendPoint } from '@/lib/api/dashboard';

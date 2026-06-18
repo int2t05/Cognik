@@ -1,3 +1,7 @@
+// TODO: SSE 流使用原生 fetch 绕过 apiFetch 拦截器，Token 过期时不会自动刷新。
+// TODO: ChatInput 和 ChatMessage 应拆分为独立子组件（当前单文件过长）。
+// TODO: 消息列表长时滚动性能差，应使用虚拟滚动（react-window 或 @tanstack/virtual）。
+// TODO: 流式解析中 JSON.parse 静默吞错误，应至少记录到 console.debug。
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';

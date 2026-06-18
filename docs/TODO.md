@@ -1,7 +1,7 @@
 # OpsMind 改进清单
 
 > 优先级：🔴 生产隐患 / 🟡 架构债务 / 🟢 优化建议
-> 📌 标记为代码中已存在 TODO 注释，与本文档双向同步。
+> 📌 标记为代码中已存在 `// TODO:` 注释，与本文档双向同步。
 > 已完成项不在此列出（见 git log）。
 
 ---
@@ -14,7 +14,7 @@
 
 ## 2. 智能问答
 
-- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — 历史截断按消息条数而非 token 数
+- 🟢 历史截断按消息条数而非 token 数 — `server/internal/service/llm_service.go`
 
 ## 3. 知识库管理
 
@@ -22,7 +22,7 @@
 
 ## 4. 申告管理
 
-- 📌 [service/message_service.go:101](/server/internal/service/message_service.go#L101) — 未读数适合缓存或 WebSocket/SSE 推送
+- 📌 未读数适合缓存或 WebSocket/SSE 推送 — `server/internal/service/message_service.go:101`
 
 ## 5. 数据看板与审计
 
@@ -34,7 +34,7 @@
 
 ## 7. 基础设施
 
-- 🟢 [pkg/hash/hash.go](/server/pkg/hash/hash.go) — bcrypt cost=10 硬编码
+- 🟢 bcrypt cost=10 硬编码 — `server/pkg/hash/hash.go`
 
 ---
 
@@ -42,69 +42,53 @@
 
 ## 1. 认证与授权
 
-- 🔴 [router/index.ts](/web/src/router/index.ts) — JWT 过期检查 `atob` 不兼容 base64url（`-`/`_`），解码失败时过期检查失效
-- 🟡 [views/auth/Login.vue](/web/src/views/auth/Login.vue) — 错误信息提取用 `err?.message`（Axios 通用字符串），后端真实错误在 `err.response?.data?.message`
-- 🟡 [views/auth/Login.vue](/web/src/views/auth/Login.vue) — 路由判断基于 `permissions.length > 0`，admin 空权限会误导向 portal
+- 🟡 Token 过期仅清除 cookie 重定向登录页，未在 middleware 层尝试 refresh token 自动续期 — 📌 `middleware.ts`
+- 🟢 主题切换缺少服务端 cookie 预读，刷新页面时有浅色闪烁（FOUC） — 📌 `hooks/useTheme.ts`
 
 ## 2. 智能问答
 
-- 🔴 [stores/chat.ts](/web/src/stores/chat.ts) — `crypto.randomUUID()` 在 HTTP/localhost 下为 undefined，抛 TypeError 崩溃聊天。已有 `generateId()` 未使用
-- 🔴 [stores/chat.ts](/web/src/stores/chat.ts) — re-entrant `sendQuestion` 竞态：旧 stream 回调覆盖新 abortController，后续 abort TypeError
-- 🔴 [api/chat.ts](/web/src/api/chat.ts) — SSE 流绕过 Axios 拦截器，Token 刷新对流式请求失效
-- 🔴 [views/portal/ChatPipelineSteps.vue](/web/src/views/portal/ChatPipelineSteps.vue) — 引用不存在的 `s.success` 属性，步骤标记始终渲染为 failed
-- 🟡 [views/portal/Chat.vue](/web/src/views/portal/Chat.vue) — 组件 >560 行，应拆分为 ChatInput/ChatMessage/ChatPipeline
-- 🟡 [stores/chat.ts](/web/src/stores/chat.ts) — 反馈提交错误仅 `console.error`，用户点击后静默失败
-- 🟡 [stores/chat.ts](/web/src/stores/chat.ts) — `clearSession()` 不重置 `selectedKBID` 和 `ragOptions`
+- 🟡 SSE 流使用原生 fetch 绕过 `apiFetch` 拦截器，Token 过期时不会自动刷新 — 📌 `portal/chat/page.tsx`
+- 🟡 消息列表长时滚动性能差，应采用虚拟滚动（react-window 或 @tanstack/virtual） — 📌 `portal/chat/page.tsx`
+- 🟢 Chat 组件单文件过长（>180 行），应拆分为 ChatInput / ChatMessage / ChatPipeline 三个子组件 — 📌 `portal/chat/page.tsx`
+- 🟢 SSE 流式解析中 `JSON.parse` 静默吞错误，应至少 `console.debug` 记录 — 📌 `portal/chat/page.tsx`
+- 🟢 `abortRef` 仅在 `handleSend` 中 abort 旧请求，未在组件卸载时 abort（内存泄漏）
 
 ## 3. 知识库管理
 
-- 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — 组件 >400 行，应拆分文档上传/元信息表单/状态展示
-- 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — `fetchArticle`/`fetchKBs` 失败仅 `console.error`，无用户提示
-- 🟡 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — 使用原生 `alert()` 而非 `useToast()`，阻塞 UI 线程
-- 🟡 [views/admin/KnowledgeList.vue](/web/src/views/admin/KnowledgeList.vue) — `startEditKB` 始终 `description: ''` 静默清空描述
-- 🟡 [views/admin/KnowledgeList.vue](/web/src/views/admin/KnowledgeList.vue) — `(res.data as any).articles || ...` 三种回退解包暴露响应形状不确定
-- 🟢 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) — 无 tag 数量上限，超出服务端限制时错误不友好
+- 🟡 文档上传无进度反馈，大文件上传时用户无感知 — `admin/knowledge/[kbId]/new/page.tsx`
+- 🟢 知识编辑页面打开时未预填原 description 值，可能静默清空
+- 🟢 文章标签无数量上限校验，超出服务端限制时错误不友好
 
 ## 4. 申告管理
 
-- 🔴 [views/admin/TicketList.vue](/web/src/views/admin/TicketList.vue) — 响应解包 Bug：`tickets.value = res?.data || res?.items`，`res.data` 是 PageResponse 对象非数组
-- 🔴 [views/admin/TicketDetail.vue](/web/src/views/admin/TicketDetail.vue) — `doAction`/`doAddRecord` 按钮缺 `:disabled` loading 守卫，可重复点击
-- 🔴 [views/portal/TicketSubmit.vue](/web/src/views/portal/TicketSubmit.vue) — submit 成功后 `submitting` 永不重置，按钮永久显示"提交中..."
-- 🟡 [views/portal/TicketSubmit.vue](/web/src/views/portal/TicketSubmit.vue) — `chat_context` 来自 URL query 直接传入 API，无 JSON 校验
-- 🟡 [views/portal/TicketDetail.vue](/web/src/views/portal/TicketDetail.vue) — API 调用失败静默置 null，无用户可见错误提示
-- 🟡 [views/admin/TicketDetail.vue](/web/src/views/admin/TicketDetail.vue) — 创建时间显示原始 ISO 字符串，应使用 `formatDate`
-- 🟡 [views/admin/TicketDetail.vue](/web/src/views/admin/TicketDetail.vue) — 知识候选 KB ID 自由输入无下拉选择/存在性校验
+- 🟡 申告提交表单缺少 `affected_systems` 和 `impact_scope` 字段
+- 🟢 `chat_context` 来自 URL query 直接传入 API，缺少 JSON 结构校验
 
 ## 5. 数据看板与审计
 
-- 🔴 [views/admin/AuditLog.vue](/web/src/views/admin/AuditLog.vue) — 分页失效：`total = (res as any).total || logs.length`，total 总为当前页条目数
-- 🟡 [views/admin/Dashboard.vue](/web/src/views/admin/Dashboard.vue) — `avg_confidence` 为 null 时显示 NaN%：`(null * 100).toFixed(0)` → `"NaN%"`
-- 🟢 [views/admin/Dashboard.vue](/web/src/views/admin/Dashboard.vue) — `fetchTrends` 失败静默吞掉：`catch { trendPoints.value = [] }`
+- 🟡 趋势图缺少可访问性标签和无数据空状态 — 📌 `admin/dashboard/page.tsx`
+- 🟢 缺少手动刷新按钮，数据依赖 SWR 默认 revalidate 策略 — 📌 `admin/dashboard/page.tsx`
+- 🟢 AuditLog 筛选输入框未做防抖，每次按键触发 API 请求
 
 ## 6. 系统管理与配置
 
-- 🔴 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — 创建配置时测试连接崩溃：`handleTestConnection` 调 `updateLLMConfig(editingId!)`，新建时 null
-- 🟡 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — 组件 >610 行，应拆分列表/编辑弹窗/连接测试
-- 🟡 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) — 每次编辑必须重新输入 API Key（后端返回脱敏值）
-- 🟡 [views/admin/ModelConfig.vue](/web/src/views/admin/ModelConfig.vue) + SystemConfig.vue — 两页面独立管理 `ai.default_top_k`/`ai.confidence_threshold`，修改互不可见
-- 🟡 [views/admin/RoleManage.vue](/web/src/views/admin/RoleManage.vue) — 权限列表硬编码，后端新增权限时前端不可见
-- 🟡 [views/admin/UserList.vue](/web/src/views/admin/UserList.vue) — Freeze/Restore 无确认弹窗
-- 🟢 [views/admin/SystemConfig.vue](/web/src/views/admin/SystemConfig.vue) — `Number()` 强制转换可能丢失前导零
+- 🟡 SystemConfig 页面 AI 参数（top_k / confidence_threshold）仅为提示文本，应提供编辑控件 — 📌 `admin/config/system/page.tsx`
+- 🟡 RoleManage 权限列表 `ALL_PERMISSIONS` 硬编码，后端新增权限时前端不可见
+- 🟢 LLMConfig 编辑时 API Key 需要重新输入（后端返回脱敏值），用户体验差
 
 ## 7. 基础设施
 
-- 🔴 [App.vue](/web/src/App.vue) — `NMessageProvider` 死代码，全项目无组件使用 Naive UI `useMessage()`
-- 🔴 [utils/request.ts](/web/src/utils/request.ts) — Token 刷新竞态：失败时 `refreshSubscribers` 重置但已订阅 Promise 未 resolve/reject（内存泄漏）
-- 🟡 [utils/request.ts](/web/src/utils/request.ts) — `loadingState` 模块级全局计数器，SSR/并发测试不安全
-- 🟡 [utils/request.ts](/web/src/utils/request.ts) — `baseURL` 为空依赖 Vite 代理
-- 🟡 [composables/useAIConfig.ts](/web/src/composables/useAIConfig.ts) — `loadConfig` 吞错误用默认值
-- 🟡 [composables/useToast.ts](/web/src/composables/useToast.ts) — 每个组件独立 toast 状态，多 toast 冲突
-- 🟡 [composables/useTheme.ts](/web/src/composables/useTheme.ts) — 模块级 `localStorage` 访问，SSR 不兼容
-- 🟡 [components/layout/AdminLayout.vue](/web/src/components/layout/AdminLayout.vue) — 菜单路径硬编码字符串
-- 🟡 [components/layout/AdminLayout.vue](/web/src/components/layout/AdminLayout.vue) — 菜单匹配 `path.startsWith()` 硬编码分组
-- 🟡 [components/common/StatusBadge.vue](/web/src/components/common/StatusBadge.vue) — `knowledge` 类型未实现，知识文章状态渲染为「未知」
-- 🟢 [stores/app.ts](/web/src/stores/app.ts) — `decrementUnread` 死代码，零调用方
-- 🟢 [api/dashboard.ts](/web/src/api/dashboard.ts) — `granularity` 参数定义但后端未实现
+- 🟡 全局 inline styles 泛滥（~200+ 处），组件样式应迁移到 CSS Modules 以利用编译时优化和类型安全
+- 🟡 无 Error Boundary 全局错误捕获，未预期的渲染错误会导致白屏
+- 🟡 大量路由缺少 `loading.tsx`（Suspense boundary），页面切换时无加载骨架屏
+- 🟡 SSE 流式 fetch 未设置 `AbortSignal.timeout`，网络断开时可能永久挂起
+- 🟡 `generateId` 中 `Math.random` fallback 在高频场景有碰撞风险，应使用 `nanoid` — 📌 `lib/id.ts`
+- 🟡 `StatusBadge` 状态文本和颜色映射硬编码在前端，后端新增状态时前端不可见 — 📌 `components/shared/StatusBadge.tsx`
+- 🟡 `AdminLayout` 菜单不支持嵌套子菜单（children），当前仅扁平渲染顶级菜单 — 📌 `components/layout/AdminLayout.tsx`
+- 🟢 侧栏折叠状态未持久化到 localStorage，刷新后丢失 — 📌 `components/layout/AdminLayout.tsx`
+- 🟢 AppleButton 和布局中的图标使用 emoji，应替换为 lucide-react（已在依赖中）
+- 🟢 Inter 字体通过 Google Fonts CDN 外链加载，应自托管 woff2 以消除外部依赖和布局偏移
+- 🟢 硬编码的管理员角色列表 `['系统管理员', 'admin', 'operator', 'knowledge_manager']` 散落在 middleware 和 login 页面
 
 ---
 
@@ -114,29 +98,20 @@
 
 | 位置 | 内容 |
 |------|------|
-| 📌 [service/message_service.go:101](/server/internal/service/message_service.go#L101) | 未读数缓存/WebSocket |
+| 📌 `server/internal/service/message_service.go:101` | 未读数缓存/WebSocket |
 
-### 前端 TODO（31）
+### 前端 TODO（8）
 
 | 位置 | 内容 |
 |------|------|
-| 📌 [router/index.ts](/web/src/router/index.ts) | atob base64url 不兼容 |
-| 📌 [api/chat.ts](/web/src/api/chat.ts) | SSE 流绕过拦截器 |
-| 📌 [stores/chat.ts](/web/src/stores/chat.ts) | crypto.randomUUID() 无 fallback |
-| 📌 [views/admin/Dashboard.vue](/web/src/views/admin/Dashboard.vue) | as any / 缺刷新按钮 / 小数值视觉 |
-| 📌 [views/admin/KnowledgeEdit.vue](/web/src/views/admin/KnowledgeEdit.vue) | 组件过大 + 错误处理 + 多文件状态 |
-| 📌 [views/admin/LLMConfig.vue](/web/src/views/admin/LLMConfig.vue) | 组件 >610 行 / as any / editingId null |
-| 📌 [views/admin/SystemConfig.vue](/web/src/views/admin/SystemConfig.vue) | 重复配置页面 |
-| 📌 [views/admin/TicketDetail.vue](/web/src/views/admin/TicketDetail.vue) | as any + 按钮缺 loading 守卫 |
-| 📌 [views/portal/Chat.vue](/web/src/views/portal/Chat.vue) | 组件过大 + 缺输入校验 |
-| 📌 [views/portal/TicketDetail.vue](/web/src/views/portal/TicketDetail.vue) | API 失败静默 + as any |
-| 📌 [views/portal/TicketSubmit.vue](/web/src/views/portal/TicketSubmit.vue) | 组件过大 + chat_context 校验 |
-| 📌 [utils/request.ts](/web/src/utils/request.ts) | loadingState / baseURL / 刷新竞态 |
-| 📌 [composables/useAIConfig.ts](/web/src/composables/useAIConfig.ts) | loadConfig 吞错误 |
-| 📌 [composables/useTheme.ts](/web/src/composables/useTheme.ts) | SSR 不兼容 |
-| 📌 [composables/useToast.ts](/web/src/composables/useToast.ts) | 多 toast 冲突 |
-| 📌 [views/auth/Login.vue](/web/src/views/auth/Login.vue) | 错误信息提取不完整 |
-| 📌 [api/dashboard.ts](/web/src/api/dashboard.ts) | granularity 死代码 |
+| 📌 `middleware.ts` | Token 过期未尝试 refresh 自动续期 |
+| 📌 `hooks/useTheme.ts` | 缺少 cookie 预读导致 FOUC |
+| 📌 `portal/chat/page.tsx` | SSE 绕过拦截器 / 组件过大 / 虚拟滚动 / 静默吞错 |
+| 📌 `admin/dashboard/page.tsx` | 趋势图可访问性 / 缺刷新按钮 |
+| 📌 `admin/config/system/page.tsx` | AI 参数仅为提示文本 |
+| 📌 `lib/id.ts` | Math.random fallback 碰撞风险 |
+| 📌 `components/shared/StatusBadge.tsx` | 状态映射硬编码 |
+| 📌 `components/layout/AdminLayout.tsx` | 菜单无子菜单支持 / 折叠状态不持久化 |
 
 ---
 
@@ -158,21 +133,21 @@
 
 | 模块 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |------|-------|-------|-------|---------|
-| 1. 认证与授权 | 1 | 2 | — | 1 |
-| 2. 智能问答 | 4 | 3 | — | 3 |
-| 3. 知识库管理 | — | 5 | 1 | 1 |
-| 4. 申告管理 | 3 | 4 | — | 5 |
-| 5. 数据看板与审计 | 1 | 1 | 1 | 1 |
-| 6. 系统管理与配置 | 1 | 5 | 1 | 4 |
-| 7. 基础设施 | 2 | 8 | 2 | 3 |
-| **前端合计** | **12** | **28** | **5** | **18** |
+| 1. 认证与授权 | — | 1 | 1 | 2 |
+| 2. 智能问答 | — | 2 | 3 | 1 |
+| 3. 知识库管理 | — | 1 | 2 | — |
+| 4. 申告管理 | — | 1 | 1 | — |
+| 5. 数据看板与审计 | — | 1 | 2 | 1 |
+| 6. 系统管理与配置 | — | 2 | 1 | 1 |
+| 7. 基础设施 | — | 7 | 4 | 3 |
+| **前端合计** | **0** | **15** | **14** | **8** |
 
 ### 全栈总计
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 0 | 1 | 2 | 1 |
-| 前端 | 12 | 28 | 5 | 31 |
-| **合计** | **12** | **29** | **7** | **32** |
+| 前端 | 0 | 15 | 14 | 8 |
+| **合计** | **0** | **16** | **16** | **9** |
 
-> 32 个代码 TODO（后端 1 + 前端 31）全部在上表中有对应条目，双向一致。
+> 9 个代码 TODO（后端 1 + 前端 8）全部在上表中有对应条目。📌 标记项与代码中 `// TODO:` 注释严格一一对应。

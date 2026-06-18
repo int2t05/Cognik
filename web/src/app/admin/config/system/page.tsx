@@ -1,3 +1,4 @@
+// TODO: SystemConfig 页面 AI 参数仅为提示文本，应直接在此页面提供编辑控件（top_k/confidence_threshold）。
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';

@@ -1,3 +1,5 @@
+// TODO: 菜单不支持嵌套子菜单（children），当前仅扁平渲染顶级菜单。
+// TODO: 侧栏折叠状态未持久化到 localStorage，刷新后丢失。
 /** AdminLayout — 后台管理布局（侧栏 + 顶栏 + 内容区）。菜单从后端动态渲染。 */
 
 'use client';

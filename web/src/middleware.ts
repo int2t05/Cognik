@@ -1,3 +1,4 @@
+// TODO: Token 过期时仅清除 cookie 并重定向到登录页，未尝试 refresh token 自动续期。
 /** 路由守卫 — JWT 认证 + RBAC + base64url 兼容 Token 解码。 */
 
 import { NextResponse } from 'next/server';

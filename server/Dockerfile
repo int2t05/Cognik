@@ -38,9 +38,14 @@ ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-# Python 依赖（torch 从 PyPI 默认源，sentence-transformers ~5MB）
-RUN pip install --no-cache-dir --retries 10 \
-    torch sentence-transformers
+# Python 依赖
+# 1. 升级 pip（24.0 的 hash 校验过于严格）
+# 2. torch CPU 版从专用源（PyPI 默认是 CUDA 版，3GB+）
+# 3. sentence-transformers 从默认 PyPI（torch 已安装，跳过）
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir --trusted-host download.pytorch.org \
+       torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir sentence-transformers
 
 # 复制预下载的模型文件（构建时零网络依赖）
 COPY models/rerank/ /app/models/rerank/

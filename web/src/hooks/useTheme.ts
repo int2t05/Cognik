@@ -1,3 +1,4 @@
+// TODO: 缺少服务端 cookie 预读——刷新页面时会有短暂的浅色闪烁（FOUC）。
 /** 主题管理 Hook — SSR 安全的双主题切换。 */
 
 'use client';

@@ -1,3 +1,4 @@
+// TODO: 状态文本和颜色映射在后端新增强状态时前端不可见，应从 API 返回 status_text/status_color。
 /** StatusBadge — 完整状态映射（用户/申告/知识/处理） */
 import { AppleBadge } from '@/components/ui/AppleBadge';
 
