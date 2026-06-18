@@ -7,7 +7,6 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/useToast';
-import styles from './page.module.css';
 
 export default function MessagesPage() {
   const [page, setPage] = useState(1);
@@ -27,14 +26,14 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <h1 className={styles.title}>站内消息</h1>
-      {error && <p className={styles.error}>加载失败</p>}
+      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">站内消息</h1>
+      {error && <p className="text-[var(--color-error)] text-sm">加载失败</p>}
       <AppleTable
         columns={[
-          { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? '' : styles.unreadTitle}>{r.title}</span> },
+          { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? '' : 'font-semibold'}>{r.title}</span> },
           { key: 'content', title: '内容' },
           { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
-          { key: 'actions', title: '', render: (r) => !r.is_read ? <button onClick={() => handleRead(r.id, r.related_type, r.related_id)} className={styles.readBtn}>查看</button> : <span className={styles.readLabel}>已读</span> },
+          { key: 'actions', title: '', render: (r) => !r.is_read ? <button onClick={() => handleRead(r.id, r.related_type, r.related_id)} className="border-0 bg-transparent text-[var(--color-accent)] cursor-pointer text-[14px] hover:underline">查看</button> : <span className="text-[var(--color-text-muted-48)] text-[13px]">已读</span> },
         ]}
         data={data?.items || []}
         loading={!data && !error}

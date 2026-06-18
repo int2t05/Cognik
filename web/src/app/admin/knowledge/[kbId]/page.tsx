@@ -9,7 +9,6 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import styles from './page.module.css';
 
 export default function ArticleListPage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -29,22 +28,22 @@ export default function ArticleListPage() {
 
   return (
     <div>
-      <div className={styles.header}>
-        <h1 className={styles.title}>知识文章</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">知识文章</h1>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}>新建文章</AppleButton>
       </div>
-      <div className={styles.filterBar}>
+      <div className="mb-4 flex gap-2">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`${styles.filterBtn} ${status === o.v ? styles.filterBtnActive : ''}`}>
+            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] text-[13px] cursor-pointer transition hover:bg-[var(--color-hairline)] ${status === o.v ? 'bg-[var(--color-accent)] text-white font-semibold' : 'bg-[var(--color-divider-soft)] text-[var(--color-ink)]'}`}>
             {o.l}
           </button>
         ))}
       </div>
       <AppleTable
         columns={[
-          { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className={styles.link}>{r.title}</a> },
-          { key: 'source_type_text', title: '来源', render: (r) => <span className={styles.mono}>{r.source_type === 1 ? '手动' : '上传'}</span> },
+          { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
+          { key: 'source_type_text', title: '来源', render: (r) => <span className="text-[12px]">{r.source_type === 1 ? '手动' : '上传'}</span> },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="article" status={r.status} /> },
           { key: 'process_status', title: '处理', render: (r) => r.process_status ? <StatusBadge type="process" status={r.process_status} /> : '—' },
           { key: 'created_at', title: '更新时间', render: (r) => formatDate(r.updated_at) },

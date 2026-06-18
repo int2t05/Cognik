@@ -9,7 +9,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { apiFetch } from '@/lib/api/client';
 import { isAdminRole } from '@/lib/roles';
-import styles from './page.module.css';
 
 interface LoginResponse {
   access_token: string;
@@ -58,36 +57,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>OpsMind</h1>
-        <p className={styles.subtitle}>运维数字员工系统</p>
+    <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)]">
+      <div className="w-[400px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
+        <h1 className="text-[28px] font-semibold tracking-[-0.28px] text-center mb-2 text-[var(--color-ink)]">OpsMind</h1>
+        <p className="text-[17px] text-[var(--color-text-muted-48)] text-center mb-8">运维数字员工系统</p>
 
         <form onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label}>用户名</label>
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">用户名</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
-              className={styles.input}
+              className="h-11 px-4 text-[15px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
             />
           </div>
 
-          <div className={styles.fieldLast}>
-            <label className={styles.label}>密码</label>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">密码</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className={styles.input}
+              className="h-11 px-4 text-[15px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
             />
           </div>
 
-          <AppleButton type="submit" loading={loading} className={styles.fullWidth}>
+          <AppleButton type="submit" loading={loading} className="w-full">
             登录
           </AppleButton>
         </form>

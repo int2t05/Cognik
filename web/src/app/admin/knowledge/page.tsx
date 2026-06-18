@@ -9,7 +9,6 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
-import styles from './page.module.css';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -37,23 +36,23 @@ export default function KnowledgeListPage() {
 
   const handleDelete = async (id: number) => { try { await deleteKB(id); toast.success('已删除'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); } };
 
-  if (error) return <p className={styles.error}>加载失败</p>;
+  if (error) return <p className="text-[var(--color-error)] text-center text-sm py-10">加载失败</p>;
 
   return (
     <div>
-      <div className={styles.header}>
-        <h1 className={styles.title}>知识库管理</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">知识库管理</h1>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}>新建知识库</AppleButton>
       </div>
 
-      <div className={styles.grid}>
+      <div className="grid gap-4">
         {!kbs ? <AppleSpinner /> : kbs.map((kb) => (
-          <AppleCard key={kb.id} className={styles.kbCard} onClick={() => router.push(`/admin/knowledge/${kb.id}`)}>
+          <AppleCard key={kb.id} className="flex justify-between items-center cursor-pointer" onClick={() => router.push(`/admin/knowledge/${kb.id}`)}>
             <div>
-              <h3 className={styles.cardHeader}>{kb.name}</h3>
-              <p className={styles.cardMeta}>{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
+              <h3 className="text-[17px] font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h3>
+              <p className="text-[15px] text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
-            <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
               <AppleButton variant="ghost" onClick={() => openEdit(kb)}>编辑</AppleButton>
               <AppleButton variant="utility" onClick={() => handleDelete(kb.id)}>删除</AppleButton>
             </div>

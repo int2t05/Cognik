@@ -10,7 +10,6 @@ import { getUnreadCount } from '@/lib/api/message';
 import { isActivePath } from '@/lib/menu';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown } from 'lucide-react';
-import styles from './AdminLayout.module.css';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard size={18} />,
@@ -53,9 +52,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     setExpandedMenus((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
 
-  const depthClass = (depth: number): string => {
-    if (depth === 1) return styles.menuItemDepth1;
-    if (depth === 2) return styles.menuItemDepth2;
+  const depthPadding = (depth: number): string => {
+    if (depth === 1) return 'pl-[36px]';
+    if (depth === 2) return 'pl-[52px]';
     return '';
   };
 
@@ -65,10 +64,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      styles.menuItem,
-      collapsed ? styles.menuItemCollapsed : '',
-      active ? styles.menuItemActive : '',
-      depthClass(depth),
+      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-sm cursor-pointer text-left transition hover:bg-[var(--color-divider-soft)]',
+      collapsed ? 'justify-center px-0 py-3' : '',
+      active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : '',
+      depthPadding(depth),
     ].filter(Boolean).join(' ');
 
     return (
@@ -79,9 +78,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           className={btnClass}
         >
           {ICON_MAP[m.icon] || <Settings size={18} />}
-          {!collapsed && <span className={styles.menuLabel}>{m.name}</span>}
+          {!collapsed && <span className="flex-1">{m.name}</span>}
           {!collapsed && hasChildren && (
-            <ChevronDown size={14} className={`${styles.menuChevron} ${expanded ? styles.menuChevronOpen : ''}`} />
+            <ChevronDown size={14} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
           )}
         </button>
         {!collapsed && hasChildren && expanded && m.children!.map((c) => renderMenuItem(c, depth + 1))}
@@ -93,41 +92,46 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const childMenus = menus.filter((m) => m.parent_id);
   const menuTree = topMenus.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
 
+  const sidebarWidth = collapsed ? 64 : 220;
+
   return (
-    <div className={styles.layout}>
-      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
-        <div className={`${styles.logo} ${collapsed ? styles.logoCollapsed : ''}`}>
+    <div className="flex min-h-screen bg-[var(--color-parchment)]">
+      <aside
+        className="flex flex-col fixed left-0 top-0 bottom-0 z-[100] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        style={{ width: sidebarWidth }}
+      >
+        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-base' : 'text-lg font-semibold text-[var(--color-ink)]'}`}>
           {collapsed ? 'OM' : 'OpsMind'}
         </div>
 
-        <nav className={styles.nav}>
+        <nav className="flex-1 py-2 overflow-y-auto">
           {menuTree.map((m) => renderMenuItem(m))}
         </nav>
 
-        <div className={styles.bottomActions}>
-          <button onClick={() => router.push('/portal/messages')} className={styles.actionBtn} aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
+        <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
+          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2 border-0 bg-transparent text-[var(--color-text-muted-80)] text-[13px] cursor-pointer rounded-lg transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} className={styles.actionBtn} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2 border-0 bg-transparent text-[var(--color-text-muted-80)] text-[13px] cursor-pointer rounded-lg transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>
         </div>
       </aside>
 
-      <div className={`${styles.main} ${collapsed ? styles.mainCollapsed : styles.mainExpanded}`}>
-        <header className={styles.topbar}>
-          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className={styles.toggleBtn}>
+      <div className="flex-1 flex flex-col transition-[margin-left] duration-250" style={{ marginLeft: sidebarWidth }}>
+        <header className="h-[52px] flex items-center justify-between px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] sticky top-0 z-50 backdrop-blur-[20px] backdrop-saturate-[180%]">
+          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)]">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
-          <div className={styles.userInfo}>
-            <span className={styles.userName}>{user?.real_name || user?.username}</span>
-            <button onClick={() => { logout(); router.push('/login'); }} className={styles.logoutBtn}>
+          <div className="flex items-center gap-4">
+            <span className="text-[13px] text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>
+            <button onClick={() => { logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-[13px]">
               <LogOut size={14} /> 登出
             </button>
           </div>
         </header>
-        <main className={styles.content}>{children}</main>
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   );

@@ -7,7 +7,6 @@ import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
-import styles from './page.module.css';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -87,32 +86,32 @@ export default function NewArticlePage() {
   };
 
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.title}>新建文章</h1>
+    <div className="max-w-[720px]">
+      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">新建文章</h1>
 
       {/* 文档上传 */}
-      <AppleCard className={styles.cardMb}>
-        <h2 className={styles.uploadTitle}>文档上传</h2>
-        <p className={styles.uploadDesc}>支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
-        <div className={styles.uploadRow}>
+      <AppleCard className="mb-4">
+        <h2 className="text-[17px] font-semibold mb-3 text-[var(--color-ink)]">文档上传</h2>
+        <p className="text-sm text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
+        <div className="flex gap-3 items-center">
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
-            className={styles.uploadInput} />
+            className="text-sm cursor-pointer" />
           {uploadProgress && (
-            <span className={styles.uploadProgress}>{uploadProgress}</span>
+            <span className="text-sm text-[var(--color-accent)]">{uploadProgress}</span>
           )}
         </div>
       </AppleCard>
 
       {/* 手动创建 */}
       <form onSubmit={handleCreate}>
-        <AppleCard className={styles.cardMb}>
-          <h2 className={styles.manualTitle}>手动创建</h2>
+        <AppleCard className="mb-4">
+          <h2 className="text-[17px] font-semibold mb-4 text-[var(--color-ink)]">手动创建</h2>
           <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
           <AppleTextarea label="正文内容 (Markdown)" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="支持 Markdown 格式..." />
           <AppleInput label="分类" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="如：网络与VPN" />
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
-        <div className={styles.formActions}>
+        <div className="flex gap-3">
           <AppleButton type="submit" loading={saving}>创建文章</AppleButton>
           <AppleButton variant="ghost" type="button" onClick={() => router.back()}>取消</AppleButton>
         </div>

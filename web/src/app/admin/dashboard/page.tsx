@@ -7,7 +7,6 @@ import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { useToast } from '@/hooks/useToast';
-import styles from './page.module.css';
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -25,12 +24,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className={styles.header}>
-        <h1 className={styles.title}>数据看板</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh}>刷新</AppleButton>
       </div>
-      {statsErr && <p className={styles.error}>加载失败，请点击刷新重试</p>}
-      <div className={styles.grid}>
+      {statsErr && <p className="text-[var(--color-error)] mb-4 text-sm">加载失败，请点击刷新重试</p>}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mb-8">
         <StatCard label="今日申告" value={stats?.today_tickets ?? '—'} />
         <StatCard label="待处理" value={stats?.pending_tickets ?? '—'} />
         <StatCard label="处理中" value={stats?.processing_tickets ?? '—'} />
@@ -40,9 +39,9 @@ export default function DashboardPage() {
         <StatCard label="知识条目" value={stats?.knowledge_count ?? '—'} />
       </div>
 
-      <h2 className={styles.sectionTitle}>30 日趋势</h2>
+      <h2 className="text-[21px] font-semibold text-[var(--color-ink)] mb-4">30 日趋势</h2>
       {!trends ? <AppleSpinner /> : trends.data_points.length === 0 ? (
-        <div className={styles.empty}>暂无趋势数据</div>
+        <div className="p-10 text-center text-[var(--color-text-muted-48)] text-sm bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">暂无趋势数据</div>
       ) : (
         <TrendChart data={trends.data_points} />
       )}
@@ -53,29 +52,29 @@ export default function DashboardPage() {
 function TrendChart({ data }: { data: { date: string; ticket_count: number; chat_count: number }[] }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
   return (
-    <div role="img" aria-label="30 日申告和问答趋势图" className={styles.chartCard}>
-      <div className={styles.chartArea}>
+    <div role="img" aria-label="30 日申告和问答趋势图" className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
+      <div className="flex items-end gap-[3px] h-[200px]">
         {data.map((d, i) => (
-          <div key={i} className={styles.barGroup}>
-            <div className={styles.bars}>
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="flex gap-[2px] items-end h-[160px]">
               <div role="img" aria-label={`${d.date} 申告 ${d.ticket_count} 问答 ${d.chat_count}`}
                 title={`申告: ${d.ticket_count}`}
-                className={`${styles.bar} ${styles.barTicket}`}
+                className="w-[6px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0"
                 style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }} />
               <div title={`问答: ${d.chat_count}`}
-                className={`${styles.bar} ${styles.barChat}`}
+                className="w-[6px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0"
                 style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }} />
             </div>
-            {i % 5 === 0 && <span className={styles.dateLabel}>{d.date.slice(5)}</span>}
+            {i % 5 === 0 && <span className="text-[9px] text-[var(--color-text-muted-48)] -rotate-45 whitespace-nowrap">{d.date.slice(5)}</span>}
           </div>
         ))}
       </div>
-      <div className={styles.legend}>
-        <span className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.legendDotTicket}`} /> 申告
+      <div className="flex gap-4 justify-center mt-3 text-xs text-[var(--color-text-muted-48)]">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-[10px] h-[10px] rounded inline-block bg-[var(--color-accent)]" /> 申告
         </span>
-        <span className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.legendDotChat}`} /> 问答
+        <span className="inline-flex items-center gap-1">
+          <span className="w-[10px] h-[10px] rounded inline-block bg-[var(--color-success)] opacity-70" /> 问答
         </span>
       </div>
     </div>

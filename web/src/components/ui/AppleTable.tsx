@@ -3,7 +3,6 @@
 
 import { type ReactNode } from 'react';
 import { AppleSpinner } from './AppleSpinner';
-import styles from './AppleTable.module.css';
 
 interface Column<T> {
   key: string;
@@ -34,14 +33,14 @@ export function AppleTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className={styles.wrapper}>
-      <table className={styles.table}>
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] overflow-x-auto">
+      <table className="w-full border-collapse text-[15px]">
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={styles.th}
+                className="text-left text-[13px] font-semibold text-[var(--color-text-muted-48)] px-4 py-3 border-b border-[var(--color-hairline)] whitespace-nowrap"
                 style={{ width: col.width }}
               >
                 {col.title}
@@ -49,24 +48,24 @@ export function AppleTable<T extends Record<string, any>>({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="[&>tr:last-child>td]:border-b-0">
           {loading ? (
             <tr>
-              <td colSpan={columns.length} className={styles.loading}>
+              <td colSpan={columns.length} className="py-10 text-center">
                 <AppleSpinner />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className={styles.empty}>
+              <td colSpan={columns.length} className="py-12 text-center text-[var(--color-text-muted-48)] text-sm">
                 {emptyText}
               </td>
             </tr>
           ) : (
             data.map((row) => (
-              <tr key={getKey(row)} className={styles.row}>
+              <tr key={getKey(row)} className="hover:bg-[var(--color-pearl)]">
                 {columns.map((col) => (
-                  <td key={col.key} className={styles.td}>
+                  <td key={col.key} className="px-4 py-3.5 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-sm">
                     {col.render ? col.render(row) : String(row[col.key] ?? '')}
                   </td>
                 ))}

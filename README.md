@@ -1,4 +1,4 @@
-# <img src="web/public/icon-32.png" width="28" height="28" alt="OpsMind" style="vertical-align: middle; margin-right: 6px;"> OpsMind — 运维数字员工系统
+# <img src="web/public/icon-64.png" width="28" height="28" alt="OpsMind" style="vertical-align: middle; margin-right: 6px;"> OpsMind — 运维数字员工系统
 
 <p align="center">
   <img src="web/public/icon-96.png" width="96" height="96" alt="OpsMind">

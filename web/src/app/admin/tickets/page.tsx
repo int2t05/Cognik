@@ -6,7 +6,6 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import styles from './page.module.css';
 
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
@@ -24,19 +23,19 @@ export default function AdminTicketListPage() {
 
   return (
     <div>
-      <h1 className={styles.title}>申告管理</h1>
-      <div className={styles.filterBar}>
+      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">申告管理</h1>
+      <div className="mb-4 flex gap-2 flex-wrap">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`${styles.filterBtn} ${status === o.v ? styles.filterBtnActive : ''}`}>
+            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-ink)] text-[13px] cursor-pointer transition${status === o.v ? ' bg-[var(--color-accent)] text-white font-semibold' : ''}`}>
             {o.l}
           </button>
         ))}
       </div>
       <AppleTable
         columns={[
-          { key: 'ticket_no', title: '编号', render: (r) => <span className={styles.mono}>{r.ticket_no}</span> },
-          { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className={styles.link}>{r.title}</a> },
+          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-mono text-xs">{r.ticket_no}</span> },
+          { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'submitter_name', title: '提交人' },
           { key: 'urgency', title: '紧急', render: (r) => ['', '低', '中', '高'][r.urgency] },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },

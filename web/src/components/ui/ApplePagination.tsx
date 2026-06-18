@@ -1,8 +1,6 @@
 /** ApplePagination — 精简紧凑样式 */
 'use client';
 
-import styles from './ApplePagination.module.css';
-
 interface ApplePaginationProps {
   page: number;
   pageSize: number;
@@ -23,27 +21,27 @@ export function ApplePagination({
   const end = Math.min(page * pageSize, total);
 
   return (
-    <div className={styles.pagination}>
-      <span className={styles.info}>
+    <div className="flex items-center justify-center gap-1 py-4">
+      <span className="text-sm text-[var(--color-text-muted-48)]">
         {total > 0 ? `${start}-${end} / ${total} 条` : '0 条'}
       </span>
-      <div className={styles.actions}>
+      <div className="flex items-center gap-1">
         <PaginationBtn
           disabled={page <= 1}
           onClick={() => onChange(page - 1, pageSize)}
           label="上一页"
-          styles={styles}
         />
         {Array.from({ length: totalPages }, (_, i) => i + 1)
           .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
           .map((p, i, arr) => (
             <span key={p}>
-              {i > 0 && arr[i - 1] !== p - 1 && <span className={styles.ellipsis}>...</span>}
+              {i > 0 && arr[i - 1] !== p - 1 && (
+                <span className="px-1 text-[var(--color-text-muted-48)]">...</span>
+              )}
               <PaginationBtn
                 active={p === page}
                 onClick={() => onChange(p, pageSize)}
                 label={String(p)}
-                styles={styles}
               />
             </span>
           ))}
@@ -51,16 +49,17 @@ export function ApplePagination({
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1, pageSize)}
           label="下一页"
-          styles={styles}
         />
       </div>
       <select
-        className={styles.select}
+        className="ml-3 px-2 py-1 text-[13px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] font-sans outline-none"
         value={pageSize}
         onChange={(e) => onChange(1, Number(e.target.value))}
       >
         {pageSizeOptions.map((s) => (
-          <option key={s} value={s}>{s} 条/页</option>
+          <option key={s} value={s}>
+            {s} 条/页
+          </option>
         ))}
       </select>
     </div>
@@ -72,22 +71,21 @@ function PaginationBtn({
   disabled,
   onClick,
   label,
-  styles: css,
 }: {
   active?: boolean;
   disabled?: boolean;
   onClick: () => void;
   label: string;
-  styles: Record<string, string>;
 }) {
-  const classNames = [css.btn, active ? css.active : '', disabled ? css.disabled : '']
-    .filter(Boolean).join(' ');
-
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={classNames}
+      className={`min-w-[36px] h-9 flex items-center justify-center text-sm rounded-lg border-0 font-sans cursor-pointer transition hover:bg-[var(--color-divider-soft)] ${
+        active
+          ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
+          : 'bg-transparent text-[var(--color-ink)]'
+      } ${disabled ? 'opacity-30 cursor-default' : ''}`}
     >
       {label}
     </button>

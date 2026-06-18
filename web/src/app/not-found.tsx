@@ -1,13 +1,12 @@
 import Link from 'next/link';
-import s from './not-found.module.css';
 
 export default function NotFound() {
   return (
-    <div className={s.wrapper}>
-      <div className={s.inner}>
-        <h1 className={s.code}>404</h1>
-        <p className={s.text}>页面不存在</p>
-        <Link href="/portal/chat" className={s.link}>返回首页</Link>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-parchment)]">
+      <div className="text-center">
+        <h1 className="text-6xl font-semibold text-[var(--color-ink)] tracking-tight">404</h1>
+        <p className="text-[17px] text-[var(--color-text-muted-48)] mt-2">页面不存在</p>
+        <Link href="/portal/chat" className="text-[var(--color-accent)] mt-6 inline-block text-[17px]">返回首页</Link>
       </div>
     </div>
   );

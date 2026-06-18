@@ -2,7 +2,6 @@
 'use client';
 
 import { type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from 'react';
-import styles from './AppleInput.module.css';
 
 interface AppleInputProps extends InputHTMLAttributes<HTMLInputElement> {
   pill?: boolean;
@@ -12,17 +11,25 @@ interface AppleInputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
   ({ pill, label, error, className = '', ...rest }, ref) => {
-    const inputClass = [styles.input, pill ? styles.pill : '', error ? styles.inputError : '', className]
-      .filter(Boolean).join(' ');
+    const inputClass = [
+      'w-full h-11 px-4 text-[15px] rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
+      error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
+      pill ? 'rounded-[var(--radius-pill)]' : '',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return (
-      <div className={label || error ? styles.group : ''}>
-        {label && <label className={styles.label}>{label}</label>}
+      <div className={label || error ? 'mb-4' : ''}>
+        {label && (
+          <label className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+        )}
         <input ref={ref} className={inputClass} {...rest} />
-        {error && <p className={styles.errorText}>{error}</p>}
+        {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );
-  }
+  },
 );
 AppleInput.displayName = 'AppleInput';
 
@@ -34,16 +41,23 @@ interface AppleTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>
 
 export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>(
   ({ label, error, rows = 4, className = '', ...rest }, ref) => {
-    const textareaClass = [styles.textarea, error ? styles.textareaError : '', className]
-      .filter(Boolean).join(' ');
+    const textareaClass = [
+      'w-full px-4 py-3 text-[15px] leading-relaxed rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
+      error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     return (
-      <div className={styles.group}>
-        {label && <label className={styles.label}>{label}</label>}
+      <div className="mb-4">
+        {label && (
+          <label className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+        )}
         <textarea ref={ref} rows={rows} className={textareaClass} {...rest} />
-        {error && <p className={styles.errorText}>{error}</p>}
+        {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );
-  }
+  },
 );
 AppleTextarea.displayName = 'AppleTextarea';

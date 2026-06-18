@@ -98,7 +98,7 @@
 
 ## 7. 基础设施
 
-- ✅ 🔴 全局内联样式（~30 文件/数百处）— 已修复：全量迁移至 CSS Modules（70+ 文件），仅保留 15 处必要动态样式（虚拟列表、图表高度、CSS 自定义属性）
+- ✅ 🔴 全局内联样式（~30 文件/数百处）— 已修复：全量迁移至 Tailwind CSS v4 工具类，替换 CSS Modules，零 `.module.css` 文件残留
 - ✅ 📌 🟡 AppleBadge 硬编码 hex 色值，暗色模式不自适应 — 已修复：改用 CSS 变量 + `[data-theme="dark"]` 覆盖
 - ✅ 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — 已修复：提取 `hooks/useUnreadCount.ts` 共享 hook
 - 🟡 轮询错误静默吞没（`.catch(() => {})`）— 保留（行为变更需验证）
@@ -128,10 +128,11 @@
 
 ### 前端 TODO（0 → 已清理 0 个）
 
-前端代码已无 TODO 注释。本次重构新增：
-- 35 个 CSS Module 文件（`.module.css`）
-- 1 个共享 hook（`useUnreadCount`）
-- 移除 ~300+ 内联 `style={{}}` 对象，仅保留 15 处必要动态值
+前端代码已无 TODO 注释。本次重构：
+- 全量迁移至 Tailwind CSS v4（`globals.css` + `@theme` 配置 Apple Design Tokens）
+- 删除全部 40+ 个 `.module.css` 文件
+- 移除旧 `styles/global.css` 和 `styles/tokens.css`
+- 新增 `postcss.config.mjs`（`@tailwindcss/postcss` 插件）
 
 ---
 
@@ -145,4 +146,4 @@
 
 ---
 
-> 本次修复：CSS Module 全量迁移 — 全局内联样式 → 35 个 `.module.css` 文件，70+ TSX 文件重构，提取 `useUnreadCount` 共享 hook，零 TypeScript 错误。
+> 本次修复：Tailwind CSS v4 全量迁移 — 替换 40+ CSS Module 文件为 Tailwind 工具类，Apple Design Tokens 通过 `@theme` 注入，21 路由构建 0 错误。

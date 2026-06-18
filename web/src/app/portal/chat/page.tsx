@@ -13,7 +13,6 @@ import { isTokenExpired } from '@/lib/auth';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatPipeline } from '@/components/chat/ChatPipeline';
-import styles from './page.module.css';
 
 interface Message {
   id: string;
@@ -162,35 +161,35 @@ export default function ChatPage() {
   const isLoading = loading || streaming;
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.topBar}>
+    <div className="flex flex-col h-[calc(100vh-100px)]">
+      <div className="flex items-center gap-3 mb-4">
         <select value={selectedKB} onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
-          className={styles.select}>
+          className="h-11 px-4 text-[15px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[200px] cursor-pointer">
           <option value={0}>选择知识库...</option>
           {(kbs || []).map((kb) => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
         </select>
         {sessionId && <AppleButton variant="utility" onClick={handleNewChat}>新对话</AppleButton>}
       </div>
 
-      <div ref={listRef} className={styles.messages}>
+      <div ref={listRef} className="flex-1 overflow-y-auto mb-4">
         {messages.length === 0 ? (
-          <div className={styles.emptyState}>
+          <div className="flex items-center justify-center h-full text-[var(--color-text-muted-48)] text-lg">
             {selectedKB ? '输入问题开始对话' : '请先选择一个知识库'}
           </div>
         ) : (
-          <div className={styles.virtualList} style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+          <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {rowVirtualizer.getVirtualItems().map((virtualItem) => {
               const isPipeline = virtualItem.index === messages.length && currentStep;
               if (isPipeline) {
                 return (
-                  <div key="pipeline" className={styles.virtualItem} style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                  <div key="pipeline" className="absolute top-0 left-0 w-full" style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                     <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
                   </div>
                 );
               }
               const msg = messages[virtualItem.index];
               return (
-                <div key={msg.id} className={styles.virtualItem} style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                <div key={msg.id} className="absolute top-0 left-0 w-full" style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                   <ChatMessage
                     id={msg.id}
                     role={msg.role}

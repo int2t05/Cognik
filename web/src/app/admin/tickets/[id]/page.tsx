@@ -10,7 +10,6 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import styles from './page.module.css';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
@@ -36,36 +35,36 @@ export default function AdminTicketDetailPage() {
     finally { setProcessing(false); }
   };
 
-  if (error) return <p className={styles.error}>加载失败</p>;
-  if (!ticket) return <div className={styles.loading}>加载中...</div>;
+  if (error) return <p className="text-[var(--color-error)] p-10">加载失败</p>;
+  if (!ticket) return <div className="p-10 text-[var(--color-text-muted-48)]">加载中...</div>;
 
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.title}>{ticket.title}</h1>
-      <div className={styles.meta}>
+    <div className="max-w-[800px]">
+      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+      <div className="flex gap-3 mb-6 items-center">
         <StatusBadge type="ticket" status={ticket.status} />
-        <span className={styles.metaText}>{ticket.ticket_no} · 提交人: {ticket.submitter_name} · {formatDate(ticket.created_at)}</span>
+        <span className="text-[13px] text-[var(--color-text-muted-48)]">{ticket.ticket_no} · 提交人: {ticket.submitter_name} · {formatDate(ticket.created_at)}</span>
       </div>
 
-      <AppleCard className={styles.cardMb}><p className={styles.descPre}>{ticket.description}</p></AppleCard>
+      <AppleCard className="mb-4"><p className="whitespace-pre-wrap">{ticket.description}</p></AppleCard>
 
-      <div className={styles.actionBar}>
+      <div className="flex gap-2 mb-6 flex-wrap">
         {ticket.status === 1 && <AppleButton onClick={() => handleAction('start')} loading={processing}>开始处理</AppleButton>}
         {ticket.status === 2 && <><AppleButton onClick={() => handleAction('resolve')} loading={processing}>标记解决</AppleButton><AppleButton variant="ghost" onClick={() => handleAction('request_info')} loading={processing}>索要补充</AppleButton></>}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && <AppleButton variant="utility" onClick={() => handleAction('close')} loading={processing}>关闭申告</AppleButton>}
       </div>
 
       {ticket.status === 2 && (
-        <AppleCard className={styles.cardMb}>
+        <AppleCard className="mb-4">
           <AppleTextarea label="处理说明" value={actionResult} onChange={(e) => setActionResult(e.target.value)} rows={2} placeholder="可选：填写处理结果..." />
         </AppleCard>
       )}
 
       {/* 知识候选 */}
-      <AppleCard className={styles.cardMbLg}>
-        <h3 className={styles.sectionTitle}>生成知识候选</h3>
-        <div className={styles.formRow}>
-          <select value={kbId} onChange={(e) => setKbId(Number(e.target.value))} className={styles.select}>
+      <AppleCard className="mb-6">
+        <h3 className="text-[17px] font-semibold mb-3">生成知识候选</h3>
+        <div className="flex gap-3 items-end">
+          <select value={kbId} onChange={(e) => setKbId(Number(e.target.value))} className="px-4 py-2 text-[15px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer">
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
           </select>
@@ -76,12 +75,12 @@ export default function AdminTicketDetailPage() {
       {/* 处理记录 */}
       {ticket.records && ticket.records.length > 0 && (
         <AppleCard>
-          <h3 className={styles.sectionTitle}>处理记录</h3>
+          <h3 className="text-[17px] font-semibold mb-3">处理记录</h3>
           {ticket.records.map((r) => (
-            <div key={r.id} className={styles.record}>
-              <span className={styles.recordAction}>{r.action}</span>
-              <span className={styles.recordDate}>{formatDate(r.created_at)}</span>
-              <p className={styles.recordContent}>{r.content}</p>
+            <div key={r.id} className="py-2 border-b border-[var(--color-divider-soft)]">
+              <span className="text-[13px] font-semibold">{r.action}</span>
+              <span className="text-xs text-[var(--color-text-muted-48)] ml-3">{formatDate(r.created_at)}</span>
+              <p className="text-sm mt-1">{r.content}</p>
             </div>
           ))}
         </AppleCard>

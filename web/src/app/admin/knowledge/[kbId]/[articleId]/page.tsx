@@ -9,7 +9,6 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import styles from './page.module.css';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -26,21 +25,21 @@ export default function ArticleEditPage() {
   const handleSave = async () => { try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } };
   const handleAction = async (fn: () => Promise<unknown>) => { setProcessing(true); try { await fn(); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
-  if (error) return <p className={styles.error}>加载失败</p>;
-  if (!article) return <div className={styles.loading}>加载中...</div>;
+  if (error) return <p className="text-[var(--color-error)] text-center text-sm py-10">加载失败</p>;
+  if (!article) return <div className="text-center text-[var(--color-text-muted-48)] text-sm py-10">加载中...</div>;
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.header}>
-        <div className={styles.headerInfo}>
-          <h1 className={styles.title}>{article.title}</h1>
-          <div className={styles.headerMeta}>
+    <div className="max-w-[800px]">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-[28px] font-semibold text-[var(--color-ink)]">{article.title}</h1>
+          <div className="flex gap-2 mt-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
-            <span className={styles.headerMetaText}>创建者: {article.created_by_name} · {formatDate(article.created_at)}</span>
+            <span className="text-[13px] text-[var(--color-text-muted-48)]">创建者: {article.created_by_name} · {formatDate(article.created_at)}</span>
           </div>
         </div>
-        <div className={styles.headerActions}>
+        <div className="flex gap-2 flex-wrap">
           {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}>提交审核</AppleButton>}
           {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}>通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}>驳回</AppleButton></>}
           {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}>发布</AppleButton>}
@@ -50,22 +49,22 @@ export default function ArticleEditPage() {
         </div>
       </div>
 
-      {article.status === 2 && <AppleCard className={styles.cardMb}><AppleInput label="驳回理由（驳回时必填）" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></AppleCard>}
+      {article.status === 2 && <AppleCard className="mb-4"><AppleInput label="驳回理由（驳回时必填）" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></AppleCard>}
 
       {editing ? (
-        <AppleCard className={styles.cardMb}>
+        <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <div className={styles.editActions}><AppleButton onClick={handleSave}>保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}>取消</AppleButton></div>
+          <div className="flex gap-2"><AppleButton onClick={handleSave}>保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}>取消</AppleButton></div>
         </AppleCard>
       ) : (
-        <AppleCard className={styles.cardMb}>
-          <div className={styles.content}>{article.content || '(无内容)'}</div>
-          {article.tags && article.tags.length > 0 && <div className={styles.tags}>{article.tags.map((t, i) => <span key={i} className={styles.tag}>{t}</span>)}</div>}
+        <AppleCard className="mb-4">
+          <div className="text-[17px] leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
+          {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t, i) => <span key={i} className="px-2.5 py-0.5 text-[12px] rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
         </AppleCard>
       )}
 
-      {article.process_status === 'failed' && <AppleCard className={styles.errorCard}><p className={styles.errorText}>处理失败: {article.process_error}</p></AppleCard>}
+      {article.process_status === 'failed' && <AppleCard className="border border-[var(--color-error)] mb-4"><p className="text-[var(--color-error)] text-sm">处理失败: {article.process_error}</p></AppleCard>}
     </div>
   );
 }

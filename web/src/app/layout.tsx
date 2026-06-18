@@ -4,7 +4,7 @@
 
 import type { Metadata } from 'next';
 import { Providers } from '@/components/Providers';
-import '@/styles/global.css';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'OpsMind — 运维数字员工',

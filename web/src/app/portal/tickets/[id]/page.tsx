@@ -8,7 +8,6 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
-import styles from './page.module.css';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -32,41 +31,41 @@ export default function TicketDetailPage() {
     } finally { setSending(false); }
   };
 
-  if (error) return <p className={styles.error}>加载失败: {error.message}</p>;
-  if (!ticket) return <div className={styles.loading}>加载中...</div>;
+  if (error) return <p className="text-[var(--color-error)] p-10">加载失败: {error.message}</p>;
+  if (!ticket) return <div className="p-10 text-[var(--color-text-muted-48)]">加载中...</div>;
 
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.title}>{ticket.title}</h1>
-      <div className={styles.meta}>
+    <div className="max-w-[720px]">
+      <h1 className="text-[var(--text-hero)] font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+      <div className="flex gap-3 mb-6 items-center">
         <StatusBadge type="ticket" status={ticket.status} />
-        <span className={styles.metaText}>{ticket.ticket_no}</span>
-        <span className={styles.metaText}>提交于 {formatDate(ticket.created_at)}</span>
+        <span className="text-[13px] text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
+        <span className="text-[13px] text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
       </div>
 
-      <div className={styles.descCard}>
-        <h2 className={styles.descTitle}>问题描述</h2>
-        <p className={styles.descContent}>{ticket.description}</p>
+      <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
+        <h2 className="text-[var(--text-title)] font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
+        <p className="text-[var(--text-title)] text-[var(--color-ink)] leading-[1.47] whitespace-pre-wrap">{ticket.description}</p>
       </div>
 
       {ticket.records && ticket.records.length > 0 && (
-        <div className={styles.recordCard}>
-          <h2 className={styles.recordTitle}>处理记录</h2>
+        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
+          <h2 className="text-[var(--text-title)] font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
           {ticket.records.map((r) => (
-            <div key={r.id} className={styles.record}>
-              <div className={styles.recordHeader}>
-                <span className={styles.recordLabel}>{r.action}</span>
-                <span className={styles.recordDate}>{formatDate(r.created_at)}</span>
+            <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
+              <div className="flex justify-between mb-1">
+                <span className="text-[13px] font-semibold text-[var(--color-text-muted-80)]">{r.action}</span>
+                <span className="text-[12px] text-[var(--color-text-muted-48)]">{formatDate(r.created_at)}</span>
               </div>
-              <p className={styles.recordText}>{r.content}</p>
+              <p className="text-[14px] text-[var(--color-ink)]">{r.content}</p>
             </div>
           ))}
         </div>
       )}
 
       {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
-        <div className={styles.supplementCard}>
-          <h2 className={styles.supplementTitle}>补充信息</h2>
+        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
+          <h2 className="text-[var(--text-title)] font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
           <AppleButton onClick={handleSupplement} loading={sending}>提交补充</AppleButton>
         </div>

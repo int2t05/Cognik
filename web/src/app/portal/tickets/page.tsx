@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import styles from './page.module.css';
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
@@ -16,12 +15,12 @@ export default function TicketQueryPage() {
 
   return (
     <div>
-      <h1 className={styles.title}>我的申告</h1>
-      {error && <p className={styles.error}>加载失败</p>}
+      <h1 className="text-[28px] font-semibold text-[var(--color-ink)] mb-6">我的申告</h1>
+      {error && <p className="text-[var(--color-error)] text-sm">加载失败</p>}
       <AppleTable
         columns={[
-          { key: 'ticket_no', title: '编号', render: (r) => <span className={styles.mono}>{r.ticket_no}</span> },
-          { key: 'title', title: '标题', render: (r) => <a href={`/portal/tickets/${r.id}`} className={styles.link}>{r.title}</a> },
+          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-['SF_Mono','Fira_Code',monospace] text-[13px]">{r.ticket_no}</span> },
+          { key: 'title', title: '标题', render: (r) => <a href={`/portal/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'urgency', title: '紧急程度', render: (r) => ['', '低', '中', '高'][r.urgency] || '—' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
           { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },

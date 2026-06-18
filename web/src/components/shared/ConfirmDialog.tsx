@@ -1,7 +1,6 @@
 /** ConfirmDialog — 危险操作二次确认 */
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleButton } from '@/components/ui/AppleButton';
-import styles from './ConfirmDialog.module.css';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -14,7 +13,16 @@ interface ConfirmDialogProps {
   danger?: boolean;
 }
 
-export function ConfirmDialog({ open, onOpenChange, title, message, confirmLabel = '确认', onConfirm, loading, danger }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  message,
+  confirmLabel = '确认',
+  onConfirm,
+  loading,
+  danger,
+}: ConfirmDialogProps) {
   return (
     <AppleDialog
       open={open}
@@ -23,12 +31,14 @@ export function ConfirmDialog({ open, onOpenChange, title, message, confirmLabel
       description={message}
       footer={
         <>
-          <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>取消</AppleButton>
+          <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>
+            取消
+          </AppleButton>
           <AppleButton
             variant="pill"
             onClick={onConfirm}
             loading={loading}
-            className={danger ? styles.dangerBtn : ''}
+            className={danger ? '!bg-[var(--color-error)] border-0 hover:opacity-90' : ''}
           >
             {confirmLabel}
           </AppleButton>

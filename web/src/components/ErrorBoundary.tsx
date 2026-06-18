@@ -2,7 +2,6 @@
 
 import { Component, type ReactNode } from 'react';
 import { AppleButton } from '@/components/ui/AppleButton';
-import s from './ErrorBoundary.module.css';
 
 interface Props { children: ReactNode; }
 interface State { error: Error | null; }
@@ -17,10 +16,10 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className={s.wrapper}>
-          <div className={s.inner}>
-            <h1 className={s.title}>页面出错了</h1>
-            <p className={s.message}>{this.state.error.message}</p>
+        <div className="flex items-center justify-center min-h-[60vh] bg-[var(--color-parchment)]">
+          <div className="text-center max-w-[400px]">
+            <h1 className="text-[34px] font-semibold text-[var(--color-ink)] mb-3">页面出错了</h1>
+            <p className="text-[15px] text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
             <AppleButton onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
               刷新页面
             </AppleButton>
