@@ -1,14 +1,57 @@
 'use client';
+import useSWR from 'swr';
+import { getStats, getTrends, type TrendPoint } from '@/lib/api/dashboard';
+import { StatCard } from '@/components/shared/StatCard';
+import { formatPercent } from '@/lib/format';
+import { AppleSpinner } from '@/components/ui/AppleSpinner';
 
 export default function DashboardPage() {
+  const { data: stats, error: statsErr } = useSWR('dashboard-stats', getStats);
+  const today = new Date();
+  const start = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+  const end = today.toISOString().slice(0, 10);
+  const { data: trends } = useSWR('dashboard-trends', () => getTrends(start, end));
+
   return (
-    <div style={{ padding: 40 }}>
-      <h1 style={{ fontSize: 34, fontWeight: 600, color: 'var(--text-ink)' }}>
-        数据看板
-      </h1>
-      <p style={{ color: 'var(--text-muted-48)', marginTop: 8 }}>
-        看板功能即将上线（Phase 5 实现）
-      </p>
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 24 }}>数据看板</h1>
+      {statsErr && <p style={{ color: 'var(--color-error)' }}>加载统计失败</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+        <StatCard label="今日申告" value={stats?.today_tickets ?? '—'} />
+        <StatCard label="待处理" value={stats?.pending_tickets ?? '—'} />
+        <StatCard label="处理中" value={stats?.processing_tickets ?? '—'} />
+        <StatCard label="已解决" value={stats?.resolved_tickets ?? '—'} />
+        <StatCard label="今日问答" value={stats?.today_chats ?? '—'} />
+        <StatCard label="平均置信度" value={formatPercent(stats?.avg_confidence ?? null)} />
+        <StatCard label="知识条目" value={stats?.knowledge_count ?? '—'} />
+      </div>
+
+      <h2 style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 16 }}>30 日趋势</h2>
+      {!trends ? <AppleSpinner /> : (
+        <TrendChart data={trends.data_points} />
+      )}
+    </div>
+  );
+}
+
+function TrendChart({ data }: { data: TrendPoint[] }) {
+  const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
+  return (
+    <div style={{ background: 'var(--bg-canvas)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', padding: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 200 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 160 }}>
+              <div title={`申告: ${d.ticket_count}`} style={{ width: 6, height: `${(d.ticket_count / maxVal) * 160}px`, background: 'var(--accent)', borderRadius: '3px 3px 0 0', minHeight: d.ticket_count > 0 ? 4 : 0 }} />
+              <div title={`问答: ${d.chat_count}`} style={{ width: 6, height: `${(d.chat_count / maxVal) * 160}px`, background: 'var(--color-success)', borderRadius: '3px 3px 0 0', minHeight: d.chat_count > 0 ? 4 : 0, opacity: 0.7 }} />
+            </div>
+            {i % 5 === 0 && <span style={{ fontSize: 9, color: 'var(--text-muted-48)', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>{d.date.slice(5)}</span>}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12, fontSize: 12, color: 'var(--text-muted-48)' }}>
+        <span>■ 申告</span><span style={{ color: 'var(--color-success)' }}>■ 问答</span>
+      </div>
     </div>
   );
 }
