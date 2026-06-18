@@ -1,15 +1,6 @@
 /**
- * AppleButton — 四种变体按钮。
- *
- * 严格对照 docs/prompts/ui.md 按钮体系：
- * - pill: 主 CTA，蓝色胶囊 (Action Blue #0066cc)
- * - ghost: 次要，蓝色边框+透明背景
- * - utility: 工具按钮，深色小圆角
- * - pearl: 珍珠胶囊，卡片内次要操作
- *
- * Active 态：transform: scale(0.95)（系统全局微交互）
- * Focus 态：outline: 2px solid var(--accent-focus)
- * 无阴影、无渐变。
+ * AppleButton — 四种变体按钮（pill/ghost/utility/pearl）。
+ * 对照 docs/prompts/ui.md 按钮体系。
  */
 
 import { type ButtonHTMLAttributes, forwardRef } from 'react';

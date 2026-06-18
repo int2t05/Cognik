@@ -58,7 +58,7 @@ export default function ChatPage() {
     if (!question) return;
     if (!selectedKB) { toast.error('请先选择知识库'); return; }
 
-    // 取消旧请求（修复竞态 P0-5）
+    // 取消旧请求
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;

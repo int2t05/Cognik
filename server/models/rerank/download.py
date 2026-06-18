@@ -20,15 +20,18 @@ MIRRORS = [
     "https://huggingface.co",
 ]
 
-# 模型需要的文件
+# 模型需要的文件（sentence_bert_config.json 和 modules.json 不是所有模型都有）
 FILES = [
     "config.json",
     "model.safetensors",
     "tokenizer_config.json",
     "vocab.txt",
     "special_tokens_map.json",
+]
+OPTIONAL = [
     "sentence_bert_config.json",
     "modules.json",
+    "tokenizer.json",
 ]
 
 # 已全部下载则跳过
@@ -68,29 +71,27 @@ def try_download(url, dst, retries=3):
         time.sleep(2 ** attempt)
     return False
 
-# 逐个文件尝试所有镜像
-print(f"下载 {MODEL}...")
-for fname in FILES:
-    dst = os.path.join(MODEL_DIR, fname)
-    if os.path.exists(dst):
-        print(f"  {fname} — 已跳过")
-        continue
+# 逐文件下载（可选文件失败不报错）
+for file_list, required in [(FILES, True), (OPTIONAL, False)]:
+    for fname in file_list:
+        dst = os.path.join(MODEL_DIR, fname)
+        if os.path.exists(dst):
+            continue
 
-    downloaded = False
-    for mirror in MIRRORS:
-        url = f"{mirror}/{MODEL}/resolve/main/{fname}"
-        print(f"  {fname} ← {mirror}", end="", flush=True)
-        if try_download(url, dst):
-            size_mb = os.path.getsize(dst) / (1024 * 1024)
-            print(f" ({size_mb:.1f} MB)")
-            downloaded = True
-            break
-        print(" 失败")
+        ok = False
+        for mirror in MIRRORS:
+            url = f"{mirror}/{MODEL}/resolve/main/{fname}"
+            if try_download(url, dst):
+                size_mb = os.path.getsize(dst) / (1024 * 1024)
+                print(f"  {fname} ({size_mb:.1f} MB)")
+                ok = True
+                break
 
-    if not downloaded:
-        print(f"\n错误: 所有镜像均无法下载 {fname}")
-        print("请手动将以上文件放入 " + MODEL_DIR)
-        sys.exit(1)
+        if not ok:
+            if required:
+                print(f"\n错误: 无法下载必需文件 {fname}")
+                sys.exit(1)
+            # 可选文件缺失正常
 
 total = sum(os.path.getsize(os.path.join(MODEL_DIR, f))
             for f in os.listdir(MODEL_DIR) if os.path.isfile(os.path.join(MODEL_DIR, f))) / (1024 * 1024)

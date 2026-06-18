@@ -1,9 +1,4 @@
-/**
- * API 客户端 — fetch 封装 + 统一错误处理。
- *
- * 修复旧版响应解包不一致问题（res.data || res.items 等回退逻辑）。
- * 参照 docs/TODO.md P0-8, P0-11。
- */
+/** API 客户端 — fetch 封装 + 统一错误处理 + 类型安全响应解包。 */
 
 import type { ApiResponse, PageResponse } from './types';
 

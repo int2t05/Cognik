@@ -1,8 +1,4 @@
-/**
- * AuthContext — 全局认证状态管理。
- *
- * 替代旧版 Pinia stores/auth.ts，使用 React Context + localStorage 持久化。
- */
+/** AuthContext — 全局认证状态管理。 */
 
 'use client';
 import {

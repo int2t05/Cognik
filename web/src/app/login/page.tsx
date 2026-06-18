@@ -1,10 +1,4 @@
-/**
- * 登录页面 — Apple 风格居中卡片。
- *
- * 修复旧版错误提取用 err?.message 的问题：直接使用后端返回的 message。
- * 修复旧版路由判断基于 permissions.length 的 AMBIGUOUS 逻辑。
- * 参照 docs/TODO.md P0-2, P0-3。
- */
+/** 登录页面 — Apple 风格居中卡片。 */
 
 'use client';
 
@@ -48,12 +42,12 @@ export default function LoginPage() {
 
       login(data.access_token, data.refresh_token, data.user, data.roles, data.permissions, data.menus);
 
-      // 根据角色跳转（修复 P0-3）
+      // 根据角色跳转
       const adminRoles = ['系统管理员', 'admin', 'operator', 'knowledge_manager'];
       const isAdmin = data.roles.some((r) => adminRoles.includes(r));
       router.push(isAdmin ? '/admin/dashboard' : '/portal/chat');
     } catch (err: unknown) {
-      // 直接提取后端 message（修复 P0-2）
+      // 直接提取后端 message
       const message =
         err instanceof Error ? err.message : '登录失败，请重试';
       toast.error(message);

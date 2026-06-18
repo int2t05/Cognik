@@ -1,7 +1,4 @@
-/**
- * 全局 Toast 系统 — 修复旧版每个组件独立 toast 状态导致多 toast 冲突的问题。
- * 参照 docs/TODO.md P1-18。
- */
+/** 全局 Toast 系统 — 统一消息通知，最多堆叠 3 条。 */
 
 'use client';
 import {

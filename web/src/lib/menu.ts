@@ -1,4 +1,4 @@
-/** 菜单路径匹配（修复旧版 path.startsWith() 硬编码分组） */
+/** 菜单路径匹配 */
 
 export function isActivePath(menuPath: string, currentPath: string): boolean {
   if (menuPath === currentPath) return true;

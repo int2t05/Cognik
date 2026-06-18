@@ -1,9 +1,4 @@
-/**
- * 主题管理 Hook — SSR 安全。
- *
- * 修复旧版模块级 localStorage 访问导致的 SSR 不兼容问题。
- * 参照 docs/TODO.md P1-19。
- */
+/** 主题管理 Hook — SSR 安全的双主题切换。 */
 
 'use client';
 import { useState, useEffect, useCallback } from 'react';

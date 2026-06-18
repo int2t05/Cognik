@@ -73,4 +73,8 @@ Course Design
 *.exe
 .playwright-mcp
 
-web_vue_backup
+web_vue_backupserver/models/rerank/*.safetensors
+server/models/rerank/config.json
+server/models/rerank/vocab.txt
+server/models/rerank/special_tokens_map.json
+server/models/rerank/tokenizer_config.json

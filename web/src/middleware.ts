@@ -1,9 +1,4 @@
-/**
- * 路由守卫 — JWT 认证 + RBAC + base64url 兼容 Token 解码。
- *
- * 修复旧版 atob 不兼容 base64url 导致 JWT 过期检查失效的问题。
- * 参照 docs/TODO.md P0-1。
- */
+/** 路由守卫 — JWT 认证 + RBAC + base64url 兼容 Token 解码。 */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -24,7 +19,7 @@ function decodePayload(token: string): JwtPayload | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    // base64url → base64（修复 P0-1）
+    // base64url → base64
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     return JSON.parse(atob(base64));
   } catch {

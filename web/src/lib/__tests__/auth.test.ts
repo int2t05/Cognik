@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { decodeJwtPayload, isTokenExpired } from '../auth';
 
-// 构造测试 JWT token（payload: {"sub":"1","roles":["admin"],"exp":9999999999,"iat":1}）
-// 使用 base64url 编码：eyJ... 中包含 - 和 _ （base64url 特征）
+// 使用 base64url 编码构造测试 JWT token
 const VALID_TOKEN =
   'eyJhbGciOiJIUzI1NiJ9.' +
   btoa(JSON.stringify({ sub: '1', roles: ['admin'], exp: 9999999999, iat: 1 }))

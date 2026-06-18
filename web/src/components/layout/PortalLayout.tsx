@@ -1,7 +1,4 @@
-/**
- * PortalLayout — 门户端布局（顶栏导航 + 内容区）。
- * 修复旧版消息轮询手动 setTimeout 的弊端，使用 useEffect + setInterval。
- */
+/** PortalLayout — 门户端布局（顶栏导航 + 内容区）。 */
 
 'use client';
 

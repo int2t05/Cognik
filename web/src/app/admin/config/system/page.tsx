@@ -10,7 +10,7 @@ export default function SystemConfigPage() {
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
-  // 系统配置 + AI 参数（合并原 ModelConfig — TODO.md P1-11）
+  // 系统配置 + AI 参数
   return (
     <div>
       <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 24 }}>系统配置</h1>

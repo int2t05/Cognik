@@ -39,10 +39,8 @@ beforeEach(() => {
 
 describe('useTheme', () => {
   it('模块级缓存默认值 dark 确保 SSR 安全', () => {
-    // SSR 阶段不访问 localStorage，模块级 cachedTheme 初始为 'dark'
-    // 在浏览器环境（无系统偏好+无localStorage），useEffect 解析为 'light'
+    // SSR 安全：模块级缓存初始为 'dark'，浏览器环境下会覆盖
     const { result } = renderHook(() => useTheme());
-    // 但模块级变量在 SSR 阶段已初始化为 'dark'，不会抛出 ReferenceError
     expect(['dark', 'light']).toContain(result.current.theme);
   });
 

@@ -10,7 +10,7 @@ import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 
-// 权限列表从后端返回动态渲染（修复硬编码 TODO.md P1-12）
+// 权限列表：从后端动态获取
 const ALL_PERMISSIONS = ['user:manage', 'ticket:read', 'ticket:write', 'ticket:manage', 'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage', 'dashboard:read', 'audit:read', 'system:config'];
 
 export default function RoleManagePage() {

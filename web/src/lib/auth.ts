@@ -1,9 +1,4 @@
-/**
- * JWT 工具 — base64url 兼容解码。
- *
- * 修复旧版 atob 不兼容 base64url（`-`/`_`）导致解码失败的问题。
- * 参照 docs/TODO.md P0-1。
- */
+/** JWT 工具 — base64url 兼容解码。 */
 
 export interface JwtPayload {
   sub?: string;
