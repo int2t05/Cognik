@@ -1,11 +1,10 @@
 # OpsMind Server — Go 后端多阶段构建
 #
 # 阶段 1: 编译 Go 二进制
-# 阶段 2: Alpine 运行时（纯 Go，无 Python 重排序依赖）
+# 阶段 2: Python slim 运行时（Go 二进制 + 轻量 cross-encoder 重排序）
 #
-# 重排序说明：cross-encoder (bge-reranker-base) 约 1.1GB，
-# 通过 Python 子进程推理。Docker 镜像不内置此依赖，
-# 运行时若 reranker 不可用，RAG 管道自动降级跳过重排序步骤。
+# 重排序模型：ms-marco-MiniLM-L-4-v2（~50MB，vs bge-reranker-base 1.1GB）
+# 镜像总大小约 450MB（vs 旧方案 2.5GB）
 #
 # 构建方式：
 #   docker build -t opsmind-server -f server/Dockerfile server/
@@ -29,21 +28,37 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /build/opsmind-server ./cmd/main.go
 
-# ===== 阶段 2: Alpine 运行时（纯 Go 二进制）=====
-FROM alpine:3.21
+# ===== 阶段 2: Python slim + 轻量 reranker =====
+FROM python:3.11-slim-bookworm
 
-# 运行时依赖：CA 证书（HTTPS 调用 LLM API）+ 时区数据
-RUN apk add --no-cache ca-certificates tzdata
+# 系统依赖：CA 证书 + 时区
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
+# Python 依赖：torch 2.6+ 默认 PyPI 即 CPU-only（~200MB）+ sentence-transformers
+# 不再使用 PyTorch 专用 CPU 索引（hash 不稳定导致构建中断）
+RUN pip install --no-cache-dir --retries 10 \
+    torch sentence-transformers
+
+# 预下载 rerank 模型到镜像（编译期完成，启动时无需网络）
+# ms-marco-MiniLM-L-4-v2：4 层 transformer ~50MB，最小可用的 cross-encoder
+# 环境变量 RERANK_MODEL 可在运行时覆盖为其他模型（如 bge-reranker-v2-m3）
+ENV RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-4-v2
+RUN python -c "\
+from sentence_transformers import CrossEncoder; \
+import torch; \
+CrossEncoder('cross-encoder/ms-marco-MiniLM-L-4-v2', device='cpu')"
+
 # 从构建阶段复制 Go 二进制
 COPY --from=builder /build/opsmind-server .
 
-# 暴露 8080 端口
+# 复制 Python 重排序推理脚本
+COPY rerank_server.py .
+
 EXPOSE 8080
 
-# 运行服务
 ENTRYPOINT ["./opsmind-server"]

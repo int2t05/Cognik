@@ -1,0 +1,88 @@
+/* Apple Design Tokens — 对照 docs/prompts/ui.md */
+/* ================================================================ */
+
+/* ===== 颜色 ===== */
+:root {
+  /* 品牌强调 — 唯一交互色 */
+  --accent: #0066cc;
+  --accent-focus: #0071e3;
+  --accent-on-dark: #2997ff;
+
+  /* 画布 */
+  --bg-canvas: #ffffff;
+  --bg-parchment: #f5f5f7;
+  --bg-pearl: #fafafc;
+
+  /* 暗色瓦片 */
+  --bg-tile-1: #272729;
+  --bg-tile-2: #2a2a2c;
+  --bg-tile-3: #252527;
+  --bg-black: #000000;
+
+  /* 文字 */
+  --text-ink: #1d1d1f;
+  --text-body: #1d1d1f;
+  --text-on-dark: #ffffff;
+  --text-muted: #cccccc;
+  --text-muted-80: #333333;
+  --text-muted-48: #7a7a7a;
+
+  /* 分割线 */
+  --divider-soft: rgba(0, 0, 0, 0.04);
+  --hairline: #e0e0e0;
+
+  /* ===== 字体 ===== */
+  --font-display: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* ===== 圆角 ===== */
+  --radius-none: 0;
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 18px;
+  --radius-pill: 9999px;
+  --radius-full: 50%;
+
+  /* ===== 间距 ===== */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 17px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --space-section: 80px;
+
+  /* ===== 阴影 — 仅一个，用于产品图 ===== */
+  --shadow-product: 3px 5px 30px 0 rgba(0, 0, 0, 0.22);
+
+  /* ===== 动效 ===== */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+
+  /* ===== 语义状态色 ===== */
+  --color-success: #34c759;
+  --color-warning: #ff9500;
+  --color-error: #ff3b30;
+  --color-info: #007aff;
+  --color-neutral: #8e8e93;
+}
+
+/* ===== 暗色主题 ===== */
+[data-theme="dark"] {
+  --accent: #2997ff;
+  --accent-focus: #40a9ff;
+  --bg-canvas: #1d1d1f;
+  --bg-parchment: #272729;
+  --bg-pearl: #2a2a2c;
+  --bg-tile-1: #000000;
+  --bg-tile-2: #1a1a1c;
+  --bg-tile-3: #0d0d0f;
+  --text-ink: #f5f5f7;
+  --text-body: #f5f5f7;
+  --text-muted-80: #cccccc;
+  --text-muted-48: #666666;
+  --divider-soft: rgba(255, 255, 255, 0.08);
+  --hairline: rgba(255, 255, 255, 0.12);
+}

@@ -1,0 +1,99 @@
+/* AppleButton — Apple Design 按钮体系 */
+/* ==================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-weight: 400;
+  cursor: pointer;
+  border: none;
+  transition: transform var(--duration-fast) var(--ease-out),
+              opacity var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+/* ===== pill — 主 CTA 蓝色胶囊 ===== */
+.pill {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.374px;
+  border-radius: var(--radius-pill);
+  padding: 11px 22px;
+  min-height: 44px;
+}
+
+/* ===== ghost — 次要幽灵胶囊 ===== */
+.ghost {
+  background: transparent;
+  color: var(--accent);
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.374px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 10px 21px;
+  min-height: 44px;
+}
+
+/* ===== utility — 工具按钮深色小圆角 ===== */
+.utility {
+  background: var(--text-ink);
+  color: var(--text-on-dark);
+  font-size: 14px;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  border-radius: var(--radius-sm);
+  padding: 8px 15px;
+}
+
+/* ===== pearl — 珍珠胶囊 ===== */
+.pearl {
+  background: var(--bg-pearl);
+  color: var(--text-muted-80);
+  font-size: 14px;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  border: 3px solid var(--divider-soft);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+}
+
+/* ===== Spinner ===== */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingLabel {
+  opacity: 0.7;
+}

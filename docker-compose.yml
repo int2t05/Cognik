@@ -21,12 +21,13 @@ services:
     env_file:
       - .env
     environment:
+      # 容器内地址覆写（.env 中是 localhost → 容器间 service name）
       OPSMIND_DATABASE_HOST: postgres
       OPSMIND_MINIO_ENDPOINT: minio:9000
-      OPSMIND_LOG_DIR: ./logs
+      # 重排序（MiniLM-L-4-v2 ~50MB，已预下载到镜像）
+      OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-true}"
       OPSMIND_RERANK_PYTHON_PATH: python3
       OPSMIND_RERANK_SCRIPT_PATH: /app/rerank_server.py
-      OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-false}"
       TZ: Asia/Shanghai
     depends_on:
       postgres:
