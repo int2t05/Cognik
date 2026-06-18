@@ -189,7 +189,7 @@ func (r *UserRepo) CountActiveAdmins(ctx context.Context, excludeUserID int64) (
 	err := r.db.WithContext(ctx).Model(&model.UserRole{}).
 		Joins("JOIN users ON users.id = user_roles.user_id").
 		Joins("JOIN roles ON roles.id = user_roles.role_id").
-		Where("roles.name = ?", "系统管理员").
+		Where("roles.name = ?", model.RoleNameAdmin).
 		Where("users.status = 1").
 		Where("users.id != ?", excludeUserID).
 		Count(&count).Error

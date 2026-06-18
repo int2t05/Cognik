@@ -17,9 +17,7 @@ type Ticket struct {
 	Urgency         int16          `gorm:"not null" json:"urgency"`
 	ImpactScope     int16          `gorm:"column:impact_scope" json:"impact_scope"`
 	AffectedSystems datatypes.JSON `gorm:"type:jsonb;column:affected_systems" json:"affected_systems"`
-	ContactPhone    string         `gorm:"type:varchar(11);not null;column:contact_phone" json:"contact_phone"`
-	// TODO(model/ticket): contact_phone 长度固定 11 假设中国大陆手机号。
-	// 如果企业支持分机或国际号码，应放宽并在 Service 层做格式化校验。
+	ContactPhone    string         `gorm:"type:varchar(20);not null;column:contact_phone" json:"contact_phone"`
 	ContactEmail    string         `gorm:"type:varchar(128);column:contact_email" json:"contact_email"`
 	Status          int16          `gorm:"not null;default:1;index:idx_tickets_status" json:"status"`
 	SupplementCount int16          `gorm:"not null;default:0;column:supplement_count" json:"supplement_count"`

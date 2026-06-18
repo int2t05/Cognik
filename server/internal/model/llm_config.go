@@ -31,6 +31,7 @@ type LlmConfig struct {
 	EmbeddingModel   string    `gorm:"type:varchar(128);not null;column:embedding_model" json:"embedding_model"`
 	MaxTokens        int       `gorm:"not null;default:8192;column:max_tokens" json:"max_tokens"`
 	VectorDimension  int       `gorm:"not null;default:1024;column:vector_dimension" json:"vector_dimension"`
+	SystemPrompt     string    `gorm:"type:text;column:system_prompt" json:"system_prompt"` // 系统提示词，空时使用默认值
 	IsDefault        bool      `gorm:"not null;default:false;column:is_default" json:"is_default"`
 	CreatedAt        time.Time `gorm:"not null" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"not null" json:"updated_at"`

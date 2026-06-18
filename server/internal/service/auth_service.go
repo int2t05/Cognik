@@ -362,10 +362,10 @@ func (s *AuthService) buildLoginResponse(ctx context.Context, user *model.User) 
 //
 // 系统管理员自动获得全部菜单。
 func (s *AuthService) buildMenuTree(ctx context.Context, roles []model.Role) ([]response.MenuItem, error) {
-	// 判断是否为系统管理员
+	// 判断是否为系统管理员（使用常量避免角色更名后静默失效）
 	isAdmin := false
 	for _, role := range roles {
-		if role.Name == "系统管理员" {
+		if role.Name == model.RoleNameAdmin {
 			isAdmin = true
 			break
 		}

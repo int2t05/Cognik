@@ -264,7 +264,7 @@ func (s *UserService) assertNotLastAdmin(ctx context.Context, targetUserID int64
 	}
 	isAdmin := false
 	for _, r := range roles {
-		if r.Name == "系统管理员" {
+		if r.Name == model.RoleNameAdmin {
 			isAdmin = true
 			break
 		}

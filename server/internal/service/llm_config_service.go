@@ -105,7 +105,7 @@ func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
 func (s *LLMConfigService) GetManager() *LLMConfigManager { return s.manager }
 
 // CreateConfig 创建 LLM 配置。is_default=true 时先清空其他默认（事务保证原子性）。
-func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
+func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, AppError{Code: errcode.ErrParam, Message: "名称不能为空"}
 	}
@@ -125,7 +125,7 @@ func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, provid
 	cfg := &model.LlmConfig{
 		Name: name, ProviderType: providerType, BaseURL: baseURL,
 		EmbeddingBaseURL: embeddingBaseURL, APIKey: apiKey,
-		LLMModel: llmModel, EmbeddingModel: embeddingModel,
+		LLMModel: llmModel, EmbeddingModel: embeddingModel, SystemPrompt: systemPrompt,
 		MaxTokens: maxTokens, VectorDimension: vectorDimension, IsDefault: isDefault,
 	}
 
@@ -214,8 +214,8 @@ func (s *LLMConfigService) ListConfigs(ctx context.Context) ([]LlmConfigResponse
 			ID: c.ID, Name: c.Name, ProviderType: c.ProviderType,
 			BaseURL: c.BaseURL, EmbeddingBaseURL: c.EmbeddingBaseURL,
 			APIKey: maskAPIKey(c.APIKey), LLMModel: c.LLMModel,
-			EmbeddingModel: c.EmbeddingModel, MaxTokens: c.MaxTokens,
-			VectorDimension: c.VectorDimension, IsDefault: c.IsDefault,
+			EmbeddingModel: c.EmbeddingModel, SystemPrompt: c.SystemPrompt,
+			MaxTokens: c.MaxTokens, VectorDimension: c.VectorDimension, IsDefault: c.IsDefault,
 		}
 	}
 	return result, nil
@@ -263,6 +263,7 @@ type LlmConfigResponse struct {
 	APIKey           string `json:"api_key"`
 	LLMModel         string `json:"llm_model"`
 	EmbeddingModel   string `json:"embedding_model"`
+	SystemPrompt     string `json:"system_prompt"`
 	MaxTokens        int    `json:"max_tokens"`
 	VectorDimension  int    `json:"vector_dimension"`
 	IsDefault        bool   `json:"is_default"`

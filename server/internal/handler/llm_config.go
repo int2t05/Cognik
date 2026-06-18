@@ -29,7 +29,7 @@ type LLMConfigHandler struct {
 
 // llmConfigService 定义 Handler 需要的 Service 方法（消费者定义接口）。
 type llmConfigService interface {
-	CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
+	CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
 	ListConfigs(ctx context.Context) ([]service.LlmConfigResponse, error)
 	GetConfig(ctx context.Context, id int64) (*model.LlmConfig, error)
 	UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error
@@ -69,7 +69,7 @@ func (h *LLMConfigHandler) CreateConfig(c *gin.Context) {
 	}
 
 	cfg, err := h.svc.CreateConfig(c.Request.Context(), req.Name, req.ProviderType, req.BaseURL, req.EmbeddingBaseURL, req.APIKey,
-		req.LLMModel, req.EmbeddingModel, req.MaxTokens, req.VectorDimension, req.IsDefault)
+		req.LLMModel, req.EmbeddingModel, req.SystemPrompt, req.MaxTokens, req.VectorDimension, req.IsDefault)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -121,9 +121,10 @@ func (h *LLMConfigHandler) UpdateConfig(c *gin.Context) {
 		APIKey:           req.APIKey,
 		LLMModel:         req.LLMModel,
 		EmbeddingModel:   req.EmbeddingModel,
+		SystemPrompt:     req.SystemPrompt,
 		MaxTokens:        req.MaxTokens,
 		VectorDimension:  req.VectorDimension,
-		IsDefault:       req.IsDefault,
+		IsDefault:        req.IsDefault,
 	}
 
 	if err := h.svc.UpdateConfig(c.Request.Context(), cfg); err != nil {

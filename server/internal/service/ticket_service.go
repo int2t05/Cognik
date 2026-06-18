@@ -86,13 +86,14 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		systemsJSON = marshalTicketTags(req.AffectedSystems)
 	}
 
-	// 校验 ChatContext 为合法 JSON（若提供）
+	// 序列化 ChatContext（若提供）
 	var chatCtxJSON datatypes.JSON
-	if req.ChatContext != "" {
-		if !isValidJSON(req.ChatContext) {
-			return AppError{Code: errcode.ErrParam, Message: "chat_context 不是合法的 JSON"}
+	if req.ChatContext != nil {
+		raw, err := json.Marshal(req.ChatContext)
+		if err != nil {
+			return AppError{Code: errcode.ErrParam, Message: "序列化 chat_context 失败"}
 		}
-		chatCtxJSON = datatypes.JSON(req.ChatContext)
+		chatCtxJSON = datatypes.JSON(raw)
 	}
 
 	ticket := &model.Ticket{

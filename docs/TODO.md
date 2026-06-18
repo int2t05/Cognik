@@ -10,11 +10,10 @@
 
 ## 1. 认证与授权
 
-- 🟡 [service/auth_service.go](/server/internal/service/auth_service.go) — 管理员检测硬编码角色名 `"系统管理员"`，角色更名后静默失效
+（无）
 
 ## 2. 智能问答
 
-- 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — 系统 prompt 硬编码，不支持按知识库定制
 - 🟢 [service/llm_service.go](/server/internal/service/llm_service.go) — 历史截断按消息条数而非 token 数
 
 ## 3. 知识库管理
@@ -23,8 +22,6 @@
 
 ## 4. 申告管理
 
-- 📌 [model/ticket.go:21](/server/internal/model/ticket.go#L21) — `contact_phone` 长度固定 11 假设中国大陆手机号
-- 📌 [dto/request/ticket.go:18](/server/internal/dto/request/ticket.go#L18) — `ChatContext` 应使用结构化对象而非 JSON 字符串
 - 📌 [service/message_service.go:101](/server/internal/service/message_service.go#L101) — 未读数适合缓存或 WebSocket/SSE 推送
 
 ## 5. 数据看板与审计
@@ -113,12 +110,10 @@
 
 ## 代码 TODO 索引（双向同步）
 
-### 后端 TODO（3）
+### 后端 TODO（1）
 
 | 位置 | 内容 |
 |------|------|
-| 📌 [model/ticket.go:21](/server/internal/model/ticket.go#L21) | contact_phone 长度固定 11 |
-| 📌 [dto/request/ticket.go:18](/server/internal/dto/request/ticket.go#L18) | ChatContext 应结构化 |
 | 📌 [service/message_service.go:101](/server/internal/service/message_service.go#L101) | 未读数缓存/WebSocket |
 
 ### 前端 TODO（31）
@@ -151,13 +146,13 @@
 
 | 模块 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |------|-------|-------|-------|---------|
-| 1. 认证与授权 | — | 1 | — | — |
-| 2. 智能问答 | — | — | 2 | — |
-| 4. 申告管理 | — | — | — | 3 |
+| 1. 认证与授权 | — | — | — | — |
+| 2. 智能问答 | — | — | 1 | — |
+| 4. 申告管理 | — | — | — | 1 |
 | 5. 数据看板与审计 | — | 1 | — | — |
 | 6. 系统管理与配置 | — | — | — | — |
 | 7. 基础设施 | — | — | 1 | — |
-| **后端合计** | **0** | **2** | **3** | **3** |
+| **后端合计** | **0** | **1** | **2** | **1** |
 
 ### 前端
 
@@ -176,8 +171,8 @@
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
-| 后端 | 0 | 2 | 3 | 3 |
+| 后端 | 0 | 1 | 2 | 1 |
 | 前端 | 12 | 28 | 5 | 31 |
-| **合计** | **12** | **30** | **8** | **34** |
+| **合计** | **12** | **29** | **7** | **32** |
 
-> 34 个代码 TODO（后端 3 + 前端 31）全部在上表中有对应条目，双向一致。
+> 32 个代码 TODO（后端 1 + 前端 31）全部在上表中有对应条目，双向一致。

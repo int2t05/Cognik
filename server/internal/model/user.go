@@ -22,6 +22,10 @@ type User struct {
 
 func (User) TableName() string { return "users" }
 
+// RoleNameAdmin 系统管理员角色名（唯一可识别来源，避免硬编码字符串分散）。
+// 所有需要根据角色名做判断的逻辑均应引用此常量。
+const RoleNameAdmin = "系统管理员"
+
 // Role 角色表
 //
 // Permissions 使用 JSONB 存储权限列表，例如 ["ticket:read", "ticket:write"]。

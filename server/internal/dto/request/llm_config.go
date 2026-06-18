@@ -14,6 +14,7 @@ type CreateLLMConfigRequest struct {
 	APIKey           string `json:"api_key"`
 	LLMModel         string `json:"llm_model" binding:"required"`
 	EmbeddingModel   string `json:"embedding_model" binding:"required"`
+	SystemPrompt     string `json:"system_prompt"`
 	MaxTokens        int    `json:"max_tokens"`
 	VectorDimension  int    `json:"vector_dimension"`
 	IsDefault        bool   `json:"is_default"`
@@ -28,6 +29,7 @@ type UpdateLLMConfigRequest struct {
 	APIKey           string `json:"api_key"`
 	LLMModel         string `json:"llm_model" binding:"required"`
 	EmbeddingModel   string `json:"embedding_model" binding:"required"`
+	SystemPrompt     string `json:"system_prompt"`
 	MaxTokens        int    `json:"max_tokens"`
 	VectorDimension  int    `json:"vector_dimension"`
 	IsDefault        bool   `json:"is_default"`

@@ -14,10 +14,16 @@ type CreateTicketRequest struct {
 	ImpactScope     int      `json:"impact_scope"`
 	AffectedSystems []string `json:"affected_systems"`
 	ContactPhone    string   `json:"contact_phone" binding:"required"`
-	ContactEmail    string   `json:"contact_email"`
-	// TODO(dto/ticket): ChatContext 应使用结构化对象而不是 JSON 字符串。
-	// Handler/Service 可以直接绑定并校验字段，避免客户端传入非法 JSON。
-	ChatContext     string   `json:"chat_context"` // JSON 字符串，从问答转申告时带入
+	ContactEmail    string          `json:"contact_email"`
+	ChatContext     *ChatContextData `json:"chat_context"` // 从问答转申告时带入
+}
+
+// ChatContextData 申告关联的问答上下文（结构化，替代 JSON 字符串）。
+type ChatContextData struct {
+	SessionID  int64   `json:"session_id"`
+	Question   string  `json:"question"`
+	Answer     string  `json:"answer"`
+	Confidence float64 `json:"confidence"`
 }
 
 // SupplementTicketRequest 补充申告信息请求。
