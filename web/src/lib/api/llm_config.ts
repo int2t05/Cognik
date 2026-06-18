@@ -4,6 +4,7 @@ export interface LLMConfig { id: number; name: string; provider_type: number; ba
 export interface TestResult { success: boolean; latency_ms: number; tokens_used: number; model: string; test_message: string; }
 
 export function getLLMConfigs() { return apiFetch<LLMConfig[]>('/api/v1/admin/llm-configs'); }
+export function getLLMConfigDetail(id: number) { return apiFetch<LLMConfig>(`/api/v1/admin/llm-configs/${id}`); }
 export function createLLMConfig(data: Record<string, unknown>) { return apiFetch<LLMConfig>('/api/v1/admin/llm-configs', { method: 'POST', body: JSON.stringify(data) }); }
 export function updateLLMConfig(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/llm-configs/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export function deleteLLMConfig(id: number) { return apiFetch<null>(`/api/v1/admin/llm-configs/${id}`, { method: 'DELETE' }); }

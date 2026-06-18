@@ -10,4 +10,5 @@ export function getUserList(page: number, keyword?: string) {
 export function createUser(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/admin/users', { method: 'POST', body: JSON.stringify(data) }); }
 export function updateUser(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export function freezeUser(id: number) { return apiFetch<null>(`/api/v1/admin/users/${id}/freeze`, { method: 'PATCH' }); }
+export function getUserDetail(id: number) { return apiFetch<User>(`/api/v1/admin/users/${id}`); }
 export function unfreezeUser(id: number) { return apiFetch<null>(`/api/v1/admin/users/${id}/unfreeze`, { method: 'PATCH' }); }

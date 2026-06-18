@@ -146,4 +146,4 @@
 
 ---
 
-> 本次修复：Tailwind CSS v4 全量迁移 — 替换 40+ CSS Module 文件为 Tailwind 工具类，Apple Design Tokens 通过 `@theme` 注入，21 路由构建 0 错误。
+> 本次修复：Tailwind CSS v4 全量迁移 + 前端 API 全覆盖审计 — 补充 4 个缺失函数（getUserDetail/getLLMConfigDetail/getRoleDetail/updateRoleMenus），58→62 函数，覆盖全部可封装端点。

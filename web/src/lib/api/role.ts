@@ -6,5 +6,7 @@ export interface Menu { id: number; name: string; path: string; icon: string; pa
 export function getRoleList(page: number) { return apiFetchPage<Role>(`/api/v1/admin/roles?page=${page}&page_size=10`); }
 export function createRole(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/admin/roles', { method: 'POST', body: JSON.stringify(data) }); }
 export function updateRole(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+export function getRoleDetail(id: number) { return apiFetch<Role>(`/api/v1/admin/roles/${id}`); }
 export function deleteRole(id: number) { return apiFetch<null>(`/api/v1/admin/roles/${id}`, { method: 'DELETE' }); }
+export function updateRoleMenus(id: number, menuIds: number[]) { return apiFetch<null>(`/api/v1/admin/roles/${id}/menus`, { method: 'PUT', body: JSON.stringify({ menu_ids: menuIds }) }); }
 export function getMenus() { return apiFetch<Menu[]>('/api/v1/admin/menus'); }
