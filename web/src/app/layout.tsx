@@ -9,7 +9,7 @@ import '@/styles/global.css';
 export const metadata: Metadata = {
   title: 'OpsMind — 运维数字员工',
   description: 'AI 驱动的企业运维智能助手',
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: '/icon-32.png', apple: '/icon-180.png' },
 };
 
 // 消除 FOUC：在 HTML 解析前通过 cookie 设置 data-theme
