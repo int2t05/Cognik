@@ -8,6 +8,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -143,7 +144,7 @@ func (s *TicketService) SupplementTicket(id int64, userID int64, req request.Sup
 	}
 
 	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)，避免孤立记录
-	return s.txManager.Transaction(func(tx *gorm.DB) error {
+	return s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		record := &model.TicketRecord{
@@ -241,7 +242,7 @@ func (s *TicketService) UpdateStatus(id int64, operatorID int64, req request.Upd
 	}
 
 	// 事务内原子执行：UpdateStatus(CAS) + CreateRecord
-	err = s.txManager.Transaction(func(tx *gorm.DB) error {
+	err = s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		// CAS: 仅在状态未变化时执行更新，防止并发双重操作
@@ -485,7 +486,7 @@ func unmarshalTicketTags(data datatypes.JSON) []string {
 func (s *TicketService) AutoClose(olderThan time.Time) (int64, error) {
 	var closedCount int64
 
-	err := s.txManager.Transaction(func(tx *gorm.DB) error {
+	err := s.txManager.Transaction(context.Background(), func(tx *gorm.DB) error {
 		txRepo := repository.NewTicketRepo(tx)
 
 		ids, err := txRepo.AutoCloseTickets(olderThan)

@@ -486,15 +486,15 @@
 
 ### 调度器
 
-- 🟢 [service/scheduler.go](/server/internal/service/scheduler.go) — `Start` 应防重复调用（当前无幂等保护）
-- 🟢⭐ [service/scheduler.go](/server/internal/service/scheduler.go) — **调度器首次启动不立即执行 AutoClose**：必须等待首个完整 cron 周期，频繁重启时超期工单可能长时间未关闭
-- 🟡⭐ [service/scheduler.go](/server/internal/service/scheduler.go) — `Start` 重复调用覆盖 `cancel` 导致第一组 goroutine 泄漏。
+- ✅ [service/scheduler.go](/server/internal/service/scheduler.go) — `Start` 应防重复调用（sync.Once 幂等保护）
+- ✅ [service/scheduler.go](/server/internal/service/scheduler.go) — **调度器首次启动不立即执行 AutoClose**（启动时立即执行一次）
+- ✅ [service/scheduler.go](/server/internal/service/scheduler.go) — `Start` 重复调用覆盖 `cancel`（sync.Once 消除竞态）
 
 ### 事务管理器
 
-- 📌 [service/tx_manager.go:18](/server/internal/service/tx_manager.go) — 校验 db 非 nil，构造期提前暴露装配错误
-- 📌 [service/tx_manager.go:24](/server/internal/service/tx_manager.go) — Transaction 可以接收 context.Context 并使用 db.WithContext(ctx)
-- 🟡⭐ [service/tx_manager.go](/server/internal/service/tx_manager.go) — **TxManager 接口将 `*gorm.DB` 泄露到 Service 层**：回调签名 `func(tx *gorm.DB) error` 使服务层直接依赖 GORM 具体类型，违反三层抽象。
+- ✅ [service/tx_manager.go](/server/internal/service/tx_manager.go) — 校验 db 非 nil（构造期 panic 暴露装配错误）
+- ✅ [service/tx_manager.go](/server/internal/service/tx_manager.go) — Transaction 增加 context.Context 参数（db.WithContext(ctx)）
+- ✅ [service/tx_manager.go](/server/internal/service/tx_manager.go) — **TxManager 接口将 `*gorm.DB` 泄露到 Service 层**（MVP 阶段与 Repository 层 GORM 耦合一致，添加注释说明）
 
 ### 日志与错误
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 1 | 6+1📝 | 3 | 8 | 19 |
+| 8. 基础设施与部署 | 1 | 4+1📝 | 1 | 6 | 13 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **35** | **58** | **24+6📝** | **18** | **~152** |
+| **合计** | **35** | **56** | **22+6📝** | **16** | **~146** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
