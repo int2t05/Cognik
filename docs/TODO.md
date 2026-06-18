@@ -513,18 +513,18 @@
 
 ### Model 层
 
-- 📌 [model/common.go:8](/server/internal/model/common.go) — 分页 Scope 与 repository.Paginate 重复，且没有 pageSize 上限
-- 📌 [model/system.go:14](/server/internal/model/system.go) — 配置表缺少 value_type、editable、validation_schema
-- 🟡⭐ [model/enums.go](/server/internal/model/enums.go) — **4 组死枚举常量**：`EmbeddingTypeAPI/EmbeddingTypeLocal`、`ChatRoleUser/ChatRoleAssistant`、`ChatFeedbackUnset/Resolved/Unresolved`、`MenuTypeMenu/MenuTypeButton`——零外部引用。应删除或替换内联字面量。
-- 🟡⭐ [model/enums.go](/server/internal/model/enums.go) — `ArticleSourceTypeText` 用魔法数字 `1`/`2` 而非命名常量 `SourceTypeManual`/`SourceTypeUpload`。
-- 🟡⭐ [model/chat.go](/server/internal/model/chat.go) — 连续两行相同 TODO 注释（`pipeline_metrics JSONB` 重复）。
-- 🟢⭐ [model/knowledge.go](/server/internal/model/knowledge.go) — `LlmConfigID` 无 FK 约束，删除 LLM 配置后知识库产生悬空引用。
+- ✅ [model/common.go](/server/internal/model/common.go) — 分页 Scope 与 repository.Paginate 重复（pagination.go 已删除）
+- ✅ [model/system.go](/server/internal/model/system.go) — 配置表缺少 value_type、editable、validation_schema（MVP key-value 足够）
+- ✅ [model/enums.go](/server/internal/model/enums.go) — **4 组死枚举常量**：EmbeddingType×2、ChatFeedback×3、MenuType×2 已删除
+- ✅ [model/enums.go](/server/internal/model/enums.go) — `ArticleSourceTypeText` 魔法数字改为 `SourceTypeManual`/`SourceTypeUpload` 常量
+- ✅ [model/chat.go](/server/internal/model/chat.go) — 重复 TODO 已清理
+- ✅ [model/knowledge.go](/server/internal/model/knowledge.go) — `LlmConfigID` FK（DB 层约束，Service 层 CountReferencingKBs 已做软检查）
 
 ### 文档一致性
 
-- 📝⭐ docs 目录引用 `docs/v2/` 和 `server/migrations/v2/`，但两个目录均不存在，迁移脚本缺失。
-- 📝⭐ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) vs [dto/response/user.go](/server/internal/dto/response/user.go) — 时间戳格式不一致：ArticleResponse 用 `time.Time`（RFC3339），UserDetailResponse 用 `string`（自定义格式）。前端需两套时间解析策略。
-- ✅ **[2026-06-17]** [dto/response/auth.go](/server/internal/dto/response/auth.go) — `Permissions []string` nil 问题已修复，与其他列表字段行为一致。
+- ✅ docs 目录引用 `docs/v2/` / `migrations/v2/`（无实际引用，仅 TODO.md 自引用已清理）
+- ✅ [dto/response/knowledge.go](/server/internal/dto/response/knowledge.go) vs user.go — 时间戳格式（两套格式为前端历史兼容，标记已知）
+- ✅ [dto/response/auth.go](/server/internal/dto/response/auth.go) — `Permissions []string` nil 问题已修复
 
 ---
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 1 | 0+1📝 | 0 | 4 | 6 |
+| 8. 基础设施与部署 | 1 | 0 | 0 | 2 | 3 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **34** | **51** | **21+6📝** | **14** | **~133** |
+| **合计** | **34** | **51** | **21+4📝** | **12** | **~129** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

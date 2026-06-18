@@ -35,6 +35,12 @@ const (
 	TicketSourceChat   int16 = 2 // 问答转申告
 )
 
+// 文章来源类型
+const (
+	SourceTypeManual int16 = 1 // 手动创建
+	SourceTypeUpload int16 = 2 // 文档上传
+)
+
 // 工单操作类型
 const (
 	TicketActionStart       = "start"        // 开始处理
@@ -60,35 +66,10 @@ const (
 	ArticleStatusRejected  int16 = 5 // 驳回
 )
 
-// Embedding 模型类型
-const (
-	EmbeddingTypeAPI   int16 = 1 // API 接入
-	EmbeddingTypeLocal int16 = 2 // 本地部署
-)
-
-// 对话角色
-const (
-	ChatRoleUser      = "user"
-	ChatRoleAssistant = "assistant"
-)
-
-// 问答反馈状态
-const (
-	ChatFeedbackUnset      int16 = 0 // 未反馈
-	ChatFeedbackResolved   int16 = 1 // 已解决
-	ChatFeedbackUnresolved int16 = 2 // 未解决
-)
-
 // 站内消息类型
 const (
 	MessageTypeTicketSupplement = "ticket_supplement" // 申告补充信息
 	MessageTypeSystem           = "system"            // 系统通知
-)
-
-// 菜单类型
-const (
-	MenuTypeMenu   = "menu"   // 菜单
-	MenuTypeButton = "button" // 按钮
 )
 
 // TicketStatusText 返回工单状态的中文描述。
@@ -132,9 +113,9 @@ func ArticleStatusText(status int16) string {
 // ArticleSourceTypeText 返回文章来源类型的中文描述。
 func ArticleSourceTypeText(sourceType int16) string {
 	switch sourceType {
-	case 1:
+	case SourceTypeManual:
 		return "手动创建"
-	case 2:
+	case SourceTypeUpload:
 		return "文档上传"
 	default:
 		return "未知"
