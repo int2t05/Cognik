@@ -94,8 +94,9 @@ type openAICompletionResponse struct {
 	Choices []struct {
 		Index   int `json:"index"`
 		Message struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
+			Role             string `json:"role"`
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
@@ -128,9 +129,15 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 		return nil, fmt.Errorf("LLM 返回空 choices")
 	}
 
+	// Qwen3 等思考模型将实际回答放在 reasoning_content 中，content 可能为空
+	content := apiResp.Choices[0].Message.Content
+	if content == "" {
+		content = apiResp.Choices[0].Message.ReasoningContent
+	}
+
 	slog.Info("LLM 同步调用完成", "model", req.Model, "tokens", apiResp.Usage.TotalTokens, "latency_ms", time.Since(start).Milliseconds())
 	return &ChatResponse{
-		Content:      apiResp.Choices[0].Message.Content,
+		Content:      content,
 		FinishReason: apiResp.Choices[0].FinishReason,
 		TokensUsed:   apiResp.Usage.TotalTokens,
 	}, nil
