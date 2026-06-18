@@ -72,12 +72,13 @@ web/playwright-report/
 *.tmp
 *.bak
 *.cache
-Course Design
-.playwright-mcpopsmind-server.exe
 *.exe
+
+# === Playwright MCP（测试辅助） ===
 .playwright-mcp
 
-web_vue_backupserver/models/rerank/*.safetensors
+# === 重排序模型（通过 download.py 下载，不入库） ===
+server/models/rerank/*.safetensors
 server/models/rerank/config.json
 server/models/rerank/vocab.txt
 server/models/rerank/special_tokens_map.json

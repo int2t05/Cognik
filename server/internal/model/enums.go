@@ -52,11 +52,10 @@ const (
 
 // 知识文章状态（审核状态机，承载人工操作流转）
 //
-// 编号说明：Disabled=0 是历史遗留值——早期 Service 直接用 `int16(0)` 作为"软删除/停用"
-// 哨兵，后续被纳入枚举后未重新编号。已与 docs/API/knowledge.md 状态机表对齐（2026-06-17）。
+// Disabled=0 为历史遗留值：早期 Service 用 int16(0) 作软删除哨兵，
+// 纳入枚举后保留编号不变。
 //
-// 文档处理进度（pending/parsing/chunking/embedding/indexing/completed/failed）由
-// 独立的 ProcessStatus 字段承载，与本枚举互不污染。
+// 文档处理进度由独立的 ProcessStatus 字段承载，与本枚举互不污染。
 const (
 	ArticleStatusDisabled  int16 = 0 // 已停用（仅允许 Published → Disabled）
 	ArticleStatusDraft     int16 = 1 // 草稿

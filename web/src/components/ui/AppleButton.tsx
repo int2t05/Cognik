@@ -1,6 +1,5 @@
 /**
  * AppleButton — 四种变体按钮（pill/ghost/utility/pearl）。
- * 对照 docs/prompts/ui.md 按钮体系。
  */
 
 import { type ButtonHTMLAttributes, forwardRef } from 'react';
