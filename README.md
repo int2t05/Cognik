@@ -1,54 +1,125 @@
-# <img src="web/public/icon-64.png" width="28" height="28" alt="OpsMind" style="vertical-align: middle; margin-right: 6px;"> OpsMind — 运维数字员工系统
-
 <p align="center">
   <img src="web/public/icon-96.png" width="96" height="96" alt="OpsMind">
 </p>
 
+<h1 align="center">OpsMind</h1>
+
+<p align="center"><strong>私有部署的 AI 运维数字员工</strong> — 让每家企业拥有自己的智能运维助手</p>
+
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-00ADD8?logo=go" alt="Go">
-  <img src="https://img.shields.io/badge/Next.js-000000?logo=nextdotjs" alt="Next.js">
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/pgvector-hnsw-336791" alt="pgvector">
+  <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go" alt="Go">
+  <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs" alt="Next.js">
+  <img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Docker-blue?logo=docker" alt="Docker">
-  <img src="https://img.shields.io/badge/Design-Apple-0066cc?logo=apple" alt="Apple Design">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
-私有部署的 AI 运维助手 — 自建 Go RAG 引擎，BM25 + 向量混合检索，SSE 流式问答，申告全流程管理，Docker Compose 一键部署。
+---
 
-## 功能特性
+## 为什么是 OpsMind？
 
-| 模块 | 特性 |
-|------|------|
-| 智能问答 | 自建 RAG 管道（查询改写→多路检索→BM25+向量混合→RRF融合→重排序→LLM生成），SSE 流式输出 |
-| 知识库 | 统一文章模型 + 审核→发布工作流 + 自动向量写入 pgvector + PDF/DOCX/MD/TXT 异步处理 |
-| 申告管理 | 完整状态机（待处理→处理中→需补充→已解决/已关闭），站内消息通知，自动过期关闭 |
-| RBAC 权限 | JWT 双令牌认证 + 角色权限控制 + 菜单动态渲染 + bcrypt 密码策略 |
-| LLM 配置 | llama.cpp / OpenAI / DeepSeek 等多提供商支持，`atomic.Value` 热替换无需重启 |
-| 数据看板 | 实时统计卡片 + 趋势图，问答量/置信度/申告量 |
-| 审计日志 | 敏感操作全量记录，支持按操作类型和操作人筛选 |
-| 一键部署 | Docker Compose 编排（PostgreSQL+pgvector / MinIO / Server / Web + 可选 llama.cpp） |
+企业运维团队每天面对大量重复性咨询：密码重置、权限申请、系统报障、操作指引。这些工作消耗运维人员 40% 以上的时间，却无法沉淀为可复用的知识。
 
-## 技术栈
+OpsMind 是一个**完全私有化部署**的 AI 运维助手，核心思路不是"接一个大模型 API"，而是：
 
-| 层级 | 技术 |
-|------|------|
-| 后端框架 | Go / Gin |
-| ORM | GORM |
-| 数据库 | PostgreSQL + pgvector（halfvec / HNSW 索引） |
-| RAG 引擎 | 自建 Go（`rag/` 包）— BM25 + 向量混合检索 + RRF 融合 + 重排序 |
-| 中文分词 | gse（纯 Go，无 CGO） |
-| LLM / Embedding | llama.cpp / OpenAI / DeepSeek，UI 配置，热切换 |
-| 对象存储 | MinIO（S3-compatible） |
-| 认证 | JWT + bcrypt |
-| 前端 | Next.js / React / TypeScript / Radix UI + Apple Design 双主题 |
-| 部署 | Docker Compose + Makefile |
+1. **自建 RAG 引擎** — BM25 + 向量混合检索 + RRF 融合 + 重排序，全过程可控、可审计
+2. **知识资产化** — 每次问答、每条申告处理记录都可转化为知识库文章，经审核后发布
+3. **私有数据不出域** — 全部数据存储在自有的 PostgreSQL + pgvector 中，支持本地 llama.cpp
+
+不是另一个 ChatGPT 套壳。是一个从检索管道到业务流程都自建的运维数字员工系统。
+
+## 核心能力
+
+<table>
+<tr>
+<td width="50%">
+
+### 智能问答（RAG）
+自建 7 步检索管道，SSE 流式输出：
+```
+查询改写 → 多路检索 → 向量检索
+→ BM25 检索 → RRF 融合
+→ 重排序 → LLM 生成
+```
+- 中文分词（gse，纯 Go）
+- 单步可独立开关，失败自动降级
+- 置信度不足时引导提交申告
+
+</td>
+<td width="50%">
+
+### 知识库管理
+统一文章模型 + 审核发布工作流：
+- 手动创建 / 文档上传两种录入方式
+- 草稿 → 审核 → 发布 → 停用
+- 发布时自动分块→embedding→pgvector
+- 停用时自动清理向量，不再参与检索
+- 支持 PDF / DOCX / MD / TXT
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 申告全流程管理
+完整状态机驱动的工单流转：
+```
+待处理 → 处理中 → 已解决
+              ↘ 需补充信息 → 已关闭
+```
+- 站内消息实时通知
+- 处理记录全量留存
+- 7 天无操作自动关闭
+- 支持从申告生成知识候选
+
+</td>
+<td width="50%">
+
+### 权限与数据看板
+- JWT 双令牌 + bcrypt 密码策略
+- RBAC 角色权限（4 个预设角色）
+- 菜单根据权限动态渲染
+- 实时统计卡片 + 30 日趋势图
+- 敏感操作全量审计日志
+
+</td>
+</tr>
+</table>
+
+## 技术架构
+
+```
+客户端 (Next.js App Router)
+  │
+  ├─ HTTP/REST + SSE ──▶ Go 后端 (Gin, :8080)
+  │                        │
+  │   ┌────────────────────┼────────────────────┐
+  │   │                    │                    │
+  │   ▼                    ▼                    ▼
+  │  Handler              Service           Repository
+  │  (参数校验)          (业务逻辑)         (GORM 数据访问)
+  │   │                    │                    │
+  │   └────────────────────┼────────────────────┘
+  │                        │
+  │           ┌────────────┼────────────┐
+  │           ▼            ▼            ▼
+  │       RAG 引擎     Adapter       Middleware
+  │     (检索管道)   (LLM/Embed/   (JWT/RBAC)
+  │                   pgvector/MinIO)
+  │
+  ▼
+PostgreSQL+pgvector    MinIO        llama.cpp (可选)
+ (业务+向量数据)     (对象存储)    (本地 AI 模型)
+```
+
+**RAG 完全自建** — 不依赖 LangChain 或 LlamaIndex。BM25 算法用纯 Go 实现，向量检索走 pgvector 的 HNSW 索引 + halfvec 半精度，重排序用本地 cross-encoder 模型。
 
 ## 快速启动
 
 ### 前置条件
+
 - Docker（含 Docker Compose v2）
-- 磁盘 ≥ 10 GB，内存 ≥ 8 GB
+- 8 GB 内存，10 GB 磁盘
 
 ### 一键部署
 
@@ -56,27 +127,28 @@
 git clone https://github.com/int2t05/OpsMind.git
 cd OpsMind
 cp .env.example .env
-# 编辑 .env：至少配置 JWT_SECRET 和 LLM_BASE_URL
+# 编辑 .env：至少设置 JWT_SECRET 和 LLM_BASE_URL
 docker compose up -d --build
 ```
 
-访问地址：
+启动后访问：
 
-| 地址 | 说明 |
+| 服务 | 地址 |
 |------|------|
-| http://localhost:3000 | 前端 |
-| http://localhost:8080 | 后端 API |
-| http://localhost:9001 | MinIO 控制台 |
+| 前端 | http://localhost:3000 |
+| 后端 API | http://localhost:8080 |
+| MinIO 控制台 | http://localhost:9001 |
 
-如需本地 AI 模型：
+### 使用本地 AI 模型
 
 ```bash
-# 启动含 llama.cpp 的完整环境
+# 启动含 llama.cpp 的完整环境（需提前放置 GGUF 模型文件）
 docker compose --profile ai-local up -d --build
 ```
 
+### 加载演示数据
+
 ```bash
-# 加载演示数据（含预置账号）
 docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/001_init.sql
 ```
 
@@ -89,12 +161,63 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/0
 | `knowledge` | `Knowledge@123` | 知识库管理员 |
 | `reporter1` | `Reporter@123` | 报障人 |
 
+## LLM 配置
+
+OpsMind 不绑定任何特定 AI 服务。在后台「LLM 配置」页面可自由切换：
+
+| 提供商 | 说明 |
+|--------|------|
+| llama.cpp | 本地部署，数据不出域 |
+| OpenAI | 兼容 `/v1/chat/completions` 和 `/v1/embeddings` |
+| DeepSeek | 同上，OpenAI-compatible API |
+| 其他兼容服务 | 任何实现 OpenAI API 格式的服务均可 |
+
+LLM 和 Embedding 的 Base URL 可独立配置（如 LLM 用 DeepSeek，Embedding 用本地 bge-m3），配置修改后热替换生效，无需重启。
+
+## 项目结构
+
+```
+OpsMind/
+├── server/                       # Go 后端
+│   ├── cmd/main.go               # 入口
+│   ├── internal/
+│   │   ├── handler/              # HTTP Handler（11 个 API 域）
+│   │   ├── service/              # 业务逻辑 + 状态机
+│   │   ├── repository/           # GORM 数据访问
+│   │   ├── model/                # 数据模型 + 枚举
+│   │   ├── rag/                  # 自建 RAG 引擎（12 个模块）
+│   │   ├── adapter/              # LLM / Embedding / pgvector / MinIO
+│   │   ├── middleware/           # JWT / RBAC / CORS / Logger
+│   │   └── router/               # Gin 路由
+│   ├── pkg/                      # 公共工具（response / errcode / jwt / hash）
+│   ├── migrations/               # 数据库迁移 + 种子数据
+│   └── tests/                    # Go 集成测试
+│
+├── web/                          # Next.js 前端
+│   ├── src/app/                  # App Router（portal / admin / login）
+│   ├── src/components/ui/        # Apple Design 原子组件
+│   ├── src/components/layout/    # PortalLayout / AdminLayout
+│   ├── src/components/chat/      # 问答组件（ChatInput / Message / Pipeline）
+│   ├── src/lib/api/              # API 客户端（12 个模块）
+│   └── src/hooks/                # React Hooks
+│
+├── docs/                         # 项目文档
+│   ├── PRD.md                    # 产品需求文档
+│   ├── TECH.md                   # 技术架构文档
+│   ├── API/                      # REST API 接口文档（9 份）
+│   └── diagrams/                 # Mermaid 架构与业务流程图
+│
+├── docker-compose.yml            # Docker Compose 编排
+├── Makefile                      # 构建与开发命令
+└── CLAUDE.md                     # 项目上下文指令
+```
+
 ## 本地开发
 
-### 依赖服务
+### 启动依赖服务
 
 ```bash
-make dev  # 启动 PostgreSQL + MinIO
+make dev   # 启动 PostgreSQL + MinIO
 ```
 
 ### 后端
@@ -102,7 +225,7 @@ make dev  # 启动 PostgreSQL + MinIO
 ```bash
 cd server
 go mod tidy
-go run ./cmd/main.go       # :8080，GORM AutoMigrate
+go run ./cmd/main.go     # :8080，GORM AutoMigrate
 ```
 
 ### 前端
@@ -110,7 +233,7 @@ go run ./cmd/main.go       # :8080，GORM AutoMigrate
 ```bash
 cd web
 npm install
-npm run dev                 # :3000，rewrite 代理 /api → :8080
+npm run dev               # :3000，代理 /api → :8080
 ```
 
 ### 运行测试
@@ -120,48 +243,28 @@ npm run dev                 # :3000，rewrite 代理 /api → :8080
 cd server
 go test ./tests/... -v -tags=integration -p 1
 
-# API 集成测试（Playwright）
-cd test
-npm install && npm run test
-```
-
-## 项目结构
-
-```
-OpsMind/
-├── server/                          # Go 后端（分层架构）
-│   ├── cmd/main.go                  # 入口
-│   ├── internal/
-│   │   ├── handler/                 # HTTP Handler
-│   │   ├── service/                 # 业务逻辑
-│   │   ├── repository/              # 数据访问
-│   │   ├── model/                   # GORM 模型
-│   │   ├── rag/                     # 自建 RAG 引擎
-│   │   ├── adapter/                 # LLM/Embedding/Vector/Storage 适配层
-│   │   ├── middleware/              # JWT/RBAC/CORS/Logger
-│   │   └── router/                  # Gin 路由注册
-│   ├── pkg/                         # 公共工具
-│   └── tests/                       # Go 集成测试
-│
-├── web/                             # Next.js 前端
-│   └── src/{app,components/ui,layout,shared,lib/api,hooks,styles}/
-│
-├── test/                            # Playwright API 测试
-├── docs/                            # 文档（PRD/TECH/API/图表）
-├── docker-compose.yml
-├── Makefile
-└── CLAUDE.md
+# 前端 E2E 测试（Playwright）
+cd web
+npx playwright test
 ```
 
 ## 文档
 
 | 文档 | 说明 |
 |------|------|
-| [PRD.md](docs/PRD.md) | 产品需求文档 |
-| [TECH.md](docs/TECH.md) | 技术架构文档 |
-| [API/](docs/API/README.md) | REST API 接口文档 |
-| [CLAUDE.md](CLAUDE.md) | 项目上下文指令 |
+| [PRD](docs/PRD.md) | 产品需求 — 功能定义、业务规则 |
+| [TECH](docs/TECH.md) | 技术架构 — 分层设计、数据库 DDL、ADR |
+| [API](docs/API/README.md) | REST API — 9 份接口文档，覆盖全部端点 |
+| [Diagrams](docs/diagrams/README.md) | 架构与业务流程图（Mermaid） |
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request。在提交 PR 之前：
+
+1. 确保通过现有测试（`go test ./tests/... -v -tags=integration` 和 `npx playwright test`）
+2. 遵循项目现有的代码风格和注释规范
+3. 涉及 API 变更时同步更新 `docs/API/` 文档
 
 ## 许可证
 
-MIT
+[MIT](LICENSE)
