@@ -2,7 +2,11 @@
 
 import type { ApiResponse, PageResponse } from './types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// 开发模式直接连后端（绕过 Next.js rewrite，避免 Turbopack POST 代理 500）
+// 生产模式通过 NEXT_PUBLIC_API_URL 配置
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (
+  typeof window !== 'undefined' ? 'http://localhost:8080' : ''
+);
 
 // 模块级 token getter，由 AuthProvider 注入。
 // 使用函数引用而非直接存储值，保证 fetch 时拿到的总是最新 token。
