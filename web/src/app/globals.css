@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ===== OpsMind Apple Design Tokens ===== */
-@theme {
+:root {
   /* 品牌色 — 唯一交互色 */
   --color-accent: #0066cc;
   --color-accent-hover: #0055aa;
