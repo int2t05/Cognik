@@ -6,6 +6,7 @@
 package repository_test
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -121,7 +122,7 @@ func seedAuditLogs(t *testing.T, repo *repository.AuditRepo) {
 	}
 
 	for _, log := range logs {
-		if err := repo.Create(&log); err != nil {
+		if err := repo.Create(context.Background(), &log); err != nil {
 			t.Fatalf("创建测试审计日志失败: %v", err)
 		}
 	}
@@ -143,7 +144,7 @@ func TestAuditRepo_Create(t *testing.T) {
 		IPAddress:  "127.0.0.1",
 	}
 
-	err := repo.Create(log)
+	err := repo.Create(context.Background(), log)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -160,7 +161,7 @@ func TestAuditRepo_List_All(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(repository.AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -176,7 +177,7 @@ func TestAuditRepo_List_ByOperator(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(repository.AuditFilter{OperatorID: 1, Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{OperatorID: 1, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -195,7 +196,7 @@ func TestAuditRepo_List_ByAction(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(repository.AuditFilter{Action: "user.create", Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{Action: "user.create", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -211,7 +212,7 @@ func TestAuditRepo_List_ByOperatorAndAction(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(repository.AuditFilter{OperatorID: 2, Action: "ticket.create", Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{OperatorID: 2, Action: "ticket.create", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -225,7 +226,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(repository.AuditFilter{Page: 1, PageSize: 2})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{Page: 1, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -236,7 +237,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 		t.Errorf("第1页: 期望 2 条, got %d", len(logs))
 	}
 
-	logs, total, err = repo.List(repository.AuditFilter{Page: 2, PageSize: 2})
+	logs, total, err = repo.List(context.Background(), repository.AuditFilter{Page: 2, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -247,7 +248,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 		t.Errorf("第2页: 期望 2 条, got %d", len(logs))
 	}
 
-	logs, total, err = repo.List(repository.AuditFilter{Page: 3, PageSize: 2})
+	logs, total, err = repo.List(context.Background(), repository.AuditFilter{Page: 3, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -259,7 +260,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 func TestAuditRepo_List_Empty(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 
-	logs, total, err := repo.List(repository.AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), repository.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

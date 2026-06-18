@@ -99,7 +99,7 @@ func seedTestUser(t *testing.T, db *gorm.DB, username, password, phone string, s
 func TestAuthService_Login_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_login", "Test@1234", "13800001001", 1)
 
@@ -116,7 +116,7 @@ func TestAuthService_Login_Success(t *testing.T) {
 func TestAuthService_Login_WrongPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_wrong", "Test@1234", "13800001002", 1)
 
@@ -130,7 +130,7 @@ func TestAuthService_Login_WrongPassword(t *testing.T) {
 func TestAuthService_Login_FrozenAccount(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_frozen", "Test@1234", "13800001003", 2) // status=2 冻结
 
@@ -144,7 +144,7 @@ func TestAuthService_Login_FrozenAccount(t *testing.T) {
 func TestAuthService_Login_UserNotFound(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	resp, err := svc.Login(bgCtx, "nonexistent_xyz", "Test@1234")
 	assert.Error(t, err)
@@ -156,7 +156,7 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 func TestAuthService_RefreshToken_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_refresh", "Test@1234", "13800001004", 1)
 
@@ -176,7 +176,7 @@ func TestAuthService_RefreshToken_Success(t *testing.T) {
 func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	resp, err := svc.RefreshToken(bgCtx, "invalid_token_xyz")
 	assert.Error(t, err)
@@ -188,7 +188,7 @@ func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 func TestAuthService_ChangePassword_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd", "Test@1234", "13800001005", 1)
 
@@ -205,7 +205,7 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 func TestAuthService_ChangePassword_WrongOldPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd_old", "Test@1234", "13800001006", 1)
 
@@ -218,7 +218,7 @@ func TestAuthService_ChangePassword_WrongOldPassword(t *testing.T) {
 func TestAuthService_ChangePassword_WeakNewPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
 	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, testJWTConfig())
+	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd_weak", "Test@1234", "13800001007", 1)
 

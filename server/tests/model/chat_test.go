@@ -1,4 +1,3 @@
-//go:build integration
 
 package model_test
 
@@ -54,7 +53,7 @@ func TestChatMessage_Fields(t *testing.T) {
 	sources := datatypes.JSON(`[{"title":"OA文档"}]`)
 	msg := model.ChatMessage{
 		SessionID:  1,
-		Role:       model.ChatRoleAssistant,
+		Role:       "assistant",
 		Content:    "请清除浏览器缓存",
 		Sources:    sources,
 		Confidence: 0.9,
@@ -65,8 +64,8 @@ func TestChatMessage_Fields(t *testing.T) {
 	if msg.SessionID != 1 {
 		t.Errorf("SessionID = %d, 期望 1", msg.SessionID)
 	}
-	if msg.Role != model.ChatRoleAssistant {
-		t.Errorf("Role = %q, 期望 %q", msg.Role, model.ChatRoleAssistant)
+	if msg.Role != "assistant" {
+		t.Errorf("Role = %q, 期望 %q", msg.Role, "assistant")
 	}
 	if msg.Confidence != 0.9 {
 		t.Errorf("Confidence = %f, 期望 0.9", msg.Confidence)
