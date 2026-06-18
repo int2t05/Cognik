@@ -466,12 +466,12 @@
 
 ### 路由与中间件
 
-- 🟡 [router/router.go](/server/internal/router/router.go) — placeholder 路由生产环境应 fail fast（而非返回 501 掩盖配置错误）
-- 🟡 [router/router.go](/server/internal/router/router.go) — 增加 `/readyz` 健康探针（含 DB/VectorStore/MinIO/LLM 可达性检查）
-- 🟡 [router/admin.go](/server/internal/router/admin.go) — 权限字符串散落各处，建议集中为常量文件
-- 🟡 [router/portal.go](/server/internal/router/portal.go) — 门户路由无角色校验：仅需 JWT，不验证用户是否为报障人角色
-- 🟡 [middleware/logger.go](/server/internal/middleware/logger.go) — `json.Marshal` 错误被丢弃
-- 🟢 [middleware/logger.go](/server/internal/middleware/logger.go) — request-ID/userID 已记录，缺少**业务错误码**写入日志行（当前仅 HTTP status，无法关联 errcode 10001/20001 等）
+- ✅ [router/router.go](/server/internal/router/router.go) — placeholder 路由生产环境应 fail fast（而非返回 501 掩盖配置错误）
+- ✅ [router/router.go](/server/internal/router/router.go) — 增加 `/readyz` 健康探针（含 DB/VectorStore/MinIO/LLM 可达性检查）
+- ✅ [router/admin.go](/server/internal/router/admin.go) — 权限字符串散落各处，建议集中为常量文件
+- ✅ [router/portal.go](/server/internal/router/portal.go) — 门户路由无角色校验：仅需 JWT，不验证用户是否为报障人角色
+- ✅ [middleware/logger.go](/server/internal/middleware/logger.go) — `json.Marshal` 错误被丢弃
+- ✅ [middleware/logger.go](/server/internal/middleware/logger.go) — request-ID/userID 已记录，缺少**业务错误码**写入日志行（当前仅 HTTP status，无法关联 errcode 10001/20001 等）
 - ✅ [router/admin.go](/server/internal/router/admin.go) — 文档上传路由缩进已修复
 
 ### Repository 层
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 1 | 13+1📝 | 4 | 11 | 30 |
+| 8. 基础设施与部署 | 1 | 8+1📝 | 3 | 11 | 24 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **35** | **65** | **25+6📝** | **21** | **~163** |
+| **合计** | **35** | **60** | **24+6📝** | **21** | **~157** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。

@@ -36,25 +36,25 @@ func Logger() gin.HandlerFunc {
 			userID = uid
 		}
 
-		attrs := []any{
-			"method", c.Request.Method,
-			"path", c.Request.URL.Path,
-			"status", status,
-			"latency_ms", latency.Milliseconds(),
-			"client_ip", c.ClientIP(),
-		}
-		if requestID != nil {
-			attrs = append(attrs, "request_id", requestID)
-		}
-		if userID != nil {
-			attrs = append(attrs, "user_id", userID)
-		}
+	attrs := []any{
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+		"status", status,
+		"latency_ms", latency.Milliseconds(),
+		"client_ip", c.ClientIP(),
+	}
+	if requestID != nil {
+		attrs = append(attrs, "request_id", requestID)
+	}
+	if userID != nil {
+		attrs = append(attrs, "user_id", userID)
+	}
+	// 业务错误码（由 response.Error 通过 c.Set 写入）
+	if errCode, exists := c.Get("errCode"); exists {
+		attrs = append(attrs, "err_code", errCode)
+	}
 
-		// TODO(middleware/logger): 将 HTTP 状态 ≥400 时的业务错误码写入日志行。
-		// 当前只记录 HTTP status，无法直接关联到 errcode 中定义的业务错误码（如 10001/20001）。
-		// 可配合 response.Error() 通过 c.Set 写入显式 errCode，在此处读取并记录。
-
-		msg := c.Request.Method + " " + c.Request.URL.Path
+	msg := c.Request.Method + " " + c.Request.URL.Path
 		switch {
 		case status >= 500:
 			slog.Error(msg, attrs...)

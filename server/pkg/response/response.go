@@ -38,10 +38,11 @@ func Success(c *gin.Context, data interface{}) {
 	})
 }
 
-// Error 返回错误响应，根据错误码自动映射 HTTP 状态码
+// Error 返回错误响应，根据错误码自动映射 HTTP 状态码。
+//
+// 同时将 errCode 写入 Gin context，供 Logger 中间件写入日志行。
 func Error(c *gin.Context, code int, message string) {
-	// TODO(response): 错误响应应带 request_id，方便前端报错和服务端日志关联。
-	// 可从 middleware.RequestID 写入的 Gin context/header 中读取。
+	c.Set("errCode", code)
 	c.JSON(mapHTTPStatus(code), Response{
 		Code:    code,
 		Message: message,

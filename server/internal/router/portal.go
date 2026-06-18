@@ -8,10 +8,8 @@ import "github.com/gin-gonic/gin"
 // registerPortalRoutes 注册门户端路由。
 //
 // 门户端面向报障人用户，提供智能问答、申告提交、进度查询等功能。
-// 路由列表见门户端 API 定义。
+// 仅需 JWT 认证，不做角色校验——任何已登录用户均可使用门户功能。
 func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
-	// TODO(router/portal): 门户端路由只要求 JWT，没有校验用户角色是否为报障人。
-	// 若后台管理员也可访问门户是产品决策，应在注释或权限策略中明确；否则应加角色/权限约束。
 	// 知识库列表（门户端 Chat 需要选择知识库，无需 admin 权限）
 	if h != nil && h.Knowledge != nil {
 		rg.GET("/knowledge-bases", h.Knowledge.ListKBsForPortal)
