@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"opsmind/pkg/crypto"
+
+	"gorm.io/gorm"
 )
 
 // LlmConfig LLM/Embedding 提供商配置。
@@ -38,7 +40,7 @@ type LlmConfig struct {
 }
 
 // BeforeSave GORM 钩子：保存前加密 APIKey。
-func (c *LlmConfig) BeforeSave() error {
+func (c *LlmConfig) BeforeSave(tx *gorm.DB) error {
 	if c.APIKey != "" {
 		enc, err := crypto.Encrypt(c.APIKey)
 		if err != nil {
@@ -50,7 +52,7 @@ func (c *LlmConfig) BeforeSave() error {
 }
 
 // AfterFind GORM 钩子：查询后解密 APIKey。
-func (c *LlmConfig) AfterFind() error {
+func (c *LlmConfig) AfterFind(tx *gorm.DB) error {
 	if c.APIKey != "" {
 		dec, err := crypto.Decrypt(c.APIKey)
 		if err != nil {
