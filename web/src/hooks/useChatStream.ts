@@ -245,6 +245,19 @@ export function useChatStream(
     setCurrentStep(null);
   }, []);
 
+  /** loadMessages 加载历史会话消息，替换当前消息列表 */
+  const loadMessages = useCallback((msgs: ChatMessage[]) => {
+    if (abortRef.current) {
+      abortRef.current.userAborted = true;
+      abortRef.current.controller.abort();
+    }
+    setMessages(msgs);
+    setStreaming(false);
+    setLoading(false);
+    setPipelineSteps([]);
+    setCurrentStep(null);
+  }, []);
+
   return {
     messages,
     streaming,
@@ -254,5 +267,6 @@ export function useChatStream(
     send,
     abort,
     clear,
+    loadMessages,
   } as const;
 }

@@ -1,7 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState, useMemo } from 'react';
-import { getRoleList, createRole, updateRole, deleteRole } from '@/lib/api/role';
+import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenus, updateRoleMenus, type Menu } from '@/lib/api/role';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -13,11 +13,13 @@ import { useToast } from '@/hooks/useToast';
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
   const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page));
+  const { data: menus } = useSWR('admin-menus', getMenus);
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [perms, setPerms] = useState<string[]>([]);
+  const [menuIds, setMenuIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const toast = useToast();
@@ -41,8 +43,12 @@ export default function RoleManagePage() {
     if (!name.trim()) { toast.error('请输入角色名'); return; }
     setSaving(true);
     try {
-      if (editId) { await updateRole(editId, { name, description: desc, permissions: perms }); }
-      else { await createRole({ name, description: desc, permissions: perms }); }
+      if (editId) {
+        await updateRole(editId, { name, description: desc, permissions: perms });
+        await updateRoleMenus(editId, menuIds);
+      } else {
+        await createRole({ name, description: desc, permissions: perms });
+      }
       toast.success(editId ? '已更新' : '已创建'); setShowDialog(false); mutate();
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
     finally { setSaving(false); }
@@ -55,9 +61,29 @@ export default function RoleManagePage() {
   };
 
   const togglePerm = (p: string) => setPerms((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
-  const openCreate = () => { setEditId(null); setName(''); setDesc(''); setPerms([]); setShowDialog(true); };
-  const openEdit = (r: { id: number; name: string; description: string; permissions: string[] }) => {
-    setEditId(r.id); setName(r.name); setDesc(r.description || ''); setPerms(r.permissions); setShowDialog(true);
+  const toggleMenu = (id: number) => setMenuIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const openCreate = () => { setEditId(null); setName(''); setDesc(''); setPerms([]); setMenuIds([]); setShowDialog(true); };
+  const openEdit = async (r: { id: number; name: string; description: string; permissions: string[] }) => {
+    setEditId(r.id); setName(r.name); setDesc(r.description || ''); setPerms(r.permissions); setMenuIds([]);
+    try {
+      const detail = await getRoleDetail(r.id);
+      if (detail.menu_ids) setMenuIds(detail.menu_ids);
+    } catch {
+      // 获取详情失败时菜单权限为空，不影响对话框打开
+    }
+    setShowDialog(true);
+  };
+
+  // 构建菜单树辅助数据
+  const topMenus = useMemo(() => {
+    if (!menus) return [];
+    return (menus as Menu[]).filter(m => m.parent_id === 0).sort((a, b) => a.sort_order - b.sort_order);
+  }, [menus]);
+
+  const getChildren = (parentId: number) => {
+    if (!menus) return [];
+    return (menus as Menu[]).filter(m => m.parent_id === parentId).sort((a, b) => a.sort_order - b.sort_order);
   };
 
   return (
@@ -94,6 +120,27 @@ export default function RoleManagePage() {
             ))}
           </div>
         </div>
+        {menus && menus.length > 0 && (
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-2">菜单权限</label>
+            <div className="border border-[var(--color-hairline)] rounded-lg p-3 space-y-1 max-h-[240px] overflow-y-auto">
+              {topMenus.map((parent) => (
+                <div key={parent.id}>
+                  <label className="flex items-center gap-2 cursor-pointer py-1 text-[14px] text-[var(--color-ink)]">
+                    <input type="checkbox" checked={menuIds.includes(parent.id)} onChange={() => toggleMenu(parent.id)} className="accent-[var(--color-accent)]" />
+                    {parent.name}
+                  </label>
+                  {getChildren(parent.id).map((child) => (
+                    <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-[14px] text-[var(--color-text-muted-48)]">
+                      <input type="checkbox" checked={menuIds.includes(child.id)} onChange={() => toggleMenu(child.id)} className="accent-[var(--color-accent)]" />
+                      {child.name}
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </AppleDialog>
 
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="删除角色" message="确定要删除此角色吗？" onConfirm={handleDelete} confirmLabel="删除" danger />

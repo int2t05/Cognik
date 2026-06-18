@@ -1,6 +1,6 @@
 import { apiFetch, apiFetchPage } from './client';
 
-export interface Role { id: number; name: string; description: string; permissions: string[]; created_at: string; updated_at: string; }
+export interface Role { id: number; name: string; description: string; permissions: string[]; menu_ids?: number[]; created_at: string; updated_at: string; }
 export interface Menu { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; }
 
 export function getRoleList(page: number) { return apiFetchPage<Role>(`/api/v1/admin/roles?page=${page}&page_size=10`); }

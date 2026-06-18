@@ -19,8 +19,8 @@ export default function LLMConfigPage() {
   const [testing, setTesting] = useState(false);
   const toast = useToast();
 
-  const openCreate = () => { setEditId(null); setForm({ name: '', provider_type: 1, base_url: '', api_key: '', llm_model: '', embedding_model: '', max_tokens: 8192, vector_dimension: 1024, is_default: false }); setShowDialog(true); };
-  const openEdit = (c: LLMConfig) => { setEditId(c.id); setForm({ name: c.name, provider_type: c.provider_type, base_url: c.base_url, api_key: '', llm_model: c.llm_model, embedding_model: c.embedding_model, system_prompt: c.system_prompt || '', max_tokens: c.max_tokens, vector_dimension: c.vector_dimension, is_default: c.is_default }); setShowDialog(true); };
+  const openCreate = () => { setEditId(null); setForm({ name: '', provider_type: 1, base_url: '', embedding_base_url: '', api_key: '', llm_model: '', embedding_model: '', system_prompt: '', max_tokens: 8192, vector_dimension: 1024, is_default: false }); setShowDialog(true); };
+  const openEdit = (c: LLMConfig) => { setEditId(c.id); setForm({ name: c.name, provider_type: c.provider_type, base_url: c.base_url, embedding_base_url: c.embedding_base_url || '', api_key: '', llm_model: c.llm_model, embedding_model: c.embedding_model, system_prompt: c.system_prompt || '', max_tokens: c.max_tokens, vector_dimension: c.vector_dimension, is_default: c.is_default }); setShowDialog(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -88,11 +88,21 @@ export default function LLMConfigPage() {
           </select>
         </div>
         <AppleInput label="LLM Base URL" value={String(form.base_url || '')} onChange={(e) => setForm({ ...form, base_url: e.target.value })} />
+        <AppleInput label="Embedding Base URL" placeholder="留空则使用 LLM Base URL" value={String(form.embedding_base_url || '')} onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })} />
         <AppleInput label="API Key" type="password" value={String(form.api_key || '')} onChange={(e) => setForm({ ...form, api_key: e.target.value })} placeholder={editId ? '留空则不修改（已存 ****）' : '输入 API Key'} />
         <AppleInput label="LLM 模型" value={String(form.llm_model || '')} onChange={(e) => setForm({ ...form, llm_model: e.target.value })} />
         <AppleInput label="Embedding 模型" value={String(form.embedding_model || '')} onChange={(e) => setForm({ ...form, embedding_model: e.target.value })} />
         <AppleInput label="最大 Token" type="number" value={String(form.max_tokens || '')} onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })} />
         <AppleInput label="向量维度" type="number" value={String(form.vector_dimension || '')} onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })} />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">System Prompt</label>
+          <textarea
+            className="w-full min-h-[80px] px-4 py-2 text-[15px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y focus:border-[var(--color-accent)]"
+            placeholder="自定义系统提示词（可选）"
+            value={String(form.system_prompt || '')}
+            onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
+          />
+        </div>
         {testResult && <p className={`mt-3 text-sm ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>{testResult.message}</p>}
       </AppleDialog>
     </div>

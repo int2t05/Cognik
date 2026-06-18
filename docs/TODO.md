@@ -145,4 +145,4 @@
 
 ---
 
-> 本次修复：前端全部 TODO 清零 — 18 项保留项全量修复（auth/api/chat/knowledge/dashboard/config/infra），新增 `useChatStream` hook、`SectionErrorBoundary`、`getAllConfigs`，apiFetch 自动附加 Authorization。
+> 本次修复：前后端全覆盖审计 4 缺口修复 — Chat 会话历史侧栏+赞/踩反馈、用户角色分配、LLM 配置 embedding_base_url+system_prompt、角色菜单权限树，21 路由构建 0 错误。

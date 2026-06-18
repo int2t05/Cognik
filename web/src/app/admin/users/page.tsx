@@ -1,7 +1,8 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
-import { getUserList, createUser, updateUser, freezeUser, unfreezeUser } from '@/lib/api/user';
+import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail } from '@/lib/api/user';
+import { getRoleList } from '@/lib/api/role';
 import { useDebounce } from '@/hooks/useDebounce';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
@@ -18,19 +19,27 @@ export default function UserListPage() {
   const [keyword, setKeyword] = useState('');
   const debouncedKeyword = useDebounce(keyword, 300);
   const { data, error, mutate } = useSWR(`users-${page}-${debouncedKeyword}`, () => getUserList(page, debouncedKeyword));
+  const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<{ id: number; real_name: string; phone: string; email: string } | null>(null);
-  const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '' });
+  const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '', role_ids: [] as number[] });
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
   const toast = useToast();
+
+  const roles = rolesData?.items || [];
 
   const handleSave = async () => {
     if (!form.real_name) { toast.error('请填写姓名'); return; }
     setSaving(true);
     try {
-      if (editUser) { await updateUser(editUser.id, { real_name: form.real_name, phone: form.phone, email: form.email }); toast.success('已更新'); }
-      else { await createUser(form); toast.success('已创建'); }
+      if (editUser) {
+        await updateUser(editUser.id, { real_name: form.real_name, phone: form.phone, email: form.email, role_ids: form.role_ids });
+        toast.success('已更新');
+      } else {
+        await createUser({ ...form, role_ids: form.role_ids });
+        toast.success('已创建');
+      }
       setShowCreate(false); setEditUser(null); mutate();
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
     finally { setSaving(false); }
@@ -42,7 +51,30 @@ export default function UserListPage() {
     finally { setConfirmFreeze(null); }
   };
 
-  const openCreate = () => { setEditUser(null); setForm({ username: '', password: '', real_name: '', phone: '', email: '' }); setShowCreate(true); };
+  const openCreate = () => { setEditUser(null); setForm({ username: '', password: '', real_name: '', phone: '', email: '', role_ids: [] }); setShowCreate(true); };
+
+  const openEdit = async (r: { id: number; real_name: string; phone: string; email: string }) => {
+    setEditUser({ id: r.id, real_name: r.real_name, phone: r.phone, email: r.email });
+    setForm({ username: '', password: '', real_name: r.real_name, phone: r.phone, email: r.email || '', role_ids: [] });
+    setShowCreate(true);
+    // 异步获取用户详情中的角色列表，映射为 role_ids 回填表单
+    try {
+      const detail = await getUserDetail(r.id);
+      const roleIds = detail.roles
+        .map(name => roles.find(role => role.name === name)?.id)
+        .filter((id): id is number => id !== undefined);
+      setForm(prev => ({ ...prev, role_ids: roleIds }));
+    } catch { /* 角色列表预填失败时不阻塞编辑对话框 */ }
+  };
+
+  const toggleRole = (roleId: number) => {
+    setForm(prev => ({
+      ...prev,
+      role_ids: prev.role_ids.includes(roleId)
+        ? prev.role_ids.filter(id => id !== roleId)
+        : [...prev.role_ids, roleId],
+    }));
+  };
 
   return (
     <div>
@@ -57,7 +89,7 @@ export default function UserListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
           { key: 'actions', title: '', render: (r) => <div className="flex gap-1">
-            <AppleButton variant="ghost" onClick={() => { setEditUser({ id: r.id, real_name: r.real_name, phone: r.phone, email: r.email }); setForm({ username: '', password: '', real_name: r.real_name, phone: r.phone, email: r.email || '' }); setShowCreate(true); }}>编辑</AppleButton>
+            <AppleButton variant="ghost" onClick={() => openEdit(r)}>编辑</AppleButton>
             {r.status === 1 ? <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}>冻结</AppleButton>
               : <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}>恢复</AppleButton>}
           </div> },
@@ -72,6 +104,25 @@ export default function UserListPage() {
         <AppleInput label="姓名" value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} />
         <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">角色</label>
+          <div className="flex flex-wrap gap-2">
+            {roles.map(role => (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => toggleRole(role.id)}
+                className={
+                  form.role_ids.includes(role.id)
+                    ? 'px-2.5 py-1 text-xs rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-white cursor-pointer transition'
+                    : 'px-2.5 py-1 text-xs rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]'
+                }
+              >
+                {role.name}
+              </button>
+            ))}
+          </div>
+        </div>
       </AppleDialog>
 
       <ConfirmDialog open={!!confirmFreeze} onOpenChange={() => setConfirmFreeze(null)}
