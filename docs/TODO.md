@@ -460,9 +460,9 @@
 - ✅ [database/database.go](/server/internal/database/database.go) — DSN 密码直接 `fmt.Sprintf` 拼接：特殊字符（空格、`'`、`\`）导致连接失败
 - ✅ [database/database.go](/server/internal/database/database.go) — 生产环境打印 SQL 可能泄露业务数据和 PII
 - ✅ [database/database.go](/server/internal/database/database.go) — 启动时应 `PingContext` 超时校验：当前完全不 Ping，DB 不可达只在首次查询时暴露
-- 🟡 [database/migrate.go](/server/internal/database/migrate.go) — AutoMigrate 不启用 pgvector 扩展，HNSW 索引需手动创建
-- 🔴⭐ [database/migrate.go](/server/internal/database/migrate.go) — **ASC+DESC 双重索引**：GORM AutoMigrate 创建 `created_at` ASC 索引，migrate.go 又创建 DESC 索引。且 `IF NOT EXISTS` 用同名 → DESC 索引永远不创建（ASC 索引已占同名）。
-- 🔴⭐ [database/migrate.go](/server/internal/database/migrate.go) — **DESC 索引创建 Bug**：`CREATE INDEX IF NOT EXISTS idx_xxx_created_at` 在 GORM 已创建同名 ASC 索引后是 no-op。注释说"重建 DESC 索引"但实际永远不生效。
+- ✅ [database/migrate.go](/server/internal/database/migrate.go) — AutoMigrate 不启用 pgvector 扩展，HNSW 索引需手动创建
+- ✅ [database/migrate.go](/server/internal/database/migrate.go) — **ASC+DESC 双重索引**：GORM AutoMigrate 创建 `created_at` ASC 索引，migrate.go 又创建 DESC 索引。且 `IF NOT EXISTS` 用同名 → DESC 索引永远不创建（ASC 索引已占同名）。
+- ✅ [database/migrate.go](/server/internal/database/migrate.go) — **DESC 索引创建 Bug**：`CREATE INDEX IF NOT EXISTS idx_xxx_created_at` 在 GORM 已创建同名 ASC 索引后是 no-op。注释说"重建 DESC 索引"但实际永远不生效。
 
 ### 路由与中间件
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 3 | 14+1📝 | 4 | 13 | 35 |
+| 8. 基础设施与部署 | 1 | 13+1📝 | 4 | 11 | 30 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **37** | **66** | **25+6📝** | **23** | **~170** |
+| **合计** | **35** | **65** | **25+6📝** | **21** | **~163** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
