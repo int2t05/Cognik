@@ -326,5 +326,5 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("rerank.script_path", "rerank_server.py")
 
 	// CORS
-	v.SetDefault("cors.allow_origins", "http://localhost:5173")
+	v.SetDefault("cors.allow_origins", "http://localhost:5173,http://localhost:3000")
 }
