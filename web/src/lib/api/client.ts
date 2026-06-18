@@ -11,7 +11,6 @@ let _tokenGetter: () => string | null = () => null;
 /**
  * setTokenGetter 设置用于自动附加 Authorization header 的 token getter。
  * 在 AuthProvider 初始化时调用，传入从 auth state 读取 token 的函数。
- * 登录/登出/续期后 token 变化通过 getter 函数引用自动反映，无需额外调用。
  */
 export function setTokenGetter(getter: () => string | null) {
   _tokenGetter = getter;
@@ -27,6 +26,30 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 安全解析 JSON 响应体。
+ * 处理空响应体、非 JSON 响应（如 HTML 错误页）、JSON 解析失败等情况。
+ */
+async function safeResJson(res: Response): Promise<unknown> {
+  // 先尝试读取文本，避免 res.json() 在空响应体上抛错
+  const text = await res.text();
+  if (!text) {
+    throw new ApiError(
+      res.status,
+      res.status === 502 || res.status === 503
+        ? '后端服务不可达，请确认服务已启动（端口 8080）'
+        : `服务器返回空响应 (HTTP ${res.status})`
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    // HTML 错误页或纯文本错误
+    const preview = text.slice(0, 200).replace(/\n/g, ' ');
+    throw new ApiError(res.status, `服务器返回非 JSON 响应 (HTTP ${res.status}): ${preview}`);
+  }
+}
+
 /** 通用 JSON API 调用，返回 data 字段 */
 export async function apiFetch<T>(
   url: string,
@@ -38,7 +61,6 @@ export async function apiFetch<T>(
       'Content-Type': 'application/json',
       ...(options?.headers as Record<string, string>),
     };
-    // 自动附加 Authorization header（login/refresh 等无需 token 的调用不受影响）
     const token = _tokenGetter();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -48,13 +70,18 @@ export async function apiFetch<T>(
       headers,
     });
   } catch (err) {
-    throw new Error(err instanceof Error ? err.message : 'Network error');
+    // fetch 本身失败（网络不可达、CORS 等）
+    throw new Error(
+      err instanceof TypeError && err.message === 'Failed to fetch'
+        ? '后端服务不可达，请确认服务已启动（端口 8080）'
+        : err instanceof Error ? err.message : '网络请求失败'
+    );
   }
 
-  const json: ApiResponse<T> = await res.json();
+  const json = (await safeResJson(res)) as ApiResponse<T>;
 
   if (json.code !== 0) {
-    throw new ApiError(json.code, json.message);
+    throw new ApiError(json.code, json.message || `请求失败 (code=${json.code})`);
   }
 
   return json.data;
@@ -67,11 +94,18 @@ export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  const res = await fetch(`${BASE_URL}${url}`, { headers });
-  const json = await res.json();
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${url}`, { headers });
+  } catch {
+    throw new Error('后端服务不可达，请确认服务已启动（端口 8080）');
+  }
+
+  const json = (await safeResJson(res)) as Record<string, unknown>;
 
   if (json.code !== 0) {
-    throw new ApiError(json.code, json.message);
+    throw new ApiError(json.code as number, json.message as string || `请求失败`);
   }
 
   return {
