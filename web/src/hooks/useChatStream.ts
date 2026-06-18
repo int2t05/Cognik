@@ -97,8 +97,9 @@ export function useChatStream(
           sid = res.session_id;
         }
 
-        const response = await fetch(
-          `/api/v1/portal/chat-sessions/${sid}/stream`,
+        // SSE 流式请求绕过 Next.js rewrite，直连后端（避免 Turbopack POST 代理 500）
+        const streamUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/portal/chat-sessions/${sid}/stream`;
+        const response = await fetch(streamUrl,
           {
             method: 'POST',
             headers: {

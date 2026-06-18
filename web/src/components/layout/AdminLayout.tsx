@@ -10,17 +10,34 @@ import { getUnreadCount } from '@/lib/api/message';
 import { isActivePath } from '@/lib/menu';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
-import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown, Cpu, FileText, User } from 'lucide-react';
 
+// ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
+// 同时兼容旧值（如 knowledge → BookOpen），确保后端数据变动时不挂。
 const ICON_MAP: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard size={18} />,
   ticket: <Ticket size={18} />,
   knowledge: <BookOpen size={18} />,
+  book: <BookOpen size={18} />,
   users: <Users size={18} />,
+  user: <User size={18} />,
   role: <Shield size={18} />,
+  shield: <Shield size={18} />,
   config: <Settings size={18} />,
+  settings: <Settings size={18} />,
   audit: <ScrollText size={18} />,
+  'file-text': <FileText size={18} />,
   message: <MessageSquare size={18} />,
+  cpu: <Cpu size={18} />,
+};
+
+// FRONTEND_ROUTES 将后端路径映射到实际的前端 Next.js 路由。
+// 数据库种子数据可能使用不同路径，此处统一转换。
+const FRONTEND_ROUTES: Record<string, string> = {
+  '/admin/audit-logs': '/admin/audit',
+  '/admin/model-config': '/admin/config/llm',
+  '/admin/llm-config': '/admin/config/llm',
+  '/admin/system-config': '/admin/config/system',
 };
 
 interface MenuItem { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; children?: MenuItem[]; }
@@ -61,7 +78,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const renderMenuItem = (m: MenuItem, depth = 0) => {
     const hasChildren = m.children && m.children.length > 0;
-    const active = isActivePath(m.path, pathname);
+    const targetPath = FRONTEND_ROUTES[m.path] || m.path;
+    const active = isActivePath(targetPath, pathname);
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
@@ -74,7 +92,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return (
       <div key={m.id}>
         <button
-          onClick={() => { if (hasChildren) toggleSubmenu(m.id); else router.push(m.path); }}
+          onClick={() => { if (hasChildren) toggleSubmenu(m.id); else router.push(targetPath); }}
           title={collapsed ? m.name : undefined}
           className={btnClass}
         >
