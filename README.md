@@ -105,10 +105,10 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/0
 Docker 镜像内置轻量 cross-encoder 模型用于 RAG 重排序。构建前需先下载模型到本地：
 
 ```bash
-# 安装 modelscope（仅需一次）
-pip install modelscope
+# 安装 huggingface_hub（仅需一次）
+pip install huggingface_hub
 
-# 从魔搭社区下载模型到 server/models/rerank/（~50MB，国内阿里 CDN，速度稳定）
+# 从 hf-mirror.com 镜像下载（~50MB，国内速度稳定）
 cd server
 python models/rerank/download.py
 ```
