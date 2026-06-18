@@ -282,8 +282,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.password", "")
 	v.SetDefault("database.dbname", "opsmind")
 	v.SetDefault("database.sslmode", "disable")
-	v.SetDefault("database.max_open_conns", 25)
-	v.SetDefault("database.max_idle_conns", 10)
+	v.SetDefault("database.max_open_conns", 0)  // 0 = 不限，由 PostgreSQL max_connections 控制
+	v.SetDefault("database.max_idle_conns", 0)  // 0 = 不限
 	v.SetDefault("database.conn_max_lifetime", "5m")
 
 	// JWT

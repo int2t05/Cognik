@@ -6,8 +6,8 @@
   <img src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/pgvector-hnsw-336791" alt="pgvector">
   <img src="https://img.shields.io/badge/Docker-blue?logo=docker" alt="Docker">
+  <img src="https://img.shields.io/badge/Design-Apple-0066cc?logo=apple" alt="Apple Design">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-129%20pass-brightgreen" alt="Tests">
 </p>
 
 **私有部署的 AI 运维助手** — 自建 Go RAG 引擎，BM25 + 向量混合检索，SSE 流式问答，申告全流程管理，一体 Docker Compose 部署。

@@ -91,7 +91,8 @@ func setupAuthHandler(t *testing.T, db *gorm.DB) *handler.AuthHandler {
 	t.Helper()
 
 	userRepo := repository.NewUserRepo(db)
-	authService := service.NewAuthService(userRepo, nil, testJWTConfig())
+	menuRepo := repository.NewMenuRepo(db)
+	authService := service.NewAuthService(userRepo, menuRepo, db, testJWTConfig())
 	return handler.NewAuthHandler(authService)
 }
 

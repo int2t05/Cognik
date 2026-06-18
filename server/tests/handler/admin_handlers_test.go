@@ -143,7 +143,7 @@ func TestAuditHandler_List(t *testing.T) {
 	db.Exec("DELETE FROM audit_logs")
 	db.Exec("INSERT INTO audit_logs (id, operator_id, action, target_type, created_at) VALUES (1, 1, 'ticket:create', 'ticket', NOW())")
 
-	auditSvc := service.NewAuditService(repository.NewAuditRepo(db), repository.NewUserRepo(db))
+	auditSvc := service.NewAuditService(repository.NewAuditRepo(db))
 	h := handler.NewAuditHandler(auditSvc)
 
 	r.GET("/audit-logs", h.List)
@@ -167,7 +167,7 @@ func TestConfigHandler_Get(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app.name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app.name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db))
+	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
 	h := handler.NewConfigHandler(configSvc)
 
 	r.GET("/configs/:key", h.Get)
@@ -187,7 +187,7 @@ func TestConfigHandler_Update(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app.name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app.name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db))
+	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
 	h := handler.NewConfigHandler(configSvc)
 
 	r.PUT("/configs/:key", h.Update)

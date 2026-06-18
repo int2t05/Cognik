@@ -6,12 +6,12 @@ import { useState, useEffect, useCallback } from 'react';
 type Theme = 'light' | 'dark';
 
 function readCookieTheme(): Theme {
-  if (typeof document === 'undefined') return 'dark';
+  if (typeof document === 'undefined') return 'light';
   const match = document.cookie.match(/(?:^|;\s*)theme-preference=([^;]*)/);
   return match?.[1] === 'light' ? 'light' : 'dark';
 }
 
-let cachedTheme: Theme = 'dark';
+let cachedTheme: Theme = 'light';
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(cachedTheme);

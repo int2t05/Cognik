@@ -15,6 +15,10 @@ import (
 	"testing"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/config"
+	"opsmind/internal/database"
+
+	"gorm.io/gorm"
 )
 
 // pgvectorDSN 返回 pgvector 测试数据库连接字符串。
@@ -35,11 +39,37 @@ func pgvectorDSN() string {
 	return "postgres://" + user + ":" + password + "@" + host + ":5432/" + dbname + "?sslmode=disable"
 }
 
+// mustGormDB 创建测试用 GORM DB 连接。
+func mustGormDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	host := "localhost"
+	user := "opsmind"
+	password := "opsmind_dev"
+	dbname := "opsmind_test"
+	if env := os.Getenv("DB_HOST"); env != "" {
+		host = env
+	}
+	if env := os.Getenv("DB_USER"); env != "" {
+		user = env
+	}
+	if env := os.Getenv("DB_PASSWORD"); env != "" {
+		password = env
+	}
+	db, err := database.Init(config.DatabaseConfig{
+		Host: host, Port: 5432, User: user, Password: password, DBName: dbname, SSLMode: "disable",
+	})
+	if err != nil {
+		t.Skipf("跳过集成测试：无法连接 pgvector (%v)", err)
+	}
+	return db
+}
+
 // mustVectorStore 创建测试用 VectorStore，连接失败跳过测试。
 // 同时确保 knowledge_chunks 表含 kb_id、chunk_index、embedding 列。
 func mustVectorStore(t *testing.T) adapter.VectorStore {
 	t.Helper()
-	store, err := adapter.NewPgvectorStore(pgvectorDSN())
+	db := mustGormDB(t)
+	store, err := adapter.NewPgvectorStore(db)
 	if err != nil {
 		t.Skipf("跳过集成测试：无法连接 pgvector (%v)", err)
 	}

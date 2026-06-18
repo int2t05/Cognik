@@ -92,8 +92,10 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 	// 组装依赖链
 	knowledgeRepo := repository.NewKnowledgeRepo(db)
 	chatRepo := repository.NewChatRepo(db)
-	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, nil, nil, 5, "")
-	chatH := handler.NewChatHandler(chatSvc, nil, "")
+	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
+		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
+	})
+	chatH := handler.NewChatHandler(chatSvc)
 
 	// 路由
 	r := gin.New()
@@ -107,7 +109,7 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 
 	portal := r.Group("/api/v1/portal")
 	{
-		portal.POST("/chat-sessions/stream", chatH.StreamChatSession)
+		portal.POST("/chat-sessions/stream", chatH.StreamChatMessage)
 		portal.POST("/chat-sessions", chatH.CreateChatSession)
 		portal.POST("/chat-sessions/:id/feedback", chatH.SubmitFeedback)
 		portal.GET("/chat-sessions/:id", chatH.GetChatDetail)

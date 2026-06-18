@@ -46,13 +46,9 @@ func Init(cfg config.DatabaseConfig) (*gorm.DB, error) {
 		return nil, fmt.Errorf("获取底层 sql.DB 失败: %w", err)
 	}
 	maxOpen := cfg.MaxOpenConns
-	if maxOpen <= 0 {
-		maxOpen = 25
-	}
+	// 0 = 不限制（PostgreSQL 服务端 max_connections 兜底）
 	maxIdle := cfg.MaxIdleConns
-	if maxIdle <= 0 {
-		maxIdle = 10
-	}
+	// 0 = 不限制
 	connLifetime := cfg.ConnMaxLifetime
 	if connLifetime <= 0 {
 		connLifetime = 5 * time.Minute

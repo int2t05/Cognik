@@ -16,7 +16,11 @@ import (
 	"time"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/config"
+	"opsmind/internal/database"
 	"opsmind/internal/rag"
+
+	"gorm.io/gorm"
 )
 
 // =============================================================================
@@ -41,10 +45,36 @@ func ragVectorStoreDSN() string {
 	return "postgres://" + user + ":" + password + "@" + host + ":5432/" + dbname + "?sslmode=disable"
 }
 
+// ragMustGormDB 创建测试用 GORM DB。
+func ragMustGormDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	host := "localhost"
+	user := "opsmind"
+	password := "opsmind_dev"
+	dbname := "opsmind_test"
+	if env := os.Getenv("DB_HOST"); env != "" {
+		host = env
+	}
+	if env := os.Getenv("DB_USER"); env != "" {
+		user = env
+	}
+	if env := os.Getenv("DB_PASSWORD"); env != "" {
+		password = env
+	}
+	db, err := database.Init(config.DatabaseConfig{
+		Host: host, Port: 5432, User: user, Password: password, DBName: dbname, SSLMode: "disable",
+	})
+	if err != nil {
+		t.Skipf("跳过集成测试：无法连接数据库 (%v)", err)
+	}
+	return db
+}
+
 // ragMustVectorStore 创建测试用 VectorStore。
 func ragMustVectorStore(t *testing.T) adapter.VectorStore {
 	t.Helper()
-	store, err := adapter.NewPgvectorStore(ragVectorStoreDSN())
+	db := ragMustGormDB(t)
+	store, err := adapter.NewPgvectorStore(db)
 	if err != nil {
 		t.Skipf("跳过集成测试：无法连接 pgvector (%v)", err)
 	}

@@ -24,8 +24,11 @@ func setupLLMConfigHandler(t *testing.T) *handler.LLMConfigHandler {
 	// 每次测试前清空表，避免默认配置唯一索引冲突
 	knowledgeHandlerDB.Exec("DELETE FROM llm_configs")
 	repo := repository.NewLlmConfigRepo(knowledgeHandlerDB)
-	svc := service.NewLLMConfigService(repo)
-	return handler.NewLLMConfigHandler(svc, nil) // nil llmClient — 仅测试 CRUD
+	svc, err := service.NewLLMConfigService(repo)
+	if err != nil {
+		t.Fatalf("创建 LLMConfigService 失败: %v", err)
+	}
+	return handler.NewLLMConfigHandler(svc)
 }
 
 func setupLLMTestRouter(h *handler.LLMConfigHandler) *gin.Engine {

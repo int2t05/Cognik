@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- 背景圆角矩形 -->
+  <rect width="128" height="128" rx="28" fill="#0066cc" />
+  <!-- 齿轮外圈 -->
+  <circle cx="64" cy="52" r="28" stroke="#ffffff" stroke-width="6" fill="none" opacity="0.9" />
+  <!-- 齿轮齿 -->
+  <g stroke="#0066cc" stroke-width="8">
+    <line x1="64" y1="18" x2="64" y2="24" />
+    <line x1="64" y1="80" x2="64" y2="86" />
+    <line x1="30" y1="52" x2="36" y2="52" />
+    <line x1="92" y1="52" x2="98" y2="52" />
+  </g>
+  <!-- 脑回沟 — 简洁的神经节点 -->
+  <circle cx="52" cy="62" r="3" fill="#ffffff" opacity="0.7" />
+  <circle cx="64" cy="66" r="3" fill="#ffffff" opacity="0.9" />
+  <circle cx="76" cy="62" r="3" fill="#ffffff" opacity="0.7" />
+  <circle cx="58" cy="74" r="3" fill="#ffffff" opacity="0.6" />
+  <circle cx="70" cy="74" r="3" fill="#ffffff" opacity="0.6" />
+  <!-- 连接线 -->
+  <line x1="52" y1="62" x2="64" y2="66" stroke="#ffffff" stroke-width="1.5" opacity="0.5" />
+  <line x1="76" y1="62" x2="64" y2="66" stroke="#ffffff" stroke-width="1.5" opacity="0.5" />
+  <line x1="58" y1="74" x2="64" y2="66" stroke="#ffffff" stroke-width="1.5" opacity="0.4" />
+  <line x1="70" y1="74" x2="64" y2="66" stroke="#ffffff" stroke-width="1.5" opacity="0.4" />
+  <!-- 底部文字 -->
+  <text x="64" y="112" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" letter-spacing="2">OPSMIND</text>
+</svg>
