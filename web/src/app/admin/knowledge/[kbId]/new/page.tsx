@@ -1,22 +1,75 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createArticle } from '@/lib/api/knowledge';
+import { createArticle, uploadDocuments } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
   const router = useRouter();
   const toast = useToast();
+  const { token } = useAuth();
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+
+    setUploading(true);
+    setUploadProgress('上传中...');
+
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((f) => formData.append('files', f));
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/v1/admin/knowledge-bases/${kbId}/documents/upload`);
+
+      // 上传进度
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          setUploadProgress(`上传中 ${Math.round((evt.loaded / evt.total) * 100)}%`);
+        }
+      };
+
+      await new Promise<void>((resolve, reject) => {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`上传失败 (${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error('网络错误'));
+        xhr.send(formData);
+      });
+
+      const response = JSON.parse(xhr.responseText);
+      const docs = response.data?.documents || [];
+      toast.success(docs.length ? `已上传 ${docs.length} 个文件，后台处理中` : '上传成功');
+      setUploadProgress('');
+      if (docs[0]?.article_id) {
+        router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}`);
+        return;
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : '上传失败');
+      setUploadProgress('');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,12 +88,28 @@ export default function NewArticlePage() {
   return (
     <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 24 }}>新建文章</h1>
+
+      {/* 文档上传 */}
+      <AppleCard style={{ marginBottom: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, color: 'var(--text-ink)' }}>文档上传</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-muted-48)', marginBottom: 12 }}>支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
+            style={{ fontSize: 14 }} />
+          {uploadProgress && (
+            <span style={{ fontSize: 14, color: 'var(--accent)' }}>{uploadProgress}</span>
+          )}
+        </div>
+      </AppleCard>
+
+      {/* 手动创建 */}
       <form onSubmit={handleCreate}>
         <AppleCard style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 16, color: 'var(--text-ink)' }}>手动创建</h2>
           <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
           <AppleTextarea label="正文内容 (Markdown)" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="支持 Markdown 格式..." />
           <AppleInput label="分类" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="如：网络与VPN" />
-          <AppleInput label="标签（逗号分隔）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
+          <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
         <div style={{ display: 'flex', gap: 12 }}>
           <AppleButton type="submit" loading={saving}>创建文章</AppleButton>

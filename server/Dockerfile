@@ -68,6 +68,11 @@ from sentence_transformers import CrossEncoder; \
 CrossEncoder('/app/models/rerank', device='cpu'); \
 print('模型加载成功')"
 
+# 复制 gse 中文词典（运行时需要，BM25 分词必需）。
+# gse 用 runtime.Caller 定位自身源码路径，编译时路径指向 Go module cache，
+# 因此运行时必须在同路径存在词典文件。
+COPY --from=builder /go/pkg/mod/github.com/go-ego/gse@v1.0.2/data/ /go/pkg/mod/github.com/go-ego/gse@v1.0.2/data/
+
 # 复制 Go 二进制和推理脚本
 COPY --from=builder /build/opsmind-server .
 COPY rerank_server.py .

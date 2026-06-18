@@ -81,7 +81,7 @@ export default function LLMConfigPage() {
           </select>
         </div>
         <AppleInput label="LLM Base URL" value={String(form.base_url || '')} onChange={(e) => setForm({ ...form, base_url: e.target.value })} />
-        <AppleInput label="API Key (留空不修改)" type="password" value={String(form.api_key || '')} onChange={(e) => setForm({ ...form, api_key: e.target.value })} placeholder={editId ? '留空则不修改' : ''} />
+        <AppleInput label="API Key" type="password" value={String(form.api_key || '')} onChange={(e) => setForm({ ...form, api_key: e.target.value })} placeholder={editId ? '留空则不修改（已存 ****）' : '输入 API Key'} />
         <AppleInput label="LLM 模型" value={String(form.llm_model || '')} onChange={(e) => setForm({ ...form, llm_model: e.target.value })} />
         <AppleInput label="Embedding 模型" value={String(form.embedding_model || '')} onChange={(e) => setForm({ ...form, embedding_model: e.target.value })} />
         <AppleInput label="最大 Token" type="number" value={String(form.max_tokens || '')} onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })} />

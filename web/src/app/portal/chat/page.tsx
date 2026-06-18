@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { createSession } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -37,17 +38,27 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
-  const [confidence, setConfidence] = useState<number | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, currentStep]);
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length + (currentStep ? 1 : 0),
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+
   useEffect(() => { if (selectedKB) inputRef.current?.focus(); }, [selectedKB]);
-
-  // 组件卸载时取消飞行中的请求
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  // 虚拟滚动自动滚动到底部
+  useEffect(() => {
+    if (rowVirtualizer.getTotalSize() > 0) {
+      rowVirtualizer.scrollToIndex(messages.length + (currentStep ? 1 : 0) - 1, { align: 'end' });
+    }
+  }, [messages, currentStep]);
 
   const handleSend = useCallback(async () => {
     const question = input.trim();
@@ -65,7 +76,6 @@ export default function ChatPage() {
     setLoading(true);
     setPipelineSteps([]);
     setCurrentStep(null);
-    setConfidence(null);
 
     try {
       let sid = sessionId;
@@ -120,7 +130,6 @@ export default function ChatPage() {
                 const m = evt.metadata;
                 setMessages((prev) => prev.map((msg) => msg.id === assistantMsg.id ? { ...msg, content: m.answer || assistantContent, sources: m.sources, confidence: m.confidence } : msg));
                 setPipelineSteps(m.pipeline?.steps || []);
-                setConfidence(m.confidence);
                 break;
               case 'error':
                 setStreaming(false);
@@ -128,9 +137,7 @@ export default function ChatPage() {
                 toast.error(evt.error || '生成失败');
                 break;
             }
-          } catch (e) {
-            console.debug('SSE parse:', e);
-          }
+          } catch (e) { console.debug('SSE parse:', e); }
         }
       }
     } catch (err: unknown) {
@@ -148,7 +155,6 @@ export default function ChatPage() {
     setStreaming(false);
     setLoading(false);
     setPipelineSteps([]);
-    setConfidence(null);
   };
 
   const isLoading = loading || streaming;
@@ -156,48 +162,51 @@ export default function ChatPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <select
-          value={selectedKB}
-          onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
-          style={{ padding: '8px 16px', fontSize: 15, borderRadius: 'var(--radius-pill)', border: '1px solid var(--hairline)', background: 'var(--bg-canvas)', color: 'var(--text-ink)', minWidth: 200 }}
-        >
+        <select value={selectedKB} onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
+          style={{ padding: '8px 16px', fontSize: 15, borderRadius: 'var(--radius-pill)', border: '1px solid var(--hairline)', background: 'var(--bg-canvas)', color: 'var(--text-ink)', minWidth: 200 }}>
           <option value={0}>选择知识库...</option>
           {(kbs || []).map((kb) => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
         </select>
         {sessionId && <AppleButton variant="utility" onClick={handleNewChat}>新对话</AppleButton>}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
+      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
         {messages.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted-48)', fontSize: 17 }}>
             {selectedKB ? '输入问题开始对话' : '请先选择一个知识库'}
           </div>
         ) : (
-          messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              id={msg.id}
-              role={msg.role}
-              content={msg.content}
-              sources={msg.sources}
-              confidence={msg.confidence}
-              isStreaming={msg.role === 'assistant' && streaming}
-            />
-          ))
+          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+              const isPipeline = virtualItem.index === messages.length && currentStep;
+              if (isPipeline) {
+                return (
+                  <div key="pipeline" style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                    <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
+                  </div>
+                );
+              }
+              const msg = messages[virtualItem.index];
+              return (
+                <div key={msg.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                  <ChatMessage
+                    id={msg.id}
+                    role={msg.role}
+                    content={msg.content}
+                    sources={msg.sources}
+                    confidence={msg.confidence}
+                    isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
-        <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
-        <div ref={messagesEndRef} />
       </div>
 
-      <ChatInput
-        ref={inputRef}
-        value={input}
-        onChange={setInput}
-        onSend={handleSend}
-        disabled={!selectedKB || isLoading}
-        loading={isLoading}
-        placeholder={selectedKB ? '输入问题，按 Enter 发送...' : '请先选择知识库'}
-      />
+      <ChatInput ref={inputRef} value={input} onChange={setInput} onSend={handleSend}
+        disabled={!selectedKB || isLoading} loading={isLoading}
+        placeholder={selectedKB ? '输入问题，按 Enter 发送...' : '请先选择知识库'} />
     </div>
   );
 }
