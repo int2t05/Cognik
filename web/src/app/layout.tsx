@@ -3,6 +3,7 @@
  */
 
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Providers } from '@/components/Providers';
 import './globals.css';
 
@@ -25,7 +26,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -34,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <Script id="theme-fouc" strategy="beforeInteractive">{themeScript}</Script>
         <Providers>{children}</Providers>
       </body>
     </html>
