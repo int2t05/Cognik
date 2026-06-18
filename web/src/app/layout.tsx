@@ -12,10 +12,20 @@ export const metadata: Metadata = {
   description: 'AI 驱动的企业运维智能助手',
 };
 
+// 消除 FOUC：在 HTML 解析前通过 cookie 设置 data-theme
+const themeScript = `
+  (function() {
+    var m = document.cookie.match(/(?:^|;\\s*)theme-preference=([^;]*)/);
+    var t = m ? m[1] : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+`.replace(/\s+/g, ' ');
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

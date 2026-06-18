@@ -42,22 +42,22 @@
 
 ## 1. 认证与授权
 
-- 🟡 Token 过期仅清除 cookie 重定向登录页，未在 middleware 层尝试 refresh token 自动续期 — 📌 `middleware.ts`
-- 🟢 主题切换缺少服务端 cookie 预读，刷新页面时有浅色闪烁（FOUC） — 📌 `hooks/useTheme.ts`
+- ✅ 🟡 Token 过期仅清除 cookie 重定向登录页，未在 middleware 层尝试 refresh token 自动续期
+- ✅ 🟢 主题切换缺少服务端 cookie 预读，刷新页面时有浅色闪烁（FOUC）
 
 ## 2. 智能问答
 
-- 🟡 SSE 流使用原生 fetch 绕过 `apiFetch` 拦截器，Token 过期时不会自动刷新 — 📌 `portal/chat/page.tsx`
-- 🟡 消息列表长时滚动性能差，应采用虚拟滚动（react-window 或 @tanstack/virtual） — 📌 `portal/chat/page.tsx`
-- 🟢 Chat 组件单文件过长（>180 行），应拆分为 ChatInput / ChatMessage / ChatPipeline 三个子组件 — 📌 `portal/chat/page.tsx`
-- 🟢 SSE 流式解析中 `JSON.parse` 静默吞错误，应至少 `console.debug` 记录 — 📌 `portal/chat/page.tsx`
-- 🟢 `abortRef` 仅在 `handleSend` 中 abort 旧请求，未在组件卸载时 abort（内存泄漏）
+- ✅ 🟡 SSE 流使用原生 fetch 绕过 `apiFetch` 拦截器，Token 过期时不会自动刷新
+- 🟡 消息列表长时滚动性能差，应采用虚拟滚动（react-window 或 @tanstack/virtual）
+- ✅ 🟢 Chat 组件单文件过长，已拆分为 ChatInput / ChatMessage / ChatPipeline 三个子组件
+- ✅ 🟢 SSE 流式解析中 `JSON.parse` 静默吞错误，已添加 `console.debug` 记录
+- ✅ 🟢 `abortRef` 未在组件卸载时 abort，已添加 useEffect cleanup
 
 ## 3. 知识库管理
 
 - 🟡 文档上传无进度反馈，大文件上传时用户无感知 — `admin/knowledge/[kbId]/new/page.tsx`
-- 🟢 知识编辑页面打开时未预填原 description 值，可能静默清空
-- 🟢 文章标签无数量上限校验，超出服务端限制时错误不友好
+- ✅ ~~知识编辑页面打开时未预填原 description 值~~（代码已正确预填）
+- ✅ 🟢 文章标签无数量上限校验 → 已添加最多 10 个标签校验
 
 ## 4. 申告管理
 
@@ -100,17 +100,13 @@
 |------|------|
 | 📌 `server/internal/service/message_service.go:101` | 未读数缓存/WebSocket |
 
-### 前端 TODO（8）
+### 前端 TODO（4）
 
 | 位置 | 内容 |
 |------|------|
-| 📌 `middleware.ts` | Token 过期未尝试 refresh 自动续期 |
-| 📌 `hooks/useTheme.ts` | 缺少 cookie 预读导致 FOUC |
-| 📌 `portal/chat/page.tsx` | SSE 绕过拦截器 / 组件过大 / 虚拟滚动 / 静默吞错 |
 | 📌 `admin/dashboard/page.tsx` | 趋势图可访问性 / 缺刷新按钮 |
 | 📌 `admin/config/system/page.tsx` | AI 参数仅为提示文本 |
 | 📌 `lib/id.ts` | Math.random fallback 碰撞风险 |
-| 📌 `components/shared/StatusBadge.tsx` | 状态映射硬编码 |
 | 📌 `components/layout/AdminLayout.tsx` | 菜单无子菜单支持 / 折叠状态不持久化 |
 
 ---
@@ -133,21 +129,21 @@
 
 | 模块 | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |------|-------|-------|-------|---------|
-| 1. 认证与授权 | — | 1 | 1 | 2 |
-| 2. 智能问答 | — | 2 | 3 | 1 |
-| 3. 知识库管理 | — | 1 | 2 | — |
+| 1. 认证与授权 | — | — | — | — |
+| 2. 智能问答 | — | 1 | — | — |
+| 3. 知识库管理 | — | 1 | — | — |
 | 4. 申告管理 | — | 1 | 1 | — |
 | 5. 数据看板与审计 | — | 1 | 2 | 1 |
 | 6. 系统管理与配置 | — | 2 | 1 | 1 |
-| 7. 基础设施 | — | 7 | 4 | 3 |
-| **前端合计** | **0** | **15** | **14** | **8** |
+| 7. 基础设施 | — | 7 | 4 | 2 |
+| **前端合计** | **0** | **13** | **8** | **4** |
 
 ### 全栈总计
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 0 | 1 | 2 | 1 |
-| 前端 | 0 | 15 | 14 | 8 |
-| **合计** | **0** | **16** | **16** | **9** |
+| 前端 | 0 | 13 | 8 | 4 |
+| **合计** | **0** | **14** | **10** | **5** |
 
-> 9 个代码 TODO（后端 1 + 前端 8）全部在上表中有对应条目。📌 标记项与代码中 `// TODO:` 注释严格一一对应。
+> 5 个代码 TODO（后端 1 + 前端 4）全部在上表中有对应条目，严格双向一致。

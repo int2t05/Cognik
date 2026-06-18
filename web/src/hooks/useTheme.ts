@@ -1,22 +1,24 @@
-// TODO: 缺少服务端 cookie 预读——刷新页面时会有短暂的浅色闪烁（FOUC）。
-/** 主题管理 Hook — SSR 安全的双主题切换。 */
+/** 主题管理 Hook — 双主题切换，cookie 预读消除 FOUC。 */
 
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
 type Theme = 'light' | 'dark';
 
-// 模块级缓存，SSR 安全（不在模块顶层访问 localStorage）
+function readCookieTheme(): Theme {
+  if (typeof document === 'undefined') return 'dark';
+  const match = document.cookie.match(/(?:^|;\s*)theme-preference=([^;]*)/);
+  return match?.[1] === 'light' ? 'light' : 'dark';
+}
+
 let cachedTheme: Theme = 'dark';
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(cachedTheme);
 
   useEffect(() => {
-    // 客户端 hydration：从 localStorage 读取
     const stored = localStorage.getItem('theme-preference') as Theme | null;
-    const resolved: Theme =
-      stored ||
+    const resolved: Theme = stored || readCookieTheme() ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     applyTheme(resolved);
   }, []);
@@ -25,6 +27,7 @@ export function useTheme() {
     cachedTheme = t;
     setThemeState(t);
     document.documentElement.setAttribute('data-theme', t);
+    document.cookie = `theme-preference=${t}; path=/; max-age=${365 * 86400}; SameSite=Lax`;
     localStorage.setItem('theme-preference', t);
   }, []);
 
@@ -32,12 +35,5 @@ export function useTheme() {
     applyTheme(cachedTheme === 'light' ? 'dark' : 'light');
   }, [applyTheme]);
 
-  const setTheme = useCallback(
-    (t: Theme) => {
-      applyTheme(t);
-    },
-    [applyTheme]
-  );
-
-  return { theme, toggleTheme, setTheme };
+  return { theme, toggleTheme, setTheme: applyTheme };
 }

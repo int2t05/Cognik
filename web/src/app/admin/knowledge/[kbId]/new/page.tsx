@@ -21,9 +21,11 @@ export default function NewArticlePage() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) { toast.error('请输入标题'); return; }
+    const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
+    if (tagList.length > 10) { toast.error('标签最多 10 个'); return; }
     setSaving(true);
     try {
-      const res = await createArticle(Number(kbId), { title: title.trim(), content, source_type: 1, category, tags: tags.split(',').map((t) => t.trim()).filter(Boolean) });
+      const res = await createArticle(Number(kbId), { title: title.trim(), content, source_type: 1, category, tags: tagList });
       toast.success('创建成功');
       router.push(`/admin/knowledge/${kbId}/${res.id}`);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '创建失败'); }

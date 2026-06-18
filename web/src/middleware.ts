@@ -1,14 +1,11 @@
-// TODO: Token 过期时仅清除 cookie 并重定向到登录页，未尝试 refresh token 自动续期。
-/** 路由守卫 — JWT 认证 + RBAC + base64url 兼容 Token 解码。 */
+/** 路由守卫 — JWT 认证 + RBAC + Token 自动续期。 */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 公开路由（无需认证）
 const PUBLIC_PATHS = ['/login'];
-
-// 需要 RBAC 检查的路由
 const ADMIN_PATH = '/admin';
+const ADMIN_ROLES = ['系统管理员', 'admin', 'operator', 'knowledge_manager'];
 
 interface JwtPayload {
   roles?: string[];
@@ -20,7 +17,6 @@ function decodePayload(token: string): JwtPayload | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    // base64url → base64
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     return JSON.parse(atob(base64));
   } catch {
@@ -28,50 +24,68 @@ function decodePayload(token: string): JwtPayload | null {
   }
 }
 
-function isExpired(token: string): boolean {
+function isExpired(token: string, bufferMs = 60_000): boolean {
   const p = decodePayload(token);
   if (!p?.exp) return true;
-  return p.exp * 1000 < Date.now() + 60_000; // 60s 缓冲
+  return p.exp * 1000 < Date.now() + bufferMs;
 }
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = request.cookies.get('access_token')?.value;
+async function refreshAccessToken(refreshToken: string, requestUrl: string): Promise<string | null> {
+  try {
+    const apiUrl = new URL('/api/v1/auth/refresh', requestUrl);
+    const res = await fetch(apiUrl.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.data?.access_token || null;
+  } catch {
+    return null;
+  }
+}
 
-  // 公开路由
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const accessToken = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
+
   if (PUBLIC_PATHS.includes(pathname)) {
-    if (token && !isExpired(token)) {
+    if (accessToken && !isExpired(accessToken)) {
       return NextResponse.redirect(new URL('/portal/chat', request.url));
     }
     return NextResponse.next();
   }
 
-  // 静态资源
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.match(/\.(svg|png|jpg|css)$/)
-  ) {
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.match(/\.(svg|png|jpg|css)$/)) {
     return NextResponse.next();
   }
 
-  // 认证检查
-  if (!token) {
+  if (!accessToken) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (isExpired(token)) {
+  // Token 过期 → 尝试 refresh 自动续期
+  if (isExpired(accessToken)) {
+    if (refreshToken) {
+      const newToken = await refreshAccessToken(refreshToken, request.url);
+      if (newToken) {
+        const response = NextResponse.next();
+        response.cookies.set('access_token', newToken, { path: '/', httpOnly: false, sameSite: 'lax' });
+        return response;
+      }
+    }
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('access_token');
+    response.cookies.delete('refresh_token');
     return response;
   }
 
-  // RBAC：后台路由需要 admin 相关角色
+  // RBAC
   if (pathname.startsWith(ADMIN_PATH)) {
-    const payload = decodePayload(token);
-    const roles = payload?.roles || [];
-    const adminRoles = ['系统管理员', 'admin', 'operator', 'knowledge_manager'];
-    if (!roles.some((r) => adminRoles.includes(r))) {
+    const payload = decodePayload(accessToken);
+    if (!payload?.roles?.some((r) => ADMIN_ROLES.includes(r))) {
       return NextResponse.redirect(new URL('/portal/chat', request.url));
     }
   }
