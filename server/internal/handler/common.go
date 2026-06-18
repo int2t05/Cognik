@@ -21,8 +21,6 @@ import (
 // 6 个 handler 原本各自实现相同的 5 行逻辑，集中后分页策略（默认值、上限）
 // 只需在一处修改。
 func parsePagination(c *gin.Context) (int, int) {
-	// TODO(handler/common): 支持 page_size 上限从配置读取。
-	// 不同列表的安全上限可能不同，固定 100 会让大字段列表也一次返回过多数据。
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
@@ -53,14 +51,25 @@ func parseID(c *gin.Context, key string) (int64, bool) {
 // getCurrentUserID 从 Gin context 中获取当前用户 ID。
 //
 // JWTAuth 中间件将当前用户 ID 以 int64 类型写入 context，key 为 "userID"。
-// 返回 (userID, exists)，exists=false 表示未认证（测试环境或无 JWT 中间件的路由）。
+// 返回 (userID, exists)，exists=false 表示未认证。
+// 调用方如需强制认证，使用 mustCurrentUserID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
-	// TODO(handler/common): 调用方大多忽略 exists=false。
-	// 建议提供 mustCurrentUserID(c) 直接写 ErrAuth，避免无认证时 userID=0 继续进入业务逻辑。
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
 			return id, true
 		}
 	}
 	return 0, false
+}
+
+// mustCurrentUserID 获取当前用户 ID，未认证时直接返回 401 错误。
+//
+// 用于 admin 端写操作——必须已登录才能执行。
+// portal 端读操作（如 ListByUser）继续使用 getCurrentUserID 并通过 Service 层校验归属。
+func mustCurrentUserID(c *gin.Context) (int64, bool) {
+	id, ok := getCurrentUserID(c)
+	if !ok {
+		response.Error(c, errcode.ErrAuth, "未登录或令牌已过期")
+	}
+	return id, ok
 }

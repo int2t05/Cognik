@@ -14,9 +14,10 @@ import (
 
 // Response 统一响应结构
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Code      int         `json:"code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	RequestID string      `json:"request_id,omitempty"`
 }
 
 // PageResponse 分页响应结构
@@ -40,21 +41,21 @@ func Success(c *gin.Context, data interface{}) {
 
 // Error 返回错误响应，根据错误码自动映射 HTTP 状态码。
 //
-// 同时将 errCode 写入 Gin context，供 Logger 中间件写入日志行。
+// 同时将 errCode 写入 Gin context 供 Logger 中间件使用，
+// 并附加 request_id 便于前端报错与后端日志关联。
 func Error(c *gin.Context, code int, message string) {
 	c.Set("errCode", code)
 	c.JSON(mapHTTPStatus(code), Response{
-		Code:    code,
-		Message: message,
-		Data:    nil,
+		Code:      code,
+		Message:   message,
+		Data:      nil,
+		RequestID: c.GetString("requestID"),
 	})
 }
 
 // SuccessWithPage 返回分页成功响应
 func SuccessWithPage(c *gin.Context, data interface{}, total int64, page, pageSize int) {
-	// TODO(response): 分页响应当前把 total/page/page_size 放在顶层，而部分前端类型期望 data.items/data.total。
-	// 应统一一种分页契约，减少视图里 (res as any).data || res 的兼容代码。
-	c.JSON(http.StatusOK, PageResponse{
+		c.JSON(http.StatusOK, PageResponse{
 		Code:     errcode.Success,
 		Message:  "success",
 		Data:     data,
@@ -65,15 +66,13 @@ func SuccessWithPage(c *gin.Context, data interface{}, total int64, page, pageSi
 }
 
 // mapHTTPStatus 将业务错误码映射为 HTTP 状态码。
-//
-// AI/RAG/Storage 服务不可用时返回 503，客户端可据此实现重试策略。
 func mapHTTPStatus(code int) int {
 	switch code {
 	case errcode.ErrAuth:
 		return http.StatusUnauthorized
 	case errcode.ErrForbidden:
 		return http.StatusForbidden
-	case errcode.ErrParam:
+	case errcode.ErrParam, errcode.ErrAlreadyFrozen, errcode.ErrAlreadyActive:
 		return http.StatusBadRequest
 	case errcode.ErrNotFound:
 		return http.StatusNotFound

@@ -103,16 +103,14 @@ func (h *ChatHandler) SubmitFeedback(c *gin.Context) {
 		return
 	}
 
-	var body struct {
-		Feedback int16 `json:"feedback"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
+	var req request.SubmitFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
 	}
 
 	userID, _ := getCurrentUserID(c)
-	if err := h.svc.SubmitFeedback(id, userID, body.Feedback); err != nil {
+	if err := h.svc.SubmitFeedback(id, userID, req.Feedback); err != nil {
 		handleServiceError(c, err)
 		return
 	}

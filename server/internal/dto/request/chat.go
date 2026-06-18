@@ -17,3 +17,8 @@ type SendMessageRequest struct {
 	RouteCount int    `json:"route_count"`                          // 多路检索子查询数（0=使用默认值 3）
 	RerankCount int   `json:"rerank_count"`                         // 重排序截断数（0=使用默认值 5）
 }
+
+// SubmitFeedbackRequest 问答反馈请求。
+type SubmitFeedbackRequest struct {
+	Feedback int16 `json:"feedback" binding:"required"` // 反馈值（如 1=已解决, 2=未解决）
+}

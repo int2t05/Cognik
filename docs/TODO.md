@@ -498,18 +498,18 @@
 
 ### 日志与错误
 
-- 🟡 [pkg/response/response.go](/server/pkg/response/response.go) — 错误响应缺少 `request_id`，前端报错难以和服务端日志关联
-- 🟡 [pkg/response/response.go](/server/pkg/response/response.go) — 分页响应格式不统一（顶层 `total/page/page_size` vs 部分前端类型期望 `data.items/data.total`）
-- 🟢 [middleware/logger.go](/server/internal/middleware/logger.go) — 部分 Handler 未使用 `handleServiceError` 封装（分散在 `auth.go` 而非 `common.go`）
-- 🔴⭐ [pkg/response/response.go](/server/pkg/response/response.go) — **ErrAlreadyFrozen(10006)/ErrAlreadyActive(10007) 映射到 HTTP 500 而非 400**：`mapHTTPStatus` switch 中漏掉这两个 errcode，fallthrough 到 default→500。📝 TECH.md 文档记载为 HTTP 400。
+- ✅ [pkg/response/response.go](/server/pkg/response/response.go) — 错误响应缺少 `request_id`，前端报错难以和服务端日志关联
+- ✅ [pkg/response/response.go](/server/pkg/response/response.go) — 分页响应格式不统一（顶层 `total/page/page_size` vs 部分前端类型期望 `data.items/data.total`）
+- ✅ [middleware/logger.go](/server/internal/middleware/logger.go) — 部分 Handler 未使用 `handleServiceError` 封装（分散在 `auth.go` 而非 `common.go`）
+- ✅ [pkg/response/response.go](/server/pkg/response/response.go) — **ErrAlreadyFrozen(10006)/ErrAlreadyActive(10007) 映射到 HTTP 500 而非 400**：`mapHTTPStatus` switch 中漏掉这两个 errcode，fallthrough 到 default→500。📝 TECH.md 文档记载为 HTTP 400。
 
 ### Handler 通用工具
 
-- 📌 [handler/common.go:24](/server/internal/handler/common.go) — page_size max 应可配置
-- 📌 [handler/common.go:58](/server/internal/handler/common.go) — `getCurrentUserID` 的 `exists` 返回值被所有 12 个调用方忽略（`userID, _ := ...`），JWT 中间件漏配时 userID=0 静默传入 Service 层。应提供 `mustCurrentUserID()` 变体在缺失时直接返回 401。
-- 🟡⭐ [handler/common.go](/server/internal/handler/common.go) — **12 个 `getCurrentUserID` 调用方全部忽略 `exists` 布尔值**：JWT 中间件漏配时 userID=0 静默传入 Service 层，创建归属 user 0 的数据。
-- 🟡⭐ [handler/chat.go](/server/internal/handler/chat.go) — `SubmitFeedback` 使用内联匿名 struct 定义请求体，应改为命名 DTO。
-- 🟡⭐ [handler/role.go](/server/internal/handler/role.go) + [handler/user.go](/server/internal/handler/user.go) — 手动实现分页/ID 解析而非复用 `parsePagination`/`parseID` 公共 helper。
+- ✅ [handler/common.go:24](/server/internal/handler/common.go) — page_size max 应可配置
+- ✅ [handler/common.go:58](/server/internal/handler/common.go) — `getCurrentUserID` 的 `exists` 返回值被所有 12 个调用方忽略（`userID, _ := ...`），JWT 中间件漏配时 userID=0 静默传入 Service 层。应提供 `mustCurrentUserID()` 变体在缺失时直接返回 401。
+- ✅ [handler/common.go](/server/internal/handler/common.go) — **12 个 `getCurrentUserID` 调用方全部忽略 `exists` 布尔值**：JWT 中间件漏配时 userID=0 静默传入 Service 层，创建归属 user 0 的数据。
+- ✅ [handler/chat.go](/server/internal/handler/chat.go) — `SubmitFeedback` 使用内联匿名 struct 定义请求体，应改为命名 DTO。
+- ✅ [handler/role.go](/server/internal/handler/role.go) + [handler/user.go](/server/internal/handler/user.go) — 手动实现分页/ID 解析而非复用 `parsePagination`/`parseID` 公共 helper。
 
 ### Model 层
 
@@ -697,11 +697,11 @@
 | 5. 用户与角色管理 | 0 | 0 | 0 | 0 | 0 |
 | 6. LLM 配置与适配层 | 1 | 9 | 0 | 0 | 10 |
 | 7. 数据看板与审计 | 0 | 0 | 2 | 1 | 3 |
-| 8. 基础设施与部署 | 1 | 4+1📝 | 1 | 6 | 13 |
+| 8. 基础设施与部署 | 1 | 0+1📝 | 0 | 4 | 6 |
 | 9. 前端架构与交互 | 15⭐ | 14+5⭐ | 10+5⭐ | 9 | 58 |
 | 10. 整表空数据 | 1 | 1 | 0 | 0 | 2 |
 | 11. P0 覆盖验证 | — | — | — | — | (维护) |
-| **合计** | **35** | **56** | **22+6📝** | **16** | **~146** |
+| **合计** | **34** | **51** | **21+6📝** | **14** | **~133** |
 
 > ⭐ 标记项为 2026-06-17 审计新发现（前后端共 70+ 项）。
 > 📝 标记项为代码与 API 文档/PRD/TECH.md 不一致的文档缺陷。
