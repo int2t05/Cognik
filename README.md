@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go" alt="Go">
-  <img src="https://img.shields.io/badge/Vue-3.4+-4FC08D?logo=vuedotjs" alt="Vue">
+  <img src="https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs" alt="Next.js">
   <img src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/pgvector-hnsw-336791" alt="pgvector">
   <img src="https://img.shields.io/badge/Docker-blue?logo=docker" alt="Docker">
@@ -68,7 +68,7 @@ make up
 等待约 1 分钟：
 | 地址 | 说明 |
 |------|------|
-| http://localhost:5173 | 前端（Vite） |
+| http://localhost:3000 | 前端（Next.js） |
 | http://localhost:8080 | 后端 API |
 | http://localhost:9001 | MinIO 控制台 |
 
@@ -100,6 +100,32 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/0
 | `knowledge` | `Knowledge@123` | 知识库管理员 |
 | `reporter1` | `Reporter@123` | 报障人 |
 
+### 重排序模型（可选，提升检索精度 ~5%）
+
+Docker 镜像内置轻量 cross-encoder 模型用于 RAG 重排序。构建前需先下载模型到本地：
+
+```bash
+# 安装依赖（仅需一次）
+pip install sentence-transformers huggingface-hub
+
+# 下载模型到 server/models/rerank/（~50MB，仅需一次）
+cd server
+python models/rerank/download.py
+```
+
+模型文件会随 `docker compose build` 直接 COPY 进镜像，构建过程无需网络下载。
+
+| 模型 | 大小 | 说明 |
+|------|------|------|
+| `MiniLM-L-2-v2` | ~17MB | 最小，2 层 transformer |
+| `MiniLM-L-4-v2` | ~50MB | **默认**，4 层，体积与效果平衡 |
+| `MiniLM-L-6-v2` | ~80MB | 6 层，效果更好 |
+| `MiniLM-L-12-v2` | ~120MB | 12 层，效果最好 |
+
+> 切换模型：设置环境变量 `RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 python models/rerank/download.py`
+>
+> 不下载模型也可构建——RAG 管道会自动降级跳过重排序步骤。
+
 ## 本地开发
 
 ### 依赖服务（Docker）
@@ -122,7 +148,7 @@ make seed                   # 加载演示数据
 ```bash
 cd web
 npm install
-npm run dev                 # :5173，自动代理 /api → :8080
+npm run dev                 # :3000，rewrite 代理 /api → :8080
 ```
 
 ### 运行测试

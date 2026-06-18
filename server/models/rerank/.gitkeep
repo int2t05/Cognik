@@ -1,0 +1,4 @@
+将下载的模型文件放在此目录。
+运行 models/rerank/download.py 自动下载。
+
+模型加载优先级：本地目录 > HuggingFace 在线下载

@@ -27,7 +27,8 @@ web/*.tsbuildinfo
 # === Docker / 运行时数据 ===
 .env
 !.env.example
-models/
+/models/
+!server/models/
 postgres_data/
 minio_data/
 anythingllm_storage/
