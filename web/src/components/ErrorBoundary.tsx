@@ -30,3 +30,34 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+/** 轻量级 ErrorFallback — 用于局部区域错误恢复。 */
+export function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="text-center max-w-[400px]">
+        <p className="text-[15px] text-[var(--color-text-muted-48)] mb-2">内容加载出错</p>
+        <p className="text-[13px] text-[var(--color-text-muted-48)] mb-4">{error.message}</p>
+        <AppleButton onClick={onReset}>重试</AppleButton>
+      </div>
+    </div>
+  );
+}
+
+/** SectionErrorBoundary — 局部错误边界，防止子页面崩溃导致整个后台 UI 不可用。 */
+interface SectionProps { children: ReactNode; }
+interface SectionState { error: Error | null; }
+export class SectionErrorBoundary extends Component<SectionProps, SectionState> {
+  state: SectionState = { error: null };
+
+  static getDerivedStateFromError(error: Error): SectionState {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return <ErrorFallback error={this.state.error} onReset={() => { this.setState({ error: null }); }} />;
+    }
+    return this.props.children;
+  }
+}

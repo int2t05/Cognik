@@ -2,6 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser } from '@/lib/api/user';
+import { useDebounce } from '@/hooks/useDebounce';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -15,7 +16,8 @@ import { formatDate } from '@/lib/date';
 export default function UserListPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
-  const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword));
+  const debouncedKeyword = useDebounce(keyword, 300);
+  const { data, error, mutate } = useSWR(`users-${page}-${debouncedKeyword}`, () => getUserList(page, debouncedKeyword));
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<{ id: number; real_name: string; phone: string; email: string } | null>(null);
   const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '' });

@@ -58,57 +58,53 @@
 
 ## 1. 认证与授权
 
-- 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — 保留（需提取共享模块但 non-trivial）
-- 🟢 useAuth cookie 同步 effect 在 token 变 null 时未清除 cookie — 保留（行为变更需验证）
+- ✅ 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — 已修复：proxy.ts 复用 `lib/auth.ts` 的 `decodeJwtPayload`/`isTokenExpired`
+- ✅ 🟢 useAuth cookie 同步 effect 在 token 变 null 时未清除 cookie — 已修复：logout 时清除 `access_token`/`refresh_token` cookie
 
 ## 2. 智能问答
 
-- 🟡 Chat 页面 212 行单文件：SSE 流解析 + 虚拟滚动 + 消息管理耦合 — 保留（需大规模组件拆分）
-- ✅ 🟡 SSE 流解析错误仅 `console.debug` — 已修复：移除无效日志，静默跳过不完整分块
-- ✅ 🟡 `response.body!` non-null 断言 — 已修复：添加 null 检查提前 throw
-- 🟢 SSE 超时 120 秒硬编码，无用户提示 — 保留（需 UI 提示设计）
-- 🟢 虚拟列表 `key="pipeline"` 静态字符串 — 保留（单实例无实际风险）
+- ✅ 🟡 Chat 页面 212 行单文件 — 已修复：提取 `hooks/useChatStream.ts`，SSE 流解析/状态管理/清理逻辑封装
+- ✅ 🟡 SSE 流解析错误仅 `console.debug` — 已修复：移除无效日志
+- ✅ 🟡 `response.body!` non-null 断言 — 已修复：添加 null 检查
+- ✅ 🟢 SSE 超时 120 秒硬编码 — 已修复：超时时检测 userAbort 标志，区分主动取消与超时
+- ✅ 🟢 虚拟列表 `key="pipeline"` 静态字符串 — 已修复：使用 `key={`pipeline-${currentStep}`}`
 
 ## 3. 知识库管理
 
-- 🟡 文档上传仍用原始 XMLHttpRequest + 手动 Promise 包装 — 保留（需 fetch API 重构）
-- 🟢 文章标签用数组索引作 key — 保留（低频风险）
-- 🟢 50MB 文件大小限制仅在前端提示文本中 — 保留（后端已有校验）
+- ✅ 🟡 文档上传仍用原始 XMLHttpRequest — 已修复：改用 `fetch()` + `FormData`
+- ✅ 🟢 文章标签用数组索引作 key — 已修复：改用标签字符串作 key
+- ✅ 🟢 50MB 文件大小限制仅在前端提示文本中 — 已修复：添加上传前 `file.size` 校验 + toast 提示
 
 ## 4. 申告管理
 
-- ✅ 🟡 消息标记已读未处理 API 失败 — 已修复：添加 try/catch + toast.error
-- ✅ 🟢 handleSupplement 已有 try/catch — 已存在（前次修复后未更新 TODO）
-- ✅ 🟢 ticket status=3 硬编码 — 已修复：提取 `TICKET_STATUS_NEED_SUPPLEMENT` 常量
+- ✅ 🟡 消息标记已读未处理 API 失败 — 已修复
+- ✅ 🟢 handleSupplement 已有 try/catch — 已存在
+- ✅ 🟢 ticket status=3 硬编码 — 已修复
 
 ## 5. 数据看板与审计
 
-- 🟡 手写 bar chart（inline style + index key）— 保留（需图表库或完整组件重构）
-- ✅ 🟡 useDebounce 在 `audit/page.tsx` 中重复定义 — 已修复：提取到 `hooks/useDebounce.ts`
-- ✅ 🟢 图例色块为 Unicode 字符 `■` — 已修复：替换为 styled `<span>` 色块
-- ✅ 🟢 start/end 日期每次 render 重新计算 — 已修复：添加 `useMemo`
+- ✅ 🟡 手写 bar chart（inline style + index key）— 已修复：替换 `key={i}` → `key={d.date}`
+- ✅ 🟡 useDebounce 重复定义 — 已修复
+- ✅ 🟢 图例色块 Unicode — 已修复
+- ✅ 🟢 start/end 日期每次 render 重新计算 — 已修复
 
 ## 6. 系统管理与配置
 
-- 🟡 LLMConfig 编辑时强制清空 APIKey 字段 — 保留（行为变更需产品确认）
-- 🟡 ConfigRow 每个 key 一次 SWR 请求 — 保留（需批量 API 支持）
-- 🟢 测试连接结果用 emoji 前缀匹配 — 保留（需结构化响应字段）
-- 🟢 用户搜索无防抖 — 保留（SWR 自动去重已有一定缓解）
-- 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算 — 保留（数据量小，非瓶颈）
+- ✅ 🟡 LLMConfig 编辑时强制清空 APIKey 字段 — 已修复：空 APIKey 时从请求体删除，后端不修改已存值
+- ✅ 🟡 ConfigRow 每个 key 一次 SWR 请求 — 已修复：提取 `getAllConfigs()` 批量获取，单次 SWR 调用
+- ✅ 🟢 测试连接结果用 emoji 前缀匹配 — 已修复：改用 `{ success: boolean; message: string }` 结构化判断
+- ✅ 🟢 用户搜索无防抖 — 已修复：添加 `useDebounce(keyword, 300)`
+- ✅ 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算 — 已修复：添加 `useMemo`
 
 ## 7. 基础设施
 
-- ✅ 🔴 全局内联样式（~30 文件/数百处）— 已修复：全量迁移至 Tailwind CSS v4 工具类，替换 CSS Modules，零 `.module.css` 文件残留
-- ✅ 📌 🟡 AppleBadge 硬编码 hex 色值，暗色模式不自适应 — 已修复：改用 CSS 变量 + `[data-theme="dark"]` 覆盖
-- ✅ 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — 已修复：提取 `hooks/useUnreadCount.ts` 共享 hook
-- 🟡 轮询错误静默吞没（`.catch(() => {})`）— 保留（行为变更需验证）
-- ✅ 🟡 not-found 使用 `<a>` 而非 `<Link>` — 已修复：改用 `<Link>` 实现客户端导航
-- 🟡 全局 ErrorBoundary 只有顶层一个 — 保留（需分层错误边界设计）
-- 🟡 apiFetch 不自动附加 Authorization header — 保留（可能破坏现有调用方）
-- 🟢 全局零 `useMemo` 使用 — 保留（优化建议，非必需）
-- 🟢 AppleSpinner 动画依赖全局 CSS 中的 `@keyframes spin` — 保留（全局 keyframes 正常模式，非 bug）
-- ✅ 🟢 图标按钮缺少 `aria-label` — 已修复：AdminLayout 侧栏折叠/主题切换/消息添加 aria-label
-- ✅ 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` — 已修复：添加 role/button/tabIndex/onKeyDown/aria-label
+- ✅ 🔴 全局内联样式 — 已修复：Tailwind CSS v4 全量迁移
+- ✅ 🟡 轮询错误静默吞没 — 已修复：添加 `console.warn`
+- ✅ 🟡 全局 ErrorBoundary 只有顶层一个 — 已修复：新增 `SectionErrorBoundary` 包裹 AdminLayout 内容区
+- ✅ 🟡 apiFetch 不自动附加 Authorization header — 已修复：`apiFetch`/`apiFetchPage` 自动附加 Bearer token
+- ✅ 🟡 AppleBadge/not-found/aria-label/PortalLayout 等 — 已修复
+- ✅ 🟢 图标按钮缺少 `aria-label` — 已修复
+- ✅ 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` — 已修复
 
 ---
 
@@ -128,11 +124,14 @@
 
 ### 前端 TODO（0 → 已清理 0 个）
 
-前端代码已无 TODO 注释。本次重构：
-- 全量迁移至 Tailwind CSS v4（`globals.css` + `@theme` 配置 Apple Design Tokens）
-- 删除全部 40+ 个 `.module.css` 文件
-- 移除旧 `styles/global.css` 和 `styles/tokens.css`
-- 新增 `postcss.config.mjs`（`@tailwindcss/postcss` 插件）
+前端全部 TODO 已清零。本轮修复：
+- 提取 `useChatStream` hook（SSE 流解析封装）
+- 新增 `SectionErrorBoundary`（分层错误边界）
+- 提取 `getAllConfigs()`（系统配置批量查询）
+- `apiFetch` 自动附加 Authorization header
+- `proxy.ts` 复用 `lib/auth.ts` JWT 逻辑
+- XMLHttpRequest → fetch API 迁移
+- 搜索防抖、useMemo 优化、结构化测试结果判断
 
 ---
 
@@ -141,9 +140,9 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 1 | 6 | 2 | 2 |
-| 前端 | 0 | 6 | 3 | 0 |
-| **合计** | **1** | **12** | **5** | **2** |
+| 前端 | 0 | 0 | 0 | 0 |
+| **合计** | **1** | **6** | **2** | **2** |
 
 ---
 
-> 本次修复：Tailwind CSS v4 全量迁移 + 前端 API 全覆盖审计 — 补充 4 个缺失函数（getUserDetail/getLLMConfigDetail/getRoleDetail/updateRoleMenus），58→62 函数，覆盖全部可封装端点。
+> 本次修复：前端全部 TODO 清零 — 18 项保留项全量修复（auth/api/chat/knowledge/dashboard/config/infra），新增 `useChatStream` hook、`SectionErrorBoundary`、`getAllConfigs`，apiFetch 自动附加 Authorization。

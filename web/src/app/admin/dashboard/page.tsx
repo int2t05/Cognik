@@ -55,7 +55,7 @@ function TrendChart({ data }: { data: { date: string; ticket_count: number; chat
     <div role="img" aria-label="30 日申告和问答趋势图" className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
       <div className="flex items-end gap-[3px] h-[200px]">
         {data.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+          <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
             <div className="flex gap-[2px] items-end h-[160px]">
               <div role="img" aria-label={`${d.date} 申告 ${d.ticket_count} 问答 ${d.chat_count}`}
                 title={`申告: ${d.ticket_count}`}

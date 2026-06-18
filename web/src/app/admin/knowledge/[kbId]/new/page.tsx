@@ -21,50 +21,49 @@ export default function NewArticlePage() {
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string>('');
+
+  /** 单文件最大 50MB */
+  const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
 
+    // 前置校验文件大小
+    for (const f of Array.from(files)) {
+      if (f.size > MAX_FILE_SIZE) {
+        toast.error(`"${f.name}" 超过 50MB 限制`);
+        if (fileRef.current) fileRef.current.value = '';
+        return;
+      }
+    }
+
     setUploading(true);
-    setUploadProgress('上传中...');
 
     try {
       const formData = new FormData();
       Array.from(files).forEach((f) => formData.append('files', f));
 
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `/api/v1/admin/knowledge-bases/${kbId}/documents/upload`);
+      const response = await fetch(
+        `/api/v1/admin/knowledge-bases/${kbId}/documents/upload`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
 
-      // 上传进度
-      xhr.upload.onprogress = (evt) => {
-        if (evt.lengthComputable) {
-          setUploadProgress(`上传中 ${Math.round((evt.loaded / evt.total) * 100)}%`);
-        }
-      };
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.message || `上传失败 (${response.status})`);
 
-      await new Promise<void>((resolve, reject) => {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`上传失败 (${xhr.status})`));
-        };
-        xhr.onerror = () => reject(new Error('网络错误'));
-        xhr.send(formData);
-      });
-
-      const response = JSON.parse(xhr.responseText);
-      const docs = response.data?.documents || [];
+      const docs = json.data?.documents || [];
       toast.success(docs.length ? `已上传 ${docs.length} 个文件，后台处理中` : '上传成功');
-      setUploadProgress('');
       if (docs[0]?.article_id) {
         router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}`);
         return;
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : '上传失败');
-      setUploadProgress('');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -96,9 +95,6 @@ export default function NewArticlePage() {
         <div className="flex gap-3 items-center">
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
             className="text-sm cursor-pointer" />
-          {uploadProgress && (
-            <span className="text-sm text-[var(--color-accent)]">{uploadProgress}</span>
-          )}
         </div>
       </AppleCard>
 

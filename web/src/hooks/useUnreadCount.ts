@@ -15,8 +15,8 @@ export function useUnreadCount(interval = 30000) {
   const refresh = useCallback(() => {
     getUnreadCount()
       .then((d) => setUnreadCount(d.count))
-      .catch(() => {
-        /* 轮询失败静默处理——用户不应因未读数获取失败而受到打扰 */
+      .catch((err: unknown) => {
+        console.warn('获取未读数失败:', err);
       });
   }, []);
 

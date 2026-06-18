@@ -9,6 +9,7 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
+import { setTokenGetter } from '@/lib/api/client';
 
 interface User {
   id: number;
@@ -69,11 +70,23 @@ function persistAuth(state: AuthState) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(loadAuthState);
 
-  // 同步 token 到 cookie（供 middleware 读取）
+  // 同步 token/refreshToken 到 cookie（供 middleware 读取）
   useEffect(() => {
     if (state.token) {
-      document.cookie = `access_token=${state.token}; path=/; SameSite=Lax`;
+      document.cookie = `access_token=${state.token}; path=/; SameSite=Lax; max-age=604800`;
+      if (state.refreshToken) {
+        document.cookie = `refresh_token=${state.refreshToken}; path=/; SameSite=Lax; max-age=604800`;
+      }
+    } else {
+      // token 变 null（登出）时清除 cookie
+      document.cookie = 'access_token=; path=/; SameSite=Lax; max-age=0';
+      document.cookie = 'refresh_token=; path=/; SameSite=Lax; max-age=0';
     }
+  }, [state.token, state.refreshToken]);
+
+  // 同步 token 到 apiFetch（自动附加 Authorization header）
+  useEffect(() => {
+    setTokenGetter(() => state.token);
   }, [state.token]);
 
   const login = useCallback(

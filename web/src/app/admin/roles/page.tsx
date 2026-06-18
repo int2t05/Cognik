@@ -1,6 +1,6 @@
 'use client';
 import useSWR from 'swr';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { getRoleList, createRole, updateRole, deleteRole } from '@/lib/api/role';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
@@ -23,15 +23,19 @@ export default function RoleManagePage() {
   const toast = useToast();
 
   // 从已有角色中提取所有已知权限（动态，而非硬编码）
-  const knownPermissions = Array.from(
-    new Set((data?.items || []).flatMap((r) => r.permissions))
-  ).sort();
-  // 追加未在任何角色上出现但系统中实际存在的权限
-  if (data?.items && knownPermissions.length === 0) {
-    knownPermissions.push('user:manage', 'ticket:read', 'ticket:write', 'ticket:manage',
-      'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage',
-      'dashboard:read', 'audit:read', 'system:config');
-  }
+  // 使用 useMemo 避免每次 render 重复计算
+  const knownPermissions = useMemo(() => {
+    const perms = Array.from(
+      new Set((data?.items || []).flatMap((r) => r.permissions))
+    ).sort();
+    // 追加未在任何角色上出现但系统中实际存在的权限
+    if (data?.items && perms.length === 0) {
+      perms.push('user:manage', 'ticket:read', 'ticket:write', 'ticket:manage',
+        'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage',
+        'dashboard:read', 'audit:read', 'system:config');
+    }
+    return perms;
+  }, [data]);
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error('请输入角色名'); return; }

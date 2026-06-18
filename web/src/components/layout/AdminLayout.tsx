@@ -2,13 +2,14 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { getUnreadCount } from '@/lib/api/message';
 import { isActivePath } from '@/lib/menu';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -88,9 +89,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const topMenus = menus.filter((m) => !m.parent_id);
-  const childMenus = menus.filter((m) => m.parent_id);
-  const menuTree = topMenus.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
+  const menuTree = useMemo(() => {
+    const topMenus = menus.filter((m) => !m.parent_id);
+    const childMenus = menus.filter((m) => m.parent_id);
+    return topMenus.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
+  }, [menus]);
 
   const sidebarWidth = collapsed ? 64 : 220;
 
@@ -131,7 +134,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
       </div>
     </div>
   );

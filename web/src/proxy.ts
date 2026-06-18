@@ -3,32 +3,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ADMIN_ROLES } from '@/lib/roles';
+import { decodeJwtPayload, isTokenExpired } from '@/lib/auth';
 
 const PUBLIC_PATHS = ['/login'];
 const ADMIN_PATH = '/admin';
-
-interface JwtPayload {
-  roles?: string[];
-  exp?: number;
-  [key: string]: unknown;
-}
-
-function decodePayload(token: string): JwtPayload | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64));
-  } catch {
-    return null;
-  }
-}
-
-function isExpired(token: string, bufferMs = 60_000): boolean {
-  const p = decodePayload(token);
-  if (!p?.exp) return true;
-  return p.exp * 1000 < Date.now() + bufferMs;
-}
 
 async function refreshAccessToken(refreshToken: string, requestUrl: string): Promise<string | null> {
   try {
@@ -52,7 +30,7 @@ export async function proxy(request: NextRequest) {
   const refreshToken = request.cookies.get('refresh_token')?.value;
 
   if (PUBLIC_PATHS.includes(pathname)) {
-    if (accessToken && !isExpired(accessToken)) {
+    if (accessToken && !isTokenExpired(accessToken)) {
       return NextResponse.redirect(new URL('/portal/chat', request.url));
     }
     return NextResponse.next();
@@ -67,7 +45,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Token 过期 → 尝试 refresh 自动续期
-  if (isExpired(accessToken)) {
+  if (isTokenExpired(accessToken)) {
     if (refreshToken) {
       const newToken = await refreshAccessToken(refreshToken, request.url);
       if (newToken) {
@@ -84,7 +62,7 @@ export async function proxy(request: NextRequest) {
 
   // RBAC
   if (pathname.startsWith(ADMIN_PATH)) {
-    const payload = decodePayload(accessToken);
+    const payload = decodeJwtPayload(accessToken);
     if (!payload?.roles?.some((r) => ADMIN_ROLES.includes(r))) {
       return NextResponse.redirect(new URL('/portal/chat', request.url));
     }

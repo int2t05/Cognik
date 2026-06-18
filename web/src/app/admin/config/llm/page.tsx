@@ -15,7 +15,7 @@ export default function LLMConfigPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Record<string, string | number | boolean>>({});
   const [saving, setSaving] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const toast = useToast();
 
@@ -25,7 +25,11 @@ export default function LLMConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const data = { ...form, api_key: form.api_key || undefined };
+      const data = { ...form };
+      // 编辑模式下 API Key 为空时不发送该字段（服务端不修改已有密钥）
+      if (editId && !data.api_key) {
+        delete data.api_key;
+      }
       if (editId) { await updateLLMConfig(editId, data); } else { await createLLMConfig(data); }
       toast.success(editId ? '已更新' : '已创建'); setShowDialog(false); mutate();
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
@@ -35,9 +39,12 @@ export default function LLMConfigPage() {
   const handleTest = async () => {
     if (!editId) return;
     setTesting(true); setTestResult(null);
-    try { const r = await testLLMConnection(editId); setTestResult(`✅ 连接成功 (${r.latency_ms}ms, ${r.tokens_used} tokens, ${r.model})`); }
-    catch (err: unknown) { setTestResult(`❌ ${err instanceof Error ? err.message : '连接失败'}`); }
-    finally { setTesting(false); }
+    try {
+      const r = await testLLMConnection(editId);
+      setTestResult({ success: true, message: `连接成功 (${r.latency_ms}ms, ${r.tokens_used} tokens, ${r.model})` });
+    } catch (err: unknown) {
+      setTestResult({ success: false, message: err instanceof Error ? err.message : '连接失败' });
+    } finally { setTesting(false); }
   };
 
   if (error) return <p className="text-[var(--color-error)] p-10">加载失败</p>;
@@ -86,7 +93,7 @@ export default function LLMConfigPage() {
         <AppleInput label="Embedding 模型" value={String(form.embedding_model || '')} onChange={(e) => setForm({ ...form, embedding_model: e.target.value })} />
         <AppleInput label="最大 Token" type="number" value={String(form.max_tokens || '')} onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })} />
         <AppleInput label="向量维度" type="number" value={String(form.vector_dimension || '')} onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })} />
-        {testResult && <p className={`mt-3 text-sm ${testResult.startsWith('✅') ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>{testResult}</p>}
+        {testResult && <p className={`mt-3 text-sm ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>{testResult.message}</p>}
       </AppleDialog>
     </div>
   );
