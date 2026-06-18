@@ -1,4 +1,7 @@
-/** AppleBadge — 语义状态标签 */
+/** AppleBadge — 语义状态标签。
+ *
+ * TODO(ui/AppleBadge): variantColors 使用硬编码 hex 色值，暗色模式下背景/文字不会自适应。
+ * 应改用 CSS 变量（如 var(--color-success-bg)）或 prefers-color-scheme 媒体查询。 */
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {

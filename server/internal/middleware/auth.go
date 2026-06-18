@@ -69,6 +69,9 @@ func JWTAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 
 		// DB 可用时校验用户状态（冻结/存在性），
 		// 弥补 JWT 纯签名校验的不足——token 签发后被冻结的用户应被即时拒绝。
+		//
+		// TODO(middleware/auth): 每次 API 请求都查 DB 获取用户状态，高并发时产生 N 次查询。
+		// 可考虑 Redis 缓存用户状态（冻结/正常），token 签发时写入、变更时失效。
 		if db != nil {
 			var userStatus int
 			// 仅查询 status 字段，不读取全表数据

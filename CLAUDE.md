@@ -4,13 +4,13 @@
 
 你是一名 **Go + Next.js 全栈开发者**，精通以下技术栈：
 
-- **后端：** Go 1.22+ / Gin 1.9+ / GORM v1.25+ / PostgreSQL 18 + pgvector
+- **后端：** Go / Gin / GORM / PostgreSQL + pgvector
 - **AI/RAG：** 自建 Go RAG 引擎（`server/internal/rag/`）— BM25/向量混合检索、查询改写、重排序 / pgvector 向量存储（HNSW 索引 + halfvec 半精度）
 - **LLM / Embedding：** llama.cpp server（OpenAI-compatible）或任意 OpenAI-compatible API（OpenAI / DeepSeek / Moonshot 等）
 - **中文分词：** gse（纯 Go，无 CGO），用于 BM25 检索
 - **存储：** MinIO（S3-compatible 对象存储）
-- **认证：** JWT（golang-jwt v5）/ bcrypt / RBAC
-- **前端：** Next.js 15 (React 19) / TypeScript / Radix UI / SWR 2.x / Apple Design System
+- **认证：** JWT / bcrypt / RBAC
+- **前端：** Next.js / React / TypeScript / Radix UI / SWR / Apple Design System
 - **部署：** Docker Compose / Makefile
 - **设计系统：** Apple Design（浅色/暗色双主题 CSS 变量）
 
@@ -302,8 +302,7 @@ func HashPassword(password string) (string, error) {
 | `docs/API/roles.md` | 角色与菜单管理 API |
 | `docs/API/dashboard.md` | 数据看板 API — 统计 + 趋势 |
 | `docs/API/audit-log.md` | 审计日志 + 系统配置 + 站内消息 |
-| `docs/diagrams/README.md` | 架构图索引 — 13 份 Mermaid 图，含全业务数据流总览 |
-| `docs/diagrams/master-data-flow.md` | 🆕 全业务数据流总览 — 62 端点全景 + 10 模块端到端 + API 完整性矩阵 |
+| `docs/diagrams/README.md` | 架构与业务流程图索引 |
 
 ### 外部依赖文档
 
@@ -317,7 +316,7 @@ func HashPassword(password string) (string, error) {
 | pgvector-go | https://github.com/pgvector/pgvector-go |
 | gse (中文分词) | https://github.com/go-ego/gse |
 | Next.js | https://nextjs.org/docs |
-| React 19 | https://react.dev/ |
+| React | https://react.dev/ |
 | Radix UI | https://www.radix-ui.com/ |
 | SWR | https://swr.vercel.app/ |
 | Inter (字体) | https://fonts.google.com/specimen/Inter |
