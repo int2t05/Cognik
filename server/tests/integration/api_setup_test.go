@@ -223,7 +223,7 @@ func (ts *apiTestServer) seedOperator(t *testing.T) (int64, string) {
 
 	db.Exec(`INSERT INTO roles (name, description, permissions, created_at, updated_at)
 		VALUES ('运维人员', '处理申告和回访',
-		'["ticket:read","ticket:write","ticket:manage","knowledge:read","knowledge:write","knowledge:create"]',
+		'["ticket:read","ticket:write","ticket:manage","knowledge:read","knowledge:write","knowledge:create","knowledge:review"]',
 		NOW(), NOW())`)
 	var roleID int64
 	db.Raw("SELECT id FROM roles WHERE name = '运维人员'").Scan(&roleID)

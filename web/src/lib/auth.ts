@@ -8,7 +8,7 @@ export interface JwtPayload {
   [key: string]: unknown;
 }
 
-/** 解码 JWT payload（不验证签名），兼容 base64url */
+/** 解码 JWT payload（不验证签名），兼容 base64url，正确处理 UTF-8 多字节字符。 */
 export function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     const parts = token.split('.');
@@ -17,7 +17,11 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
     const payload = parts[1];
     // base64url → base64：替换非标准字符
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(base64);
+    // atob 返回的二进制字符串每个字符对应一个字节（Latin-1 范围），
+    // 中文等多字节 UTF-8 字符会被拆分，需要通过 TextDecoder 重新解码。
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
     return JSON.parse(json);
   } catch {
     return null;

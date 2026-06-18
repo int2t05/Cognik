@@ -64,6 +64,10 @@ coverage/
 *.log
 logs/
 
+# === Playwright E2E ===
+web/test-results/
+web/playwright-report/
+
 # === 临时文件 ===
 *.tmp
 *.bak
