@@ -37,7 +37,7 @@ type KnowledgeArticle struct {
 	ChunkCount      int            `gorm:"not null;default:0;column:chunk_count" json:"chunk_count"`
 	FileType        string         `gorm:"type:varchar(16);column:file_type" json:"file_type"`
 	MinioPath       string         `gorm:"type:varchar(512);column:minio_path" json:"minio_path"`
-	ProcessStatus   string         `gorm:"type:varchar(16);not null;default:pending;column:process_status" json:"process_status"`
+	ProcessStatus   string         `gorm:"type:varchar(16);not null;default:pending;column:process_status;index:idx_articles_process_status" json:"process_status"`
 	ProcessError    string         `gorm:"type:text;column:process_error" json:"process_error"`
 	CreatedBy       int64          `gorm:"column:created_by" json:"created_by"`
 	ReviewedBy      *int64         `gorm:"column:reviewed_by" json:"reviewed_by"`

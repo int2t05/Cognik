@@ -7,9 +7,9 @@
 ```mermaid
 flowchart TB
     subgraph Client["客户端层"]
-        Browser["浏览器 (Vue 3 + Radix Vue)"]
-        Portal["门户端 /portal/*<br/>Chat.vue / TicketSubmit.vue / Messages.vue"]
-        Admin["后台管理 /admin/*<br/>Dashboard.vue / KnowledgeList.vue / TicketList.vue / LLMConfig.vue"]
+        Browser["浏览器 (Next.js + Radix UI)"]
+        Portal["门户端 /portal/*<br/>ChatPage / TicketSubmitPage / MessagesPage"]
+        Admin["后台管理 /admin/*<br/>DashboardPage / KnowledgeListPage / TicketListPage / LLMConfigPage"]
     end
 
     subgraph Router["Gin Router :8080"]

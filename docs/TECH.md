@@ -10,7 +10,7 @@
 OpsMind 采用**单体分层架构（Modular Monolith）**，按 Handler → Service → Repository 三层分离。RAG 引擎（`rag/`包）为自包含领域模块，不依赖 HTTP 层。
 
 ```
-客户端 (Vue 3 SPA)
+客户端 (Next.js 15 App Router)
   │
   ├─ HTTP/REST + SSE ──▶ Go 后端 (Gin, 端口 8080)
   │                        │
@@ -93,7 +93,7 @@ OpsMind 采用**单体分层架构（Modular Monolith）**，按 Handler → Ser
 | `tickets` / `ticket_records` | 申告和操作记录 |
 | `llm_configs` | LLM/Embedding 提供商配置（独立 Base URL，最多一个默认） |
 | `audit_logs` | 操作审计日志 |
-| `configs` | 系统配置键值对（如 `app_name`） |
+| `system_configs` | 系统配置键值对（如 `app_name`） |
 | `messages` | 站内消息通知 |
 
 ### 3.2 pgvector 配置
@@ -301,12 +301,15 @@ server/
 
 web/
 ├── src/
-│   ├── api/                        # Axios API 封装（12 个文件）
-│   ├── stores/                     # Pinia 状态管理（auth/chat/app）
-│   ├── router/                     # Vue Router + 路由守卫
-│   ├── views/                      # 页面（auth/portal/admin）
-│   ├── components/                 # 通用组件（布局/分页/状态标签）
-│   ├── utils/                      # 工具函数（request/auth）
-│   └── styles/                     # Linear Design 暗色主题
-└── nginx.conf                      # Nginx 反向代理配置
+│   ├── app/                        # Next.js App Router 路由（auth/portal/admin）
+│   ├── components/
+│   │   ├── ui/                     # Apple Design 原子组件（Button/Input/Dialog/Table 等 14 个）
+│   │   ├── layout/                 # 布局组件（AdminLayout/PortalLayout）
+│   │   └── shared/                 # 业务无关的复合组件（StatCard/StatusBadge/ConfirmDialog）
+│   ├── lib/                        # 工具函数（request/format/auth/date/knowledge/ticket）
+│   │   └── api/                    # API 客户端（server-side + client-side 统一封装）
+│   ├── hooks/                      # React Hooks（useAuth/useTheme/useToast/useAIConfig/useLoading）
+│   └── styles/                     # Apple Design Tokens（tokens.css + global.css）
+├── public/                         # 静态资源
+└── next.config.js                  # Next.js 配置（rewrite 代理到后端）
 ```

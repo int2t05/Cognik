@@ -46,7 +46,7 @@
 | LLM / Embedding | llama.cpp / OpenAI / DeepSeek | UI 配置，热切换，独立 URL 和 API Key |
 | 对象存储 | MinIO | S3-compatible，文档上传 + 异步解析 |
 | 认证 | JWT（golang-jwt v5）+ bcrypt | access_token 2h + refresh_token 7d |
-| 前端 | Vue 3.4+ / TypeScript | Composition API + Naive UI 暗色主题 |
+| 前端 | Next.js 15 (React 19) / TypeScript | App Router + Radix UI + Apple Design 双主题 |
 | 部署 | Docker Compose + Makefile | 4 必须服务 + 1 可选（llama.cpp），支持 profile |
 
 ## 快速启动
@@ -155,8 +155,8 @@ OpsMind/
 │   ├── pkg/                         # 公共工具（errcode/jwt/hash/response）
 │   └── tests/                       # Go 集成测试（12 包）
 │
-├── web/                             # Vue 3 前端
-│   └── src/{api,stores,router,views,components,utils}/
+├── web/                             # Next.js 前端
+│   └── src/{app,components/ui,layout,shared,lib/api,hooks,styles}/
 │
 ├── test/                            # Playwright API 测试（129 个）
 ├── docs/                            # 文档（PRD/TECH/API/TODO）

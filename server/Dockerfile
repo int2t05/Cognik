@@ -1,7 +1,11 @@
 # OpsMind Server — Go 后端多阶段构建
 #
 # 阶段 1: 编译 Go 二进制
-# 阶段 2: Python slim 运行时（Go 二进制 + Python cross-encoder 推理）
+# 阶段 2: Alpine 运行时（纯 Go，无 Python 重排序依赖）
+#
+# 重排序说明：cross-encoder (bge-reranker-base) 约 1.1GB，
+# 通过 Python 子进程推理。Docker 镜像不内置此依赖，
+# 运行时若 reranker 不可用，RAG 管道自动降级跳过重排序步骤。
 #
 # 构建方式：
 #   docker build -t opsmind-server -f server/Dockerfile server/
@@ -25,37 +29,18 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /build/opsmind-server ./cmd/main.go
 
-# ===== 阶段 2: 运行时（Python 3.11 slim + Go 二进制）=====
-# 选择 python slim 而非 alpine：PyTorch 对 Debian/glibc 开箱即用，
-# 避免 Alpine musl 需要特殊 wheel 的问题。
-FROM python:3.11-slim-bookworm
+# ===== 阶段 2: Alpine 运行时（纯 Go 二进制）=====
+FROM alpine:3.21
 
-# Go 运行时依赖
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata \
-    && rm -rf /var/lib/apt/lists/*
+# 运行时依赖：CA 证书（HTTPS 调用 LLM API）+ 时区数据
+RUN apk add --no-cache ca-certificates tzdata
 
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-# 安装 Python 依赖（sentence-transformers + PyTorch CPU 版）
-# --no-cache-dir 减少镜像体积
-RUN pip install --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cpu \
-    sentence-transformers
-
-# 预下载 rerank 模型到镜像（避免容器启动时网络依赖）
-# 使用 huggingface_hub 直接下载，比 sentence-transformers 更可控
-RUN python -c "\
-from sentence_transformers import CrossEncoder; \
-CrossEncoder('BAAI/bge-reranker-base', device='cpu')"
-
-# 从构建阶段复制 Go 二进制和配置
+# 从构建阶段复制 Go 二进制
 COPY --from=builder /build/opsmind-server .
-COPY --from=builder /build/internal/config/config.yaml ./internal/config/config.yaml
-
-# 复制 Python 推理脚本
-COPY rerank_server.py .
 
 # 暴露 8080 端口
 EXPOSE 8080

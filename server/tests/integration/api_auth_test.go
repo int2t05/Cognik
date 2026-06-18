@@ -60,7 +60,8 @@ func TestAPI_Auth_FirstLoginFlag(t *testing.T) {
 	body := assertOK(t, ts.do(t, http.MethodPost, "/api/v1/auth/login",
 		map[string]string{"username": "auth_first", "password": "Admin@123"}, ""))
 	user := body["data"].(map[string]interface{})["user"].(map[string]interface{})
-	assert.True(t, user["first_login"].(bool))
+	// 首次登录后 first_login 应由服务端自动置为 false
+	assert.False(t, user["first_login"].(bool), "首次登录后 first_login 应为 false")
 	assert.NotEmpty(t, body["data"].(map[string]interface{})["access_token"])
 }
 

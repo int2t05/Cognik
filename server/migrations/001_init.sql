@@ -1,6 +1,10 @@
 -- OpsMind 数据库初始化脚本（DDL + 演示数据）
 --
--- 前置条件：GORM AutoMigrate 已创建基础表结构。
+-- 此脚本与 GORM AutoMigrate 协同工作：
+--   - 基础表结构由 GORM AutoMigrate 在服务启动时自动创建
+--   - 本脚本处理 GORM 无法覆盖的部分（pgvector 扩展、HNSW 索引、列注释、
+--     旧字段迁移），并加载演示数据
+--
 -- 加载方式：
 --   docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/001_init.sql
 -- 或：
@@ -12,14 +16,15 @@
 -- DDL 迁移（幂等：所有语句使用 IF NOT EXISTS / DROP IF EXISTS）
 -- =============================================================================
 
--- pgvector 扩展
+-- pgvector 扩展（GORM AutoMigrate 也会创建，此语句幂等）
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- knowledge_bases：移除旧字段，添加 LLM 配置关联
+-- knowledge_bases：移除旧字段，添加 LLM 配置关联（升级旧 schema 时使用）
 ALTER TABLE knowledge_bases DROP COLUMN IF EXISTS rag_workspace_slug;
-ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS llm_config_id bigint;
+ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS rag_workspace_slug varchar(128);
+ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS llm_config_id bigint NOT NULL DEFAULT 0;
 
--- knowledge_articles：统一文章模型
+-- knowledge_articles：升级旧 schema → 统一文章模型
 ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS question;
 ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS rag_document_location;
 
@@ -35,11 +40,11 @@ END $$;
 
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS title         varchar(255) NOT NULL DEFAULT '';
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS source_type  smallint NOT NULL DEFAULT 1;
-ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS word_count   integer NOT NULL DEFAULT 0;
-ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS chunk_count  integer NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS word_count   bigint NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS chunk_count  bigint NOT NULL DEFAULT 0;
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS file_type    varchar(16);
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS minio_path   varchar(512);
-ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS process_status varchar(16) NOT NULL DEFAULT 'completed';
+ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS process_status varchar(16) NOT NULL DEFAULT 'pending';
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS process_error text;
 
 UPDATE knowledge_articles SET title = LEFT(COALESCE(content, '未命名文章'), 50) WHERE title = '';
@@ -53,8 +58,9 @@ ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS sync_error;
 ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS synced_at;
 
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS kb_id        bigint NOT NULL DEFAULT 0;
-ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS chunk_index  integer NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS chunk_index  bigint NOT NULL DEFAULT 0;
 
+-- embedding 列：halfvec(1024) — 由 VectorStore 适配器通过 SQL 管理，不走 GORM
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -65,9 +71,10 @@ BEGIN
     END IF;
 END $$;
 
-COMMENT ON COLUMN knowledge_chunks.embedding IS 'halfvec 半精度向量，pgvector 余弦相似度检索';
+COMMENT ON COLUMN knowledge_chunks.embedding IS 'halfvec 半精度向量（1024 维），pgvector 余弦相似度检索';
 
 -- llm_configs：LLM/Embedding 提供商配置
+-- 注意：GORM AutoMigrate 使用 bigint 而非 integer，本 CREATE 仅在表不存在时生效
 CREATE TABLE IF NOT EXISTS llm_configs (
     id                bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     name              varchar(128) NOT NULL,
@@ -78,8 +85,8 @@ CREATE TABLE IF NOT EXISTS llm_configs (
     llm_model         varchar(128) NOT NULL,
     embedding_model   varchar(128) NOT NULL,
     system_prompt     text,
-    max_tokens        integer NOT NULL DEFAULT 8192,
-    vector_dimension  integer NOT NULL DEFAULT 1024,
+    max_tokens        bigint NOT NULL DEFAULT 8192,
+    vector_dimension  bigint NOT NULL DEFAULT 1024,
     is_default        boolean NOT NULL DEFAULT false,
     created_at        timestamptz NOT NULL DEFAULT now(),
     updated_at        timestamptz NOT NULL DEFAULT now()
@@ -93,7 +100,7 @@ COMMENT ON COLUMN llm_configs.is_default IS '默认配置，最多一条为 true
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_llm_configs_default ON llm_configs (is_default) WHERE is_default = true;
 
--- 索引
+-- 索引（HNSW 每次重建以保证参数一致）
 DROP INDEX IF EXISTS idx_chunks_embedding;
 CREATE INDEX idx_chunks_embedding ON knowledge_chunks
     USING hnsw (embedding halfvec_cosine_ops)
@@ -104,9 +111,9 @@ CREATE INDEX IF NOT EXISTS idx_chunks_article_id       ON knowledge_chunks (arti
 CREATE INDEX IF NOT EXISTS idx_articles_status         ON knowledge_articles (status);
 CREATE INDEX IF NOT EXISTS idx_articles_process_status  ON knowledge_articles (process_status);
 
--- chat_messages：RAG 管道耗时
+-- chat_messages：RAG 管道耗时（JSONB）
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS pipeline_metrics jsonb;
-COMMENT ON COLUMN chat_messages.pipeline_metrics IS 'RAG 管道各步骤耗时';
+COMMENT ON COLUMN chat_messages.pipeline_metrics IS 'RAG 管道各步骤耗时（ms）';
 
 -- =============================================================================
 -- 演示数据
@@ -134,9 +141,9 @@ DELETE FROM system_configs;
 
 -- 角色
 INSERT INTO roles (id, name, description, permissions, created_at, updated_at) VALUES
-(1, '系统管理员', '系统全局管理', '["ticket:read","ticket:write","ticket:assign","knowledge:read","knowledge:write","knowledge:review","system:config","user:manage","audit:read"]', NOW(), NOW()),
+(1, '系统管理员', '系统全局管理', '["user:manage","ticket:read","ticket:write","ticket:manage","knowledge:read","knowledge:write","knowledge:create","knowledge:manage","knowledge:review","dashboard:read","audit:read","system:config"]', NOW(), NOW()),
 (2, '运维人员',     '处理申告和回访', '["ticket:read","ticket:write","knowledge:read","knowledge:write"]', NOW(), NOW()),
-(3, '知识库管理员', '维护和审核知识', '["knowledge:read","knowledge:write","knowledge:review"]', NOW(), NOW()),
+(3, '知识库管理员', '维护和审核知识', '["knowledge:read","knowledge:write","knowledge:create","knowledge:manage","knowledge:review"]', NOW(), NOW()),
 (4, '报障人',       '门户端用户',     '[]', NOW(), NOW());
 
 SELECT setval('roles_id_seq', (SELECT MAX(id) FROM roles));
@@ -186,8 +193,8 @@ INSERT INTO llm_configs (id, name, provider_type, base_url, api_key, llm_model, 
 SELECT setval('llm_configs_id_seq', (SELECT MAX(id) FROM llm_configs));
 
 -- 知识库
-INSERT INTO knowledge_bases (id, name, description, llm_config_id, embedding_model, vector_dimension, created_by, created_at, updated_at) VALUES
-(1, 'IT 运维 FAQ', '常见的 IT 运维问题和解决方案', 1, 'bge-m3', 1024, 1, NOW(), NOW());
+INSERT INTO knowledge_bases (id, name, description, rag_workspace_slug, llm_config_id, embedding_model, vector_dimension, created_by, created_at, updated_at) VALUES
+(1, 'IT 运维 FAQ', '常见的 IT 运维问题和解决方案', 'opsmind-it-ops', 1, 'bge-m3', 1024, 1, NOW(), NOW());
 
 SELECT setval('knowledge_bases_id_seq', (SELECT MAX(id) FROM knowledge_bases));
 
@@ -219,39 +226,39 @@ INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding
 (2, 1, '确认 WiFi 开关已打开，忘记该网络后重新连接，重启电脑。', 1, 'bge-m3', 1024, NOW()),
 (3, 1, 'Outlook 邮箱无法收发邮件？请检查网络连接和客户端状态。', 0, 'bge-m3', 1024, NOW());
 
--- 申告工单（使用相对日期）
+-- 申告工单（使用相对日期，24h-6d，均在 7 天自动关闭窗口内）
 INSERT INTO tickets (id, ticket_no, user_id, title, description, urgency, impact_scope, contact_phone, contact_email, status, supplement_count, source, created_at, updated_at) VALUES
 (1, 'TK-DEMO-0001', 5, '3 楼打印机故障',
  '3 楼东侧公共打印机（型号 HP LaserJet M404）频繁卡纸，今天已发生 5 次，影响部门日常工作。',
- 2, 2, '13800000005', 'zhaoyonghu@opsmind.local', 1, 0, 1, NOW() - INTERVAL '10 days', NOW()),
+ 2, 2, '13800000005', 'zhaoyonghu@opsmind.local', 1, 0, 1, NOW() - INTERVAL '6 days', NOW()),
 (2, 'TK-DEMO-0002', 5, 'VPN 连接频繁断开',
  '远程办公时 VPN 每隔 10-20 分钟自动断开，需重新连接。已尝试重启路由器和电脑，问题依旧。',
- 3, 1, '13800000005', NULL, 2, 0, 1, NOW() - INTERVAL '9 days', NOW()),
+ 3, 1, '13800000005', NULL, 2, 0, 1, NOW() - INTERVAL '5 days', NOW()),
 (3, 'TK-DEMO-0003', 6, '新笔记本无法安装开发工具',
  '申请的新 ThinkPad T14 到手后发现无法安装 Visual Studio 2022，安装程序报错缺少 .NET Framework 4.8。',
- 1, 1, '13800000006', 'qianyonghu@opsmind.local', 3, 1, 1, NOW() - INTERVAL '8 days', NOW()),
+ 1, 1, '13800000006', 'qianyonghu@opsmind.local', 3, 1, 1, NOW() - INTERVAL '4 days', NOW()),
 (4, 'TK-DEMO-0004', 5, '邮箱签名无法修改',
  'Outlook 中无法修改个人邮箱签名，点击保存后无反应。',
- 1, 1, '13800000005', NULL, 4, 0, 1, NOW() - INTERVAL '6 days', NOW());
+ 1, 1, '13800000005', NULL, 4, 0, 1, NOW() - INTERVAL '2 days', NOW());
 
 SELECT setval('tickets_id_seq', (SELECT MAX(id) FROM tickets));
 
--- 申告处理记录
+-- 申告处理记录（日期与对应工单对齐）
 INSERT INTO ticket_records (ticket_id, operator_id, action, content, created_at) VALUES
-(2, 2, 'start',        '已接单，正在排查 VPN 服务器日志。',                                             NOW() - INTERVAL '8 days 1 hour'),
-(3, 2, 'start',        '已接单。',                                                                      NOW() - INTERVAL '7 days 23 hours'),
-(3, 2, 'request_info', '请提供操作系统版本和已安装的 .NET Framework 版本信息。',                         NOW() - INTERVAL '7 days 22 hours'),
-(4, 2, 'start',        '已接单，排查中。',                                                              NOW() - INTERVAL '5 days 23 hours'),
-(4, 2, 'resolve',      '问题原因为 Outlook 客户端插件冲突，已禁用冲突插件，签名功能恢复正常。',          NOW() - INTERVAL '5 days 8 hours');
+(2, 2, 'start',        '已接单，正在排查 VPN 服务器日志。',                                             NOW() - INTERVAL '5 days 1 hour'),
+(3, 2, 'start',        '已接单。',                                                                      NOW() - INTERVAL '4 days 1 hour'),
+(3, 2, 'request_info', '请提供操作系统版本和已安装的 .NET Framework 版本信息。',                         NOW() - INTERVAL '4 days'),
+(4, 2, 'start',        '已接单，排查中。',                                                              NOW() - INTERVAL '2 days 1 hour'),
+(4, 2, 'resolve',      '问题原因为 Outlook 客户端插件冲突，已禁用冲突插件，签名功能恢复正常。',          NOW() - INTERVAL '2 days');
 
--- 站内消息
+-- 站内消息（日期与对应工单对齐）
 INSERT INTO messages (id, user_id, type, related_type, related_id, title, content, is_read, created_at) VALUES
 (1, 5, 'ticket_status',     'ticket', 2, '申告处理中',
- '您的申告「VPN 连接频繁断开」已被运维人员接单处理。', false, NOW() - INTERVAL '8 days 1 hour'),
+ '您的申告「VPN 连接频繁断开」已被运维人员接单处理。', false, NOW() - INTERVAL '5 days 1 hour'),
 (2, 6, 'ticket_supplement', 'ticket', 3, '请补充申告信息',
- '运维人员需要您补充以下信息：操作系统版本和已安装的 .NET Framework 版本。', false, NOW() - INTERVAL '7 days 22 hours'),
+ '运维人员需要您补充以下信息：操作系统版本和已安装的 .NET Framework 版本。', false, NOW() - INTERVAL '4 days'),
 (3, 5, 'ticket_resolved',   'ticket', 4, '申告已解决',
- '您的申告「邮箱签名无法修改」已解决。如有问题请反馈。', true, NOW() - INTERVAL '5 days 8 hours');
+ '您的申告「邮箱签名无法修改」已解决。如有问题请反馈。', true, NOW() - INTERVAL '2 days');
 
 SELECT setval('messages_id_seq', (SELECT MAX(id) FROM messages));
 

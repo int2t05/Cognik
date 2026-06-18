@@ -64,8 +64,8 @@ func TestAPI_Message_Lifecycle(t *testing.T) {
 	defer ts.close()
 
 	// 通过 DB 插入测试消息
-	ts.DB.Exec(`INSERT INTO messages (user_id, title, content, type, related_type, related_id, is_read, created_at, updated_at)
-		VALUES ($1, 'test', 'body', 'system_notice', '', 0, false, NOW(), NOW())`, ts.AdminID)
+	ts.DB.Exec(`INSERT INTO messages (user_id, title, content, type, related_type, related_id, is_read, created_at)
+		VALUES ($1, 'test', 'body', 'system_notice', '', 0, false, NOW())`, ts.AdminID)
 
 	assertOK(t, ts.doAuth(t, http.MethodGet, "/api/v1/portal/messages?page=1&page_size=10", nil))
 	assertOK(t, ts.doAuth(t, http.MethodGet, "/api/v1/portal/messages?type=system_notice", nil))

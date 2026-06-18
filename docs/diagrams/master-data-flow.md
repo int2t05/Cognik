@@ -9,7 +9,7 @@
 %%{init: {"theme": "base", "themeVariables": {"background": "transparent"}}}%%
 flowchart TB
     subgraph Client["客户端层"]
-        Browser["Vue 3 浏览器<br/>/portal/* /admin/*"]
+        Browser["Next.js 浏览器<br/>/portal/* /admin/*"]
     end
 
     subgraph Entry["Gin Router :8080 (router.go:Setup)"]

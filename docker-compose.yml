@@ -26,7 +26,8 @@ services:
       OPSMIND_LOG_DIR: ./logs
       OPSMIND_RERANK_PYTHON_PATH: python3
       OPSMIND_RERANK_SCRIPT_PATH: /app/rerank_server.py
-      OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-true}"
+      OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-false}"
+      TZ: Asia/Shanghai
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,14 +37,14 @@ services:
     networks:
       - opsmind
 
-  # Vue 前端
+  # Next.js 前端
   opsmind-web:
     build:
       context: ./web
     container_name: opsmind-web
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "3000:3000"
     depends_on:
       - opsmind-server
     mem_limit: 128m
@@ -62,6 +63,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-opsmind}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsmind_dev}
       PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
     command: >
       -c shared_buffers=256MB
       -c effective_cache_size=512MB
@@ -69,6 +71,8 @@ services:
       -c maintenance_work_mem=64MB
       -c max_connections=20
       -c max_wal_size=1GB
+      -c timezone=Asia/Shanghai
+      -c log_timezone=Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:

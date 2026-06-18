@@ -2,7 +2,7 @@
 
 ## 1. 角色声明
 
-你是一名 **Go + Vue 3 全栈开发者**，精通以下技术栈：
+你是一名 **Go + Next.js 全栈开发者**，精通以下技术栈：
 
 - **后端：** Go 1.22+ / Gin 1.9+ / GORM v1.25+ / PostgreSQL 18 + pgvector
 - **AI/RAG：** 自建 Go RAG 引擎（`server/internal/rag/`）— BM25/向量混合检索、查询改写、重排序 / pgvector 向量存储（HNSW 索引 + halfvec 半精度）
@@ -10,9 +10,9 @@
 - **中文分词：** gse（纯 Go，无 CGO），用于 BM25 检索
 - **存储：** MinIO（S3-compatible 对象存储）
 - **认证：** JWT（golang-jwt v5）/ bcrypt / RBAC
-- **前端：** Vue 3.4+ / TypeScript / Radix Vue 1.9+ / Pinia 2.1+ / Vue Router 4.3+ / Axios 1.7+
+- **前端：** Next.js 15 (React 19) / TypeScript / Radix UI / SWR 2.x / Apple Design System
 - **部署：** Docker Compose / Makefile
-- **设计系统：** apple(深浅色主题) 
+- **设计系统：** Apple Design（浅色/暗色双主题 CSS 变量）
 
 你在本项目中的职责是按照 `docs/PRD.md`、`docs/TECH.md` 和 `docs/API/` 接口文档，交付和迭代运维数字员工系统。
 
@@ -103,16 +103,13 @@ cd web
 # 安装依赖
 npm install
 
-# 启动开发服务器（端口 5173，API 代理到 localhost:8080）
+# 启动开发服务器（端口 3000，rewrite 代理到 localhost:8080）
 npm run dev
 
 # 构建生产版本
 npm run build
 
-# 类型检查
-npm run type-check
-
-# Lint
+# 类型检查 + Lint
 npm run lint
 ```
 
@@ -185,14 +182,13 @@ make seed
 | `server/pkg/` | 公共工具包（response / errcode / jwt / hash） |
 | `server/migrations/` | 数据库迁移和演示数据 |
 | `server/tests/` | 全部测试代码（外部测试包：config/database/model/service/handler/middleware/adapter/rag） |
-| `web/src/api/` | 前端 API 请求封装（auth/chat/ticket/knowledge/user/dashboard/message/llm_config/role/config/audit/admin） |
-| `web/src/views/portal/` | 门户端页面（智能问答、申告提交、进度查询） |
-| `web/src/views/admin/` | 后台管理页面（看板、申告、知识库、文档上传、LLM配置、用户、配置） |
-| `web/src/views/auth/` | 认证页面（登录、修改密码） |
-| `web/src/components/` | 通用组件（布局、分页、确认框、状态标签） |
-| `web/src/stores/` | Pinia 状态管理（auth / chat / app） |
-| `web/src/router/` | Vue Router 路由定义和守卫 |
-| `web/src/styles/` | 全局样式（Linear Design 暗色主题 CSS 变量） |
+| `web/src/app/` | Next.js App Router 路由（auth/portal/admin 三组, layouts + pages） |
+| `web/src/components/ui/` | Apple Design 原子组件（Button/Input/Dialog/Table 等 14 个） |
+| `web/src/components/layout/` | 布局组件（AdminLayout / PortalLayout） |
+| `web/src/components/shared/` | 复合组件（StatCard / StatusBadge / ConfirmDialog） |
+| `web/src/lib/api/` | API 客户端封装（server-side + client-side, 12 个模块） |
+| `web/src/hooks/` | React Hooks（useAuth / useTheme / useToast / useAIConfig / useLoading） |
+| `web/src/styles/` | Apple Design Tokens（tokens.css 双主题 + global.css） |
 | `docker-compose.yml` | Docker Compose 编排（4 必须服务: opsmind-server/web + postgres(pgvector:pg18) + minio + 1 可选: llama-cpp(profile: ai-local)） |
 | `.env` | 环境变量（已 gitignore） |
 | `.env.example` | 环境变量模板（提交到版本库） |
@@ -211,7 +207,7 @@ make seed
 - **密码策略校验：** 所有涉及密码创建/修改的场景，必须调用 `pkg/hash.ValidatePassword` 校验正则 `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$`。
 - **RBAC 权限校验：** 后台管理接口必须经过 JWT 中间件 + RBAC 中间件双重校验。
 - **审计日志：** 用户管理、知识管理、申告管理的关键操作必须写入 audit_logs 表。
-- **前端遵循 Linear Design：** 使用暗色主题 CSS 变量（`--bg-base: #08090a`、`--accent: #5e6ad2` 等），字体 Inter Variable。
+- **前端遵循 Apple Design：** 使用浅色/暗色双主题 CSS 变量，Action Blue (`#0066cc`) 为唯一品牌色，Inter Variable 字体，无边框扁平卡片，17px body，pill 圆角主按钮。
 - **LLM/Embedding 通过适配层访问：** 后端只能通过 `LLMClient` / `EmbeddingClient` 接口调用 LLM 和 Embedding 服务，禁止直接 HTTP 调用。向量存储只能通过 `VectorStore` 接口访问 pgvector。
 - **使用中文 git commit message：** 格式为 `类型: 简短描述`，如 `feat: 实现 BM25 混合检索`、`fix: 修复 pgvector 批量写入事务`。
 - **测试写在 `tests/` 目录下，使用 `_test` 外部测试包：** 禁止在源码文件中写 `_test.go`，禁止 mock——测试代码要跟实际运行一样，依赖完整模块。
@@ -296,7 +292,7 @@ func HashPassword(password string) (string, error) {
 | --- | --- |
 | `docs/PRD.md` | 产品需求文档 — 自建 RAG 引擎、文档上传解析、统一文章模型、SSE 流式输出 |
 | `docs/TECH.md` | 技术架构文档 — 模块接口定义、数据库 DDL、API 设计、部署配置 |
-| `docs/prompts/DESIGN-linear.app.md` | Linear Design 系统约束 — 暗色主题色值、字体配置、组件样式 |
+| `docs/prompts/ui.md` | Apple Design 系统约束 — 双主题色值、字体配置、组件样式 |
 | `docs/API/README.md` | API 文档索引 — 9 份接口文档，覆盖全部端点 |
 | `docs/API/chat.md` | 智能问答 API — SSE 流式 + RAG 管道步骤事件 + 降级规则 |
 | `docs/API/knowledge.md` | 知识库管理 API — KB/文章/审核/发布 + 文档上传/状态查询 + KB 删除 |
@@ -320,9 +316,11 @@ func HashPassword(password string) (string, error) {
 | pgvector | https://github.com/pgvector/pgvector |
 | pgvector-go | https://github.com/pgvector/pgvector-go |
 | gse (中文分词) | https://github.com/go-ego/gse |
-| Vue 3 | https://vuejs.org/guide/ |
-| Radix Vue | https://www.radix-vue.com/ |
-| Pinia | https://pinia.vuejs.org/ |
+| Next.js | https://nextjs.org/docs |
+| React 19 | https://react.dev/ |
+| Radix UI | https://www.radix-ui.com/ |
+| SWR | https://swr.vercel.app/ |
+| Inter (字体) | https://fonts.google.com/specimen/Inter |
 
 ### 环境变量模板
 

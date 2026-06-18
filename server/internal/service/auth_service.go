@@ -193,6 +193,13 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*re
 
 	s.rateLimiter.recordSuccess(username)
 	slog.Info("登录成功", "user_id", user.ID, "username", username)
+
+	// 首次登录后清除 first_login 标记（异步，失败不影响登录流程）
+	if user.FirstLogin {
+		_ = s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", user.ID).Update("first_login", false).Error
+		user.FirstLogin = false
+	}
+
 	return s.buildLoginResponse(ctx, user)
 }
 

@@ -158,7 +158,7 @@ func TestSeedData_Tickets(t *testing.T) {
 	var tickets []model.Ticket
 	db.Order("id ASC").Find(&tickets)
 	var seedTicket model.Ticket
-	if db.Where("ticket_no LIKE ?", "TK-20240601%").First(&seedTicket).Error != nil {
+	if db.Where("ticket_no LIKE ?", "TK-DEMO%").First(&seedTicket).Error != nil {
 		t.Skip("本测试需要先加载种子数据: make seed")
 	}
 	require.GreaterOrEqual(t, len(tickets), 4, "至少应有 4 个申告工单")
@@ -210,7 +210,7 @@ func setupSeedDB(t *testing.T) *gorm.DB {
 		Port:     5432,
 		User:     "opsmind",
 		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		DBName:   "opsmind",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(dbCfg)

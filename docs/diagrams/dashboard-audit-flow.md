@@ -214,9 +214,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    subgraph Frontend["Vue 3 前端"]
-        Dashboard["Dashboard.vue<br/>7 统计卡片 + 趋势图"]
-        AuditLog["AuditLog.vue<br/>操作日志表格"]
+    subgraph Frontend["Next.js 前端"]
+        Dashboard["DashboardPage<br/>7 统计卡片 + 趋势图"]
+        AuditLog["AuditLogPage<br/>操作日志表格"]
         ModelConfig["ModelConfig.vue<br/>Top K + 置信度阈值"]
     end
     
