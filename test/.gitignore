@@ -1,6 +1,0 @@
-node_modules/
-playwright-report/
-test-results/
-test-results.json
-auth/auth-state.json
-auth/auth-state-reporter.json

@@ -12,7 +12,7 @@
 - **认证：** JWT（golang-jwt v5）/ bcrypt / RBAC
 - **前端：** Vue 3.4+ / TypeScript / Radix Vue 1.9+ / Pinia 2.1+ / Vue Router 4.3+ / Axios 1.7+
 - **部署：** Docker Compose / Makefile
-- **设计系统：** Linear Design（暗色主题 / Inter Variable / Radix Vue）
+- **设计系统：** apple(深浅色主题) 
 
 你在本项目中的职责是按照 `docs/PRD.md`、`docs/TECH.md` 和 `docs/API/` 接口文档，交付和迭代运维数字员工系统。
 
@@ -170,7 +170,7 @@ make seed
 | `docs/TECH.md` | 技术架构文档 — 模块接口、ADR、数据库 DDL、部署配置 |
 | `docs/API/` | API 文档 — 认证/问答/知识库/LLM配置/申告/用户/角色/看板/审计（9 份） |
 | `docs/diagrams/` | Mermaid 架构与业务流程图（13 个模块 + README，含全业务数据流总览） |
-| `docs/prompts/DESIGN-linear.app.md` | Linear Design 系统约束 |
+| `docs/prompts/ui.md` | apple 系统约束 |
 | `server/cmd/main.go` | 后端入口，初始化配置、数据库、路由、RAG 模块、调度器 |
 | `server/internal/config/` | Viper 配置管理（config.go + config.yaml） |
 | `server/internal/middleware/` | Gin 中间件（JWT 认证、RBAC 权限、CORS、请求日志） |
