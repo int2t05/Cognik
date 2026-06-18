@@ -1,0 +1,4 @@
+.header { display: flex; justify-content: space-between; margin-bottom: var(--space-lg); }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); }
+.searchBar { margin-bottom: 16px; }
+.actions { display: flex; gap: 4px; }

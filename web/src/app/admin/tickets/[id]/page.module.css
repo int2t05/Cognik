@@ -1,0 +1,21 @@
+.wrapper { max-width: 800px; }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: 8px; }
+.meta { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; }
+.metaText { font-size: 13px; color: var(--text-muted-48); }
+.actionBar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.sectionTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 12px; }
+.sectionSub { font-size: var(--text-title); font-weight: 600; margin-bottom: 12px; color: var(--text-ink); }
+.formRow { display: flex; gap: 12px; align-items: end; }
+.select {
+  padding: 8px 12px; font-size: 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline); background: var(--bg-canvas); color: var(--text-ink);
+}
+.record { padding: 8px 0; border-bottom: 1px solid var(--divider-soft); }
+.recordAction { font-size: 13px; font-weight: 600; }
+.recordDate { font-size: 12px; color: var(--text-muted-48); margin-left: 12px; }
+.recordContent { font-size: 14px; margin-top: 4px; }
+.error { color: var(--color-error); padding: 40px; }
+.loading { padding: 40px; color: var(--text-muted-48); }
+.cardMb { margin-bottom: 16px; }
+.cardMbLg { margin-bottom: 24px; }
+.descPre { white-space: pre-wrap; }

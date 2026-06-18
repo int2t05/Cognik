@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { formatDate } from '@/lib/date';
+import styles from './page.module.css';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -44,17 +45,17 @@ export default function UserListPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)' }}>用户管理</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>用户管理</h1>
         <AppleButton onClick={openCreate}>新建用户</AppleButton>
       </div>
-      <div style={{ marginBottom: 16 }}><AppleInput pill placeholder="搜索用户..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
+      <div className={styles.searchBar}><AppleInput pill placeholder="搜索用户..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
         columns={[
           { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
-          { key: 'actions', title: '', render: (r) => <div style={{ display: 'flex', gap: 4 }}>
+          { key: 'actions', title: '', render: (r) => <div className={styles.actions}>
             <AppleButton variant="ghost" onClick={() => { setEditUser({ id: r.id, real_name: r.real_name, phone: r.phone, email: r.email }); setForm({ username: '', password: '', real_name: r.real_name, phone: r.phone, email: r.email || '' }); setShowCreate(true); }}>编辑</AppleButton>
             {r.status === 1 ? <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}>冻结</AppleButton>
               : <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}>恢复</AppleButton>}

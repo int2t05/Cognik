@@ -9,6 +9,7 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
+import styles from './page.module.css';
 
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
@@ -58,15 +59,15 @@ export default function RoleManagePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)' }}>角色管理</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>角色管理</h1>
         <AppleButton onClick={openCreate}>新建角色</AppleButton>
       </div>
       <AppleTable
         columns={[
           { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
-          { key: 'permissions', title: '权限', render: (r) => <span style={{ fontSize: 12 }}>{(r.permissions as string[]).join(', ') || '—'}</span> },
-          { key: 'actions', title: '', render: (r) => <div style={{ display: 'flex', gap: 4 }}>
+          { key: 'permissions', title: '权限', render: (r) => <span className={styles.perms}>{(r.permissions as string[]).join(', ') || '—'}</span> },
+          { key: 'actions', title: '', render: (r) => <div className={styles.actions}>
             <AppleButton variant="ghost" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}>编辑</AppleButton>
             <AppleButton variant="utility" onClick={() => setDeleteId(r.id as number)}>删除</AppleButton>
           </div> },
@@ -79,12 +80,12 @@ export default function RoleManagePage() {
         footer={<><AppleButton variant="ghost" onClick={() => setShowDialog(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
         <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
         <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
-        <div style={{ marginTop: 12 }}>
-          <label style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, display: 'block', color: 'var(--text-ink)' }}>权限</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div className={styles.permGrid}>
+          <label className={styles.permLabel}>权限</label>
+          <div className={styles.permGrid}>
             {knownPermissions.map((p) => (
               <button key={p} onClick={() => togglePerm(p)}
-                style={{ padding: '4px 10px', fontSize: 12, borderRadius: 'var(--radius-pill)', border: `1px solid ${perms.includes(p) ? 'var(--accent)' : 'var(--hairline)'}`, background: perms.includes(p) ? 'var(--accent)' : 'transparent', color: perms.includes(p) ? '#fff' : 'var(--text-ink)', cursor: 'pointer' }}>
+                className={`${styles.permChip} ${perms.includes(p) ? styles.permChipSelected : ''}`}>
                 {p}
               </button>
             ))}

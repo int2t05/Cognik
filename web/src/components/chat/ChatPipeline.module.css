@@ -1,0 +1,36 @@
+/* ChatPipeline RAG 管道步骤进度样式模块 */
+
+.currentStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-pearl);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  color: var(--text-muted-80);
+}
+
+.completedSteps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.stepPill {
+  padding: 2px 10px;
+  font-size: 11px;
+  border-radius: var(--radius-pill);
+  color: #fff;
+}
+
+.stepSuccess {
+  background: var(--color-success);
+  opacity: 0.75;
+}
+
+.stepFail {
+  background: var(--color-error);
+  opacity: 0.6;
+}

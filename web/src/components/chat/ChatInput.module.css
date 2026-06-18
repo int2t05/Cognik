@@ -1,0 +1,28 @@
+/* ChatInput 输入框样式模块 */
+
+.wrapper {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.input {
+  flex: 1;
+  height: 44px;
+  padding: 0 20px;
+  font-size: var(--text-body-size);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--bg-canvas);
+  color: var(--text-ink);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+}
+
+.input:disabled {
+  opacity: 0.5;
+}

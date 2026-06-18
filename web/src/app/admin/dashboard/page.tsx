@@ -7,6 +7,7 @@ import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { useToast } from '@/hooks/useToast';
+import styles from './page.module.css';
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -24,12 +25,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)' }}>数据看板</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh}>刷新</AppleButton>
       </div>
-      {statsErr && <p style={{ color: 'var(--color-error)', marginBottom: 16 }}>加载失败，请点击刷新重试</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+      {statsErr && <p className={styles.error}>加载失败，请点击刷新重试</p>}
+      <div className={styles.grid}>
         <StatCard label="今日申告" value={stats?.today_tickets ?? '—'} />
         <StatCard label="待处理" value={stats?.pending_tickets ?? '—'} />
         <StatCard label="处理中" value={stats?.processing_tickets ?? '—'} />
@@ -39,11 +40,9 @@ export default function DashboardPage() {
         <StatCard label="知识条目" value={stats?.knowledge_count ?? '—'} />
       </div>
 
-      <h2 style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 16 }}>30 日趋势</h2>
+      <h2 className={styles.sectionTitle}>30 日趋势</h2>
       {!trends ? <AppleSpinner /> : trends.data_points.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted-48)', fontSize: 14, background: 'var(--bg-canvas)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)' }}>
-          暂无趋势数据
-        </div>
+        <div className={styles.empty}>暂无趋势数据</div>
       ) : (
         <TrendChart data={trends.data_points} />
       )}
@@ -54,25 +53,29 @@ export default function DashboardPage() {
 function TrendChart({ data }: { data: { date: string; ticket_count: number; chat_count: number }[] }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
   return (
-    <div role="img" aria-label="30 日申告和问答趋势图" style={{ background: 'var(--bg-canvas)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 200 }}>
+    <div role="img" aria-label="30 日申告和问答趋势图" className={styles.chartCard}>
+      <div className={styles.chartArea}>
         {data.map((d, i) => (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 160 }}>
+          <div key={i} className={styles.barGroup}>
+            <div className={styles.bars}>
               <div role="img" aria-label={`${d.date} 申告 ${d.ticket_count} 问答 ${d.chat_count}`}
-                title={`申告: ${d.ticket_count}`} style={{ width: 6, height: `${(d.ticket_count / maxVal) * 160}px`, background: 'var(--accent)', borderRadius: '3px 3px 0 0', minHeight: d.ticket_count > 0 ? 4 : 0 }} />
-              <div title={`问答: ${d.chat_count}`} style={{ width: 6, height: `${(d.chat_count / maxVal) * 160}px`, background: 'var(--color-success)', borderRadius: '3px 3px 0 0', minHeight: d.chat_count > 0 ? 4 : 0, opacity: 0.7 }} />
+                title={`申告: ${d.ticket_count}`}
+                className={`${styles.bar} ${styles.barTicket}`}
+                style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }} />
+              <div title={`问答: ${d.chat_count}`}
+                className={`${styles.bar} ${styles.barChat}`}
+                style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }} />
             </div>
-            {i % 5 === 0 && <span style={{ fontSize: 9, color: 'var(--text-muted-48)', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>{d.date.slice(5)}</span>}
+            {i % 5 === 0 && <span className={styles.dateLabel}>{d.date.slice(5)}</span>}
           </div>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12, fontSize: 12, color: 'var(--text-muted-48)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--accent)' }} /> 申告
+      <div className={styles.legend}>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.legendDotTicket}`} /> 申告
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-success)', opacity: 0.7 }} /> 问答
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.legendDotChat}`} /> 问答
         </span>
       </div>
     </div>

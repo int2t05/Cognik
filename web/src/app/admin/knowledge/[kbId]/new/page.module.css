@@ -1,0 +1,10 @@
+.wrapper { max-width: 720px; }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: var(--space-lg); }
+.uploadTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 12px; color: var(--text-ink); }
+.uploadDesc { font-size: 14px; color: var(--text-muted-48); margin-bottom: 12px; }
+.uploadRow { display: flex; gap: 12px; align-items: center; }
+.uploadInput { font-size: 14px; }
+.uploadProgress { font-size: 14px; color: var(--accent); }
+.manualTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 16px; color: var(--text-ink); }
+.formActions { display: flex; gap: 12px; }
+.cardMb { margin-bottom: 16px; }

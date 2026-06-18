@@ -1,20 +1,20 @@
 /* AppleButton — Apple Design 按钮体系 */
-/* ==================================== */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-family: var(--font-body);
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
   border: none;
-  transition: transform var(--duration-fast) var(--ease-out),
-              opacity var(--duration-fast) var(--ease-out);
+  font-family: inherit;
   white-space: nowrap;
   user-select: none;
   text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out),
+              opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
 }
 
 .btn:active:not(:disabled) {
@@ -26,57 +26,77 @@
   outline-offset: 2px;
 }
 
-.btn:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
-
 /* ===== pill — 主 CTA 蓝色胶囊 ===== */
 .pill {
   background: var(--accent);
   color: #ffffff;
-  font-size: 17px;
-  line-height: 1.47;
-  letter-spacing: -0.374px;
+  font-size: 15px;
   border-radius: var(--radius-pill);
-  padding: 11px 22px;
-  min-height: 44px;
+  padding: 10px 22px;
+}
+
+.pill:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ===== ghost — 次要幽灵胶囊 ===== */
 .ghost {
   background: transparent;
   color: var(--accent);
-  font-size: 17px;
-  line-height: 1.47;
-  letter-spacing: -0.374px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-pill);
-  padding: 10px 21px;
-  min-height: 44px;
-}
-
-/* ===== utility — 工具按钮深色小圆角 ===== */
-.utility {
-  background: var(--text-ink);
-  color: var(--text-on-dark);
   font-size: 14px;
-  line-height: 1.29;
-  letter-spacing: -0.224px;
-  border-radius: var(--radius-sm);
-  padding: 8px 15px;
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
 }
 
-/* ===== pearl — 珍珠胶囊 ===== */
+.ghost:hover:not(:disabled) {
+  background: var(--divider-soft);
+}
+
+.ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== utility — 工具按钮 ===== */
+.utility {
+  background: var(--bg-pearl);
+  color: var(--text-muted-80);
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  border: 1px solid var(--divider-soft);
+}
+
+.utility:hover:not(:disabled) {
+  background: var(--hairline);
+}
+
+.utility:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== pearl — 珍珠 ===== */
 .pearl {
   background: var(--bg-pearl);
   color: var(--text-muted-80);
   font-size: 14px;
-  line-height: 1.29;
-  letter-spacing: -0.224px;
-  border: 3px solid var(--divider-soft);
   border-radius: var(--radius-md);
   padding: 8px 14px;
+}
+
+.pearl:hover:not(:disabled) {
+  background: var(--hairline);
+}
+
+.pearl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ===== Spinner ===== */

@@ -6,6 +6,7 @@ import { changePassword } from '@/lib/api/auth';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { useToast } from '@/hooks/useToast';
+import styles from './page.module.css';
 
 export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState('');
@@ -33,15 +34,15 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-parchment)' }}>
-      <div style={{ width: 400, padding: 40, background: 'var(--bg-canvas)', borderRadius: 18, border: '1px solid var(--hairline)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-ink)', textAlign: 'center', marginBottom: 24 }}>修改密码</h1>
+    <div className={styles.wrapper}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>修改密码</h1>
         <form onSubmit={handleSubmit}>
           <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" />
           <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
           <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
-          <div style={{ marginTop: 24 }}>
-            <AppleButton type="submit" loading={loading} style={{ width: '100%' }}>修改密码</AppleButton>
+          <div className={styles.submitArea}>
+            <AppleButton type="submit" loading={loading} className={styles.fullWidth}>修改密码</AppleButton>
           </div>
         </form>
       </div>

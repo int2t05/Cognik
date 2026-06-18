@@ -1,0 +1,11 @@
+.header { display: flex; justify-content: space-between; margin-bottom: var(--space-lg); }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); }
+.perms { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text-muted-48); }
+.permChip {
+  padding: 4px 10px; font-size: 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline); background: transparent;
+  color: var(--text-ink); cursor: pointer; transition: all var(--duration-fast);
+}
+.permChipSelected { border-color: var(--accent); background: var(--accent); color: #fff; }
+.permGrid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.permLabel { font-size: 14px; font-weight: 500; margin-bottom: 8px; display: block; color: var(--text-ink); }

@@ -1,6 +1,6 @@
 @import './tokens.css';
 
-/* ===== Reset & Base ===== */
+/* ===== Reset ===== */
 *,
 *::before,
 *::after {
@@ -22,7 +22,7 @@ body {
   line-height: 1.47;
   letter-spacing: -0.374px;
   color: var(--text-body);
-  background-color: var(--bg-canvas);
+  background: var(--bg-parchment);
   min-height: 100vh;
 }
 
@@ -31,7 +31,6 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
-
 a:hover {
   text-decoration: underline;
 }
@@ -47,16 +46,13 @@ a:hover {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   background: var(--text-muted-48);
   border-radius: var(--radius-pill);
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted-80);
 }
@@ -64,32 +60,10 @@ a:hover {
 /* ===== 选择颜色 ===== */
 ::selection {
   background: var(--accent);
-  color: #ffffff;
+  color: #fff;
 }
 
-/* ===== 过渡 ===== */
-.fade-enter {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.fade-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity var(--duration-normal) var(--ease-out),
-              transform var(--duration-normal) var(--ease-out);
-}
-
-.fade-exit {
-  opacity: 1;
-}
-
-.fade-exit-active {
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-/* ===== 骨架屏 ===== */
+/* ===== 骨架屏动画 ===== */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -105,4 +79,25 @@ a:hover {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-sm);
+}
+
+/* ===== 按钮 active 微交互 ===== */
+button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* ===== 通用 input/select 基础样式 ===== */
+input, select, textarea {
+  font-family: inherit;
+  font-size: var(--text-body-size);
+  color: var(--text-ink);
+  background: var(--bg-canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
 }

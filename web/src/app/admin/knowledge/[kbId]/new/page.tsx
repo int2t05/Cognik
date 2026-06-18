@@ -7,6 +7,7 @@ import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
+import styles from './page.module.css';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -86,32 +87,32 @@ export default function NewArticlePage() {
   };
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 24 }}>新建文章</h1>
+    <div className={styles.wrapper}>
+      <h1 className={styles.title}>新建文章</h1>
 
       {/* 文档上传 */}
-      <AppleCard style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, color: 'var(--text-ink)' }}>文档上传</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-muted-48)', marginBottom: 12 }}>支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <AppleCard className={styles.cardMb}>
+        <h2 className={styles.uploadTitle}>文档上传</h2>
+        <p className={styles.uploadDesc}>支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
+        <div className={styles.uploadRow}>
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
-            style={{ fontSize: 14 }} />
+            className={styles.uploadInput} />
           {uploadProgress && (
-            <span style={{ fontSize: 14, color: 'var(--accent)' }}>{uploadProgress}</span>
+            <span className={styles.uploadProgress}>{uploadProgress}</span>
           )}
         </div>
       </AppleCard>
 
       {/* 手动创建 */}
       <form onSubmit={handleCreate}>
-        <AppleCard style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 16, color: 'var(--text-ink)' }}>手动创建</h2>
+        <AppleCard className={styles.cardMb}>
+          <h2 className={styles.manualTitle}>手动创建</h2>
           <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
           <AppleTextarea label="正文内容 (Markdown)" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="支持 Markdown 格式..." />
           <AppleInput label="分类" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="如：网络与VPN" />
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className={styles.formActions}>
           <AppleButton type="submit" loading={saving}>创建文章</AppleButton>
           <AppleButton variant="ghost" type="button" onClick={() => router.back()}>取消</AppleButton>
         </div>

@@ -1,0 +1,37 @@
+/* AppleBadge — 语义状态标签 */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: var(--text-fine);
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  line-height: 1.4;
+}
+
+.success {
+  background: var(--color-success);
+  color: #ffffff;
+}
+
+.warning {
+  background: var(--color-warning);
+  color: #ffffff;
+}
+
+.error {
+  background: var(--color-error);
+  color: #ffffff;
+}
+
+.info {
+  background: var(--color-info);
+  color: #ffffff;
+}
+
+.neutral {
+  background: var(--color-neutral);
+  color: #ffffff;
+}

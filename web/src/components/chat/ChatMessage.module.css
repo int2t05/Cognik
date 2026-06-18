@@ -1,0 +1,74 @@
+/* ChatMessage 消息气泡样式模块 */
+
+.wrapper {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.user {
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.avatarUser {
+  background: var(--accent);
+  color: #fff;
+}
+
+.avatarAI {
+  background: var(--bg-tile-1);
+  color: var(--text-ink);
+}
+
+.bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-ink);
+}
+
+.bubbleUser {
+  background: var(--bg-pearl);
+}
+
+.bubbleAI {
+  background: var(--bg-canvas);
+  border: 1px solid var(--hairline);
+}
+
+.sources {
+  margin-top: 8px;
+}
+
+.sourceItem {
+  font-size: 12px;
+  color: var(--text-muted-48);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lowConfidence {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-warning);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,0 +1,60 @@
+/* AppleDialog — Radix Dialog 封装，Apple 样式 */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+.dialog {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp var(--duration-normal) var(--ease-out);
+  z-index: 1001;
+}
+
+.header {
+  padding: 20px 24px 0;
+  font-size: var(--text-title);
+  font-weight: 600;
+  color: var(--text-ink);
+}
+
+.body {
+  padding: 20px 24px;
+}
+
+.footer {
+  padding: 16px 24px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--divider-soft);
+}
+
+.description {
+  font-size: 14px;
+  color: var(--text-muted-48);
+  margin-top: 4px;
+  padding: 0 24px;
+}

@@ -13,6 +13,7 @@ import { isTokenExpired } from '@/lib/auth';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatPipeline } from '@/components/chat/ChatPipeline';
+import styles from './page.module.css';
 
 interface Message {
   id: string;
@@ -161,35 +162,35 @@ export default function ChatPage() {
   const isLoading = loading || streaming;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+    <div className={styles.wrapper}>
+      <div className={styles.topBar}>
         <select value={selectedKB} onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
-          style={{ padding: '8px 16px', fontSize: 15, borderRadius: 'var(--radius-pill)', border: '1px solid var(--hairline)', background: 'var(--bg-canvas)', color: 'var(--text-ink)', minWidth: 200 }}>
+          className={styles.select}>
           <option value={0}>选择知识库...</option>
           {(kbs || []).map((kb) => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
         </select>
         {sessionId && <AppleButton variant="utility" onClick={handleNewChat}>新对话</AppleButton>}
       </div>
 
-      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
+      <div ref={listRef} className={styles.messages}>
         {messages.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted-48)', fontSize: 17 }}>
+          <div className={styles.emptyState}>
             {selectedKB ? '输入问题开始对话' : '请先选择一个知识库'}
           </div>
         ) : (
-          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+          <div className={styles.virtualList} style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {rowVirtualizer.getVirtualItems().map((virtualItem) => {
               const isPipeline = virtualItem.index === messages.length && currentStep;
               if (isPipeline) {
                 return (
-                  <div key="pipeline" style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                  <div key="pipeline" className={styles.virtualItem} style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                     <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
                   </div>
                 );
               }
               const msg = messages[virtualItem.index];
               return (
-                <div key={msg.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                <div key={msg.id} className={styles.virtualItem} style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                   <ChatMessage
                     id={msg.id}
                     role={msg.role}

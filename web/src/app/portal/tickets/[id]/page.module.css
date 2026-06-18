@@ -1,0 +1,18 @@
+.wrapper { max-width: 720px; }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: 8px; }
+.meta { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; }
+.metaText { font-size: 13px; color: var(--text-muted-48); }
+.descCard { background: var(--bg-canvas); border-radius: var(--radius-lg); border: 1px solid var(--hairline); padding: 24px; margin-bottom: 24px; }
+.descTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 12px; color: var(--text-ink); }
+.descContent { font-size: var(--text-title); color: var(--text-ink); line-height: 1.47; white-space: pre-wrap; }
+.recordCard { background: var(--bg-canvas); border-radius: var(--radius-lg); border: 1px solid var(--hairline); padding: 24px; margin-bottom: 24px; }
+.recordTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 16px; color: var(--text-ink); }
+.record { padding: 12px 0; border-bottom: 1px solid var(--divider-soft); }
+.recordHeader { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.recordLabel { font-size: 13px; font-weight: 600; color: var(--text-muted-80); }
+.recordDate { font-size: 12px; color: var(--text-muted-48); }
+.recordText { font-size: 14px; color: var(--text-ink); }
+.supplementCard { background: var(--bg-canvas); border-radius: var(--radius-lg); border: 1px solid var(--hairline); padding: 24px; }
+.supplementTitle { font-size: var(--text-title); font-weight: 600; margin-bottom: 12px; color: var(--text-ink); }
+.error { color: var(--color-error); padding: 40px; }
+.loading { padding: 40px; color: var(--text-muted-48); }

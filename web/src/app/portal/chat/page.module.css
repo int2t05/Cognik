@@ -1,0 +1,14 @@
+.wrapper { display: flex; flex-direction: column; height: calc(100vh - 100px); }
+.topBar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.select {
+  padding: 8px 16px; font-size: var(--text-body-size); border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline); background: var(--bg-canvas); color: var(--text-ink);
+  min-width: 200px; cursor: pointer;
+}
+.messages { flex: 1; overflow-y: auto; margin-bottom: 16px; }
+.emptyState {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: var(--text-muted-48); font-size: var(--text-title);
+}
+.virtualList { height: 100%; width: 100%; position: relative; }
+.virtualItem { position: absolute; top: 0; left: 0; width: 100%; }

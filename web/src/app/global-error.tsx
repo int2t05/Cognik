@@ -1,15 +1,16 @@
 'use client';
 
 import { AppleButton } from '@/components/ui/AppleButton';
+import s from './global-error.module.css';
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <html lang="zh-CN">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f5f5f7' }}>
-          <div style={{ textAlign: 'center', maxWidth: 400 }}>
-            <h1 style={{ fontSize: 34, fontWeight: 600, color: '#1d1d1f', marginBottom: 12 }}>系统错误</h1>
-            <p style={{ fontSize: 15, color: '#7a7a7a', marginBottom: 24 }}>{error.message}</p>
+      <body className={s.body}>
+        <div className={s.wrapper}>
+          <div className={s.inner}>
+            <h1 className={s.title}>系统错误</h1>
+            <p className={s.message}>{error.message}</p>
             <AppleButton onClick={reset}>重试</AppleButton>
           </div>
         </div>

@@ -1,0 +1,71 @@
+/* ApplePagination — 精简分页 */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.btn {
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-pearl);
+}
+
+.active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.active:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.info {
+  font-size: 14px;
+  color: var(--text-muted-48);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.select {
+  margin-left: 12px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--bg-canvas);
+  color: var(--text-ink);
+  font-family: inherit;
+  outline: none;
+}
+
+.ellipsis {
+  padding: 0 4px;
+  color: var(--text-muted-48);
+}

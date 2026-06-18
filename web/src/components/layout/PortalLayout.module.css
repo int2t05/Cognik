@@ -1,0 +1,129 @@
+/* PortalLayout — 门户端布局样式模块 */
+
+.layout {
+  min-height: 100vh;
+  background: var(--bg-parchment);
+}
+
+/* ===== 顶栏 ===== */
+
+.topbar {
+  height: var(--topbar-height);
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.logo {
+  font-size: var(--text-headline);
+  font-weight: 600;
+  letter-spacing: 0.231px;
+  color: var(--text-ink);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-ink);
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--duration-fast);
+}
+
+.navItem:hover {
+  background: var(--divider-soft);
+}
+
+.navItemActive {
+  background: var(--divider-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.navBadge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: var(--color-error);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== 右侧操作区 ===== */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.themeBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-ink);
+  display: flex;
+  padding: 4px;
+}
+
+.userName {
+  font-size: 13px;
+  color: var(--text-muted-48);
+}
+
+.shieldIcon {
+  margin-right: 4px;
+}
+
+.logoutBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted-48);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* ===== 内容区 ===== */
+
+.content {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}

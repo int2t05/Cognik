@@ -1,0 +1,10 @@
+/* ConfirmDialog — 危险操作确认按钮覆盖 */
+
+.dangerBtn {
+  background: var(--color-error) !important;
+  border: none !important;
+}
+
+.dangerBtn:hover {
+  opacity: 0.9;
+}

@@ -1,0 +1,22 @@
+/* StatCard — 看板统计卡片 */
+
+.card {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  padding: var(--space-lg);
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted-48);
+  margin-bottom: 8px;
+}
+
+.value {
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--text-ink);
+  letter-spacing: -0.374px;
+}

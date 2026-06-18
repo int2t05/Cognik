@@ -1,5 +1,5 @@
 /** StatusBadge — 状态标签。优先使用后端返回的 status_text，否则回退到前端映射。 */
-import { AppleBadge } from '@/components/ui/AppleBadge';
+import styles from './StatusBadge.module.css';
 
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
@@ -35,7 +35,7 @@ export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
   let entry: { label: string; variant: BadgeVariant } | undefined;
 
   // 优先使用后端 text
-  if (statusText) return <AppleBadge variant="neutral" label={statusText} />;
+  if (statusText) return <span className={`${styles.badge} ${styles.neutral}`}>{statusText}</span>;
 
   switch (type) {
     case 'ticket': entry = TICKET_STATUS[status as number]; break;
@@ -44,6 +44,6 @@ export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
     case 'process': entry = PROCESS_STATUS[status as string]; break;
   }
 
-  if (!entry) return <AppleBadge variant="neutral" label={String(status)} />;
-  return <AppleBadge variant={entry.variant} label={entry.label} />;
+  if (!entry) return <span className={`${styles.badge} ${styles.neutral}`}>{String(status)}</span>;
+  return <span className={`${styles.badge} ${styles[entry.variant]}`}>{entry.label}</span>;
 }

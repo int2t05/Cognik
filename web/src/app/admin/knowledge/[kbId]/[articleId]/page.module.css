@@ -1,0 +1,19 @@
+.wrapper { max-width: 800px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); }
+.headerInfo { }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); }
+.headerMeta { display: flex; gap: 8px; margin-top: 8px; }
+.headerMetaText { font-size: 13px; color: var(--text-muted-48); }
+.headerActions { display: flex; gap: 8px; flex-wrap: wrap; }
+.editActions { display: flex; gap: 8px; }
+.content { font-size: var(--text-title); line-height: 1.47; white-space: pre-wrap; color: var(--text-ink); }
+.tags { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+.tag {
+  padding: 2px 10px; font-size: 12px; border-radius: var(--radius-pill);
+  background: var(--divider-soft); color: var(--text-muted-80);
+}
+.error { color: var(--color-error); padding: 40px; }
+.loading { padding: 40px; color: var(--text-muted-48); }
+.cardMb { margin-bottom: 16px; }
+.errorCard { border: 1px solid var(--color-error); margin-bottom: 16px; }
+.errorText { color: var(--color-error); font-size: 14px; }

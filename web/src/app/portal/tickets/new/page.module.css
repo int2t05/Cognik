@@ -1,0 +1,11 @@
+.wrapper { max-width: 640px; }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: var(--space-lg); }
+.formRow { display: flex; gap: 16px; margin-bottom: 16px; }
+.formCol { flex: 1; }
+.label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-ink); }
+.select {
+  width: 100%; padding: 8px 12px; font-size: var(--text-body-size);
+  border-radius: var(--radius-sm); border: 1px solid var(--hairline);
+  background: var(--bg-canvas); color: var(--text-ink);
+}
+.formActions { margin-top: 24px; display: flex; gap: 12px; }

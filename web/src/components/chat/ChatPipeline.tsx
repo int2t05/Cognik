@@ -1,4 +1,5 @@
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import styles from './ChatPipeline.module.css';
 
 interface PipelineStep { id: string; label: string; duration_ms?: number; success?: boolean; }
 
@@ -11,25 +12,19 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
   if (!currentStep && steps.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div>
       {currentStep && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 16px', background: 'var(--bg-pearl)',
-          borderRadius: 'var(--radius-pill)', fontSize: 13, color: 'var(--text-muted-80)',
-        }}>
+        <div className={styles.currentStep}>
           <AppleSpinner size={14} /> {currentStep}
         </div>
       )}
       {steps.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+        <div className={styles.completedSteps}>
           {steps.map((s) => (
-            <span key={s.id} style={{
-              padding: '2px 10px', fontSize: 11,
-              borderRadius: 'var(--radius-pill)',
-              background: s.success === false ? 'var(--color-error)' : 'var(--color-success)',
-              color: '#fff', opacity: s.success === false ? 0.7 : 0.5,
-            }}>
+            <span
+              key={s.id}
+              className={`${styles.stepPill} ${s.success === false ? styles.stepFail : styles.stepSuccess}`}
+            >
               {s.label}{s.duration_ms ? ` ${s.duration_ms}ms` : ''}
             </span>
           ))}

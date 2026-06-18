@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { apiFetch } from '@/lib/api/client';
 import { isAdminRole } from '@/lib/roles';
+import styles from './page.module.css';
 
 interface LoginResponse {
   access_token: string;
@@ -57,114 +58,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: 'var(--bg-parchment)',
-      }}
-    >
-      <div
-        style={{
-          width: 400,
-          padding: 'var(--space-xxl)',
-          background: 'var(--bg-canvas)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--hairline)',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: '-0.28px',
-            textAlign: 'center',
-            marginBottom: 8,
-            color: 'var(--text-ink)',
-          }}
-        >
-          OpsMind
-        </h1>
-        <p
-          style={{
-            fontSize: 15,
-            color: 'var(--text-muted-48)',
-            textAlign: 'center',
-            marginBottom: 32,
-          }}
-        >
-          运维数字员工系统
-        </p>
+    <div className={styles.wrapper}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>OpsMind</h1>
+        <p className={styles.subtitle}>运维数字员工系统</p>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 20 }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 14,
-                fontWeight: 500,
-                marginBottom: 6,
-                color: 'var(--text-ink)',
-              }}
-            >
-              用户名
-            </label>
+          <div className={styles.field}>
+            <label className={styles.label}>用户名</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
-              style={{
-                width: '100%',
-                height: 44,
-                padding: '0 16px',
-                fontSize: 17,
-                borderRadius: 'var(--radius-pill)',
-                border: '1px solid var(--hairline)',
-                background: 'var(--bg-canvas)',
-                color: 'var(--text-ink)',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              className={styles.input}
             />
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 14,
-                fontWeight: 500,
-                marginBottom: 6,
-                color: 'var(--text-ink)',
-              }}
-            >
-              密码
-            </label>
+          <div className={styles.fieldLast}>
+            <label className={styles.label}>密码</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              style={{
-                width: '100%',
-                height: 44,
-                padding: '0 16px',
-                fontSize: 17,
-                borderRadius: 'var(--radius-pill)',
-                border: '1px solid var(--hairline)',
-                background: 'var(--bg-canvas)',
-                color: 'var(--text-ink)',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              className={styles.input}
             />
           </div>
 
-          <AppleButton type="submit" loading={loading} style={{ width: '100%' }}>
+          <AppleButton type="submit" loading={loading} className={styles.fullWidth}>
             登录
           </AppleButton>
         </form>

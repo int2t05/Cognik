@@ -5,16 +5,17 @@ import { getConfig, setConfig } from '@/lib/api/config';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
+import styles from './page.module.css';
 
 export default function SystemConfigPage() {
   const toast = useToast();
   return (
     <div>
-      <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)', marginBottom: 24 }}>系统配置</h1>
-      <AppleCard style={{ maxWidth: 600 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 16, color: 'var(--text-ink)' }}>应用配置</h2>
+      <h1 className={styles.title}>系统配置</h1>
+      <AppleCard className={styles.configCard}>
+        <h2 className={styles.sectionTitle}>应用配置</h2>
         <ConfigRow label="应用名称" configKey="app_name" />
-        <h2 style={{ fontSize: 17, fontWeight: 600, margin: '24px 0 16px', color: 'var(--text-ink)' }}>AI 参数</h2>
+        <h2 className={styles.sectionTitleSpaced}>AI 参数</h2>
         <ConfigRow label="默认 Top K" configKey="ai_default_top_k" />
         <ConfigRow label="置信度阈值" configKey="ai_confidence_threshold" />
       </AppleCard>
@@ -43,17 +44,16 @@ function ConfigRow({ label, configKey }: { label: string; configKey: string }) {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-ink)', width: 120 }}>{label}</span>
+    <div className={styles.configRow}>
+      <span className={styles.configLabel}>{label}</span>
       {editing ? (
         <>
-          <input value={val} onChange={(e) => setVal(e.target.value)}
-            style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--hairline)', background: 'var(--bg-canvas)', color: 'var(--text-ink)' }} />
+          <input value={val} onChange={(e) => setVal(e.target.value)} className={styles.configInput} />
           <AppleButton variant="ghost" onClick={handleSave} loading={saving}>保存</AppleButton>
         </>
       ) : (
         <>
-          <span style={{ flex: 1, fontSize: 14, color: 'var(--text-ink)' }}>{currentVal || '—'}</span>
+          <span className={styles.configValue}>{currentVal || '—'}</span>
           <AppleButton variant="ghost" onClick={startEdit}>编辑</AppleButton>
         </>
       )}

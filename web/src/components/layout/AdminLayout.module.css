@@ -1,0 +1,196 @@
+/* AdminLayout — 后台管理布局样式模块 */
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-parchment);
+}
+
+/* ===== 侧栏 ===== */
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--bg-canvas);
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+.sidebarCollapsed {
+  width: var(--sidebar-collapsed);
+}
+
+.logo {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--divider-soft);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-ink);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.logoCollapsed {
+  font-size: 16px;
+}
+
+.nav {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+/* ===== 菜单项 ===== */
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-ink);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-fast);
+}
+
+.menuItem:hover {
+  background: var(--divider-soft);
+}
+
+.menuItemActive {
+  background: var(--divider-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.menuItemCollapsed {
+  padding: 12px 0;
+  justify-content: center;
+}
+
+.menuItemDepth1 {
+  padding-left: 36px;
+}
+
+.menuItemDepth2 {
+  padding-left: 52px;
+}
+
+.menuLabel {
+  flex: 1;
+}
+
+.menuChevron {
+  transition: transform var(--duration-fast);
+}
+
+.menuChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ===== 侧栏底部操作区 ===== */
+
+.bottomActions {
+  padding: 12px;
+  border-top: 1px solid var(--divider-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted-80);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast);
+}
+
+.actionBtn:hover {
+  background: var(--divider-soft);
+}
+
+/* ===== 主内容区 ===== */
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left var(--duration-normal) var(--ease-out);
+}
+
+.mainExpanded {
+  margin-left: var(--sidebar-width);
+}
+
+.mainCollapsed {
+  margin-left: var(--sidebar-collapsed);
+}
+
+/* ===== 顶栏 ===== */
+
+.topbar {
+  height: var(--topbar-height);
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.toggleBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-ink);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.userName {
+  font-size: 13px;
+  color: var(--text-muted-48);
+}
+
+.logoutBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted-48);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-lg);
+}

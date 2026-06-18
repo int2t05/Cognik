@@ -1,0 +1,4 @@
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: var(--space-lg); }
+.error { color: var(--color-error); }
+.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
+.link { color: var(--accent); }

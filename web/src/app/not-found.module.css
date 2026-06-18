@@ -1,0 +1,27 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg-parchment);
+}
+.inner {
+  text-align: center;
+}
+.code {
+  font-size: 56px;
+  font-weight: 600;
+  color: var(--text-ink);
+  letter-spacing: -0.28px;
+}
+.text {
+  font-size: 17px;
+  color: var(--text-muted-48);
+  margin-top: 8px;
+}
+.link {
+  color: var(--accent);
+  margin-top: 24px;
+  display: inline-block;
+  font-size: 17px;
+}

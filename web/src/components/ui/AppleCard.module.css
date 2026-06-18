@@ -1,0 +1,17 @@
+/* AppleCard — 白底 + hairline 边框 + 18px 圆角 */
+
+.card {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  padding: var(--card-padding, var(--space-lg));
+}
+
+.clickable {
+  cursor: pointer;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.clickable:hover {
+  box-shadow: var(--shadow-card);
+}

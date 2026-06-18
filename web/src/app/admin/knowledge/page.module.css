@@ -1,0 +1,8 @@
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); }
+.grid { display: grid; gap: 16px; }
+.cardHeader { font-size: var(--text-title); font-weight: 600; color: var(--text-ink); }
+.cardMeta { font-size: 14px; color: var(--text-muted-48); margin-top: 4px; }
+.cardActions { display: flex; gap: 8px; }
+.error { color: var(--color-error); padding: 40px; }
+.kbCard { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }

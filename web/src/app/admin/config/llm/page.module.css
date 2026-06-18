@@ -1,0 +1,20 @@
+.header { display: flex; justify-content: space-between; margin-bottom: var(--space-lg); }
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); }
+.grid { display: grid; gap: 16px; }
+.cardHeader { display: flex; justify-content: space-between; align-items: center; }
+.cardTitle { font-size: var(--text-title); font-weight: 600; }
+.cardSub { font-size: 13px; color: var(--text-muted-48); margin-top: 4px; }
+.cardActions { display: flex; gap: 8px; }
+.defaultBadge { font-size: 12px; color: var(--accent); font-weight: 400; }
+.formGroup { margin-bottom: 16px; }
+.formLabel { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-ink); }
+.formSelect {
+  padding: 8px 12px; font-size: var(--text-body-size); border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline); background: var(--bg-canvas);
+  color: var(--text-ink); width: 100%;
+}
+.testResult { margin-top: 12px; font-size: 14px; }
+.testSuccess { color: var(--color-success); }
+.testFail { color: var(--color-error); }
+.error { color: var(--color-error); padding: 40px; }
+.flex1 { flex: 1; }

@@ -98,9 +98,9 @@
 
 ## 7. 基础设施
 
-- 🔴 全局内联样式（~30 文件/数百处）— 保留（需系统性的 CSS 迁移计划）
+- ✅ 🔴 全局内联样式（~30 文件/数百处）— 已修复：全量迁移至 CSS Modules（70+ 文件），仅保留 15 处必要动态样式（虚拟列表、图表高度、CSS 自定义属性）
 - ✅ 📌 🟡 AppleBadge 硬编码 hex 色值，暗色模式不自适应 — 已修复：改用 CSS 变量 + `[data-theme="dark"]` 覆盖
-- 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — 保留（需提取 hook）
+- ✅ 🟡 未读数轮询逻辑在 AdminLayout 和 PortalLayout 中完全重复 — 已修复：提取 `hooks/useUnreadCount.ts` 共享 hook
 - 🟡 轮询错误静默吞没（`.catch(() => {})`）— 保留（行为变更需验证）
 - ✅ 🟡 not-found 使用 `<a>` 而非 `<Link>` — 已修复：改用 `<Link>` 实现客户端导航
 - 🟡 全局 ErrorBoundary 只有顶层一个 — 保留（需分层错误边界设计）
@@ -126,11 +126,12 @@
 | `server/internal/model/llm_config.go:43` | APIKey 重复加密检测 | 📌 保留 |
 | `server/internal/service/message_service.go:102` | 未读数缓存/WebSocket | 📌 保留 |
 
-### 前端 TODO（1 → 已清理 1 个）
+### 前端 TODO（0 → 已清理 0 个）
 
-| 位置 | 内容 | 状态 |
-|------|------|------|
-| ~~`web/src/components/ui/AppleBadge.tsx:5`~~ | ~~暗色模式色值适配~~ | ✅ 已修复 |
+前端代码已无 TODO 注释。本次重构新增：
+- 35 个 CSS Module 文件（`.module.css`）
+- 1 个共享 hook（`useUnreadCount`）
+- 移除 ~300+ 内联 `style={{}}` 对象，仅保留 15 处必要动态值
 
 ---
 
@@ -139,9 +140,9 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 1 | 6 | 2 | 2 |
-| 前端 | 1 | 8 | 5 | 0 |
-| **合计** | **2** | **14** | **7** | **2** |
+| 前端 | 0 | 6 | 3 | 0 |
+| **合计** | **1** | **12** | **5** | **2** |
 
 ---
 
-> 本次修复：内存缓存替换 auth 中间件 DB 查询（`cache/user_status.go`），冻结/恢复时自动失效。
+> 本次修复：CSS Module 全量迁移 — 全局内联样式 → 35 个 `.module.css` 文件，70+ TSX 文件重构，提取 `useUnreadCount` 共享 hook，零 TypeScript 错误。

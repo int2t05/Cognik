@@ -1,0 +1,5 @@
+.wrapper { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg-parchment); }
+.card { width: 400px; padding: var(--space-xxl); background: var(--bg-canvas); border-radius: var(--radius-lg); border: 1px solid var(--hairline); }
+.title { font-size: 22px; font-weight: 600; color: var(--text-ink); text-align: center; margin-bottom: var(--space-lg); }
+.submitArea { margin-top: var(--space-lg); }
+.fullWidth { width: 100%; }

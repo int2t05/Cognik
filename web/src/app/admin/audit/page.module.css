@@ -1,0 +1,9 @@
+.title { font-size: var(--text-hero); font-weight: 600; color: var(--text-ink); margin-bottom: var(--space-lg); }
+.filterBar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.filterInput {
+  height: 36px; padding: 0 12px; font-size: 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline); background: var(--bg-canvas);
+  color: var(--text-ink); width: 160px;
+}
+.filterInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,102,204,0.12); }
+.mono { font-size: 13px; }

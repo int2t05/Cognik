@@ -1,8 +1,9 @@
-/** AppleTable — 无边框 + 斑马行 + loading skeleton + empty state */
+/** AppleTable — 无边框 + 行悬浮 + loading skeleton + empty state */
 'use client';
 
 import { type ReactNode } from 'react';
 import { AppleSpinner } from './AppleSpinner';
+import styles from './AppleTable.module.css';
 
 interface Column<T> {
   key: string;
@@ -33,24 +34,15 @@ export function AppleTable<T extends Record<string, any>>({
   };
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className={styles.wrapper}>
+      <table className={styles.table}>
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                style={{
-                  padding: '10px 16px',
-                  textAlign: 'left',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: '-0.12px',
-                  color: 'var(--text-muted-48)',
-                  borderBottom: '1px solid var(--divider-soft)',
-                  width: col.width,
-                  whiteSpace: 'nowrap',
-                }}
+                className={styles.th}
+                style={{ width: col.width }}
               >
                 {col.title}
               </th>
@@ -60,30 +52,21 @@ export function AppleTable<T extends Record<string, any>>({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={columns.length} style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ display: 'flex', justifyContent: 'center' }}><AppleSpinner /></div>
+              <td colSpan={columns.length} className={styles.loading}>
+                <AppleSpinner />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted-48)', fontSize: 14 }}>
+              <td colSpan={columns.length} className={styles.empty}>
                 {emptyText}
               </td>
             </tr>
           ) : (
-            data.map((row, i) => (
-              <tr key={getKey(row)} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--divider-soft)' }}>
+            data.map((row) => (
+              <tr key={getKey(row)} className={styles.row}>
                 {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    style={{
-                      padding: '10px 16px',
-                      fontSize: 14,
-                      lineHeight: 1.43,
-                      color: 'var(--text-ink)',
-                      borderBottom: '1px solid var(--divider-soft)',
-                    }}
-                  >
+                  <td key={col.key} className={styles.td}>
                     {col.render ? col.render(row) : String(row[col.key] ?? '')}
                   </td>
                 ))}

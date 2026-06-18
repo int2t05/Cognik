@@ -9,6 +9,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
+import styles from './page.module.css';
 
 export default function ArticleListPage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -18,24 +19,32 @@ export default function ArticleListPage() {
   const [status, setStatus] = useState('-1');
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
 
+  const filterOptions = [
+    { v: '-1', l: '全部' },
+    { v: '1', l: '草稿' },
+    { v: '2', l: '待审核' },
+    { v: '4', l: '已发布' },
+    { v: '0', l: '已停用' },
+  ];
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-ink)' }}>知识文章</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>知识文章</h1>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}>新建文章</AppleButton>
       </div>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
-        {[{ v: '-1', l: '全部' }, { v: '1', l: '草稿' }, { v: '2', l: '待审核' }, { v: '4', l: '已发布' }, { v: '0', l: '已停用' }].map((o) => (
+      <div className={styles.filterBar}>
+        {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            style={{ padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-pill)', background: status === o.v ? 'var(--accent)' : 'var(--divider-soft)', color: status === o.v ? '#fff' : 'var(--text-ink)', fontSize: 13, cursor: 'pointer', fontWeight: status === o.v ? 600 : 400 }}>
+            className={`${styles.filterBtn} ${status === o.v ? styles.filterBtnActive : ''}`}>
             {o.l}
           </button>
         ))}
       </div>
       <AppleTable
         columns={[
-          { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} style={{ color: 'var(--accent)' }}>{r.title}</a> },
-          { key: 'source_type_text', title: '来源', render: (r) => <span style={{ fontSize: 12 }}>{r.source_type === 1 ? '手动' : '上传'}</span> },
+          { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className={styles.link}>{r.title}</a> },
+          { key: 'source_type_text', title: '来源', render: (r) => <span className={styles.mono}>{r.source_type === 1 ? '手动' : '上传'}</span> },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="article" status={r.status} /> },
           { key: 'process_status', title: '处理', render: (r) => r.process_status ? <StatusBadge type="process" status={r.process_status} /> : '—' },
           { key: 'created_at', title: '更新时间', render: (r) => formatDate(r.updated_at) },
