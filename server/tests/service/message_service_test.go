@@ -118,6 +118,73 @@ func TestMessageService_CountUnread_Zero(t *testing.T) {
 	}
 }
 
+func TestMessageService_CountUnreadCacheInvalidatesOnMarkAsRead(t *testing.T) {
+	setupMessageService(t)
+	repo := repository.NewMessageRepo(msgSvcDB)
+	svc := service.NewMessageServiceWithCacheTTL(repo, time.Minute)
+
+	now := time.Now()
+	first := &model.Message{UserID: 1, Title: "A", Content: "a", Type: "test", IsRead: false, CreatedAt: now}
+	msgSvcDB.Create(first)
+
+	count, err := svc.CountUnread(bgCtx, 1)
+	if err != nil {
+		t.Fatalf("CountUnread failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("first CountUnread = %d, want 1", count)
+	}
+
+	second := &model.Message{UserID: 1, Title: "B", Content: "b", Type: "test", IsRead: false, CreatedAt: now}
+	msgSvcDB.Create(second)
+
+	cached, err := svc.CountUnread(bgCtx, 1)
+	if err != nil {
+		t.Fatalf("cached CountUnread failed: %v", err)
+	}
+	if cached != 1 {
+		t.Fatalf("cached CountUnread = %d, want stale cached value 1", cached)
+	}
+
+	if err := svc.MarkAsRead(bgCtx, first.ID, 1); err != nil {
+		t.Fatalf("MarkAsRead failed: %v", err)
+	}
+
+	refreshed, err := svc.CountUnread(bgCtx, 1)
+	if err != nil {
+		t.Fatalf("refreshed CountUnread failed: %v", err)
+	}
+	if refreshed != 1 {
+		t.Fatalf("refreshed CountUnread = %d, want 1 unread message after invalidation", refreshed)
+	}
+}
+
+func TestMessageService_CountUnreadCacheInvalidatesOnNotifySupplement(t *testing.T) {
+	setupMessageService(t)
+	repo := repository.NewMessageRepo(msgSvcDB)
+	svc := service.NewMessageServiceWithCacheTTL(repo, time.Minute)
+
+	count, err := svc.CountUnread(bgCtx, 42)
+	if err != nil {
+		t.Fatalf("CountUnread failed: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("initial CountUnread = %d, want 0", count)
+	}
+
+	if err := svc.NotifySupplement(bgCtx, 100, 42, "ticket title"); err != nil {
+		t.Fatalf("NotifySupplement failed: %v", err)
+	}
+
+	refreshed, err := svc.CountUnread(bgCtx, 42)
+	if err != nil {
+		t.Fatalf("refreshed CountUnread failed: %v", err)
+	}
+	if refreshed != 1 {
+		t.Fatalf("refreshed CountUnread = %d, want 1 after cache invalidation", refreshed)
+	}
+}
+
 // =============================================================================
 // MarkAsRead
 // =============================================================================

@@ -11,15 +11,19 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"strings"
 )
 
 var encKey []byte
+
+const cipherPrefix = "cipher:"
 
 // Init 初始化加密密钥（32 字节 = AES-256）。
 //
 // keyHex 为 64 字符 hex 编码字符串，空字符串表示禁用加密（明文存储）。
 func Init(keyHex string) error {
 	if keyHex == "" {
+		encKey = nil
 		return nil
 	}
 	key, err := hex.DecodeString(keyHex)
@@ -35,11 +39,14 @@ func Init(keyHex string) error {
 
 // Encrypt 使用 AES-256-GCM 加密明文。
 //
-// 返回 hex 编码的密文（含 12 字节 nonce 前缀）。
+// 返回带 cipher: 前缀的 hex 编码密文（hex 内容含 12 字节 nonce 前缀）。
 // 若密钥未初始化，返回明文（向后兼容无加密环境）。
 func Encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
+	}
+	if strings.HasPrefix(plaintext, cipherPrefix) {
+		return plaintext, nil
 	}
 	if encKey == nil {
 		return plaintext, nil
@@ -58,7 +65,7 @@ func Encrypt(plaintext string) (string, error) {
 		return "", err
 	}
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	return hex.EncodeToString(ciphertext), nil
+	return cipherPrefix + hex.EncodeToString(ciphertext), nil
 }
 
 // Decrypt 使用 AES-256-GCM 解密密文。
@@ -72,9 +79,14 @@ func Decrypt(cipherHex string) (string, error) {
 		return cipherHex, nil
 	}
 
-	ciphertext, err := hex.DecodeString(cipherHex)
+	prefixed := strings.HasPrefix(cipherHex, cipherPrefix)
+	raw := strings.TrimPrefix(cipherHex, cipherPrefix)
+	ciphertext, err := hex.DecodeString(raw)
 	if err != nil {
-		return "", err
+		if prefixed {
+			return "", err
+		}
+		return cipherHex, nil
 	}
 	block, err := aes.NewCipher(encKey)
 	if err != nil {
@@ -86,12 +98,18 @@ func Decrypt(cipherHex string) (string, error) {
 	}
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return "", errors.New("密文过短")
+		if prefixed {
+			return "", errors.New("密文过短")
+		}
+		return cipherHex, nil
 	}
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", err
+		if prefixed {
+			return "", err
+		}
+		return cipherHex, nil
 	}
 	return string(plaintext), nil
 }

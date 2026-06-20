@@ -40,8 +40,6 @@ type LlmConfig struct {
 }
 
 // BeforeSave GORM 钩子：保存前加密 APIKey。
-//
-// TODO(model/llm_config): 检测 APIKey 是否为密文格式（如 cipher: 前缀），避免更新非 APIKey 字段时重复加密已加密的值。
 func (c *LlmConfig) BeforeSave(tx *gorm.DB) error {
 	if c.APIKey != "" {
 		enc, err := crypto.Encrypt(c.APIKey)

@@ -4,12 +4,16 @@ package service_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
+	"opsmind/pkg/crypto"
 )
+
+const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 // setupLLMConfigService 使用真实 DB 创建 LLMConfigService 实例。
 func setupLLMConfigService(t *testing.T) *service.LLMConfigService {
@@ -180,15 +184,77 @@ func TestLLMConfigService_APIKeyMasked(t *testing.T) {
 	}
 }
 
+// TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt verifies that editing
+// non-secret fields keeps the existing API key readable when encryption is enabled.
+func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) {
+	if err := crypto.Init(testEncryptionKey); err != nil {
+		t.Fatalf("crypto.Init failed: %v", err)
+	}
+	defer crypto.Init("")
+
+	svc := setupLLMConfigService(t)
+
+	created, err := svc.CreateConfig(bgCtx, "openai", 2, "https://api.openai.com/v1", "", "sk-original", "gpt-4o", "text-3-small", "", 4096, 1536, true)
+	if err != nil {
+		t.Fatalf("CreateConfig failed: %v", err)
+	}
+	if created.APIKey != "sk-original" {
+		t.Fatalf("created APIKey = %q, want sk-original", created.APIKey)
+	}
+
+	var rawBefore string
+	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawBefore).Error; err != nil {
+		t.Fatalf("query raw api_key failed: %v", err)
+	}
+	if !strings.HasPrefix(rawBefore, "cipher:") {
+		t.Fatalf("stored api_key should be prefixed ciphertext, got %q", rawBefore)
+	}
+
+	updated := &model.LlmConfig{
+		ID:              created.ID,
+		Name:            "openai updated",
+		ProviderType:    2,
+		BaseURL:         "https://api.openai.com/v1",
+		APIKey:          "",
+		LLMModel:        "gpt-4o-mini",
+		EmbeddingModel:  "text-3-small",
+		MaxTokens:       2048,
+		VectorDimension: 1536,
+		IsDefault:       true,
+	}
+	if err := svc.UpdateConfig(bgCtx, updated); err != nil {
+		t.Fatalf("UpdateConfig failed: %v", err)
+	}
+
+	var rawAfter string
+	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawAfter).Error; err != nil {
+		t.Fatalf("query updated raw api_key failed: %v", err)
+	}
+	if !strings.HasPrefix(rawAfter, "cipher:") {
+		t.Fatalf("updated api_key should remain prefixed ciphertext, got %q", rawAfter)
+	}
+
+	cfg, err := svc.GetConfig(bgCtx, created.ID)
+	if err != nil {
+		t.Fatalf("GetConfig failed: %v", err)
+	}
+	if cfg.APIKey != "sk-original" {
+		t.Fatalf("APIKey after non-secret update = %q, want sk-original", cfg.APIKey)
+	}
+	if mgrCfg := svc.GetManager().GetConfig(); mgrCfg == nil || mgrCfg.APIKey != "sk-original" {
+		t.Fatalf("manager APIKey = %#v, want sk-original", mgrCfg)
+	}
+}
+
 // TestLLMConfigResponse_MarshalJSON_MasksAPIKey 验证 MarshalJSON 自动脱敏。
 //
 // 纯单元测试——无需数据库。
 func TestLLMConfigResponse_MarshalJSON_MasksAPIKey(t *testing.T) {
 	resp := service.LlmConfigResponse{
-		ID:        1,
-		Name:      "openai",
-		APIKey:    "sk-1234567890abcdefghij",
-		LLMModel:  "gpt-4o",
+		ID:       1,
+		Name:     "openai",
+		APIKey:   "sk-1234567890abcdefghij",
+		LLMModel: "gpt-4o",
 	}
 
 	data, err := json.Marshal(resp)

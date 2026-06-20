@@ -151,6 +151,11 @@ func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, provid
 		}
 	}
 
+	fresh, err := s.repo.FindByID(ctx, cfg.ID)
+	if err != nil {
+		return nil, err
+	}
+	cfg = fresh
 	if isDefault {
 		s.manager.store(cfg)
 	}
@@ -191,6 +196,11 @@ func (s *LLMConfigService) UpdateConfig(ctx context.Context, cfg *model.LlmConfi
 	}
 
 	if cfg.IsDefault {
+		fresh, err := s.repo.FindByID(ctx, cfg.ID)
+		if err != nil {
+			return err
+		}
+		cfg = fresh
 		s.manager.store(cfg)
 	}
 	// 审计：更新 LLM 配置

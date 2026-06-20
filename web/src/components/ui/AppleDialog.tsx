@@ -28,7 +28,7 @@ export function AppleDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000] backdrop-blur-sm" />
         <Dialog.Content
-          className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] shadow-[0_20px_60px_rgba(0,0,0,0.15)] max-w-[90vw] max-h-[85vh] overflow-y-auto z-[1001]"
+          className="fixed left-1/2 top-1/2 z-[1001] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[0_20px_60px_rgba(0,0,0,0.15)]"
           style={{ width } as React.CSSProperties}
         >
           <Dialog.Title className="px-6 pt-5 pb-0 text-[17px] font-medium text-[var(--color-ink)]">

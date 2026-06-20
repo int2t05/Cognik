@@ -8,13 +8,15 @@
 package service_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"opsmind/internal/config"
 	"opsmind/internal/database"
-	"opsmind/internal/repository"
 	"opsmind/internal/dto/request"
+	"opsmind/internal/repository"
 	"opsmind/internal/service"
 
 	"gorm.io/gorm"
@@ -100,17 +102,17 @@ func seedDashboardData(t *testing.T) {
 		status int16
 		date   time.Time
 	}{
-		{"TK-20260610-0001", 1, now},         // 今天 待处理
-		{"TK-20260610-0002", 1, now},         // 今天 待处理
-		{"TK-20260610-0003", 2, now},         // 今天 处理中
-		{"TK-20260610-0004", 2, now},         // 今天 处理中
-		{"TK-20260610-0005", 2, now},         // 今天 处理中
-		{"TK-20260610-0006", 4, now},         // 今天 已解决
-		{"TK-20260609-0001", 1, yesterday},   // 昨天 待处理
-		{"TK-20260609-0002", 4, yesterday},   // 昨天 已解决
-		{"TK-20260609-0003", 5, yesterday},   // 昨天 已关闭（自动关闭）
-		{"TK-20260608-0001", 2, twoDaysAgo},  // 两天前 处理中
-		{"TK-20260608-0002", 5, twoDaysAgo},  // 两天前 已关闭
+		{"TK-20260610-0001", 1, now},        // 今天 待处理
+		{"TK-20260610-0002", 1, now},        // 今天 待处理
+		{"TK-20260610-0003", 2, now},        // 今天 处理中
+		{"TK-20260610-0004", 2, now},        // 今天 处理中
+		{"TK-20260610-0005", 2, now},        // 今天 处理中
+		{"TK-20260610-0006", 4, now},        // 今天 已解决
+		{"TK-20260609-0001", 1, yesterday},  // 昨天 待处理
+		{"TK-20260609-0002", 4, yesterday},  // 昨天 已解决
+		{"TK-20260609-0003", 5, yesterday},  // 昨天 已关闭（自动关闭）
+		{"TK-20260608-0001", 2, twoDaysAgo}, // 两天前 处理中
+		{"TK-20260608-0002", 5, twoDaysAgo}, // 两天前 已关闭
 	}
 	for _, tk := range tickets {
 		dashboardDB.Exec(
@@ -127,9 +129,9 @@ func seedDashboardData(t *testing.T) {
 		date       time.Time
 	}
 	chats := []chatSeed{
-		{"问题1", 0.9, now},       // 今天
-		{"问题2", 0.7, now},       // 今天
-		{"问题3", 0.5, now},       // 今天（低置信度）
+		{"问题1", 0.9, now},        // 今天
+		{"问题2", 0.7, now},        // 今天
+		{"问题3", 0.5, now},        // 今天（低置信度）
 		{"问题4", 0.85, yesterday}, // 昨天
 		{"问题5", 0.6, yesterday},  // 昨天
 	}
@@ -243,6 +245,83 @@ func TestDashboardService_GetStats_Empty(t *testing.T) {
 	if resp.KnowledgeCount < 0 {
 		t.Errorf("KnowledgeCount: 期望 0, got %d", resp.KnowledgeCount)
 	}
+}
+
+func TestDashboardService_GetStats_CancelsRemainingQueriesOnError(t *testing.T) {
+	repo := newCancelAwareDashboardRepo()
+	svc := service.NewDashboardService(repo)
+
+	_, err := svc.GetStats(bgCtx)
+	if !errors.Is(err, errDashboardRepoInjected) {
+		t.Fatalf("GetStats error = %v, want %v", err, errDashboardRepoInjected)
+	}
+
+	select {
+	case <-repo.cancelObserved:
+	case <-time.After(time.Second):
+		t.Fatal("expected remaining dashboard queries to observe context cancellation")
+	}
+}
+
+var errDashboardRepoInjected = errors.New("dashboard repo injected error")
+
+type cancelAwareDashboardRepo struct {
+	err            chan error
+	cancelObserved chan struct{}
+}
+
+func newCancelAwareDashboardRepo() *cancelAwareDashboardRepo {
+	return &cancelAwareDashboardRepo{
+		err:            make(chan error, 1),
+		cancelObserved: make(chan struct{}),
+	}
+}
+
+func (r *cancelAwareDashboardRepo) failOnceOrWait(ctx context.Context) error {
+	select {
+	case r.err <- errDashboardRepoInjected:
+		return errDashboardRepoInjected
+	default:
+		return r.waitForCancel(ctx)
+	}
+}
+
+func (r *cancelAwareDashboardRepo) waitForCancel(ctx context.Context) error {
+	<-ctx.Done()
+	select {
+	case <-r.cancelObserved:
+	default:
+		close(r.cancelObserved)
+	}
+	return ctx.Err()
+}
+
+func (r *cancelAwareDashboardRepo) CountTodayTickets(ctx context.Context) (int64, error) {
+	return 0, r.failOnceOrWait(ctx)
+}
+
+func (r *cancelAwareDashboardRepo) CountByStatus(ctx context.Context, _ int16) (int64, error) {
+	return 0, r.waitForCancel(ctx)
+}
+
+func (r *cancelAwareDashboardRepo) CountTodayChats(ctx context.Context) (int64, error) {
+	return 0, r.waitForCancel(ctx)
+}
+
+func (r *cancelAwareDashboardRepo) AvgTodayConfidence(ctx context.Context) (float64, error) {
+	return 0, r.waitForCancel(ctx)
+}
+
+func (r *cancelAwareDashboardRepo) CountKnowledgeArticles(ctx context.Context) (int64, error) {
+	return 0, r.waitForCancel(ctx)
+}
+
+func (r *cancelAwareDashboardRepo) GetTicketTrends(context.Context, string, string, string) ([]repository.TrendPoint, error) {
+	return nil, nil
+}
+
+func (r *cancelAwareDashboardRepo) GetChatTrends(context.Context, string, string, string) ([]repository.TrendPoint, error) {
+	return nil, nil
 }
 
 // =============================================================================

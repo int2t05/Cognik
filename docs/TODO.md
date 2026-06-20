@@ -27,19 +27,19 @@
 
 ## 4. 申告管理
 
-- ✅ 📌 🟡 未读数每 30 秒全量 COUNT 查询 — 保留（需缓存/WebSocket 基础设施）
+- ✅ 📌 🟡 未读数每 30 秒全量 COUNT 查询 — 已修复：`MessageService` 增加 15 秒 TTL 缓存，新增消息/标记已读时失效
 - 🟢 TicketRecord.OperatorID 系统自动操作时设为 0，无 FK 约束 — 保留（模型字段变更）
 
 ## 5. 数据看板与审计
 
 - ✅ 📌 🔴 Dashboard repo 字符串拼接 SQL `date_trunc` — 已修复：改用 `CASE WHEN` 参数化查询
-- 🟡 DashboardService 并行 7 个 goroutine 查询统计，任一失败不取消其余 — 保留（需 concurrency 重构）
+- ✅ 🟡 DashboardService 并行 7 个 goroutine 查询统计，任一失败不取消其余 — 已修复：`context.WithCancel` 首错取消其余查询
 - 🟢 趋势查询 90 天窗口硬编码，不可配置 — 保留（低优先级）
 - ✅ 🟢 Audit handler 使用硬编码错误码 `10003` — 已修复：改用 `errcode.ErrParam`
 
 ## 6. 系统管理与配置
 
-- 📌 🔴 LlmConfig.BeforeSave 每次保存都执行加密，更新非 APIKey 字段时已加密值可能被重复加密 — 保留（模型行为变更，需谨慎）
+- ✅ 📌 🔴 LlmConfig.BeforeSave 每次保存都执行加密，更新非 APIKey 字段时已加密值可能被重复加密 — 已修复：`crypto.Encrypt` 增加 `cipher:` 前缀幂等与旧密文兼容
 - 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限 — 保留（需架构改进）
 - 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等 — 保留（低优先级配置化）
 - ✅ 🟢 反馈提交允许 feedback=0 覆盖已有反馈 — 已修复：`chat_service.go` 拒绝 feedback=0 的提交
@@ -110,7 +110,7 @@
 
 ## 代码 TODO 索引（双向同步）
 
-### 后端 TODO（5 → 已清理 5 个）
+### 后端 TODO（7 → 已清理 7 个）
 
 | 位置 | 内容 | 状态 |
 |------|------|------|
@@ -119,8 +119,8 @@
 | ~~`server/internal/service/scheduler.go:70`~~ | ~~context.Background()~~ | ✅ 已修复 |
 | ~~`server/internal/rag/rerank.go`~~ | ~~doc 引用笔误~~ | ✅ 已修复 |
 | ~~`server/internal/middleware/auth.go:73`~~ | ~~用户状态每次查 DB~~ | ✅ 已修复（内存缓存） |
-| `server/internal/model/llm_config.go:43` | APIKey 重复加密检测 | 📌 保留 |
-| `server/internal/service/message_service.go:102` | 未读数缓存/WebSocket | 📌 保留 |
+| ~~`server/internal/model/llm_config.go:43`~~ | ~~APIKey 重复加密检测~~ | ✅ 已修复 |
+| ~~`server/internal/service/message_service.go:102`~~ | ~~未读数缓存/WebSocket~~ | ✅ 已修复（TTL 缓存） |
 
 ### 前端 TODO（0 → 已清理 0 个）
 
@@ -139,9 +139,9 @@
 
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
-| 后端 | 1 | 6 | 2 | 2 |
+| 后端 | 0 | 9 | 3 | 0 |
 | 前端 | 0 | 0 | 0 | 0 |
-| **合计** | **1** | **6** | **2** | **2** |
+| **合计** | **0** | **9** | **3** | **0** |
 
 ---
 
