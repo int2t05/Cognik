@@ -95,7 +95,7 @@ func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
 		return nil, fmt.Errorf("NewLLMConfigService: unsupported repo type %T", repo)
 	}
 
-	if cfg, err := svc.repo.FindDefault(context.Background()); err == nil {
+	if cfg, err := svc.repo.FindDefault(context.Background()); err == nil && cfg != nil {
 		svc.manager.store(cfg)
 	}
 

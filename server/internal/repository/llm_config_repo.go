@@ -5,6 +5,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"opsmind/internal/model"
 
@@ -44,9 +45,14 @@ func (r *LlmConfigRepo) FindByID(ctx context.Context, id int64) (*model.LlmConfi
 
 // FindDefault 查询默认配置。
 // 数据库层已有部分唯一索引 idx_llm_configs_default (WHERE is_default=true) 兜底。
+// 未找到默认配置时返回 nil, nil（静默降级，不视为错误），
+// 避免 GORM 在日志中打印 "record not found" 误导用户。
 func (r *LlmConfigRepo) FindDefault(ctx context.Context) (*model.LlmConfig, error) {
 	var cfg model.LlmConfig
 	err := r.db.WithContext(ctx).Where("is_default = ?", true).First(&cfg).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

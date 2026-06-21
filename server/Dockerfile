@@ -3,7 +3,7 @@
 # 阶段 1: 编译 Go 二进制
 # 阶段 2: Python slim 运行时（Go 二进制 + 本地 cross-encoder 模型）
 #
-# 重排序模型使用 ms-marco-MiniLM-L-4-v2（~50MB），
+# 重排序模型使用 MiniLM-L-4-v2（~80MB），
 # 需提前下载到 server/models/rerank/ 目录。
 # 详见 README.md「重排序模型」章节。
 #

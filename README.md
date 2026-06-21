@@ -119,6 +119,7 @@ PostgreSQL+pgvector    MinIO        llama.cpp (可选)
 ### 前置条件
 
 - Docker（含 Docker Compose v2）
+- Python 3.10+（仅本地开发需要，用于 cross-encoder 重排序子进程）
 - 8 GB 内存，10 GB 磁盘
 
 ### 一键部署
@@ -224,6 +225,10 @@ make dev   # 启动 PostgreSQL + MinIO
 
 ```bash
 cd server
+
+# 安装 rerank 依赖（cross-encoder 重排序子进程，BAAI/bge-reranker-base）
+pip install torch sentence-transformers
+
 go mod tidy
 go run ./cmd/main.go     # :8080，GORM AutoMigrate
 ```

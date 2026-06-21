@@ -49,5 +49,5 @@ ai:
 
 rerank:
   enabled: true              # 是否启用 cross-encoder 重排序子进程
-  python_path: "python3"     # Python 解释器路径
+  python_path: "python"      # Python 解释器路径（Windows: python，Docker: python3）
   script_path: "rerank_server.py"  # rerank_server.py 路径（相对或绝对）

@@ -2,7 +2,7 @@
 Cross-encoder 重排序推理服务（常驻子进程，stdin/stdout JSON Lines 协议）。
 
 用途：供 Go 侧 SubprocessReranker 通过 os/exec 启动，替换 LLM prompt 重排序。
-模型：BAAI/bge-reranker-base（FP16，~560MB 内存），中文 cross-encoder。
+模型：cross-encoder/ms-marco-MiniLM-L-4-v2（~80MB），轻量 cross-encoder。
 
 通信协议（JSON Lines）：
   输入（stdin） → {"query": "...", "passages": [{"id": 0, "text": "..."}, ...]}
@@ -10,7 +10,7 @@ Cross-encoder 重排序推理服务（常驻子进程，stdin/stdout JSON Lines 
   错误输出（stdout）→ {"error": "message"}
 
 环境变量：
-  RERANK_MODEL      模型名或本地路径，默认 BAAI/bge-reranker-base
+  RERANK_MODEL      模型名或本地路径，默认 cross-encoder/ms-marco-MiniLM-L-4-v2
   RERANK_DEVICE     推理设备，默认 cpu（可用 cuda / mps）
 """
 
@@ -35,7 +35,14 @@ logging.basicConfig(
 logger = logging.getLogger("rerank_server")
 
 # ── 模型加载 ──
-MODEL_NAME = os.environ.get("RERANK_MODEL", "BAAI/bge-reranker-base")
+# 优先使用环境变量，其次本地模型目录（预下载），最后 ModelScope 在线加载
+_LOCAL_MODEL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "rerank")
+_DEFAULT_MODEL = "cross-encoder/ms-marco-MiniLM-L-4-v2"
+if os.path.exists(os.path.join(_LOCAL_MODEL, "model.safetensors")):
+    _DEFAULT_MODEL = _LOCAL_MODEL
+# 优先国内镜像，加速在线下载
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+MODEL_NAME = os.environ.get("RERANK_MODEL", _DEFAULT_MODEL)
 DEVICE = os.environ.get("RERANK_DEVICE", "cpu")
 
 logger.info("加载 Cross-Encoder 模型: %s (device=%s)", MODEL_NAME, DEVICE)
