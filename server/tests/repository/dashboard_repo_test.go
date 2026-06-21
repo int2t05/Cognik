@@ -41,6 +41,10 @@ func setupDashboardRepoTestDB(t *testing.T) *gorm.DB {
 		content TEXT NOT NULL DEFAULT '', status SMALLINT NOT NULL DEFAULT 1,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
+	// 确保 user_id=1 存在以满足 FK 约束
+	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone, created_at, updated_at)
+		VALUES (1, 'dash_test_user', 'hash', '看板测试', '13800000000', NOW(), NOW())
+		ON CONFLICT (id) DO NOTHING`)
 	db.Exec("DELETE FROM tickets WHERE title LIKE 'test_dash_%'")
 	db.Exec("DELETE FROM chat_sessions WHERE question LIKE 'test_dash_%'")
 	db.Exec("DELETE FROM knowledge_articles WHERE title LIKE 'test_dash_%'")
@@ -52,9 +56,10 @@ func TestDashboardRepo_CountTodayTickets(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, status, created_at) VALUES
-		('TK-DASH-001', 1, 'test_dash_today1', 'd', '13800000001', 1, NOW()),
-		('TK-DASH-002', 1, 'test_dash_today2', 'd', '13800000001', 2, NOW())`)
+	// urgency 和 updated_at 在真实表中可能没有 DEFAULT，显式指定以避免 NOT NULL 约束冲突
+	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at) VALUES
+		('TK-DASH-001', 1, 'test_dash_today1', 'd', '13800000001', 1, 1, NOW(), NOW()),
+		('TK-DASH-002', 1, 'test_dash_today2', 'd', '13800000001', 1, 2, NOW(), NOW())`)
 
 	count, err := repo.CountTodayTickets(ctx)
 	if err != nil {
@@ -70,10 +75,10 @@ func TestDashboardRepo_CountByStatus(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, status) VALUES
-		('TK-DASH-S1', 1, 'test_dash_stat1', 'd', '13800000001', 1),
-		('TK-DASH-S2', 1, 'test_dash_stat2', 'd', '13800000001', 1),
-		('TK-DASH-S3', 1, 'test_dash_stat3', 'd', '13800000001', 2)`)
+	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at) VALUES
+		('TK-DASH-S1', 1, 'test_dash_stat1', 'd', '13800000001', 1, 1, NOW(), NOW()),
+		('TK-DASH-S2', 1, 'test_dash_stat2', 'd', '13800000001', 1, 1, NOW(), NOW()),
+		('TK-DASH-S3', 1, 'test_dash_stat3', 'd', '13800000001', 1, 2, NOW(), NOW())`)
 
 	count1, err := repo.CountByStatus(ctx, 1)
 	if err != nil {
@@ -97,8 +102,8 @@ func TestDashboardRepo_CountTodayChats(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence)
-		VALUES (1, 'test_dash_chat1', 'answer1', 0.8), (1, 'test_dash_chat2', 'answer2', 0.6)`)
+	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence, created_at)
+		VALUES (1, 'test_dash_chat1', 'answer1', 0.8, NOW()), (1, 'test_dash_chat2', 'answer2', 0.6, NOW())`)
 
 	count, err := repo.CountTodayChats(ctx)
 	if err != nil {
@@ -114,8 +119,8 @@ func TestDashboardRepo_AvgTodayConfidence(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence)
-		VALUES (1, 'test_dash_avg1', 'a', 0.9), (1, 'test_dash_avg2', 'a', 0.5)`)
+	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence, created_at)
+		VALUES (1, 'test_dash_avg1', 'a', 0.9, NOW()), (1, 'test_dash_avg2', 'a', 0.5, NOW())`)
 
 	avg, err := repo.AvgTodayConfidence(ctx)
 	if err != nil {
@@ -148,8 +153,8 @@ func TestDashboardRepo_GetTicketTrends(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, status)
-		VALUES ('TK-DASH-T1', 1, 'test_dash_trend', 'd', '13800000001', 1)`)
+	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at)
+		VALUES ('TK-DASH-T1', 1, 'test_dash_trend', 'd', '13800000001', 1, 1, NOW(), NOW())`)
 
 	points, err := repo.GetTicketTrends(ctx,
 		"2000-01-01", "2099-12-31", "day")
@@ -166,8 +171,8 @@ func TestDashboardRepo_GetChatTrends(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer)
-		VALUES (1, 'test_dash_chattrend', 'a')`)
+	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, created_at)
+		VALUES (1, 'test_dash_chattrend', 'a', NOW())`)
 
 	points, err := repo.GetChatTrends(ctx,
 		"2000-01-01", "2099-12-31", "day")
@@ -184,8 +189,8 @@ func TestDashboardRepo_GetTicketTrends_Week(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, status)
-		VALUES ('TK-DASH-W1', 1, 'test_dash_weekt', 'd', '13800000001', 1)`)
+	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at)
+		VALUES ('TK-DASH-W1', 1, 'test_dash_weekt', 'd', '13800000001', 1, 1, NOW(), NOW())`)
 
 	points, err := repo.GetTicketTrends(ctx,
 		"2000-01-01", "2099-12-31", "week")

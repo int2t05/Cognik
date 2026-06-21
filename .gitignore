@@ -83,3 +83,4 @@ server/models/rerank/config.json
 server/models/rerank/vocab.txt
 server/models/rerank/special_tokens_map.json
 server/models/rerank/tokenizer_config.json
+server/models/rerank/tokenizer.json

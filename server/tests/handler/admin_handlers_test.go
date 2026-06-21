@@ -164,15 +164,15 @@ func TestAuditHandler_List(t *testing.T) {
 func TestConfigHandler_Get(t *testing.T) {
 	r, db := setupAdminTestDB(t)
 
-	db.Exec("DELETE FROM system_configs WHERE key = 'app.name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app.name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
+	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
+	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
 	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
 	h := handler.NewConfigHandler(configSvc)
 
 	r.GET("/configs/:key", h.Get)
 
-	req := httptest.NewRequest("GET", "/configs/app.name", nil)
+	req := httptest.NewRequest("GET", "/configs/app_name", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -184,8 +184,8 @@ func TestConfigHandler_Get(t *testing.T) {
 func TestConfigHandler_Update(t *testing.T) {
 	r, db := setupAdminTestDB(t)
 
-	db.Exec("DELETE FROM system_configs WHERE key = 'app.name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app.name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
+	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
+	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
 	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
 	h := handler.NewConfigHandler(configSvc)
@@ -193,7 +193,7 @@ func TestConfigHandler_Update(t *testing.T) {
 	r.PUT("/configs/:key", h.Update)
 
 	body, _ := json.Marshal(map[string]string{"value": "\"OpsMind v2\""})
-	req := httptest.NewRequest("PUT", "/configs/app.name", bytes.NewReader(body))
+	req := httptest.NewRequest("PUT", "/configs/app_name", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

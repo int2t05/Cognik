@@ -112,14 +112,31 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 }
 
 // createHandlerUser 在测试 DB 中创建用户并返回。
+// handlerHashToPhone 根据字符串生成 11 位唯一手机号。
+func handlerHashToPhone(s string) string {
+	var h uint32
+	for _, c := range s {
+		h = h*31 + uint32(c)
+	}
+	phone := make([]byte, 11)
+	phone[0] = '1'
+	for i := 1; i < 11; i++ {
+		h = h*31 + uint32(i)
+		phone[i] = byte('0' + (h % 10))
+	}
+	return string(phone)
+}
+
 func createHandlerUser(t *testing.T, db *gorm.DB, username string) *model.User {
 	t.Helper()
 	now := time.Now()
+	// 使用 username 哈希生成唯一手机号，避免 idx_users_phone 唯一索引冲突
+	phone := handlerHashToPhone(username)
 	u := &model.User{
 		Username:     username,
 		PasswordHash: "$2a$10$hash",
 		RealName:     "测试用户",
-		Phone:        "13800000001",
+		Phone:        phone,
 		Status:       1,
 		CreatedAt:    now,
 		UpdatedAt:    now,

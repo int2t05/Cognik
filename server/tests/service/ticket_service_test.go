@@ -63,10 +63,27 @@ func cleanTicketServiceTables(t *testing.T, db *gorm.DB) {
 	db.Exec("DELETE FROM users WHERE username LIKE 'tsvc_%'")
 }
 
+// hashToPhone 根据字符串生成 11 位手机号（与服务层其他测试保持一致）。
+func hashToPhone(s string) string {
+	var h uint32
+	for _, c := range s {
+		h = h*31 + uint32(c)
+	}
+	phone := make([]byte, 11)
+	phone[0] = '1'
+	for i := 1; i < 11; i++ {
+		h = h*31 + uint32(i)
+		phone[i] = byte('0' + (h % 10))
+	}
+	return string(phone)
+}
+
 func createTestUserForService(t *testing.T, db *gorm.DB, username string) *model.User {
 	t.Helper()
 	now := time.Now()
-	u := &model.User{Username: username, PasswordHash: "$2a$10$hash", RealName: "测试用户", Phone: "13800000001", Status: 1, CreatedAt: now, UpdatedAt: now}
+	// 使用 username 哈希生成唯一手机号，避免 idx_users_phone 唯一索引冲突
+	phone := hashToPhone(username)
+	u := &model.User{Username: username, PasswordHash: "$2a$10$hash", RealName: "测试用户", Phone: phone, Status: 1, CreatedAt: now, UpdatedAt: now}
 	if err := db.Create(u).Error; err != nil {
 		t.Fatalf("创建测试用户失败: %v", err)
 	}

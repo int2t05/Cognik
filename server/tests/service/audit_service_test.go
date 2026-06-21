@@ -41,7 +41,8 @@ func setupAuditServiceTestDB(t *testing.T) *gorm.DB {
 		target_id BIGINT, detail JSONB, ip_address VARCHAR(45),
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
-	db.Exec("DELETE FROM audit_logs WHERE action LIKE 'test_%'")
+	// 注意：测试期望空表起始，必须清空所有审计日志而非仅 test_ 前缀
+	db.Exec("DELETE FROM audit_logs")
 	return db
 }
 
@@ -92,15 +93,20 @@ func TestAuditService_List_ByOperator(t *testing.T) {
 	svc := service.NewAuditService(repo)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone) VALUES (1, 'admin', '$2a$10$x', '操作人A', '13800000001') ON CONFLICT DO NOTHING`)
-	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_op1", TargetType: "user", TargetID: 1})
+	// 使用唯一 operator_id 避免与其他测试的用户数据冲突
+	const testOpID = 99001
+	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone, created_at, updated_at)
+		VALUES (?, 'audit_op_test', 'hashed_pwd_test', '操作人A', '13800000001', NOW(), NOW())
+		ON CONFLICT (id) DO UPDATE SET real_name = '操作人A', updated_at = NOW()`,
+		testOpID)
+	repo.Create(ctx, &model.AuditLog{OperatorID: testOpID, Action: "test_op1", TargetType: "user", TargetID: 1})
 
-	items, _, err := svc.List(ctx, repository.AuditFilter{OperatorID: 1, Page: 1, PageSize: 10})
+	items, _, err := svc.List(ctx, repository.AuditFilter{OperatorID: testOpID, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
 	for _, item := range items {
-		if item.OperatorID == 1 && item.OperatorName != "操作人A" {
+		if item.OperatorID == testOpID && item.OperatorName != "操作人A" {
 			t.Errorf("期望操作人A, 实际 %s", item.OperatorName)
 		}
 	}

@@ -56,8 +56,8 @@ func TestLlmConfigRepo_FindByID(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model)
-		VALUES ('test_llmcfg_find', 1, 'http://localhost:8080/v1', 'm', 'e')`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
+		VALUES ('test_llmcfg_find', 1, 'http://localhost:8080/v1', 'm', 'e', 8192, 1024, NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM llm_configs WHERE name = 'test_llmcfg_find'").Scan(&id)
 
@@ -86,8 +86,8 @@ func TestLlmConfigRepo_FindDefault(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, is_default)
-		VALUES ('test_llmcfg_def', 1, 'http://localhost:8080/v1', 'm', 'e', true)`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, is_default, created_at, updated_at)
+		VALUES ('test_llmcfg_def', 1, 'http://localhost:8080/v1', 'm', 'e', 8192, 1024, true, NOW(), NOW())`)
 
 	cfg, err := repo.FindDefault(ctx)
 	if err != nil {
@@ -103,9 +103,9 @@ func TestLlmConfigRepo_List(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model) VALUES
-		('test_llmcfg_list1', 1, 'http://a:8080/v1', 'm1', 'e1'),
-		('test_llmcfg_list2', 1, 'http://b:8080/v1', 'm2', 'e2')`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at) VALUES
+		('test_llmcfg_list1', 1, 'http://a:8080/v1', 'm1', 'e1', 8192, 1024, NOW(), NOW()),
+		('test_llmcfg_list2', 1, 'http://b:8080/v1', 'm2', 'e2', 8192, 1024, NOW(), NOW())`)
 
 	configs, err := repo.List(ctx)
 	if err != nil {
@@ -121,8 +121,8 @@ func TestLlmConfigRepo_Update(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model)
-		VALUES ('test_llmcfg_upd', 1, 'http://old:8080/v1', 'old-m', 'old-e')`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
+		VALUES ('test_llmcfg_upd', 1, 'http://old:8080/v1', 'old-m', 'old-e', 8192, 1024, NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM llm_configs WHERE name = 'test_llmcfg_upd'").Scan(&id)
 
@@ -143,8 +143,8 @@ func TestLlmConfigRepo_Delete(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model)
-		VALUES ('test_llmcfg_del', 1, 'http://x:8080/v1', 'm', 'e')`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
+		VALUES ('test_llmcfg_del', 1, 'http://x:8080/v1', 'm', 'e', 8192, 1024, NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM llm_configs WHERE name = 'test_llmcfg_del'").Scan(&id)
 
@@ -162,9 +162,9 @@ func TestLlmConfigRepo_ClearDefault(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, is_default) VALUES
-		('test_llmcfg_clr1', 1, 'http://a:8080/v1', 'm1', 'e1', true),
-		('test_llmcfg_clr2', 1, 'http://b:8080/v1', 'm2', 'e2', true)`)
+	db.Exec(`INSERT INTO llm_configs (name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, is_default, created_at, updated_at) VALUES
+		('test_llmcfg_clr1', 1, 'http://a:8080/v1', 'm1', 'e1', 8192, 1024, true, NOW(), NOW()),
+		('test_llmcfg_clr2', 1, 'http://b:8080/v1', 'm2', 'e2', 8192, 1024, true, NOW(), NOW())`)
 
 	if err := repo.ClearDefault(ctx); err != nil {
 		t.Fatalf("ClearDefault 失败: %v", err)
@@ -183,11 +183,11 @@ func TestLlmConfigRepo_CountReferencingKBs(t *testing.T) {
 	repo := repository.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO llm_configs (id, name, provider_type, base_url, llm_model, embedding_model)
-		VALUES (100, 'test_llmcfg_ref', 1, 'http://x:8080/v1', 'm', 'e')`)
-	db.Exec(`INSERT INTO knowledge_bases (name, llm_config_id, embedding_model, vector_dimension, created_by)
-		VALUES ('test_llmcfg_kb1', 100, 'bge-m3', 1024, 1),
-		       ('test_llmcfg_kb2', 100, 'bge-m3', 1024, 1)`)
+	db.Exec(`INSERT INTO llm_configs (id, name, provider_type, base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
+		VALUES (100, 'test_llmcfg_ref', 1, 'http://x:8080/v1', 'm', 'e', 8192, 1024, NOW(), NOW())`)
+	db.Exec(`INSERT INTO knowledge_bases (name, llm_config_id, embedding_model, vector_dimension, created_by, created_at, updated_at)
+		VALUES ('test_llmcfg_kb1', 100, 'bge-m3', 1024, 1, NOW(), NOW()),
+		       ('test_llmcfg_kb2', 100, 'bge-m3', 1024, 1, NOW(), NOW())`)
 
 	count, err := repo.CountReferencingKBs(ctx, 100)
 	if err != nil {

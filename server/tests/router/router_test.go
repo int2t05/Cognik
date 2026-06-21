@@ -91,8 +91,8 @@ func TestAuthRequiredRoutes_RequireJWT(t *testing.T) {
 		method string
 		path   string
 	}{
-		{"POST", "/api/v1/auth/change-password"},
-		{"POST", "/api/v1/auth/logout"},
+		{"POST", "/api/v1/auth/me/change-password"},
+		{"POST", "/api/v1/auth/me/logout"},
 	}
 
 	for _, tt := range tests {
