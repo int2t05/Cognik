@@ -77,6 +77,32 @@ func TestAPI_Audit_ListWithDateRange(t *testing.T) {
 		"/api/v1/admin/audit-logs?date_from=2026-06-01&date_to=2026-06-30", nil))
 }
 
+func TestAPI_Audit_ListWithTargetID(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	kbID := ts.seedKB(t, "audit-target-kb")
+
+	body := assertOK(t, ts.doAuth(t, http.MethodGet,
+		fmt.Sprintf("/api/v1/admin/audit-logs?target_id=%d", kbID), nil))
+	for _, item := range body["data"].([]interface{}) {
+		targetID := item.(map[string]interface{})["target_id"]
+		if targetID != nil {
+			assert.Equal(t, float64(kbID), targetID)
+		}
+	}
+}
+
+func TestAPI_Audit_ListInvalidPagination(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 服务端不校验 page=0，静默回退默认值，验证不崩溃即可
+	resp := ts.doAuth(t, http.MethodGet, "/api/v1/admin/audit-logs?page=0", nil)
+	body := parseBody(t, resp)
+	assert.Equal(t, float64(0), body["code"], "page=0 不应导致错误")
+}
+
 func TestAPI_Audit_LogCreatedOnAction(t *testing.T) {
 	ts := startAPITestServer(t)
 	defer ts.close()

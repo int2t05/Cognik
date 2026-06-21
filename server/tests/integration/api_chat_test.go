@@ -231,6 +231,69 @@ func TestAPI_Chat_FeedbackInvalid(t *testing.T) {
 		map[string]interface{}{"feedback": 99}))
 }
 
+// ── Non-Owner ────────────────────────────────────────────
+
+func TestAPI_Chat_SessionDetailNonOwner(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// admin 创建会话
+	body := assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/portal/chat-sessions", map[string]interface{}{
+		"kb_id": ts.seedKB(t, "detail-nonowner-kb"), "title": "admin session detail",
+	}))
+	sessionID := int64(body["data"].(map[string]interface{})["session_id"].(float64))
+
+	// reporter 查看 → 应拒绝
+	assertForbidden(t, ts.doReporter(t, http.MethodGet, fmt.Sprintf("/api/v1/portal/chat-sessions/%d", sessionID), nil))
+}
+
+func TestAPI_Chat_FeedbackNonOwner(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// admin 创建会话
+	body := assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/portal/chat-sessions", map[string]interface{}{
+		"kb_id": ts.seedKB(t, "fb-nonowner-kb"), "title": "admin session feedback",
+	}))
+	sessionID := int64(body["data"].(map[string]interface{})["session_id"].(float64))
+
+	// reporter 提交反馈 → 应拒绝
+	assertForbidden(t, ts.doReporter(t, http.MethodPost, fmt.Sprintf("/api/v1/portal/chat-sessions/%d/feedback", sessionID),
+		map[string]interface{}{"feedback": 1}))
+}
+
+// ── SSE Edge Cases ───────────────────────────────────────
+
+func TestAPI_Chat_StreamSessionNotFound(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// valid-format 但不存在 session ID → SSE 应通过 error 事件返回
+	resp, respBody := ts.doSSE(t, "/api/v1/portal/chat-sessions/99999/stream",
+		map[string]interface{}{"question": "hello?"})
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "SSE 应返回 200（即使出错）")
+
+	events := parseSSE(t, respBody)
+	require.GreaterOrEqual(t, len(events), 1, "应有至少一个 SSE 事件")
+	assert.Equal(t, "error", events[0]["type"], "不存在的会话应返回 error 事件")
+}
+
+func TestAPI_Chat_StreamQuestionTooLong(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	body := assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/portal/chat-sessions", map[string]interface{}{
+		"kb_id": ts.seedKB(t, "long-q-kb"), "title": "long question",
+	}))
+	sessionID := int64(body["data"].(map[string]interface{})["session_id"].(float64))
+
+	// 2001 字符问题（max=2000）
+	longQuestion := strings.Repeat("a", 2001)
+	assertBadRequest(t, ts.doAuth(t, http.MethodPost, fmt.Sprintf("/api/v1/portal/chat-sessions/%d/stream", sessionID),
+		map[string]interface{}{"question": longQuestion}))
+}
+
 // ── 辅助 ─────────────────────────────────────────────────
 
 func parseSSE(t *testing.T, body []byte) []map[string]interface{} {

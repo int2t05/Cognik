@@ -30,3 +30,12 @@ func TestAPI_Health_NoAuth(t *testing.T) {
 	resp := ts.do(t, http.MethodGet, "/health", nil, "")
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
+
+func TestAPI_Health_ReadyZ(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	resp := ts.do(t, http.MethodGet, "/readyz", nil, "")
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "/readyz 应返回 200")
+	assert.Equal(t, "ready", parseBody(t, resp)["status"], "/readyz status 应为 ready")
+}

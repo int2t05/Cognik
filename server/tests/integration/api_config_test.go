@@ -40,6 +40,29 @@ func TestAPI_Config_UpdateReadBack(t *testing.T) {
 	assert.Equal(t, "Second", data)
 }
 
+func TestAPI_Config_UpdateNullValue(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 使用白名单中的 key 验证 null value 被拒绝
+	resp := ts.doAuth(t, http.MethodPut, "/api/v1/admin/configs/app_name",
+		map[string]interface{}{"value": nil})
+	assertBadRequest(t, resp)
+}
+
+func TestAPI_Config_UpdateNonExistentCreates(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 白名单内的 key 首次 PUT 会自动创建
+	key := "ai.top_k"
+	assertCode(t, ts.doAuth(t, http.MethodPut, "/api/v1/admin/configs/"+key,
+		map[string]interface{}{"value": float64(8)}), 0)
+
+	data := assertOK(t, ts.doAuth(t, http.MethodGet, "/api/v1/admin/configs/"+key, nil))["data"]
+	assert.Equal(t, float64(8), data)
+}
+
 func TestAPI_Config_GetNotFound(t *testing.T) {
 	ts := startAPITestServer(t)
 	defer ts.close()

@@ -137,6 +137,24 @@ func TestAPI_Role_UpdateDuplicate(t *testing.T) {
 
 // ── Delete ───────────────────────────────────────────────
 
+func TestAPI_Role_UpdateMissingName(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	roleID := ts.seedRole(t, "upd_name_role", []string{"ticket:read"})
+
+	assertBadRequest(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/roles/%d", roleID),
+		map[string]interface{}{"name": ""}))
+}
+
+func TestAPI_Role_UpdateNotFound(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	assertNotFound(t, ts.doAuth(t, http.MethodPut, "/api/v1/admin/roles/99999",
+		map[string]interface{}{"name": "ghost_role"}))
+}
+
 func TestAPI_Role_DeleteSuccess(t *testing.T) {
 	ts := startAPITestServer(t)
 	defer ts.close()
@@ -207,4 +225,12 @@ func TestAPI_RoleMenu_UpdateMissingMenuIDs(t *testing.T) {
 	roleID := ts.seedRole(t, "menu_missing", nil)
 	assertBadRequest(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/roles/%d/menus", roleID),
 		map[string]interface{}{}))
+}
+
+func TestAPI_RoleMenu_UpdateForNonExistentRole(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	assertNotFound(t, ts.doAuth(t, http.MethodPut, "/api/v1/admin/roles/99999/menus",
+		map[string]interface{}{"menu_ids": []int64{}}))
 }

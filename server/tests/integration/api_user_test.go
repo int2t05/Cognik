@@ -147,7 +147,42 @@ func TestAPI_User_UpdateNotFound(t *testing.T) {
 		map[string]interface{}{"real_name": "Ghost", "phone": "13800000000"}))
 }
 
+func TestAPI_User_UpdateMissingRealName(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	ts.doAuth(t, http.MethodPost, "/api/v1/admin/users", map[string]interface{}{
+		"username": "upd_realname", "password": "UpdReal@123", "real_name": "Real", "phone": "13800002101",
+	})
+	var userID int64
+	ts.DB.Raw("SELECT id FROM users WHERE username = 'upd_realname'").Scan(&userID)
+
+	assertBadRequest(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/users/%d", userID),
+		map[string]interface{}{"real_name": "", "phone": "13800002998"}))
+}
+
+func TestAPI_User_UpdateMissingPhone(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	ts.doAuth(t, http.MethodPost, "/api/v1/admin/users", map[string]interface{}{
+		"username": "upd_phone", "password": "UpdPhone@1", "real_name": "Phone", "phone": "13800002102",
+	})
+	var userID int64
+	ts.DB.Raw("SELECT id FROM users WHERE username = 'upd_phone'").Scan(&userID)
+
+	assertBadRequest(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/users/%d", userID),
+		map[string]interface{}{"real_name": "Updated", "phone": ""}))
+}
+
 // ── Freeze ───────────────────────────────────────────────
+
+func TestAPI_User_FreezeNotFound(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	assertNotFound(t, ts.doAuth(t, http.MethodPatch, "/api/v1/admin/users/99999/freeze", nil))
+}
 
 func TestAPI_User_FreezeSuccess(t *testing.T) {
 	ts := startAPITestServer(t)
@@ -207,6 +242,13 @@ func TestAPI_User_UnfreezeAlreadyActive(t *testing.T) {
 
 	// 未冻结的用户恢复 → 10007
 	assertCode(t, ts.doAuth(t, http.MethodPatch, fmt.Sprintf("/api/v1/admin/users/%d/unfreeze", ts.ReporterID), nil), 10007)
+}
+
+func TestAPI_User_UnfreezeNotFound(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	assertNotFound(t, ts.doAuth(t, http.MethodPatch, "/api/v1/admin/users/99999/unfreeze", nil))
 }
 
 // ── Frozen login ─────────────────────────────────────────

@@ -317,3 +317,49 @@ func TestAPI_Ticket_KnowledgeCandidateNoKB(t *testing.T) {
 	assertBadRequest(t, ts.doAuth(t, http.MethodPost, fmt.Sprintf("/api/v1/admin/tickets/%d/knowledge-candidate", id),
 		map[string]interface{}{}))
 }
+
+// ── Portal Non-Owner ─────────────────────────────────────
+
+func TestAPI_Ticket_PortalDetailNonOwner(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	id := ts.seedTicket(t, "portal detail non-owner", "test", "13800003024")
+
+	// admin（非创建者）通过门户端查看 → 应拒绝
+	assertForbidden(t, ts.doAuth(t, http.MethodGet, fmt.Sprintf("/api/v1/portal/tickets/%d", id), nil))
+}
+
+func TestAPI_Ticket_PortalSupplementNonOwner(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	id := ts.seedTicket(t, "supplement non-owner", "desc", "13800003025")
+	ts.DB.Exec("UPDATE tickets SET status = 3 WHERE id = $1", id)
+
+	// admin（非创建者）通过门户端补充 → 应拒绝
+	assertForbidden(t, ts.doAuth(t, http.MethodPatch, fmt.Sprintf("/api/v1/portal/tickets/%d/supplement", id),
+		map[string]string{"content": "补充信息"}))
+}
+
+func TestAPI_Ticket_AdminRequestInfoLimit(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	id := ts.seedTicket(t, "request info limit", "desc", "13800003026")
+
+	// 先转为处理中
+	ts.DB.Exec("UPDATE tickets SET status = 2 WHERE id = $1", id)
+
+	// 前 3 次 request_info 应成功
+	for i := 0; i < 3; i++ {
+		assertCode(t, ts.doAuth(t, http.MethodPatch, fmt.Sprintf("/api/v1/admin/tickets/%d/status", id),
+			map[string]string{"action": "request_info", "result": fmt.Sprintf("round %d", i+1)}), 0)
+		// request_info 后状态变为 3（需补充信息），模拟补充后重回处理中
+		ts.DB.Exec("UPDATE tickets SET status = 2 WHERE id = $1", id)
+	}
+
+	// 第 4 次应拒绝（已达上限 3 次）
+	assertBadRequest(t, ts.doAuth(t, http.MethodPatch, fmt.Sprintf("/api/v1/admin/tickets/%d/status", id),
+		map[string]string{"action": "request_info", "result": "too many"}))
+}

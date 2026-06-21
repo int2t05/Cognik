@@ -322,6 +322,19 @@ func TestAPI_Article_ReviewNotInReview(t *testing.T) {
 	assert.NotEqual(t, float64(0), body["code"], "草稿直接审核应拒绝")
 }
 
+func TestAPI_Article_ReviewSelfReject(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	kbID := ts.seedKB(t, "self-review-kb")
+	articleID := ts.seedArticle(t, kbID, "self review", "content")
+	assertCode(t, ts.doAuth(t, http.MethodPost, fmt.Sprintf("/api/v1/admin/articles/%d/submit-review", articleID), nil), 0)
+
+	// 创建人不能审核自己的文章
+	assertBadRequest(t, ts.doAuth(t, http.MethodPost, fmt.Sprintf("/api/v1/admin/articles/%d/review", articleID),
+		map[string]interface{}{"approved": true}))
+}
+
 // ── Publish / Disable / Enable ───────────────────────────
 
 func TestAPI_Article_Publish(t *testing.T) {

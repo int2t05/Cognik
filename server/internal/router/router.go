@@ -53,6 +53,10 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	// /readyz — 就绪探针（K8s readiness）
+	r.GET("/readyz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
 
 	public := r.Group("/api/v1/auth")
 	registerPublicRoutes(public, h)

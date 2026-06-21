@@ -10,6 +10,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -245,4 +246,72 @@ func TestAPI_Auth_LogoutMissingToken(t *testing.T) {
 	resp := ts.do(t, http.MethodPost, "/api/v1/auth/me/logout",
 		map[string]string{}, token)
 	assertBadRequest(t, resp)
+}
+
+// ── Rate Limit ─────────────────────────────────────────────
+
+func TestAPI_Auth_LoginRateLimit(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	for i := 0; i < 7; i++ {
+		resp := ts.do(t, http.MethodPost, "/api/v1/auth/login",
+			map[string]string{"username": "apitest_admin", "password": "WrongPass@1"}, "")
+		body := parseBody(t, resp)
+		code := body["code"].(float64)
+		assert.NotEqual(t, float64(0), code, "第 %d 次登录应失败", i+1)
+		assert.NotEqual(t, float64(99999), code, "第 %d 次登录不应服务器错误", i+1)
+	}
+}
+
+// ── Refresh Frozen User ────────────────────────────────────
+
+func TestAPI_Auth_RefreshFrozenUser(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 直接创建用户（不通过 API）
+	pwd := "Freeze@123"
+	hashed, err := hash.HashPassword(pwd)
+	require.NoError(t, err)
+	ts.DB.Exec(`INSERT INTO users (username, password_hash, real_name, phone, status, first_login, created_at, updated_at)
+		VALUES ('refresh_frozen', $1, 'Test', '13800003001', 1, false, NOW(), NOW())`, hashed)
+
+	var userID int64
+	ts.DB.Raw("SELECT id FROM users WHERE username = 'refresh_frozen'").Scan(&userID)
+	require.NotZero(t, userID)
+
+	// 登录获取 tokens
+	body := assertOK(t, ts.do(t, http.MethodPost, "/api/v1/auth/login",
+		map[string]string{"username": "refresh_frozen", "password": pwd}, ""))
+	data := body["data"].(map[string]interface{})
+	refreshToken := data["refresh_token"].(string)
+
+	// 冻结用户
+	assertCode(t, ts.doAuth(t, http.MethodPatch, fmt.Sprintf("/api/v1/admin/users/%d/freeze", userID), nil), 0)
+
+	// 刷新应被拒绝（用户已冻结）
+	assertForbidden(t, ts.do(t, http.MethodPost, "/api/v1/auth/refresh",
+		map[string]string{"refresh_token": refreshToken}, ""))
+}
+
+// ── Logout Idempotent ──────────────────────────────────────
+
+func TestAPI_Auth_LogoutIdempotent(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	body := assertOK(t, ts.do(t, http.MethodPost, "/api/v1/auth/login",
+		map[string]string{"username": "apitest_admin", "password": "Admin@123"}, ""))
+	data := body["data"].(map[string]interface{})
+	token := data["access_token"].(string)
+	refresh := data["refresh_token"].(string)
+
+	// 第一次登出
+	assertCode(t, ts.do(t, http.MethodPost, "/api/v1/auth/me/logout",
+		map[string]string{"refresh_token": refresh}, token), 0)
+
+	// 第二次登出同样成功（幂等）
+	assertCode(t, ts.do(t, http.MethodPost, "/api/v1/auth/me/logout",
+		map[string]string{"refresh_token": refresh}, token), 0)
 }

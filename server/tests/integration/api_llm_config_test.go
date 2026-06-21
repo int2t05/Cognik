@@ -226,3 +226,79 @@ func TestAPI_LLMConfig_TestConnection(t *testing.T) {
 	c := b["code"].(float64)
 	assert.True(t, c == 0 || c == 20001, "测试连接应返回 0 或 20001, got code=%v", c)
 }
+
+// ── Invalid Provider Type ──────────────────────────────────
+
+func TestAPI_LLMConfig_CreateInvalidProviderType(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	resp := ts.doAuth(t, http.MethodPost, "/api/v1/admin/llm-configs", map[string]interface{}{
+		"name": "invalid-provider", "provider_type": 99, "base_url": "https://api.openai.com/v1",
+		"llm_model": "gpt-4o-mini", "embedding_model": "text-embedding-3-small",
+		"max_tokens": 8192, "vector_dimension": 1536, "is_default": false,
+	})
+	assertBadRequest(t, resp)
+}
+
+// ── Preserve API Key on Update ─────────────────────────────
+
+func TestAPI_LLMConfig_UpdatePreservesAPIKey(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 创建配置时包含 api_key
+	body := assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/admin/llm-configs", map[string]interface{}{
+		"name": "preserve-key", "provider_type": 2, "base_url": "https://api.openai.com/v1",
+		"api_key": "sk-test-preserve-key-12345", "llm_model": "gpt-4o-mini",
+		"embedding_model": "text-embedding-3-small", "max_tokens": 8192, "vector_dimension": 1536,
+		"is_default": false,
+	}))
+	cfgID := int64(body["data"].(map[string]interface{})["id"].(float64))
+
+	// 更新时不传 api_key，仅修改名称
+	assertCode(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/llm-configs/%d", cfgID), map[string]interface{}{
+		"name": "preserve-key-v2", "provider_type": 2, "base_url": "https://api.openai.com/v1",
+		"llm_model": "gpt-4o-mini", "embedding_model": "text-embedding-3-small",
+		"max_tokens": 8192, "vector_dimension": 1536, "is_default": false,
+	}), 0)
+
+	// 验证 api_key 仍被保留（脱敏显示或非空）
+	detail := assertOK(t, ts.doAuth(t, http.MethodGet, fmt.Sprintf("/api/v1/admin/llm-configs/%d", cfgID), nil))
+	cfg := detail["data"].(map[string]interface{})
+	assert.NotEmpty(t, cfg["api_key"], "更新后 api_key 应被保留")
+}
+
+// ── Default Auto-Switch ────────────────────────────────────
+
+func TestAPI_LLMConfig_CreateDefaultAutoSwitch(t *testing.T) {
+	ts := startAPITestServer(t)
+	defer ts.close()
+
+	// 创建第一个默认配置
+	assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/admin/llm-configs", map[string]interface{}{
+		"name": "default-1", "provider_type": 2, "base_url": "https://api.openai.com/v1",
+		"llm_model": "gpt-4o-mini", "embedding_model": "text-embedding-3-small",
+		"max_tokens": 8192, "vector_dimension": 1536, "is_default": true,
+	}))
+
+	// 创建第二个默认配置（应自动将第一个改为非默认）
+	assertOK(t, ts.doAuth(t, http.MethodPost, "/api/v1/admin/llm-configs", map[string]interface{}{
+		"name": "default-2", "provider_type": 2, "base_url": "https://api.openai.com/v1",
+		"llm_model": "gpt-4o", "embedding_model": "text-embedding-3-large",
+		"max_tokens": 32768, "vector_dimension": 3072, "is_default": true,
+	}))
+
+	// 验证只有第二个配置是默认，且只有一个默认配置
+	cfgs := assertOK(t, ts.doAuth(t, http.MethodGet, "/api/v1/admin/llm-configs", nil))["data"].([]interface{})
+	var defaultCount int
+	for _, c := range cfgs {
+		m := c.(map[string]interface{})
+		isDefault, ok := m["is_default"].(bool)
+		if ok && isDefault {
+			defaultCount++
+			assert.Equal(t, "default-2", m["name"], "默认配置应为刚刚创建的 default-2")
+		}
+	}
+	assert.Equal(t, 1, defaultCount, "系统中应恰好有 1 个默认配置")
+}

@@ -292,7 +292,7 @@ func (ts *apiTestServer) seedRole(t *testing.T, name string, perms []string) int
 // seedTicket 创建申告工单并返回 ticketID。
 func (ts *apiTestServer) seedTicket(t *testing.T, title, desc, phone string) int64 {
 	t.Helper()
-	resp := ts.doAuth(t, http.MethodPost, "/api/v1/portal/tickets", map[string]interface{}{
+	resp := ts.doReporter(t, http.MethodPost, "/api/v1/portal/tickets", map[string]interface{}{
 		"title": title, "description": desc, "urgency": 1, "contact_phone": phone,
 	})
 	require.Equal(t, float64(0), parseBody(t, resp)["code"], "创建申告失败")
