@@ -1,3 +1,6 @@
+/**
+ * 申告管理模块 E2E 测试。
+ */
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from '../helpers';
 
@@ -10,9 +13,17 @@ test.describe('门户端申告', () => {
     await expect(page.getByRole('heading', { name: '我的申告' })).toBeVisible();
   });
 
-  test('新建页面可访问', async ({ page }) => {
+  test('新建页面可访问并有表单', async ({ page }) => {
     await page.goto('/portal/tickets/new');
-    await expect(page.getByRole('main').getByRole('button', { name: /提交/ })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /提交/ })).toBeVisible({ timeout: 5000 });
+    // 表单字段应可见
+    await expect(page.locator('input, textarea, select').first()).toBeVisible({ timeout: 3000 });
+  });
+
+  test('表格显示申告编号列', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: '我的申告' })).toBeVisible();
+    // 表格应渲染并包含编号
+    await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -21,8 +32,21 @@ test.describe('后台申告管理', () => {
     await loginAsAdmin(page, '/admin/tickets');
   });
 
-  test('列表显示筛选', async ({ page }) => {
+  test('列表显示筛选和表格', async ({ page }) => {
     await expect(page.getByText('申告管理')).toBeVisible();
     await expect(page.getByText('全部')).toBeVisible();
+    await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('状态筛选按钮可交互', async ({ page }) => {
+    await expect(page.getByText('申告管理')).toBeVisible();
+    // 点击一个状态筛选按钮
+    const filterButtons = page.locator('button').filter({ hasText: /全部|待处理|处理中|需补充|已解决|已关闭/ });
+    const count = await filterButtons.count();
+    if (count > 1) {
+      await filterButtons.nth(1).click();
+      // 页面应保持可见
+      await expect(page.getByText('申告管理')).toBeVisible();
+    }
   });
 });

@@ -1,5 +1,8 @@
 /**
  * 认证模块 E2E 测试。
+ *
+ * 覆盖：登录/登出/路由守卫/表单交互。
+ * 依赖：Next.js 前端 (port 3000) + Go 后端 (port 8080) 运行中。
  */
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from '../helpers';
@@ -8,23 +11,34 @@ test.describe('认证', () => {
   test('有效凭证登录后可访问受保护页面', async ({ page }) => {
     await loginAsAdmin(page);
     await expect(page).not.toHaveURL(/\/login/);
+    await expect(page.getByRole('button', { name: '新对话' })).toBeVisible({ timeout: 5000 });
   });
 
   test('登录页表单可交互', async ({ page }) => {
     await page.goto('/login');
-    // 验证登录表单元素可见
+    await expect(page.getByRole('button', { name: '登录' })).toBeVisible();
     await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
     await expect(page.locator('input[autocomplete="current-password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: '登录' })).toBeVisible();
-    // 空表单点击 — toast 应显示错误
+  });
+
+  test('空表单提交不会跳转', async ({ page }) => {
+    await page.goto('/login');
     await page.getByRole('button', { name: '登录' }).click();
-    // 验证页面未跳转（空表单不应触发登录）
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('button', { name: '登录' })).toBeVisible();
   });
 
   test('未登录访问受保护页面重定向到登录', async ({ page }) => {
     await page.goto('/portal/chat');
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
+  });
+
+  test('未登录访问后台页面重定向到登录', async ({ page }) => {
+    await page.goto('/admin/dashboard');
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
+  });
+
+  test('登录后访问后台仪表盘', async ({ page }) => {
+    await loginAsAdmin(page, '/admin/dashboard');
+    await expect(page.getByRole('heading', { name: '数据看板' })).toBeVisible({ timeout: 5000 });
   });
 });
