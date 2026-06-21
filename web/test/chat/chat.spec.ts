@@ -1,18 +1,8 @@
 /**
  * 智能问答 E2E 测试 — 完整问答流程。
  */
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from '../helpers';
-
-async function waitForKbOptions(select: Locator): Promise<boolean> {
-  try {
-    await expect(async () => {
-      const count = await select.locator('option').count();
-      expect(count).toBeGreaterThan(1);
-    }).toPass({ timeout: 20000 });
-    return true;
-  } catch { return false; }
-}
 
 test.describe('智能问答', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,21 +15,19 @@ test.describe('智能问答', () => {
 
   test('选择知识库后显示输入提示', async ({ page }) => {
     const select = page.locator('select');
-    const hasKbs = await waitForKbOptions(select);
-    if (!hasKbs) { test.skip(); return; }
+    // 等待 SWR 加载 KB 列表（最多 10s）— option 元素无 boundingBox，用 count>1 替代 toBeVisible
+    await expect(async () => {
+      expect(await select.locator('option').count()).toBeGreaterThan(1);
+    }).toPass({ timeout: 10000 });
     await select.selectOption({ index: 1 });
     await expect(page.getByText(/输入问题/)).toBeVisible({ timeout: 3000 });
   });
 
-  test('无知识库时输入框提示选择', async ({ page }) => {
-    const input = page.locator('input[placeholder*="选择知识库"]');
-    if (await input.isVisible()) await expect(input).toBeVisible();
-  });
-
   test('问答流程：选KB → 输入 → 发送 → 用户消息出现', async ({ page }) => {
     const select = page.locator('select');
-    const hasKbs = await waitForKbOptions(select);
-    if (!hasKbs) { test.skip(); return; }
+    await expect(async () => {
+      expect(await select.locator('option').count()).toBeGreaterThan(1);
+    }).toPass({ timeout: 10000 });
     await select.selectOption({ index: 1 });
 
     const input = page.locator('input[placeholder*="输入问题"]');

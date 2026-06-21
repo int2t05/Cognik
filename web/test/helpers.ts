@@ -49,12 +49,7 @@ export async function loginAsAdmin(page: Page, targetPath = '/portal/chat') {
     window.localStorage.setItem('auth', s);
   }, authJson);
 
-  // 3. 首次导航（AuthProvider lazy init 读 localStorage → setTokenGetter）
+  // 3. 导航 — _tokenGetter 直接从 localStorage 读取，无需等待 AuthProvider
   await page.goto(targetPath, { waitUntil: 'networkidle' });
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
-
-  // 4. Reload — 确保 SWR 在 setTokenGetter 已就绪后发起请求
-  //    （首次加载时 TurboPack HMR 可能重置模块级 _tokenGetter，reload 修复）
-  await page.reload({ waitUntil: 'networkidle' });
   await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
 }

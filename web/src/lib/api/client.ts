@@ -8,9 +8,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (
   typeof window !== 'undefined' ? 'http://localhost:8080' : ''
 );
 
-// 模块级 token getter，由 AuthProvider 注入。
-// 使用函数引用而非直接存储值，保证 fetch 时拿到的总是最新 token。
-let _tokenGetter: () => string | null = () => null;
+// 模块级 token getter，默认从 localStorage 直接读取。
+// AuthProvider 仍可通过 setTokenGetter 覆盖（如 login/logout 后立即生效），
+// 但默认行为不依赖 AuthProvider 调用时序，避免 HMR 模块重置导致丢失。
+let _tokenGetter: () => string | null = () => {
+  try {
+    const stored = localStorage.getItem('auth');
+    if (stored) return JSON.parse(stored).token || null;
+  } catch { /* SSR / permission denied */ }
+  return null;
+};
 
 /**
  * setTokenGetter 设置用于自动附加 Authorization header 的 token getter。

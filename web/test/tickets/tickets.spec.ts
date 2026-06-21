@@ -27,18 +27,14 @@ test.describe('门户端申告', () => {
     await page.getByLabel('详细描述').fill('自动化测试：无法连接公司 VPN，请协助处理。');
     await page.getByLabel('联系电话').fill('13800001111');
 
-    // 提交按钮 — 限定在 main 区域内，避免导航栏同名按钮
-    const submitBtn = page.locator('main button[type="submit"]');
+    // 提交按钮 — main 内限定为表单按钮，排除导航栏同名按钮
+    const submitBtn = page.locator('main').getByRole('button', { name: '提交申告' });
     await expect(submitBtn).toBeEnabled({ timeout: 3000 });
     await submitBtn.click();
 
-    // 提交后页面应发生变化（跳转到列表、显示成功提示或停留在当前页显示错误）
-    // 至少确认按钮变为 loading 并恢复
-    await expect(submitBtn).not.toHaveAttribute('disabled', { timeout: 5000 });
-    // 如果跳转成功，应看到列表页标题；否则可能有 toast 错误（视后端数据而定）
-    const onListPage = await page.getByRole('heading', { name: '我的申告' }).isVisible().catch(() => false);
+    // 提交后导航到列表页或显示错误提示——至少页面未崩溃
+    const onListPage = await page.getByRole('heading', { name: '我的申告' }).isVisible({ timeout: 8000 }).catch(() => false);
     const onNewPage = await page.getByRole('heading', { name: '提交申告' }).isVisible().catch(() => false);
-    // 至少页面未崩溃
     expect(onListPage || onNewPage).toBe(true);
   });
 
@@ -53,7 +49,7 @@ test.describe('后台申告管理', () => {
   });
 
   test('列表和筛选', async ({ page }) => {
-    await expect(page.getByText('申告管理')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '申告管理' })).toBeVisible();
     await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
   });
 

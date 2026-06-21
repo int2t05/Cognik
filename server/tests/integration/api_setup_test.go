@@ -56,6 +56,7 @@ type apiTestServer struct {
 	ReporterID    int64
 	OperatorToken string
 	OperatorID    int64
+	authSvc       *service.AuthService
 }
 
 // startAPITestServer 启动完整的 API 测试服务器。
@@ -134,7 +135,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	}, userCache, handlers)
 
 	srv := httptest.NewServer(r)
-	ts := &apiTestServer{Server: srv, DB: db, BaseURL: srv.URL}
+	ts := &apiTestServer{Server: srv, DB: db, BaseURL: srv.URL, authSvc: authSvc}
 
 	// 预置三种用户（按角色权限从大到小创建，避免外键约束问题）
 	ts.AdminID, ts.AdminToken = ts.seedAdmin(t)

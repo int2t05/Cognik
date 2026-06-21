@@ -30,9 +30,11 @@ interface ApiChatMessage {
 export default function ChatPage() {
   const { token } = useAuth();
   const toast = useToast();
-  const { data: kbs } = useSWR('portal-kbs', getPortalKBList);
+  // SSR 阶段不发起请求，避免 hydration 不匹配（服务端 kbs=undefined，客户端 kbs=[...]）
+  const isBrowser = typeof window !== 'undefined';
+  const { data: kbs } = useSWR(isBrowser ? 'portal-kbs' : null, getPortalKBList);
   const { data: sessionsPage, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR(
-    'chat-sessions',
+    isBrowser ? 'chat-sessions' : null,
     () => getSessionList(1),
   );
   const sessions = sessionsPage?.items ?? [];
