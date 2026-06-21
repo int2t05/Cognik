@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, MessageSquare, Trash2, ChevronLeft } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, ChevronLeft, Menu } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { getSessionList, getChatDetail, deleteSession, submitFeedback } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [feedback, setFeedback] = useState(0);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -107,11 +108,13 @@ export default function ChatPage() {
     clear();
     setSessionId(null);
     setFeedback(0);
+    setMobileOpen(false);
   };
 
   const handleSelectSession = async (id: number) => {
     if (id === sessionId) return;
     setSessionId(id);
+    setMobileOpen(false);
     try {
       const detail = await getChatDetail(id);
       const msgs: ChatMsg[] = (detail.messages as ApiChatMessage[]).map((msg) => ({
@@ -166,11 +169,20 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-96px)]">
-      {/* 侧边栏 — 会话历史（lg 以下隐藏） */}
+      {/* 移动端遮罩 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* 侧边栏 — 移动端 overlay / 桌面端 inline */}
       <aside
-        className={`hidden lg:flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden ${
-          sidebarOpen ? 'w-60' : 'w-0'
-        }`}
+        className={`flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden bg-[var(--color-parchment)]
+          ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-60' : 'hidden'}
+          lg:relative lg:${sidebarOpen ? 'w-60' : 'w-0'}
+        `}
       >
         <div className="flex flex-col h-full p-3">
           <AppleButton
@@ -244,6 +256,14 @@ export default function ChatPage() {
       {/* 主内容区 */}
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-4 px-4 lg:px-6">
+          {/* 移动端菜单按钮 */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0"
+          >
+            <Menu size={18} />
+          </button>
+          {/* 桌面端侧边栏切换 */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0"

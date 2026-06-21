@@ -55,17 +55,21 @@
   --color-info: #007aff;
   --color-neutral: #8e8e93;
 
+  /* 徽章语义色 — 亮色主题 */
+  --badge-success-bg: #e8f8ed;
+  --badge-success-text: #1e7b3f;
+  --badge-warning-bg: #fff3e0;
+  --badge-warning-text: #b86500;
+  --badge-error-bg: #ffeaea;
+  --badge-error-text: #c41e3a;
+  --badge-info-bg: #e3f0ff;
+  --badge-info-text: #0056b3;
+  --badge-neutral-bg: #f0f0f0;
+  --badge-neutral-text: #6e6e73;
+
   /* 字体 */
   --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-
-  /* 字号 (Apple 层阶) */
-  --text-hero: 28px;
-  --text-headline: 21px;
-  --text-title: 17px;
-  --text-body: 15px;
-  --text-caption: 13px;
-  --text-fine: 12px;
 
   /* 圆角 */
   --radius-sm: 8px;
@@ -102,12 +106,24 @@
   --color-divider-soft: rgba(255, 255, 255, 0.08);
   --color-hairline: rgba(255, 255, 255, 0.12);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  /* 徽章语义色 — 暗色主题 */
+  --badge-success-bg: rgba(52, 199, 89, 0.15);
+  --badge-success-text: #34c759;
+  --badge-warning-bg: rgba(255, 149, 0, 0.15);
+  --badge-warning-text: #ff9500;
+  --badge-error-bg: rgba(255, 59, 48, 0.15);
+  --badge-error-text: #ff3b30;
+  --badge-info-bg: rgba(41, 151, 255, 0.15);
+  --badge-info-text: #2997ff;
+  --badge-neutral-bg: rgba(142, 142, 147, 0.15);
+  --badge-neutral-text: #8e8e93;
 }
 
 /* ===== 基础样式 ===== */
 body {
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: var(--font-size-body);
   font-weight: 400;
   line-height: 1.47;
   letter-spacing: -0.374px;
@@ -150,6 +166,12 @@ input:focus, select:focus, textarea:focus {
 /* ===== 选择 ===== */
 ::selection { background: var(--color-accent); color: #fff; }
 
+/* ===== Toast 入场动画 ===== */
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* ===== 登录页卡片入场动画 ===== */
 @keyframes card-entrance {
   0% { opacity: 0; transform: translateY(16px) scale(0.98); }
@@ -157,6 +179,14 @@ input:focus, select:focus, textarea:focus {
 }
 .card-entrance {
   animation: card-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ===== 无障碍 — 减少动画 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ===== 骨架屏 ===== */

@@ -6,10 +6,10 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   return (
     <html lang="zh-CN">
       <body className="m-0 font-sans">
-        <div className="min-h-screen flex items-center justify-center bg-[#f5f5f7]">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--color-parchment)]">
           <div className="text-center max-w-[400px]">
-            <h1 className="text-[28px] font-medium text-[#1d1d1f] mb-3">系统错误</h1>
-            <p className="text-[15px] text-[#7a7a7a] mb-6">{error.message}</p>
+            <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-3">系统错误</h1>
+            <p className="text-[15px] text-[var(--color-text-muted-48)] mb-6">{error.message}</p>
             <AppleButton onClick={reset}>重试</AppleButton>
           </div>
         </div>

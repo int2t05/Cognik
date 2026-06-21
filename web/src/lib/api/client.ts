@@ -93,7 +93,7 @@ export async function apiFetch<T>(
 
 /** 分页 API 调用，返回类型安全的 PageResponse */
 export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = _tokenGetter();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

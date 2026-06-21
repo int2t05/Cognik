@@ -1,7 +1,7 @@
 /** AppleInput — pill 圆角搜索框 + 标准输入 + textarea */
 'use client';
 
-import { type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from 'react';
+import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from 'react';
 
 interface AppleInputProps extends InputHTMLAttributes<HTMLInputElement> {
   pill?: boolean;
@@ -10,7 +10,10 @@ interface AppleInputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
-  ({ pill, label, error, className = '', ...rest }, ref) => {
+  ({ pill, label, error, className = '', id, ...rest }, ref) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
+
     const inputClass = [
       'w-full h-11 px-4 text-[15px] rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
@@ -23,9 +26,9 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
     return (
       <div className={label || error ? 'mb-4' : ''}>
         {label && (
-          <label className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={inputId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
-        <input ref={ref} className={inputClass} {...rest} />
+        <input ref={ref} id={inputId} className={inputClass} {...rest} />
         {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );
@@ -40,7 +43,10 @@ interface AppleTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>
 }
 
 export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>(
-  ({ label, error, rows = 4, className = '', ...rest }, ref) => {
+  ({ label, error, rows = 4, className = '', id, ...rest }, ref) => {
+    const generatedId = useId();
+    const textareaId = id || generatedId;
+
     const textareaClass = [
       'w-full px-4 py-3 text-[15px] leading-relaxed rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
@@ -52,9 +58,9 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
     return (
       <div className="mb-4">
         {label && (
-          <label className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={textareaId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
-        <textarea ref={ref} rows={rows} className={textareaClass} {...rest} />
+        <textarea ref={ref} id={textareaId} rows={rows} className={textareaClass} {...rest} />
         {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );

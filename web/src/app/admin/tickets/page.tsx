@@ -6,6 +6,7 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
+import { URGENCY_LABELS } from '@/lib/format';
 
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
@@ -37,7 +38,7 @@ export default function AdminTicketListPage() {
           { key: 'ticket_no', title: '编号', render: (r) => <span className="font-mono text-xs">{r.ticket_no}</span> },
           { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'submitter_name', title: '提交人' },
-          { key: 'urgency', title: '紧急', render: (r) => ['', '低', '中', '高'][r.urgency] },
+          { key: 'urgency', title: '紧急', render: (r) => URGENCY_LABELS[r.urgency] },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
           { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
         ]}

@@ -13,8 +13,9 @@ export default function DashboardPage() {
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
   const { start, end } = useMemo(() => {
     const today = new Date();
+    const DAYS_30_MS = 30 * 86400000;
     return {
-      start: new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10),
+      start: new Date(today.getTime() - DAYS_30_MS).toISOString().slice(0, 10),
       end: today.toISOString().slice(0, 10),
     };
   }, []);
@@ -53,7 +54,7 @@ function TrendChart({ data }: { data: { date: string; ticket_count: number; chat
   const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
   return (
     <div role="img" aria-label="30 日申告和问答趋势图" className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
-      <div className="flex items-end gap-[3px] h-[200px]">
+      <div className="flex items-end gap-[3px] h-[200px] overflow-x-auto">
         {data.map((d, i) => (
           <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
             <div className="flex gap-[2px] items-end h-[160px]">

@@ -7,7 +7,7 @@ interface AppleCardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function AppleCard({
-  padding = 'var(--space-lg)',
+  padding = '24px',
   children,
   className = '',
   onClick,

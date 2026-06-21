@@ -34,13 +34,15 @@ const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> =
   disabled: { label: '已停用', variant: 'neutral' },
 };
 
-const variantClasses: Record<BadgeVariant, string> = {
-  success: 'bg-green-100 text-green-700',
-  warning: 'bg-orange-100 text-orange-700',
-  error: 'bg-red-100 text-red-700',
-  info: 'bg-blue-100 text-blue-700',
-  neutral: 'bg-gray-100 text-gray-600',
-};
+/** 使用 CSS 变量实现亮/暗双主题 — 变量在 globals.css `:root` 和 `[data-theme="dark"]` 中定义 */
+function badgeStyle(v: BadgeVariant): React.CSSProperties {
+  return {
+    backgroundColor: `var(--badge-${v}-bg)`,
+    color: `var(--badge-${v}-text)`,
+  };
+}
+
+const baseClass = 'inline-flex px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)]';
 
 interface StatusBadgeProps {
   type: 'ticket' | 'user' | 'article' | 'process';
@@ -52,37 +54,29 @@ interface StatusBadgeProps {
 export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
   let entry: { label: string; variant: BadgeVariant } | undefined;
 
-  // 优先使用后端 text
   if (statusText)
     return (
-      <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)] ${variantClasses.neutral}`}>
+      <span className={baseClass} style={badgeStyle('neutral')}>
         {statusText}
       </span>
     );
 
   switch (type) {
-    case 'ticket':
-      entry = TICKET_STATUS[status as number];
-      break;
-    case 'user':
-      entry = USER_STATUS[status as number];
-      break;
-    case 'article':
-      entry = ARTICLE_STATUS[status as number];
-      break;
-    case 'process':
-      entry = PROCESS_STATUS[status as string];
-      break;
+    case 'ticket': entry = TICKET_STATUS[status as number]; break;
+    case 'user': entry = USER_STATUS[status as number]; break;
+    case 'article': entry = ARTICLE_STATUS[status as number]; break;
+    case 'process': entry = PROCESS_STATUS[status as string]; break;
   }
 
   if (!entry)
     return (
-      <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)] ${variantClasses.neutral}`}>
+      <span className={baseClass} style={badgeStyle('neutral')}>
         {String(status)}
       </span>
     );
+
   return (
-    <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)] ${variantClasses[entry.variant]}`}>
+    <span className={baseClass} style={badgeStyle(entry.variant)}>
       {entry.label}
     </span>
   );

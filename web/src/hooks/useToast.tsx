@@ -67,8 +67,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role="alert"
             style={{
-              background: 'var(--bg-parchment)',
-              color: 'var(--text-ink)',
+              background: 'var(--color-parchment)',
+              color: 'var(--color-ink)',
               padding: '12px 20px',
               borderRadius: 'var(--radius-md)',
               fontSize: 14,

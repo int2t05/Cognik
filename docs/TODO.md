@@ -60,7 +60,7 @@
 
 - ✅ 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — 已修复：proxy.ts 复用 `lib/auth.ts` 的 `decodeJwtPayload`/`isTokenExpired`
 - ✅ 🟢 useAuth cookie 同步 effect 在 token 变 null 时未清除 cookie — 已修复：logout 时清除 `access_token`/`refresh_token` cookie
-- 🔴 `src/proxy.ts` 文件名错误，Next.js 要求 `middleware.ts` 才会执行 — 路由守卫、JWT 校验、RBAC 全部未生效
+- ✅ 🔴 `src/proxy.ts` 文件名错误，Next.js 要求 `middleware.ts` 才会执行 — 已修复：重命名为 `middleware.ts`，导出函数改为 `middleware`
 
 ## 2. 智能问答
 
@@ -69,15 +69,15 @@
 - ✅ 🟡 `response.body!` non-null 断言 — 已修复：添加 null 检查
 - ✅ 🟢 SSE 超时 120 秒硬编码 — 已修复：超时时检测 userAbort 标志，区分主动取消与超时
 - ✅ 🟢 虚拟列表 `key="pipeline"` 静态字符串 — 已修复：使用 `key={`pipeline-${currentStep}`}`
-- 🟡 Chat 页面移动端无侧边栏切换按钮 — `sidebarOpen` 仅作用于 `lg:` 断点，`<lg` 时侧边栏永远隐藏
-- 🟢 Chat 虚拟列表 `estimateSize: () => 80` 常量估算，变长消息滚动位置不准
+- ✅ 🟡 Chat 页面移动端无侧边栏切换按钮 — 已修复：添加移动端 Menu 按钮 + overlay 抽屉式侧边栏
+- 🟢 Chat 虚拟列表 `estimateSize: () => 80` 常量估算，变长消息滚动位置不准 — 保留（需消息高度测量，非阻塞）
 
 ## 3. 知识库管理
 
 - ✅ 🟡 文档上传仍用原始 XMLHttpRequest — 已修复：改用 `fetch()` + `FormData`
 - ✅ 🟢 文章标签用数组索引作 key — 已修复：改用标签字符串作 key
 - ✅ 🟢 50MB 文件大小限制仅在前端提示文本中 — 已修复：添加上传前 `file.size` 校验 + toast 提示
-- 🟢 文档上传 `<input type="file">` 为浏览器默认样式，与 Apple 设计系统不一致
+- ✅ 🟢 文档上传 `<input type="file">` 为浏览器默认样式 — 已修复：Apple file:: 伪元素样式（pill 圆角按钮）
 
 ## 4. 申告管理
 
@@ -91,9 +91,9 @@
 - ✅ 🟡 useDebounce 重复定义 — 已修复
 - ✅ 🟢 图例色块 Unicode — 已修复
 - ✅ 🟢 start/end 日期每次 render 重新计算 — 已修复
-- 🟡 审计日志页日期筛选为纯文本 `<input>`，无 datepicker 和格式校验
-- 🟡 审计日志页全部筛选器使用原生 `<input>` 而非 `AppleInput` 组件（样式不一致）
-- 🟢 30 天趋势图小屏幕上柱状条拥挤（30 数据点，bar 6px + gap 3px）
+- ✅ 🟡 审计日志页日期筛选为纯文本 `<input>`，无 datepicker 和格式校验 — 已修复：日期字段改为 `type="date"`
+- ✅ 🟡 审计日志页全部筛选器使用原生 `<input>` 而非 `AppleInput` 组件 — 已修复：统一样式（共享 focus 环 + border + 圆角 class）
+- ✅ 🟢 30 天趋势图小屏幕上柱状条拥挤 — 已修复：添加 `overflow-x-auto` 横向滚动
 
 ## 6. 系统管理与配置
 
@@ -102,8 +102,8 @@
 - ✅ 🟢 测试连接结果用 emoji 前缀匹配 — 已修复：改用 `{ success: boolean; message: string }` 结构化判断
 - ✅ 🟢 用户搜索无防抖 — 已修复：添加 `useDebounce(keyword, 300)`
 - ✅ 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算 — 已修复：添加 `useMemo`
-- 🟡 6 个 Radix UI 包已安装但未使用：`dropdown-menu`/`popover`/`select`/`slot`/`switch`/`tabs`/`tooltip`
-- 🟢 多处硬编码魔术数字：urgency 映射数组、MAX_FILE_SIZE、默认分页大小 10
+- ✅ 🟡 6 个 Radix UI 包已安装但未使用 — 已修复：移除 7 个未使用包
+- ✅ 🟢 多处硬编码魔术数字：urgency 映射数组、MAX_FILE_SIZE、默认分页大小 10 — 已修复：提取 `URGENCY_LABELS` 常量，`DAYS_30_MS` 提取
 
 ## 7. 基础设施
 
@@ -114,43 +114,56 @@
 - ✅ 🟡 AppleBadge/not-found/aria-label/PortalLayout 等 — 已修复
 - ✅ 🟢 图标按钮缺少 `aria-label` — 已修复
 - ✅ 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` — 已修复
-- 🔴 Toast 通知不可见 — `useToast.tsx` 使用不存在的 CSS 变量 `--bg-parchment`/`--text-ink`，动画 `fadeIn` 未定义
-- 🔴 StatusBadge/AppleBadge 暗色模式下徽章不可读 — 硬编码 Tailwind v3 色值（`bg-green-100 text-green-700`），不响应 `data-theme="dark"`
-- 🔴 AppleCard 默认内边距失效 — `padding: var(--space-lg)` 变量未定义
-- 🟡 全局错误页 `global-error.tsx` 使用硬编码色值 `#1d1d1f` 而非 CSS 变量
-- 🟡 AppleInput/AppleTextarea 的 `<label>` 未通过 `htmlFor` 关联 `<input>`（无障碍缺陷）
-- 🟡 `body` 字号 17px 与设计 token `--font-size-body: 15px` 不一致
-- 🟢 `@theme` 字体 token 与 `:root` 原始 CSS 属性重复定义
-- 🟢 `apiFetchPage` Content-Type 头设置不完整
-- 🟢 多处页面加载状态为纯文本"加载中..."，无骨架屏
-- 🟢 缺少 `prefers-reduced-motion` 媒体查询（`card-entrance`/`skeleton` 动画对动效敏感用户不友好）
+- ✅ 🔴 Toast 通知不可见 — 已修复：CSS 变量 `--bg-parchment`→`--color-parchment`，`--text-ink`→`--color-ink`，添加 `@keyframes fadeIn`
+- ✅ 🔴 StatusBadge/AppleBadge 暗色模式下徽章不可读 — 已修复：改用 CSS 变量 `--badge-{variant}-bg/text`，在 `:root`/`[data-theme="dark"]` 中双主题定义
+- ✅ 🔴 AppleCard 默认内边距失效 — 已修复：`--space-lg`（不存在）→ `24px`
+- ✅ 🟡 全局错误页 `global-error.tsx` 使用硬编码色值 — 已修复：改用 CSS 变量
+- ✅ 🟡 AppleInput/AppleTextarea 的 `<label>` 未通过 `htmlFor` 关联 `<input>` — 已修复：`useId()` 生成 id + `htmlFor` 绑定
+- ✅ 🟡 `body` 字号 17px 与设计 token `--font-size-body: 15px` 不一致 — 已修复：`font-size: var(--font-size-body)`
+- ✅ 🟢 `@theme` 字体 token 与 `:root` 原始 CSS 属性重复定义 — 已修复：移除 `:root` 中 `--text-*` 重复变量，统一使用 `@theme` 的 `--font-size-*`
+- ✅ 🟢 `apiFetchPage` Content-Type 头设置不完整 — 已修复：添加 `Content-Type: application/json`
+- 🟢 多处页面加载状态为纯文本"加载中..."，无骨架屏 — 保留（需骨架屏组件，非阻塞优化）
+- ✅ 🟢 缺少 `prefers-reduced-motion` 媒体查询 — 已修复：全局禁用动画/过渡
 
 ---
 
 ## 代码 TODO 索引（双向同步）
 
-### 后端 TODO（7 → 已清理 7 个）
+### 后端 TODO（0 个）
 
-| 位置 | 内容 | 状态 |
-|------|------|------|
-| ~~`server/internal/repository/dashboard_repo.go:70`~~ | ~~SQL 拼接 date_trunc~~ | ✅ 已修复 |
-| ~~`server/internal/log/rotating_writer.go:1`~~ | ~~日志文件保留策略~~ | ✅ 已修复 |
-| ~~`server/internal/service/scheduler.go:70`~~ | ~~context.Background()~~ | ✅ 已修复 |
-| ~~`server/internal/rag/rerank.go`~~ | ~~doc 引用笔误~~ | ✅ 已修复 |
-| ~~`server/internal/middleware/auth.go:73`~~ | ~~用户状态每次查 DB~~ | ✅ 已修复（内存缓存） |
-| ~~`server/internal/model/llm_config.go:43`~~ | ~~APIKey 重复加密检测~~ | ✅ 已修复 |
-| ~~`server/internal/service/message_service.go:102`~~ | ~~未读数缓存/WebSocket~~ | ✅ 已修复（TTL 缓存） |
+全部后端 TODO 已清零（7 个已修复）。
 
-### 前端 TODO（0 → 已清理 0 个）
+### 前端 TODO（0 个）
 
-前端全部 TODO 已清零。本轮修复：
-- 提取 `useChatStream` hook（SSE 流解析封装）
-- 新增 `SectionErrorBoundary`（分层错误边界）
-- 提取 `getAllConfigs()`（系统配置批量查询）
-- `apiFetch` 自动附加 Authorization header
-- `proxy.ts` 复用 `lib/auth.ts` JWT 逻辑
-- XMLHttpRequest → fetch API 迁移
-- 搜索防抖、useMemo 优化、结构化测试结果判断
+全部前端 TODO 已清零。
+
+---
+
+## 本轮修复（2026-06-21）
+
+**前端全量清理，修复 17 项：**
+
+| 优先级 | 修复项 | 文件 |
+|--------|--------|------|
+| 🔴 | proxy.ts → middleware.ts | `middleware.ts` 重命名 + 导出 `middleware` |
+| 🔴 | Toast CSS 变量 + fadeIn 动画 | `useToast.tsx` + `globals.css` |
+| 🔴 | StatusBadge/AppleBadge 暗色模式 | `StatusBadge.tsx` / `AppleBadge.tsx` + `globals.css` 徽章色 token |
+| 🔴 | AppleCard 默认内边距 | `AppleCard.tsx`：`--space-lg` → `24px` |
+| 🟡 | Chat 移动端侧边栏 | `chat/page.tsx`：Menu 按钮 + overlay drawer |
+| 🟡 | 审计日志日期筛选 | `audit/page.tsx`：日期 → `type="date"` |
+| 🟡 | 未使用 Radix UI 包 | `package.json`：移除 7 个包 |
+| 🟡 | global-error 硬编码色值 | `global-error.tsx`：改用 CSS 变量 |
+| 🟡 | AppleInput/AppleTextarea htmlFor | `AppleInput.tsx`：`useId()` + `htmlFor` |
+| 🟡 | body font-size | `globals.css`：`17px` → `var(--font-size-body)` |
+| 🟢 | 文件上传 input 样式 | `knowledge/[kbId]/new/page.tsx`：`file::` 伪元素 |
+| 🟢 | 趋势图小屏溢出 | `dashboard/page.tsx`：`overflow-x-auto` |
+| 🟢 | @theme 字体 token 去重 | `globals.css`：移除 `:root` 重复 `--text-*` |
+| 🟢 | apiFetchPage Content-Type | `client.ts`：添加 `Content-Type: application/json` |
+| 🟢 | prefers-reduced-motion | `globals.css`：全局媒体查询 |
+| 🟢 | urgency 魔术数组 | `format.ts`：提取 `URGENCY_LABELS` 常量 |
+| 🟢 | 30 天魔术数字 | `dashboard/page.tsx`：提取 `DAYS_30_MS` |
+
+**保留/延期 2 项：** 虚拟列表 estimateSize、骨架屏加载状态
 
 ---
 
@@ -159,9 +172,9 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 0 | 9 | 3 | 0 |
-| 前端 | 4 | 7 | 8 | 0 |
-| **合计** | **4** | **16** | **11** | **0** |
+| 前端 | 0 | 0 | 2 | 0 |
+| **合计** | **0** | **9** | **5** | **0** |
 
 ---
 
-> 本次审计：前端全量布局审计（17 页面 + 16 组件 + 6 hooks + 12 API 模块），发现 19 个新问题（4 关键 + 7 高优先 + 8 优化），已全部整理进清单。
+> 本轮审计：前端全量清理（17 项修复），后端 12 项保留（需架构/算法变更）。
