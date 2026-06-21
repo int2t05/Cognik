@@ -69,7 +69,12 @@ function persistAuth(state: AuthState) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>(loadAuthState);
+  // 初始化时同步设置 token getter（必须在 render 阶段，SWR 首次请求先于 useLayoutEffect）
+  const [state, setState] = useState<AuthState>(() => {
+    const initial = loadAuthState();
+    setTokenGetter(() => initial.token);
+    return initial;
+  });
 
   // 同步 token/refreshToken 到 cookie（供 middleware 读取）
   useEffect(() => {
@@ -79,14 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = `refresh_token=${state.refreshToken}; path=/; SameSite=Lax; max-age=604800`;
       }
     } else {
-      // token 变 null（登出）时清除 cookie
       document.cookie = 'access_token=; path=/; SameSite=Lax; max-age=0';
       document.cookie = 'refresh_token=; path=/; SameSite=Lax; max-age=0';
     }
   }, [state.token, state.refreshToken]);
 
-  // 同步 token 到 apiFetch（自动附加 Authorization header）。
-  // 用 layout effect 保证子页面的 SWR 首次请求前已经拿到 token。
+  // token 变更时更新 apiFetch getter（login/logout/setTokens 触发）
   useLayoutEffect(() => {
     setTokenGetter(() => state.token);
   }, [state.token]);

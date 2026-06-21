@@ -35,8 +35,8 @@ export async function loginAsAdmin(page: Page, targetPath = '/portal/chat') {
     { name: 'refresh_token', value: refreshToken, path: '/', domain: '127.0.0.1' },
   ]);
 
-  // 2. localStorage — 在页面 JS 执行前注入
-  const authState = JSON.stringify({
+  // 2. localStorage — addInitScript 在页面 JS 前执行
+  const authJson = JSON.stringify({
     token,
     refreshToken,
     user: data.user,
@@ -46,10 +46,15 @@ export async function loginAsAdmin(page: Page, targetPath = '/portal/chat') {
     isLoggedIn: true,
   });
   await page.context().addInitScript((s) => {
-    localStorage.setItem('auth', s);
-  }, authState);
+    window.localStorage.setItem('auth', s);
+  }, authJson);
 
-  // 3. 导航
+  // 3. 首次导航（AuthProvider lazy init 读 localStorage → setTokenGetter）
   await page.goto(targetPath, { waitUntil: 'networkidle' });
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
+
+  // 4. Reload — 确保 SWR 在 setTokenGetter 已就绪后发起请求
+  //    （首次加载时 TurboPack HMR 可能重置模块级 _tokenGetter，reload 修复）
+  await page.reload({ waitUntil: 'networkidle' });
   await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
 }
