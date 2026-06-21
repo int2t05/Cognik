@@ -4,7 +4,7 @@
  * 覆盖：KB/文章 CRUD + 参数校验 + 权限校验。
  * 创建端点返回 data:null → 通过列表搜索获取 ID。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
@@ -98,8 +98,23 @@ test.describe('知识库 API', () => {
   });
 
   test.describe('文章', () => {
+    const ARTICLE_TITLE = 'API 测试文章';
     let articleId = 0;
     let articleKbId = 0;
+
+    async function findArticleId(request: APIRequestContext): Promise<number> {
+      if (!articleKbId) return 0;
+      const res = await request.get(
+        `${API_URL}/api/v1/admin/knowledge-bases/${articleKbId}/articles?page=1&page_size=10`,
+        { headers: authHeaders(token) },
+      );
+      const json = await res.json();
+      if (json.code === 0 && Array.isArray(json.data)) {
+        const match = json.data.find((a: { title: string }) => a.title === ARTICLE_TITLE);
+        return match?.id || 0;
+      }
+      return 0;
+    }
 
     test('创建文章', async ({ request }) => {
       articleKbId = await getAnyKbId(request);
@@ -107,32 +122,30 @@ test.describe('知识库 API', () => {
       const res = await request.post(
         `${API_URL}/api/v1/admin/knowledge-bases/${articleKbId}/articles`,
         {
-          data: { title: 'API 测试文章', content: '# 测试', source_type: 1 },
+          data: { title: ARTICLE_TITLE, content: '# 测试', source_type: 1 },
           headers: authHeaders(token),
         },
       );
-      const json = await assertSuccess(res);
-      articleId = json.data?.id;
+      await assertSuccess(res);
+      // 后端返回 data:null，通过列表搜索获取 ID
+      articleId = await findArticleId(request);
     });
 
     test('文章详情', async ({ request }) => {
-      if (!articleId || !articleKbId) { test.skip(); return; }
-      const res = await request.get(
-        `${API_URL}/api/v1/admin/knowledge-bases/${articleKbId}/articles/${articleId}`,
-        { headers: authHeaders(token) },
-      );
+      if (!articleId) { test.skip(); return; }
+      // 文章端点路径为 /articles/:id（不在 knowledge-bases 下）
+      const res = await request.get(`${API_URL}/api/v1/admin/articles/${articleId}`, {
+        headers: authHeaders(token),
+      });
       await assertSuccess(res);
     });
 
     test('更新文章', async ({ request }) => {
-      if (!articleId || !articleKbId) { test.skip(); return; }
-      const res = await request.put(
-        `${API_URL}/api/v1/admin/knowledge-bases/${articleKbId}/articles/${articleId}`,
-        {
-          data: { title: '已更新 — 文章', content: '# Updated' },
-          headers: authHeaders(token),
-        },
-      );
+      if (!articleId) { test.skip(); return; }
+      const res = await request.put(`${API_URL}/api/v1/admin/articles/${articleId}`, {
+        data: { title: '已更新 — 文章', content: '# Updated' },
+        headers: authHeaders(token),
+      });
       await assertSuccess(res);
     });
   });
