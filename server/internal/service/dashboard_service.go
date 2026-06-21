@@ -20,36 +20,115 @@ const maxTrendDays = 90
 
 // DashboardService 数据看板服务。
 type DashboardService struct {
-	repo *repository.DashboardRepo
+	repo dashboardRepo
+}
+
+type dashboardRepo interface {
+	CountTodayTickets(ctx context.Context) (int64, error)
+	CountByStatus(ctx context.Context, status int16) (int64, error)
+	CountTodayChats(ctx context.Context) (int64, error)
+	AvgTodayConfidence(ctx context.Context) (float64, error)
+	CountKnowledgeArticles(ctx context.Context) (int64, error)
+	GetTicketTrends(ctx context.Context, startDate, endDate, granularity string) ([]repository.TrendPoint, error)
+	GetChatTrends(ctx context.Context, startDate, endDate string, granularity string) ([]repository.TrendPoint, error)
 }
 
 // NewDashboardService 创建 DashboardService 实例。
-func NewDashboardService(repo *repository.DashboardRepo) *DashboardService {
+func NewDashboardService(repo dashboardRepo) *DashboardService {
 	return &DashboardService{repo: repo}
 }
 
 // GetStats 获取看板统计数据（7 项查询并行执行）。
 func (s *DashboardService) GetStats(ctx context.Context) (*response.StatsResponse, error) {
+	queryCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var (
-		resp         response.StatsResponse
-		mu           sync.Mutex
-		wg           sync.WaitGroup
-		firstErr     error
-		once         sync.Once
+		resp     response.StatsResponse
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+		firstErr error
+		once     sync.Once
 	)
 
 	setErr := func(err error) {
-		once.Do(func() { firstErr = err })
+		once.Do(func() {
+			firstErr = err
+			cancel()
+		})
 	}
 
 	wg.Add(7)
-	go func() { defer wg.Done(); c, e := s.repo.CountTodayTickets(ctx); mu.Lock(); resp.TodayTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 1); mu.Lock(); resp.PendingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 2); mu.Lock(); resp.ProcessingTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountByStatus(ctx, 4); mu.Lock(); resp.ResolvedTickets = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountTodayChats(ctx); mu.Lock(); resp.TodayChats = c; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); a, e := s.repo.AvgTodayConfidence(ctx); mu.Lock(); resp.AvgConfidence = a; mu.Unlock(); if e != nil { setErr(e) } }()
-	go func() { defer wg.Done(); c, e := s.repo.CountKnowledgeArticles(ctx); mu.Lock(); resp.KnowledgeCount = c; mu.Unlock(); if e != nil { setErr(e) } }()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountTodayTickets(queryCtx)
+		mu.Lock()
+		resp.TodayTickets = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountByStatus(queryCtx, 1)
+		mu.Lock()
+		resp.PendingTickets = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountByStatus(queryCtx, 2)
+		mu.Lock()
+		resp.ProcessingTickets = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountByStatus(queryCtx, 4)
+		mu.Lock()
+		resp.ResolvedTickets = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountTodayChats(queryCtx)
+		mu.Lock()
+		resp.TodayChats = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		avg, err := s.repo.AvgTodayConfidence(queryCtx)
+		mu.Lock()
+		resp.AvgConfidence = avg
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountKnowledgeArticles(queryCtx)
+		mu.Lock()
+		resp.KnowledgeCount = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
 
 	wg.Wait()
 	if firstErr != nil {

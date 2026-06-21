@@ -12,6 +12,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
@@ -22,12 +24,31 @@ import (
 
 // MessageService 站内消息服务。
 type MessageService struct {
-	repo *repository.MessageRepo
+	repo        *repository.MessageRepo
+	cacheTTL    time.Duration
+	unreadMu    sync.RWMutex
+	unreadCache map[int64]unreadCountCacheEntry
 }
+
+type unreadCountCacheEntry struct {
+	count     int64
+	expiresAt time.Time
+}
+
+const defaultUnreadCountCacheTTL = 15 * time.Second
 
 // NewMessageService 创建 MessageService 实例。
 func NewMessageService(repo *repository.MessageRepo) *MessageService {
-	return &MessageService{repo: repo}
+	return NewMessageServiceWithCacheTTL(repo, defaultUnreadCountCacheTTL)
+}
+
+// NewMessageServiceWithCacheTTL 创建 MessageService 实例，并允许测试覆盖未读数缓存 TTL。
+func NewMessageServiceWithCacheTTL(repo *repository.MessageRepo, ttl time.Duration) *MessageService {
+	return &MessageService{
+		repo:        repo,
+		cacheTTL:    ttl,
+		unreadCache: make(map[int64]unreadCountCacheEntry),
+	}
 }
 
 // =============================================================================
@@ -54,7 +75,11 @@ func (s *MessageService) NotifySupplement(ctx context.Context, ticketID int64, u
 		RelatedID:   ticketID,
 		IsRead:      false,
 	}
-	return s.repo.Create(ctx, msg)
+	if err := s.repo.Create(ctx, msg); err != nil {
+		return err
+	}
+	s.invalidateUnread(userID)
+	return nil
 }
 
 // =============================================================================
@@ -83,6 +108,7 @@ func (s *MessageService) MarkAsRead(ctx context.Context, id int64, userID int64)
 		}
 		return err
 	}
+	s.invalidateUnread(userID)
 	return nil
 }
 
@@ -94,15 +120,63 @@ func (s *MessageService) MarkAsReadAndCount(ctx context.Context, id int64, userI
 	if err := s.MarkAsRead(ctx, id, userID); err != nil {
 		return 0, err
 	}
-	return s.repo.CountUnread(ctx, userID)
+	count, err := s.repo.CountUnread(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	s.setCachedUnread(userID, count)
+	return count, nil
 }
 
 // CountUnread 查询指定用户的未读消息数。
 func (s *MessageService) CountUnread(ctx context.Context, userID int64) (int64, error) {
-	// TODO(service/message): 未读数适合缓存或通过 WebSocket/SSE 推送。
-	// 当前每次布局刷新都查库，用户量上来后会形成高频小查询。
 	if userID <= 0 {
 		return 0, AppError{Code: errcode.ErrParam, Message: "无效的用户 ID"}
 	}
-	return s.repo.CountUnread(ctx, userID)
+	if count, ok := s.getCachedUnread(userID); ok {
+		return count, nil
+	}
+	count, err := s.repo.CountUnread(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	s.setCachedUnread(userID, count)
+	return count, nil
+}
+
+func (s *MessageService) getCachedUnread(userID int64) (int64, bool) {
+	if s.cacheTTL <= 0 {
+		return 0, false
+	}
+	s.unreadMu.RLock()
+	entry, ok := s.unreadCache[userID]
+	s.unreadMu.RUnlock()
+	if !ok || time.Now().After(entry.expiresAt) {
+		if ok {
+			s.invalidateUnread(userID)
+		}
+		return 0, false
+	}
+	return entry.count, true
+}
+
+func (s *MessageService) setCachedUnread(userID int64, count int64) {
+	if s.cacheTTL <= 0 {
+		return
+	}
+	s.unreadMu.Lock()
+	s.unreadCache[userID] = unreadCountCacheEntry{
+		count:     count,
+		expiresAt: time.Now().Add(s.cacheTTL),
+	}
+	s.unreadMu.Unlock()
+}
+
+func (s *MessageService) invalidateUnread(userID int64) {
+	if s.cacheTTL <= 0 {
+		return
+	}
+	s.unreadMu.Lock()
+	delete(s.unreadCache, userID)
+	s.unreadMu.Unlock()
 }

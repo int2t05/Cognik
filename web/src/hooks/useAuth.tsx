@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   type ReactNode,
 } from 'react';
 import { setTokenGetter } from '@/lib/api/client';
@@ -84,8 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state.token, state.refreshToken]);
 
-  // 同步 token 到 apiFetch（自动附加 Authorization header）
-  useEffect(() => {
+  // 同步 token 到 apiFetch（自动附加 Authorization header）。
+  // 用 layout effect 保证子页面的 SWR 首次请求前已经拿到 token。
+  useLayoutEffect(() => {
     setTokenGetter(() => state.token);
   }, [state.token]);
 
