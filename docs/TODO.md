@@ -60,6 +60,7 @@
 
 - ✅ 🟡 proxy.ts 中 JWT 解码/过期判断与 `lib/auth.ts` 逻辑重复 — 已修复：proxy.ts 复用 `lib/auth.ts` 的 `decodeJwtPayload`/`isTokenExpired`
 - ✅ 🟢 useAuth cookie 同步 effect 在 token 变 null 时未清除 cookie — 已修复：logout 时清除 `access_token`/`refresh_token` cookie
+- 🔴 `src/proxy.ts` 文件名错误，Next.js 要求 `middleware.ts` 才会执行 — 路由守卫、JWT 校验、RBAC 全部未生效
 
 ## 2. 智能问答
 
@@ -68,12 +69,15 @@
 - ✅ 🟡 `response.body!` non-null 断言 — 已修复：添加 null 检查
 - ✅ 🟢 SSE 超时 120 秒硬编码 — 已修复：超时时检测 userAbort 标志，区分主动取消与超时
 - ✅ 🟢 虚拟列表 `key="pipeline"` 静态字符串 — 已修复：使用 `key={`pipeline-${currentStep}`}`
+- 🟡 Chat 页面移动端无侧边栏切换按钮 — `sidebarOpen` 仅作用于 `lg:` 断点，`<lg` 时侧边栏永远隐藏
+- 🟢 Chat 虚拟列表 `estimateSize: () => 80` 常量估算，变长消息滚动位置不准
 
 ## 3. 知识库管理
 
 - ✅ 🟡 文档上传仍用原始 XMLHttpRequest — 已修复：改用 `fetch()` + `FormData`
 - ✅ 🟢 文章标签用数组索引作 key — 已修复：改用标签字符串作 key
 - ✅ 🟢 50MB 文件大小限制仅在前端提示文本中 — 已修复：添加上传前 `file.size` 校验 + toast 提示
+- 🟢 文档上传 `<input type="file">` 为浏览器默认样式，与 Apple 设计系统不一致
 
 ## 4. 申告管理
 
@@ -87,6 +91,9 @@
 - ✅ 🟡 useDebounce 重复定义 — 已修复
 - ✅ 🟢 图例色块 Unicode — 已修复
 - ✅ 🟢 start/end 日期每次 render 重新计算 — 已修复
+- 🟡 审计日志页日期筛选为纯文本 `<input>`，无 datepicker 和格式校验
+- 🟡 审计日志页全部筛选器使用原生 `<input>` 而非 `AppleInput` 组件（样式不一致）
+- 🟢 30 天趋势图小屏幕上柱状条拥挤（30 数据点，bar 6px + gap 3px）
 
 ## 6. 系统管理与配置
 
@@ -95,6 +102,8 @@
 - ✅ 🟢 测试连接结果用 emoji 前缀匹配 — 已修复：改用 `{ success: boolean; message: string }` 结构化判断
 - ✅ 🟢 用户搜索无防抖 — 已修复：添加 `useDebounce(keyword, 300)`
 - ✅ 🟢 角色权限列表 `knownPermissions` 每次 render 重新计算 — 已修复：添加 `useMemo`
+- 🟡 6 个 Radix UI 包已安装但未使用：`dropdown-menu`/`popover`/`select`/`slot`/`switch`/`tabs`/`tooltip`
+- 🟢 多处硬编码魔术数字：urgency 映射数组、MAX_FILE_SIZE、默认分页大小 10
 
 ## 7. 基础设施
 
@@ -105,6 +114,16 @@
 - ✅ 🟡 AppleBadge/not-found/aria-label/PortalLayout 等 — 已修复
 - ✅ 🟢 图标按钮缺少 `aria-label` — 已修复
 - ✅ 🟢 PortalLayout 中 clickable `<span>` 无 `role="button"` — 已修复
+- 🔴 Toast 通知不可见 — `useToast.tsx` 使用不存在的 CSS 变量 `--bg-parchment`/`--text-ink`，动画 `fadeIn` 未定义
+- 🔴 StatusBadge/AppleBadge 暗色模式下徽章不可读 — 硬编码 Tailwind v3 色值（`bg-green-100 text-green-700`），不响应 `data-theme="dark"`
+- 🔴 AppleCard 默认内边距失效 — `padding: var(--space-lg)` 变量未定义
+- 🟡 全局错误页 `global-error.tsx` 使用硬编码色值 `#1d1d1f` 而非 CSS 变量
+- 🟡 AppleInput/AppleTextarea 的 `<label>` 未通过 `htmlFor` 关联 `<input>`（无障碍缺陷）
+- 🟡 `body` 字号 17px 与设计 token `--font-size-body: 15px` 不一致
+- 🟢 `@theme` 字体 token 与 `:root` 原始 CSS 属性重复定义
+- 🟢 `apiFetchPage` Content-Type 头设置不完整
+- 🟢 多处页面加载状态为纯文本"加载中..."，无骨架屏
+- 🟢 缺少 `prefers-reduced-motion` 媒体查询（`card-entrance`/`skeleton` 动画对动效敏感用户不友好）
 
 ---
 
@@ -140,9 +159,9 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 📌 TODO |
 |---|---|---|---|---|
 | 后端 | 0 | 9 | 3 | 0 |
-| 前端 | 0 | 0 | 0 | 0 |
-| **合计** | **0** | **9** | **3** | **0** |
+| 前端 | 4 | 7 | 8 | 0 |
+| **合计** | **4** | **16** | **11** | **0** |
 
 ---
 
-> 本次修复：前后端全覆盖审计 4 缺口修复 — Chat 会话历史侧栏+赞/踩反馈、用户角色分配、LLM 配置 embedding_base_url+system_prompt、角色菜单权限树，21 路由构建 0 错误。
+> 本次审计：前端全量布局审计（17 页面 + 16 组件 + 6 hooks + 12 API 模块），发现 19 个新问题（4 关键 + 7 高优先 + 8 优化），已全部整理进清单。

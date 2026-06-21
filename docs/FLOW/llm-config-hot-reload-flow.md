@@ -1,5 +1,65 @@
 # LLM 配置管理与热重载数据流
 
+---
+
+## 用户故事
+
+| 角色 | 目标 | 价值 |
+|------|------|------|
+| 系统管理员 | 配置多个 LLM 提供商（OpenAI/DeepSeek/本地 llama.cpp），随时切换默认配置 | 灵活适配不同场景的模型需求 |
+| 系统管理员 | 测试 LLM 连接是否正常 | 配置后即时验证，避免错误配置影响用户 |
+| 系统管理员 | 修改 API Key 或模型名称后即时生效 | 无需重启服务，零停机切换 |
+| 智能问答用户 | 问问题时自动使用管理员配置的最优模型 | 对最终用户透明，无感知切换 |
+
+---
+
+## 前端调用链路
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           前端组件 → API 映射                                   │
+├────────────────────┬───────────────────────────┬──────────────────────────────┤
+│        页面         │          组件              │          API 调用             │
+├────────────────────┼───────────────────────────┼──────────────────────────────┤
+│ /admin/config/llm  │ LLMConfigPage             │ GET /admin/llm-configs       │
+│                    │  ├─ 配置卡片列表            │  → getLLMConfigs()            │
+│                    │  │   每卡片显示:            │  返回已脱敏列表（API Key      │
+│                    │  │   name / provider /     │  仅显示前4位+****）           │
+│                    │  │   model / is_default    │                              │
+│                    │  │                         │                              │
+│                    │  ├─ AppleDialog "新建配置"  │ POST /admin/llm-configs      │
+│                    │  │   ├─ AppleInput:        │  → createLLMConfig(data)     │
+│                    │  │   │   name, base_url,   │  若 is_default=true →        │
+│                    │  │   │   api_key, llm_model│  后端触发热重载               │
+│                    │  │   │   embedding_model,  │                              │
+│                    │  │   │   embedding_base_url│                              │
+│                    │  │   │   system_prompt     │                              │
+│                    │  │   │   max_tokens        │                              │
+│                    │  │   └─ is_default 开关     │                              │
+│                    │  │                         │                              │
+│                    │  ├─ AppleDialog "编辑配置"  │ GET /admin/llm-configs/:id   │
+│                    │  │   → getLLMConfigDetail  │  → 填充编辑表单               │
+│                    │  │   → updateLLMConfig()   │ PUT /admin/llm-configs/:id   │
+│                    │  │   空 APIKey 时从请求体    │  → updateLLMConfig(id, data) │
+│                    │  │   剔除该字段，后端不修改   │                              │
+│                    │  │                         │                              │
+│                    │  ├─ "删除" 按钮             │ DELETE /admin/llm-configs/:id│
+│                    │  │   → deleteLLMConfig()   │  若为默认配置 → 清除热配置    │
+│                    │  │                         │                              │
+│                    │  └─ "测试连接" 按钮          │ POST /admin/llm-configs/:id  │
+│                    │     → testLLMConnection()  │   /test                      │
+│                    │     显示结果:               │  → {success, latency_ms,     │
+│                    │     ✅ 连接成功 (230ms)      │     tokens_used, model}      │
+│                    │     ❌ 连接失败: timeout     │                              │
+└────────────────────┴───────────────────────────┴──────────────────────────────┘
+```
+
+> **注意：** LLM 配置编辑时 API Key 字段安全处理 — 前端不回显完整 Key（仅显示脱敏版本），
+> 编辑提交时若用户未修改 Key 字段则从请求 body 中删除 `api_key`，后端 `BeforeSave`
+> 检测到空值不覆盖已存密文。
+
+---
+
 > LLM 配置支持双提供商（llama.cpp / OpenAI-compatible），通过热重载实现运行时切换，
 > 无需重启服务。
 

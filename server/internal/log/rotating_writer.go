@@ -8,8 +8,9 @@
 //
 // Init 一次性完成全局 slog 配置：
 //   - JSON 格式输出到 stdout + 日志文件
-//   - 日志文件命名 log-YYYY-MM-DD-HH-MM-SS.log
-//   - 单文件超过 10MB 自动切换到新文件
+//   - 日志文件按日期命名：log-YYYY-MM-DD.log
+//   - 同一天内续写同一文件（进程重启也不会创建新文件）
+//   - 单文件超过 10MB 自动切换到编号后缀：log-YYYY-MM-DD.2.log、log-YYYY-MM-DD.3.log …
 //
 // 保留策略：最多保留 7 个日志文件，超过则在创建新文件时删除最旧的文件。
 //
@@ -64,8 +65,11 @@ func Init(dir string) (cleanup func(), err error) {
 
 // rotatingWriter 是线程安全的旋转文件 io.Writer。
 //
-// 写入前检查当前文件大小，超过 maxSize 则关闭旧文件、创建新文件。
-// 新文件名格式：log-YYYY-MM-DD-HH-MM-SS.log，文件系统排序即时间顺序。
+// 写入前检查当前文件大小，超过 maxSize 则切换到新文件。
+// 文件命名规则：
+//   - 基础名 log-YYYY-MM-DD.log（当天第一个文件）
+//   - 超 10MB 后 → log-YYYY-MM-DD.2.log、log-YYYY-MM-DD.3.log …
+//   - 同一天内进程重启直接续写已有文件（O_APPEND）
 type rotatingWriter struct {
 	dir      string
 	maxSize  int64
@@ -90,13 +94,38 @@ func (w *rotatingWriter) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-// open 关闭当前文件（如有），创建新日志文件，并清理超出保留数的旧文件。
+// open 切换到下一个可用的日志文件。
+//
+// 命名策略：
+//  1. 优先续写当天的 log-YYYY-MM-DD.log（若存在且未超 maxSize）
+//  2. 若当天文件已超 maxSize，寻找下一个可用编号 log-YYYY-MM-DD.N.log
+//  3. 同一天内进程多次重启，O_APPEND 自动追加到已有文件末尾
 func (w *rotatingWriter) open() error {
 	if w.file != nil {
 		w.file.Close()
 	}
 
-	name := fmt.Sprintf("log-%s.log", time.Now().Format("2006-01-02-15-04-05"))
+	today := time.Now().Format("2006-01-02")
+	base := fmt.Sprintf("log-%s", today)
+
+	// 计算当天已有多少个文件（用于 size 超限后的编号续写）
+	name := base + ".log"
+	if stat, err := os.Stat(filepath.Join(w.dir, name)); err == nil && stat.Size() >= w.maxSize {
+		// 当天主文件已满，寻找下一个可用编号
+		for i := 2; ; i++ {
+			candidate := fmt.Sprintf("%s.%d.log", base, i)
+			if _, err := os.Stat(filepath.Join(w.dir, candidate)); os.IsNotExist(err) {
+				name = candidate
+				break
+			}
+			// 如果编号 N 文件也存在且未满，续写它（进程重启场景）
+			if st, err := os.Stat(filepath.Join(w.dir, candidate)); err == nil && st.Size() < w.maxSize {
+				name = candidate
+				break
+			}
+		}
+	}
+
 	f, err := os.OpenFile(filepath.Join(w.dir, name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("创建日志文件 %s 失败: %w", name, err)
@@ -106,7 +135,7 @@ func (w *rotatingWriter) open() error {
 	w.file = f
 	w.currSize = stat.Size()
 
-	// 清理：保留最近 maxFiles 个日志文件
+	// 清理：保留最近 maxFiles 个日志文件（按文件名排序，日期优先）
 	w.prune()
 	return nil
 }

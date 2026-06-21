@@ -1,5 +1,77 @@
 # 知识文章发布流 — 从已审核到向量写入
 
+---
+
+## 用户故事
+
+| 角色 | 目标 | 价值 |
+|------|------|------|
+| 知识库管理员 | 手动编写运维知识文章，经审核后发布到向量库 | 沉淀团队经验，提升 AI 回答质量 |
+| 知识库管理员 | 上传 PDF/DOCX/MD/TXT 文档，系统自动解析分块入库 | 批量导入存量知识文档 |
+| 审核人 | 审核待发布文章，通过或驳回并附理由 | 保证知识库内容质量 |
+| 系统 | 发布时自动完成分块→embedding→pgvector 写入全流程 | 无需人工干预向量化过程 |
+
+---
+
+## 前端调用链路
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           前端组件 → API 映射                                   │
+├────────────────────┬───────────────────────────┬──────────────────────────────┤
+│        页面         │          组件              │          API 调用             │
+├────────────────────┼───────────────────────────┼──────────────────────────────┤
+│ /admin/knowledge   │ KnowledgePage             │ GET /admin/knowledge-bases   │
+│ (KB 列表)           │  ├─ AppleCard 卡片列表     │  → getKBList()               │
+│                    │  ├─ AppleDialog 新建 KB    │ POST /admin/knowledge-bases  │
+│                    │  │   → createKB()          │  → createKB(data)            │
+│                    │  ├─ AppleDialog 编辑 KB    │ PUT /admin/knowledge-bases   │
+│                    │  │   → updateKB()          │   /:id                       │
+│                    │  └─ 删除按钮               │ DELETE /admin/knowledge-bases│
+│                    │      → deleteKB()          │   /:id                       │
+│                    │                           │                              │
+│ /admin/knowledge   │ ArticleListPage           │ GET /admin/knowledge-bases   │
+│ /[kbId]            │  ├─ AppleTable 文章列表    │   /:kbId/articles            │
+│ (文章列表)          │  │   → getArticleList()   │  → apiFetchPage<Article>     │
+│                    │  ├─ 状态筛选 pill 按钮      │   ?status=draft              │
+│                    │  └─ 点击行 → 跳转编辑页     │                              │
+│                    │                           │                              │
+│ /admin/knowledge   │ NewArticlePage            │                              │
+│ /[kbId]/new        │  ├─ AppleInput +           │ POST /admin/knowledge-bases  │
+│ (新建文章)          │  │   AppleTextarea 表单    │   /:kbId/articles            │
+│                    │  │   → createArticle()     │  → createArticle(kbId, data) │
+│                    │  │                         │                              │
+│                    │  └─ 文件上传区              │ POST /admin/knowledge-bases  │
+│                    │      <input type="file">   │   /:kbId/documents/upload    │
+│                    │      → uploadDocuments()   │  → FormData 上传（fetch 直连）│
+│                    │      前端校验 50MB/file.size│                              │
+│                    │                           │                              │
+│ /admin/knowledge   │ ArticleEditPage           │ GET /admin/articles/:id      │
+│ /[kbId]/[articleId]│  ├─ 文章内容编辑表单        │  → getArticle()              │
+│ (编辑/审核/发布)    │  │   → updateArticle()     │ PUT /admin/articles/:id      │
+│                    │  │                         │                              │
+│                    │  ├─ "提交审核" 按钮          │ POST /admin/articles/:id     │
+│                    │  │   → submitReview()      │   /submit-review             │
+│                    │  │                         │                              │
+│                    │  ├─ "通过"/"驳回" 按钮       │ POST /admin/articles/:id     │
+│                    │  │   → reviewArticle()     │   /review                    │
+│                    │  │   驳回需填写理由          │  {approved, review_comment}  │
+│                    │  │                         │                              │
+│                    │  ├─ "发布" 按钮              │ POST /admin/articles/:id     │
+│                    │  │   → publishArticle()    │   /publish                   │
+│                    │  │   (仅已审核状态可用)      │                              │
+│                    │  │                         │                              │
+│                    │  ├─ "禁用"/"启用" 按钮       │ POST /admin/articles/:id     │
+│                    │  │   → disableArticle()    │   /disable or /enable        │
+│                    │  │                         │                              │
+│                    │  └─ 处理状态轮询             │ GET /admin/knowledge-bases   │
+│                    │      (上传文档后自动刷新)     │   /:kbId/documents/:id/status│
+│                    │                           │  → getDocStatus()             │
+└────────────────────┴───────────────────────────┴──────────────────────────────┘
+```
+
+---
+
 ## 场景 A：手动创建文章 → 审核 → 发布
 
 > 文章从「草稿」到「已发布 + pgvector 有向量」的完整状态机路径。

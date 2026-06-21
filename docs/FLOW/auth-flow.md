@@ -1,3 +1,51 @@
+# 认证数据流 — 登录 / 刷新 / 改密 / 登出
+
+---
+
+## 用户故事
+
+| 角色 | 目标 | 价值 |
+|------|------|------|
+| 报障人 | 使用工号密码登录门户，获取智能问答和申告权限 | 自助获取运维支持 |
+| 运维人员 / 管理员 | 登录后台管理申告、知识库、系统配置 | 日常运维工作入口 |
+| 首次登录用户 | 登录后强制修改初始密码 | 安全合规 |
+| 会话过期用户 | 无感刷新令牌，不中断当前操作 | 体验连贯 |
+
+---
+
+## 前端调用链路
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          前端组件 → API 映射                              │
+├───────────────┬────────────────────────────────┬────────────────────────┤
+│     页面       │           组件                  │      API 调用           │
+├───────────────┼────────────────────────────────┼────────────────────────┤
+│ /login        │ LoginPage                      │ POST /api/v1/auth/login│
+│               │  ├─ <input> 用户名/密码         │  → apiFetch<LoginResp> │
+│               │  └─ AppleButton type="submit"   │                        │
+│               │                                │                        │
+│ /change-      │ ChangePasswordPage             │ POST /api/v1/auth/me/  │
+│ password      │  ├─ AppleInput 旧密码/新密码     │   change-password      │
+│               │  └─ AppleButton 提交            │  → changePassword()    │
+│               │                                │                        │
+│ 全局          │ PortalLayout / AdminLayout      │ POST /api/v1/auth/me/  │
+│ (导航栏)       │  └─ "退出登录" 按钮             │   logout               │
+│               │     → useAuth().logout()        │  → logout(refreshToken)│
+│               │                                │                        │
+│ 全局          │ proxy.ts (middleware)            │ POST /api/v1/auth/     │
+│ (路由守卫)     │  自动检测 token 过期             │   refresh              │
+│               │  透明刷新后重放请求               │  → refreshToken()      │
+└───────────────┴────────────────────────────────┴────────────────────────┘
+```
+
+> **注意：** `LoginPage` 直接调用 `apiFetch<LoginResponse>('/api/v1/auth/login', ...)`（内联类型），
+> 未使用 `lib/api/auth.ts` 中的 `login()` 封装函数。登录成功后通过 `useAuth().login()` 将
+> token/user/roles/permissions/menus 写入 localStorage + cookie，后续所有请求由
+> `apiFetch` 自动附加 `Authorization: Bearer <token>` 头。
+
+---
+
 # 认证数据流 — 登录
 
 ## 输入
@@ -75,6 +123,12 @@
 
 # 认证数据流 — 刷新令牌
 
+## 用户故事
+> 作为门户用户，我希望在会话期间令牌过期时自动续期，不被打断当前操作。
+
+## 前端调用链
+`proxy.ts (middleware)` 拦截请求 → 检测 token 过期 → `POST /api/v1/auth/refresh` → 更新 cookie → 重放原始请求
+
 ## 输入
 ```
 { "refresh_token": "eyJhbGciOi..." }
@@ -97,6 +151,12 @@
 ---
 
 # 认证数据流 — 修改密码
+
+## 用户故事
+> 作为首次登录用户，我需要按安全策略修改初始密码后才能使用系统功能。
+
+## 前端调用链
+`ChangePasswordPage` → 用户填写旧密码/新密码/确认 → AppleButton 提交 → `changePassword(old, new)` → `POST /api/v1/auth/me/change-password`
 
 ## 输入
 ```
@@ -122,6 +182,12 @@
 ---
 
 # 认证数据流 — 退出登录
+
+## 用户故事
+> 作为用户，退出后我的会话应立即失效，其他人无法用同一令牌访问系统。
+
+## 前端调用链
+`PortalLayout` 或 `AdminLayout` 导航栏 → 点击"退出登录" → `useAuth().logout()` → 清除 localStorage + cookie → `logout(refreshToken)` → `POST /api/v1/auth/me/logout` → 跳转到 `/login`
 
 ## 输入
 ```

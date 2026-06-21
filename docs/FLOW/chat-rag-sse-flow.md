@@ -1,5 +1,63 @@
 # 智能问答 SSE 流式数据流 — 从输入到输出的完整路径
 
+---
+
+## 用户故事
+
+| 角色 | 目标 | 价值 |
+|------|------|------|
+| 报障人 | 在门户中用自然语言提问运维问题，获得 AI 即时解答 | 自助解决问题，减少人工申告 |
+| 报障人 | 查看历史会话，继续之前的对话 | 上下文连续，不用重复描述 |
+| 报障人 | 对回答质量反馈赞/踩 | 帮助改进知识库质量 |
+| 系统 | 低置信度回答引导用户提交申告 | AI 兜底，不遗漏真正问题 |
+
+---
+
+## 前端调用链路
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           前端组件 → API 映射                                   │
+├────────────────────┬───────────────────────────┬──────────────────────────────┤
+│        页面         │          组件              │          API 调用             │
+├────────────────────┼───────────────────────────┼──────────────────────────────┤
+│ /portal/chat       │ ChatPage                  │                              │
+│                    │  ├─ 侧栏: 会话列表          │ GET /portal/chat-sessions    │
+│                    │  │   → getSessionList()    │  → apiFetchPage<ChatSession> │
+│                    │  │                         │                              │
+│                    │  ├─ 侧栏: 删除会话按钮       │ DELETE /portal/chat-sessions │
+│                    │  │   → deleteSession()     │   /:id                       │
+│                    │  │                         │                              │
+│                    │  ├─ 侧栏: 点击会话           │ GET /portal/chat-sessions    │
+│                    │  │   → getChatDetail()     │   /:id → 加载历史消息         │
+│                    │  │                         │                              │
+│                    │  ├─ 顶部: KB 选择器          │ GET /portal/knowledge-bases  │
+│                    │  │   → getPortalKBList()   │  → apiFetch<KB[]>            │
+│                    │  │                         │                              │
+│                    │  ├─ 中部: 消息列表           │ (无直接 API — 消息由         │
+│                    │  │   ChatMessage 气泡       │  SSE 流式推送填充)            │
+│                    │  │   ChatPipeline 管道步骤   │                              │
+│                    │  │                         │                              │
+│                    │  ├─ 底部: ChatInput 输入框   │ POST /portal/chat-sessions   │
+│                    │  │   → useChatStream.send() │   /:id/stream (SSE)          │
+│                    │  │     ├─ 无 sessionId 时   │   + 前置: POST /portal/      │
+│                    │  │     │  先 createSession  │   chat-sessions (创建容器)    │
+│                    │  │     └─ 然后 fetch() SSE  │   → fetch() 逐行解析         │
+│                    │  │       直连后端 :8080      │   data: {type, content}      │
+│                    │  │                         │                              │
+│                    │  └─ ChatMessage 反馈按钮     │ POST /portal/chat-sessions   │
+│                    │      → submitFeedback()     │   /:id/feedback              │
+│                    │      赞(1) / 踩(2) / 取消(0)│                              │
+└────────────────────┴───────────────────────────┴──────────────────────────────┘
+```
+
+> **关键架构细节：** SSE 流式请求绕过 Next.js rewrite，直连后端 `http://localhost:8080`。
+> `useChatStream` hook 封装了 AbortController 中止、120s 超时、SSE 逐行解析、
+> 管道步骤追踪（step/token/done/error 四种事件类型）。
+> 会话历史通过 `loadMessages()` 回填到消息列表，无需额外 API。
+
+---
+
 ## 输入
 ```
 POST /api/v1/portal/chat-sessions/:id/stream

@@ -1,5 +1,86 @@
 # 申告生命周期数据流 — 从创建到关闭
 
+---
+
+## 用户故事
+
+| 角色 | 目标 | 价值 |
+|------|------|------|
+| 报障人 | 提交运维申告，描述问题、选择紧急程度 | 从 AI 问答无法解决时转入人工处理 |
+| 报障人 | 查看申告处理进度，补充运维要求的信息 | 配合运维人员快速解决问题 |
+| 报障人 | 查看站内消息通知 | 及时响应运维的补充信息请求 |
+| 运维人员 | 查看申告列表，接单处理 | 高效分配和跟踪运维工作 |
+| 运维人员 | 更新申告状态（处理中→请求补充→已解决→关闭） | 标准化申告处理流程 |
+| 运维人员 | 将申告经验沉淀为知识候选 | 闭环：申告→知识→更好的 AI 回答 |
+| 系统 | 自动关闭 7 天无更新的超期申告 | 保持申告列表干净，避免僵尸申告 |
+
+---
+
+## 前端调用链路
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           前端组件 → API 映射                                   │
+├────────────────────┬───────────────────────────┬──────────────────────────────┤
+│        页面         │          组件              │          API 调用             │
+├────────────────────┼───────────────────────────┼──────────────────────────────┤
+│ /portal/tickets    │ PortalTicketsPage         │ GET /portal/tickets          │
+│ (我的申告)          │  ├─ AppleTable 申告列表    │  → getMyTickets(page)        │
+│                    │  │   → apiFetchPage<Ticket>│  → apiFetchPage<Ticket>      │
+│                    │  └─ 点击行 → 跳转详情       │                              │
+│                    │                           │                              │
+│ /portal/tickets    │ PortalTicketNewPage       │ POST /portal/tickets         │
+│ /new               │  ├─ AppleInput: title     │  → createTicket(data)        │
+│ (提交申告)          │  ├─ AppleTextarea: desc   │   {title, description,       │
+│                    │  ├─ urgency 选择器          │    urgency, impact_scope,    │
+│                    │  ├─ impact_scope 选择器     │    affected_systems,         │
+│                    │  ├─ affected_systems 多选   │    contact_phone,            │
+│                    │  ├─ contact_phone/email    │    contact_email,            │
+│                    │  ├─ AppleButton 提交        │    chat_context}             │
+│                    │  └─ 支持 ?chat_context     │                              │
+│                    │     查询参数（从 Chat 跳转） │                              │
+│                    │                           │                              │
+│ /portal/tickets    │ PortalTicketDetailPage    │ GET /portal/tickets/:id      │
+│ /[id]              │  ├─ 申告信息展示            │  → getTicketDetail(id)       │
+│ (申告详情)          │  ├─ 处理记录时间线          │                              │
+│                    │  ├─ 补充信息表单             │ PATCH /portal/tickets/:id    │
+│                    │  │   AppleTextarea + 提交   │   /supplement                │
+│                    │  │   → supplementTicket()  │  → supplementTicket(id,text) │
+│                    │  └─ (仅 status=3 时显示)    │                              │
+│                    │                           │                              │
+│ /portal/messages   │ PortalMessagesPage        │ GET /portal/messages         │
+│ (站内消息)          │  ├─ AppleTable 消息列表    │  → apiFetchPage<Message>     │
+│                    │  ├─ "查看" 按钮 → 跳转申告  │ PUT /portal/messages/:id     │
+│                    │  └─ 标记已读               │   /read                      │
+│                    │                           │                              │
+├────────────────────┼───────────────────────────┼──────────────────────────────┤
+│ /admin/tickets     │ AdminTicketsPage          │ GET /admin/tickets           │
+│ (申告管理)          │  ├─ 状态筛选 pill 按钮      │  → listAllTickets(           │
+│                    │  │   全部/待处理/处理中/...  │     page, status, urgency)   │
+│                    │  ├─ AppleTable 申告列表    │  → apiFetchPage<Ticket>      │
+│                    │  │   含提交人/紧急度/状态    │                              │
+│                    │  └─ 点击行 → 跳转详情       │                              │
+│                    │                           │                              │
+│ /admin/tickets     │ AdminTicketDetailPage     │ GET /admin/tickets/:id       │
+│ /[id]              │  ├─ 申告详情 + 状态徽章     │  → getAdminTicketDetail(id)  │
+│ (申告处理)          │  ├─ 操作按钮组              │ PATCH /admin/tickets/:id     │
+│                    │  │   "接单" → start        │   /status                    │
+│                    │  │   "请求补充" → req_info  │  → updateTicketStatus(       │
+│                    │  │   "已解决" → resolve     │     id, action, result)      │
+│                    │  │   "关闭" → close        │                              │
+│                    │  ├─ 处理记录表单             │ POST /admin/tickets/:id      │
+│                    │  │   AppleTextarea + 提交   │   /records                   │
+│                    │  │   → addTicketRecord()   │  → addTicketRecord(          │
+│                    │  │                          │     id, action, content)     │
+│                    │  └─ 知识候选生成             │ POST /admin/tickets/:id      │
+│                    │      KB 下拉 + 生成按钮      │   /knowledge-candidate       │
+│                    │      → createKnowledge     │  → createKnowledgeCandidate( │
+│                    │        Candidate()         │     id, kb_id)               │
+└────────────────────┴───────────────────────────┴──────────────────────────────┘
+```
+
+---
+
 ## 输入
 ```
 POST /api/v1/portal/tickets
