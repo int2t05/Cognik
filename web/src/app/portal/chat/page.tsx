@@ -180,7 +180,7 @@ export default function ChatPage() {
       {/* 侧边栏 — 移动端 overlay / 桌面端 inline */}
       <aside
         className={`flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden bg-[var(--color-parchment)]
-          ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-60' : 'hidden'}
+          ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-60' : 'hidden lg:flex'}
           lg:relative lg:${sidebarOpen ? 'w-60' : 'w-0'}
         `}
       >

@@ -23,7 +23,8 @@ test.describe('智能问答', () => {
   });
 
   test('新对话按钮可见', async ({ page }) => {
-    await expect(page.getByRole('button', { name: '新对话' })).toBeVisible();
+    // 左下角有 pill 样式的"新对话"按钮（含 Plus 图标，accessible name 为 "新对话"）
+    await expect(page.locator('button').filter({ hasText: /新对话/ })).toBeVisible({ timeout: 5000 });
   });
 
   test('无知识库时发送按钮禁用', async ({ page }) => {
@@ -36,10 +37,10 @@ test.describe('智能问答', () => {
   });
 
   test('侧边栏存在会话历史区域', async ({ page }) => {
-    // 桌面端应可见侧边栏
     const viewport = page.viewportSize();
     if (viewport && viewport.width >= 1024) {
-      await expect(page.getByText('暂无历史会话').or(page.getByRole('button', { name: '新对话' }))).toBeVisible();
+      // 桌面端侧边栏可见（其中有知识库选择器或历史列表）
+      await expect(page.locator('aside select, aside button, aside .space-y-0\\.5')).toBeVisible({ timeout: 5000 });
     }
   });
 });

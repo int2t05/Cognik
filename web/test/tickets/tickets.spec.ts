@@ -15,7 +15,8 @@ test.describe('门户端申告', () => {
 
   test('新建页面可访问并有表单', async ({ page }) => {
     await page.goto('/portal/tickets/new');
-    await expect(page.getByRole('button', { name: /提交/ })).toBeVisible({ timeout: 5000 });
+    // 使用 main 区域范围的精确匹配
+    await expect(page.getByRole('main').getByRole('button', { name: /提交/ })).toBeVisible({ timeout: 5000 });
     // 表单字段应可见
     await expect(page.locator('input, textarea, select').first()).toBeVisible({ timeout: 3000 });
   });

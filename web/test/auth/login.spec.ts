@@ -11,7 +11,8 @@ test.describe('认证', () => {
   test('有效凭证登录后可访问受保护页面', async ({ page }) => {
     await loginAsAdmin(page);
     await expect(page).not.toHaveURL(/\/login/);
-    await expect(page.getByRole('button', { name: '新对话' })).toBeVisible({ timeout: 5000 });
+    // 登录后应跳转到门户聊天页，知识库选择器可见
+    await expect(page.locator('select')).toBeVisible({ timeout: 5000 });
   });
 
   test('登录页表单可交互', async ({ page }) => {

@@ -16,19 +16,19 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    // E2E 浏览器测试（需要 Next.js 前端 + Go 后端）
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: /^(?!.*\/api\/).*\.spec\.ts$/,
-    },
-    // API 集成测试（仅需要 Go 后端）
+    // API 集成测试（仅需要 Go 后端，串行执行）
     {
       name: 'api',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /test\/api\/.*\.spec\.ts$/,
-      // API 测试串行执行（共享数据库状态）
       fullyParallel: false,
+    },
+    // E2E 浏览器测试（需要 Next.js 前端 + Go 后端）
+    {
+      name: 'e2e',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /test\/(?!api\/).*\.spec\.ts$/,
+      fullyParallel: true,
     },
   ],
 });
