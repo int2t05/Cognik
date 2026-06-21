@@ -62,7 +62,11 @@ func setupUserTestDB(t *testing.T) *gorm.DB {
 // cleanUsers 清理测试数据
 func cleanUsers(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	db.Exec("DELETE FROM users WHERE username LIKE 'test_%'")
+	// 清空用户和关联数据，避免 FK 约束和残留数据干扰
+	db.Exec("DELETE FROM user_roles")
+	db.Exec("DELETE FROM ticket_records")
+	db.Exec("DELETE FROM tickets")
+	db.Exec("DELETE FROM users")
 }
 
 // TestUserRepo_GetByID_Existing 按 ID 查询已存在的用户

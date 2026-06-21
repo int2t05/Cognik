@@ -398,6 +398,11 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 //
 // 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
+	// RAG 依赖未注入时不可执行发布管道，返回明确错误而非 panic
+	if s.embedder == nil || s.store == nil {
+		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 服务未初始化（缺少 Embedding/VectorStore）"}
+	}
+
 	id := article.ID
 
 	// Step 1: 分块

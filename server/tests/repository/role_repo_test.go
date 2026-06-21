@@ -36,7 +36,9 @@ func setupRoleTestDB(t *testing.T) *gorm.DB {
 		description VARCHAR(255), permissions JSONB, is_system BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
-	db.Exec("DELETE FROM roles WHERE name LIKE 'test_%'")
+	// 清空角色和关联表，避免其他测试残留数据干扰
+	db.Exec("DELETE FROM role_menus")
+	db.Exec("DELETE FROM roles")
 	return db
 }
 
@@ -68,7 +70,7 @@ func TestRoleRepo_GetByID(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description, permissions) VALUES ('test_get_role', '测试', '["ticket:read"]')`)
+	db.Exec(`INSERT INTO roles (name, description, permissions, created_at, updated_at) VALUES ('test_get_role', '测试', '["ticket:read"]', NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM roles WHERE name = 'test_get_role'").Scan(&id)
 
@@ -97,7 +99,7 @@ func TestRoleRepo_ExistsByName(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES ('test_exists_check', '测试')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_exists_check', '测试', NOW(), NOW())`)
 
 	exists, err := repo.ExistsByName(ctx, "test_exists_check", 0)
 	if err != nil {
@@ -121,7 +123,7 @@ func TestRoleRepo_ExistsByName_ExcludeSelf(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES ('test_exclude_self', '测试')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_exclude_self', '测试', NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM roles WHERE name = 'test_exclude_self'").Scan(&id)
 
@@ -140,8 +142,8 @@ func TestRoleRepo_List(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES
-		('test_list_role1', '列表测试1'), ('test_list_role2', '列表测试2')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES
+		('test_list_role1', '列表测试1', NOW(), NOW()), ('test_list_role2', '列表测试2', NOW(), NOW())`)
 
 	roles, total, err := repo.List(ctx, 1, 10, "")
 	if err != nil {
@@ -158,8 +160,8 @@ func TestRoleRepo_List_Keyword(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES
-		('test_keyword_abc', 'ABC描述'), ('test_keyword_xyz', 'XYZ描述')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES
+		('test_keyword_abc', 'ABC描述', NOW(), NOW()), ('test_keyword_xyz', 'XYZ描述', NOW(), NOW())`)
 
 	roles, total, err := repo.List(ctx, 1, 10, "abc")
 	if err != nil {
@@ -180,7 +182,7 @@ func TestRoleRepo_Update(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES ('test_update_role', '更新前')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_update_role', '更新前', NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM roles WHERE name = 'test_update_role'").Scan(&id)
 
@@ -200,7 +202,7 @@ func TestRoleRepo_Delete(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description) VALUES ('test_delete_role', '待删除')`)
+	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_delete_role', '待删除', NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM roles WHERE name = 'test_delete_role'").Scan(&id)
 
@@ -229,7 +231,7 @@ func TestRoleRepo_IsBuiltinRole(t *testing.T) {
 	repo := repository.NewRoleRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO roles (name, description, is_system) VALUES ('test_system_role', '系统角色', true)`)
+	db.Exec(`INSERT INTO roles (name, description, is_system, created_at, updated_at) VALUES ('test_system_role', '系统角色', true, NOW(), NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM roles WHERE name = 'test_system_role'").Scan(&id)
 

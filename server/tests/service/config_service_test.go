@@ -161,16 +161,17 @@ func setupConfigService(t *testing.T) *service.ConfigService {
 }
 
 // TestConfigService_GetConfig_Existing 验证获取已有配置返回正确的值。
+// 使用白名单中的 app_name 键进行测试。
 func TestConfigService_GetConfig_Existing(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig(bgCtx, "test.key1", "value1", 1)
+	svc.UpdateConfig(bgCtx, "app_name", "test-value", 1)
 
-	val, err := svc.GetConfig(bgCtx, "test.key1")
+	val, err := svc.GetConfig(bgCtx, "app_name")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	if val != "value1" {
-		t.Errorf("期望 'value1', got '%v'", val)
+	if val != "test-value" {
+		t.Errorf("期望 'test-value', got '%v'", val)
 	}
 }
 
@@ -183,28 +184,26 @@ func TestConfigService_GetConfig_NotFound(t *testing.T) {
 	}
 }
 
-// TestConfigService_GetConfig_JSONObject 验证获取 JSON 对象类型的配置。
+// TestConfigService_GetConfig_JSONObject 验证数值类型配置的 JSON 往返正确。
+// ai.threshold 声明为 number 类型，json.Unmarshal 返回 float64。
 func TestConfigService_GetConfig_JSONObject(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig(bgCtx, "test.json_key", map[string]interface{}{"threshold": 0.6, "top_k": 5.0}, 1)
+	svc.UpdateConfig(bgCtx, "ai.threshold", 0.6, 1)
 
-	val, err := svc.GetConfig(bgCtx, "test.json_key")
+	val, err := svc.GetConfig(bgCtx, "ai.threshold")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	valMap, ok := val.(map[string]interface{})
+	valNum, ok := val.(float64)
 	if !ok {
-		t.Fatalf("期望 map[string]interface{}, got %T", val)
+		t.Fatalf("期望 float64, got %T", val)
 	}
-	if valMap["threshold"] != 0.6 {
-		t.Errorf("期望 threshold=0.6, got %v", valMap["threshold"])
-	}
-	if valMap["top_k"] != 5.0 {
-		t.Errorf("期望 top_k=5.0, got %v", valMap["top_k"])
+	if valNum != 0.6 {
+		t.Errorf("期望 0.6, got %v", valNum)
 	}
 }
 
-// TestConfigService_UpdateConfig_Create 验证创建新配置。
+// TestConfigService_UpdateConfig_Create 验证创建新配置（使用白名单中的 ai.top_k）。
 func TestConfigService_UpdateConfig_Create(t *testing.T) {
 	svc := setupConfigService(t)
 	err := svc.UpdateConfig(bgCtx, "ai.top_k", 10.0, 1)
@@ -220,7 +219,7 @@ func TestConfigService_UpdateConfig_Create(t *testing.T) {
 	}
 }
 
-// TestConfigService_UpdateConfig_Update 验证更新已有配置。
+// TestConfigService_UpdateConfig_Update 验证更新已有配置（使用白名单中的 ai.threshold）。
 func TestConfigService_UpdateConfig_Update(t *testing.T) {
 	svc := setupConfigService(t)
 	svc.UpdateConfig(bgCtx, "ai.threshold", 0.7, 1)
@@ -237,14 +236,14 @@ func TestConfigService_UpdateConfig_Update(t *testing.T) {
 	}
 }
 
-// TestConfigService_UpdateConfig_StringValue 验证字符串类型配置。
+// TestConfigService_UpdateConfig_StringValue 验证字符串类型配置（使用白名单中的 app_name）。
 func TestConfigService_UpdateConfig_StringValue(t *testing.T) {
 	svc := setupConfigService(t)
-	err := svc.UpdateConfig(bgCtx, "app.name", "OpsMind", 1)
+	err := svc.UpdateConfig(bgCtx, "app_name", "OpsMind", 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	val, err := svc.GetConfig(bgCtx, "app.name")
+	val, err := svc.GetConfig(bgCtx, "app_name")
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}

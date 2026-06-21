@@ -39,9 +39,16 @@ func TestCORS_AllowedOrigin(t *testing.T) {
 	}
 }
 
-// TestCORS_DisallowedOrigin 测试不允许的来源
+// TestCORS_DisallowedOrigin 测试不允许的来源（release 模式）。
+//
+// debug 模式下 AllowOriginFunc 放行所有来源，无法测试"拒绝"，因此本测试强制使用 release 模式。
 func TestCORS_DisallowedOrigin(t *testing.T) {
-	r := setupRouter([]string{"http://localhost:5173"})
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(middleware.CORS([]string{"http://localhost:5173"}, "release"))
+	r.GET("/test", func(c *gin.Context) {
+		c.String(200, "ok")
+	})
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("Origin", "http://evil.com")
@@ -53,6 +60,16 @@ func TestCORS_DisallowedOrigin(t *testing.T) {
 	if w.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Errorf("不允许的来源不应有 Access-Control-Allow-Origin 头，实际 %s",
 			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	// 验证允许的来源正常
+	req2 := httptest.NewRequest("GET", "/test", nil)
+	req2.Header.Set("Origin", "http://localhost:5173")
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+	if w2.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+		t.Errorf("允许的来源应有 Access-Control-Allow-Origin，实际 %s",
+			w2.Header().Get("Access-Control-Allow-Origin"))
 	}
 }
 

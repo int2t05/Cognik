@@ -55,7 +55,8 @@ func setupSchedulerTest(t *testing.T) (*service.Scheduler, *model.User) {
 	)`)
 
 	// 清理旧数据
-	schedDB.Exec("DELETE FROM tickets")
+	schedDB.Exec("DELETE FROM ticket_records")
+		schedDB.Exec("DELETE FROM tickets")
 	schedDB.Exec("DELETE FROM users WHERE username LIKE 'sched_%'")
 
 	// 创建测试用户
@@ -64,7 +65,7 @@ func setupSchedulerTest(t *testing.T) (*service.Scheduler, *model.User) {
 		Username:     fmt.Sprintf("sched_user_%d", now.UnixNano()),
 		PasswordHash: "$2a$10$hash",
 		RealName:     "测试用户",
-		Phone:        "13800000001",
+		Phone:        fmt.Sprintf("1%010d", now.UnixNano()%10000000000),
 		Status:       1,
 		CreatedAt:    now,
 		UpdatedAt:    now,

@@ -17,15 +17,29 @@ import (
 )
 
 // TestLLMClient_ChatCompletion 验证 LLM 客户端可正常调用 llama.cpp。
+//
+// 需要运行中的 LLM 服务，不可用时跳过。
 func TestLLMClient_ChatCompletion(t *testing.T) {
 	client, err := adapter.NewOpenAIClient(
 		"http://localhost:8081/v1",
 		"",
-		60*time.Second,
+		5*time.Second, // 短超时用于快速探活
 	)
 	if err != nil {
 		t.Fatalf("创建 LLM 客户端失败: %v", err)
 	}
+
+	// 快速探活：获取模型列表
+	if _, err := client.ChatCompletion(bgCtx, adapter.ChatRequest{
+		Model: "qwen3-4b", Messages: []adapter.ChatMessage{{Role: "user", Content: "ping"}},
+		MaxTokens: 1, Temperature: 0,
+	}); err != nil {
+		t.Skipf("LLM 服务不可用（%v），跳过集成测试", err)
+		return
+	}
+
+	// 重新创建正常超时的客户端
+	client, _ = adapter.NewOpenAIClient("http://localhost:8081/v1", "", 60*time.Second)
 
 	req := adapter.ChatRequest{
 		Model: "qwen3-4b",
@@ -48,13 +62,26 @@ func TestLLMClient_ChatCompletion(t *testing.T) {
 }
 
 // TestEmbeddingClient_CreateEmbeddings 验证 Embedding 客户端可正常调用。
+//
+// 需要运行中的 Embedding 服务，不可用时跳过。
 func TestEmbeddingClient_CreateEmbeddings(t *testing.T) {
 	client := adapter.NewOpenAIEmbeddingClient(
 		"http://localhost:8082/v1",
 		"",
 		"qwen3-emb",
-		60*time.Second,
+		5*time.Second, // 短超时用于快速探活
 	)
+
+	// 快速探活
+	if _, err := client.CreateEmbeddings(bgCtx, adapter.EmbeddingRequest{
+		Model: "qwen3-emb", Input: []string{"ping"},
+	}); err != nil {
+		t.Skipf("Embedding 服务不可用（%v），跳过集成测试", err)
+		return
+	}
+
+	// 重新创建正常超时的客户端
+	client = adapter.NewOpenAIEmbeddingClient("http://localhost:8082/v1", "", "qwen3-emb", 60*time.Second)
 
 	req := adapter.EmbeddingRequest{
 		Model: "qwen3-emb",

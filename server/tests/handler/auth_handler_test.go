@@ -41,11 +41,14 @@ func testJWTConfig() config.JWTConfig {
 func setupTestRouter(authHandler *handler.AuthHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	// 公开路由
 	auth := r.Group("/api/v1/auth")
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
-	auth.POST("/change-password", authHandler.ChangePassword)
-	auth.POST("/logout", authHandler.Logout)
+	// 需要 JWT 的路由（对应实际 router 中 /api/v1/auth/me）
+	authMe := r.Group("/api/v1/auth/me")
+	authMe.POST("/change-password", authHandler.ChangePassword)
+	authMe.POST("/logout", authHandler.Logout)
 	return r
 }
 
@@ -96,12 +99,16 @@ func setupAuthHandler(t *testing.T, db *gorm.DB) *handler.AuthHandler {
 	return handler.NewAuthHandler(authService)
 }
 
-// seedHandlerUser 创建测试用户。
+// seedHandlerUser 创建测试用户并确保唯一手机号。
 func seedHandlerUser(t *testing.T, db *gorm.DB, username, password, phone string, status int16) *model.User {
 	t.Helper()
 
 	hashed, err := hash.HashPassword(password)
 	require.NoError(t, err)
+
+	// 清理同名用户和同手机号残留
+	db.Where("username = ?", username).Delete(&model.User{})
+	db.Where("phone = ?", phone).Delete(&model.User{})
 
 	user := &model.User{
 		Username:     username,
@@ -112,7 +119,6 @@ func seedHandlerUser(t *testing.T, db *gorm.DB, username, password, phone string
 		FirstLogin:   true,
 	}
 
-	db.Where("username = ?", username).Delete(&model.User{})
 	require.NoError(t, db.Create(user).Error)
 	return user
 }
@@ -193,13 +199,32 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 }
 
 // TestAuthHandler_Logout 验证 POST /logout 返回成功。
+//
+// logout 路由注册在 /api/v1/auth/me 下，需要 JWT 认证。
 func TestAuthHandler_Logout(t *testing.T) {
 	db := setupHandlerTestDB(t)
 	authHandler := setupAuthHandler(t, db)
+	seedHandlerUser(t, db, "test_handler_logout", "Test@1234", "13800002002", 1)
 
 	r := setupTestRouter(authHandler)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	// 先登录获取 token
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": "test_handler_logout", "password": "Test@1234",
+	})
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBody))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+	require.Equal(t, http.StatusOK, loginW.Code)
+
+	var loginResp map[string]interface{}
+	json.Unmarshal(loginW.Body.Bytes(), &loginResp)
+	// 使用 refresh_token 请求 logout
+	refreshToken := loginResp["data"].(map[string]interface{})["refresh_token"].(string)
+	logoutBody, _ := json.Marshal(map[string]string{"refresh_token": refreshToken})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/me/logout", bytes.NewReader(logoutBody))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)

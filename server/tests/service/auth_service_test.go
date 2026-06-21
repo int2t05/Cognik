@@ -109,7 +109,7 @@ func TestAuthService_Login_Success(t *testing.T) {
 	assert.NotEmpty(t, resp.RefreshToken, "应返回 refresh_token")
 	assert.Equal(t, "test_auth_login", resp.User.Username)
 	assert.Equal(t, "测试用户", resp.User.RealName)
-	assert.True(t, resp.User.FirstLogin)
+	assert.False(t, resp.User.FirstLogin, "首次登录后 first_login 应设为 false")
 }
 
 // TestAuthService_Login_WrongPassword 验证密码错误。

@@ -43,16 +43,21 @@ func setupUserHandler(t *testing.T) (*handler.UserHandler, *model.User) {
 	t.Helper()
 	repo := repository.NewUserRepo(userHandlerDB)
 	auditRepo := repository.NewAuditRepo(userHandlerDB)
-	svc := service.NewUserService(repo, auditRepo, userHandlerDB)
+	svc := service.NewUserService(repo, auditRepo, userHandlerDB, nil)
 	h := handler.NewUserHandler(svc)
+
+	// 清理同用户名的旧数据
+	userHandlerDB.Where("username = ?", "test_handleruser_1").Delete(&model.User{})
+	// 同时清理可能残留的同手机号空记录
+	userHandlerDB.Where("phone = ?", "").Delete(&model.User{})
 
 	user := &model.User{
 		Username:     "test_handleruser_1",
 		PasswordHash: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
 		RealName:     "测试用户",
+		Phone:        "10000000001",
 		Status:       1,
 	}
-	userHandlerDB.Where("username = ?", user.Username).Delete(&model.User{})
 	userHandlerDB.Create(user)
 
 	return h, user

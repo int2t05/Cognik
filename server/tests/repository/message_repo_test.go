@@ -33,7 +33,8 @@ func setupMessageTestDB(t *testing.T) *gorm.DB {
 		content TEXT, is_read BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
-	db.Exec("DELETE FROM messages WHERE title LIKE 'test_%' OR title LIKE 'Test_%'")
+	// 清空所有消息，避免其他测试残留数据干扰
+	db.Exec("DELETE FROM messages")
 	return db
 }
 
@@ -59,10 +60,10 @@ func TestMessageRepo_ListByUser(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read) VALUES
-		(1, 'ticket_status', 'test_list_msg1', '内容1', false),
-		(1, 'ticket_status', 'test_list_msg2', '内容2', true),
-		(2, 'ticket_status', 'test_list_msg3', '内容3', false)`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES
+		(1, 'ticket_status', 'test_list_msg1', '内容1', false, NOW()),
+		(1, 'ticket_status', 'test_list_msg2', '内容2', true, NOW()),
+		(2, 'ticket_status', 'test_list_msg3', '内容3', false, NOW())`)
 
 	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{})
 	if err != nil {
@@ -81,9 +82,9 @@ func TestMessageRepo_ListByUser_UnreadFilter(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read) VALUES
-		(1, 'ticket_status', 'test_unread_msg', '内容', false),
-		(1, 'ticket_status', 'test_read_msg', '内容', true)`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES
+		(1, 'ticket_status', 'test_unread_msg', '内容', false, NOW()),
+		(1, 'ticket_status', 'test_read_msg', '内容', true, NOW())`)
 
 	isRead := false
 	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{IsRead: &isRead})
@@ -101,9 +102,9 @@ func TestMessageRepo_ListByUser_TypeFilter(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content) VALUES
-		(1, 'ticket_status', 'test_type_msg1', '内容1'),
-		(1, 'ticket_supplement', 'test_type_msg2', '内容2')`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, created_at) VALUES
+		(1, 'ticket_status', 'test_type_msg1', '内容1', NOW()),
+		(1, 'ticket_supplement', 'test_type_msg2', '内容2', NOW())`)
 
 	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{Type: "ticket_supplement"})
 	if err != nil {
@@ -120,7 +121,7 @@ func TestMessageRepo_MarkAsRead(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read) VALUES (1, 'ticket_status', 'test_mark_read', '内容', false)`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES (1, 'ticket_status', 'test_mark_read', '内容', false, NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM messages WHERE title = 'test_mark_read'").Scan(&id)
 
@@ -149,7 +150,7 @@ func TestMessageRepo_MarkAsRead_WrongUser(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content) VALUES (1, 'ticket_status', 'test_wrong_user', '内容')`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, created_at) VALUES (1, 'ticket_status', 'test_wrong_user', '内容', NOW())`)
 	var id int64
 	db.Raw("SELECT id FROM messages WHERE title = 'test_wrong_user'").Scan(&id)
 
@@ -165,10 +166,10 @@ func TestMessageRepo_CountUnread(t *testing.T) {
 	repo := repository.NewMessageRepo(db)
 	ctx := context.Background()
 
-	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read) VALUES
-		(1, 'ticket_status', 'test_count_1', '内容', false),
-		(1, 'ticket_status', 'test_count_2', '内容', false),
-		(1, 'ticket_status', 'test_count_3', '内容', true)`)
+	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES
+		(1, 'ticket_status', 'test_count_1', '内容', false, NOW()),
+		(1, 'ticket_status', 'test_count_2', '内容', false, NOW()),
+		(1, 'ticket_status', 'test_count_3', '内容', true, NOW())`)
 
 	count, err := repo.CountUnread(ctx, 1)
 	if err != nil {
