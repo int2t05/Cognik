@@ -13,6 +13,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
   ({ pill, label, error, className = '', id, ...rest }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
+    const errorId = `${inputId}-error`;
 
     const inputClass = [
       'w-full h-11 px-4 text-body rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
@@ -28,9 +29,15 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
-        {/* TODO: error 状态时添加 aria-invalid="true" + aria-describedby 关联错误消息 */}
-        <input ref={ref} id={inputId} className={inputClass} {...rest} />
-        {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
+        <input
+          ref={ref}
+          id={inputId}
+          className={inputClass}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          {...rest}
+        />
+        {error && <p id={errorId} className="text-fine text-[var(--color-error)] mt-1" role="alert">{error}</p>}
       </div>
     );
   },
@@ -47,6 +54,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
   ({ label, error, rows = 4, className = '', id, ...rest }, ref) => {
     const generatedId = useId();
     const textareaId = id || generatedId;
+    const errorId = `${textareaId}-error`;
 
     const textareaClass = [
       'w-full px-4 py-3 text-body leading-relaxed rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
@@ -61,9 +69,16 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
         {label && (
           <label htmlFor={textareaId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
-        {/* TODO: error 状态时添加 aria-invalid="true" + aria-describedby 关联错误消息 */}
-        <textarea ref={ref} id={textareaId} rows={rows} className={textareaClass} {...rest} />
-        {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
+        <textarea
+          ref={ref}
+          id={textareaId}
+          rows={rows}
+          className={textareaClass}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          {...rest}
+        />
+        {error && <p id={errorId} className="text-fine text-[var(--color-error)] mt-1" role="alert">{error}</p>}
       </div>
     );
   },

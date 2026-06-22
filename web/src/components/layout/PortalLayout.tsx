@@ -68,8 +68,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             </AppleButton>
           )}
           <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name}</span>
-          <button onClick={() => { logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption">
-            {/* TODO: await logout() 以清除服务端会话后再跳转，避免竞态 */}
+          <button onClick={async () => { await logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption">
             <LogOut size={14} /> 登出
           </button>
         </div>

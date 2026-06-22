@@ -44,8 +44,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  // TODO: feedback 按消息维度存储，当前仅支持单会话单反馈值，需改为 Record<messageId, number>
-  const [feedback, setFeedback] = useState(0);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -102,7 +101,7 @@ export default function ChatPage() {
     const newSid = await send(question, selectedKB, sessionId);
     if (newSid) {
       setSessionId(newSid);
-      setFeedback(0);
+      setFeedbackMap({});
       if (wasNew) mutateSessions();
     }
   };
@@ -110,13 +109,12 @@ export default function ChatPage() {
   const handleNewChat = () => {
     clear();
     setSessionId(null);
-    setFeedback(0);
+    setFeedbackMap({});
     setMobileOpen(false);
   };
 
   const handleSelectSession = async (id: number) => {
     if (id === sessionId) return;
-    // TODO: 回退逻辑有 bug — setSessionId(id) 后 sessionId 已是 id，catch 中 setSessionId(sessionId) 是空操作
     const prevId = sessionId;
     setSessionId(id);
     setMobileOpen(false);
@@ -131,7 +129,7 @@ export default function ChatPage() {
         createdAt: msg.created_at,
       }));
       loadMessages(msgs);
-      setFeedback(detail.feedback);
+      setFeedbackMap({});
     } catch {
       toast.error('加载会话失败');
       setSessionId(prevId);
@@ -154,16 +152,16 @@ export default function ChatPage() {
     }
   };
 
-  const handleFeedback = async (value: number) => {
+  const handleFeedback = async (msgId: string, value: number) => {
     if (!sessionId || feedbackLoading) return;
-    const prev = feedback;
+    const prev = feedbackMap[msgId] || 0;
     setFeedbackLoading(true);
-    setFeedback(value);
+    setFeedbackMap((m) => ({ ...m, [msgId]: value }));
     try {
       await submitFeedback(sessionId, value);
       if (value !== 0) toast.success('感谢反馈');
     } catch {
-      setFeedback(prev);
+      setFeedbackMap((m) => ({ ...m, [msgId]: prev }));
       toast.error('反馈提交失败');
     } finally {
       setFeedbackLoading(false);
@@ -358,8 +356,8 @@ export default function ChatPage() {
                           virtualItem.index === messages.length - 1
                         }
                         sessionId={sessionId}
-                        feedback={feedback}
-                        onFeedback={handleFeedback}
+                        feedback={feedbackMap[msg.id] || 0}
+                        onFeedback={(v) => handleFeedback(msg.id, v)}
                         feedbackLoading={feedbackLoading}
                       />
                     </div>

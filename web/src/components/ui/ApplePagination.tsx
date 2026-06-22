@@ -51,7 +51,6 @@ export function ApplePagination({
           label="下一页"
         />
       </div>
-      {/* TODO: 添加 aria-label="每页条数" */}
       <select
         aria-label="每页条数"
         className="ml-3 px-2 py-1 text-caption rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] font-sans outline-none"

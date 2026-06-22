@@ -26,7 +26,7 @@ export function AppleDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 flex items-center justify-center z-[var(--z-dialog)] backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 z-[var(--z-dialog)] backdrop-blur-sm" />
         <Dialog.Content
           className="fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)]"
           style={{ width } as React.CSSProperties}

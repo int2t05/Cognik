@@ -6,13 +6,11 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
-import { useAuth } from '@/hooks/useAuth';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { token } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
@@ -41,23 +39,8 @@ export default function NewArticlePage() {
     setUploading(true);
 
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((f) => formData.append('files', f));
-
-      // TODO: 应使用 apiFetch 统一客户端，避免硬编码 URL 和手动管理 Authorization 头
-      const response = await fetch(
-        `/api/v1/admin/knowledge-bases/${kbId}/documents/upload`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        },
-      );
-
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.message || `上传失败 (${response.status})`);
-
-      const docs = json.data?.documents || [];
+      const result = await uploadDocuments(Number(kbId), files);
+      const docs = result.documents || [];
       toast.success(docs.length ? `已上传 ${docs.length} 个文件，后台处理中` : '上传成功');
       if (docs[0]?.article_id) {
         router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}`);

@@ -34,8 +34,7 @@ export function ChatMessage({
             {sources.map((s, i) => (
               <div key={i} className="flex items-center gap-1 text-fine text-[var(--color-text-muted-48)] mb-1">
                 <FileText size={12} />
-                {/* TODO: 添加 Number.isFinite 守卫防止 NaN%/Infinity% */}
-                {s.doc_name} ({(s.confidence * 100).toFixed(0)}%)
+                {s.doc_name} ({Number.isFinite(s.confidence) ? (s.confidence * 100).toFixed(0) : '—'}%)
               </div>
             ))}
           </div>

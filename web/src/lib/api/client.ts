@@ -113,5 +113,4 @@ export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
 }
 
 /** SWR 默认 fetcher */
-// TODO: swrFetcher 未被任何文件引用，考虑移除或统一 SWR fetcher 模式
 export const swrFetcher = (url: string) => apiFetch(url);

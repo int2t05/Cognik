@@ -58,7 +58,6 @@ export function useChatStream(
   // 组件卸载时中止未完成的请求
   useEffect(() => {
     return () => {
-      // TODO: 卸载清理缺少 userAborted=true，导致 catch 块误判为网络错误触发 onError
       if (abortRef.current) {
         abortRef.current.userAborted = true;
         abortRef.current.controller.abort();

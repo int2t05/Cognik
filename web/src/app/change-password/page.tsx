@@ -37,9 +37,9 @@ export default function ChangePasswordPage() {
       <div className="w-full max-w-form p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
         <h1 className="text-headline font-medium text-[var(--color-ink)] text-center mb-6">修改密码</h1>
         <form onSubmit={handleSubmit}>
-          <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" />
-          <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
-          <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+          <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" disabled={loading} />
+          <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} />
+          <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} />
           <div className="mt-6">
             <AppleButton type="submit" loading={loading} className="w-full">修改密码</AppleButton>
           </div>

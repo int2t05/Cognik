@@ -11,15 +11,14 @@ import { useToast } from '@/hooks/useToast';
 export default function DashboardPage() {
   const toast = useToast();
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
-  // TODO: useMemo 包裹 new Date() 无依赖数组，Date() 不纯，useMemo 无实际效果，应改为普通 const
-  const { start, end } = useMemo(() => {
+  const { start, end } = (() => {
     const today = new Date();
     const DAYS_30_MS = 30 * 86400000;
     return {
       start: new Date(today.getTime() - DAYS_30_MS).toISOString().slice(0, 10),
       end: today.toISOString().slice(0, 10),
     };
-  }, []);
+  })();
   const { data: trends, mutate: refreshTrends } = useSWR('dashboard-trends', () => getTrends(start, end));
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };

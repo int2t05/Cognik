@@ -24,8 +24,10 @@ export default function ArticleEditPage() {
   const [processing, setProcessing] = useState(false);
   const [disableConfirm, setDisableConfirm] = useState(false);
 
+  const [editSaving, setEditSaving] = useState(false);
+
   const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setEditing(true); } };
-  const handleSave = async () => { try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } };
+  const handleSave = async () => { setEditSaving(true); try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } finally { setEditSaving(false); } };
   const handleAction = async (fn: () => Promise<unknown>) => { setProcessing(true); try { await fn(); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
@@ -61,7 +63,7 @@ export default function ArticleEditPage() {
         <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <div className="flex gap-2"><AppleButton onClick={handleSave}>保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}>取消</AppleButton></div>
+          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}>保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}>取消</AppleButton></div>
         </AppleCard>
       ) : (
         <AppleCard className="mb-4">
