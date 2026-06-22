@@ -214,7 +214,7 @@ export default function ChatPage() {
                           aria-label="删除会话"
                           className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--color-error)]/10 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition border-0 bg-transparent cursor-pointer"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </button>
@@ -283,7 +283,7 @@ export default function ChatPage() {
               ) : (
                 <div className="text-center">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-divider-soft)] flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare size={20} className="text-[var(--color-text-muted-48)]" />
+                    <MessageSquare size={18} className="text-[var(--color-text-muted-48)]" />
                   </div>
                   <p className="text-caption text-[var(--color-text-muted-48)]">从上方下拉框选择知识库以开始</p>
                 </div>

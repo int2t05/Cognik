@@ -36,7 +36,7 @@ export default function MessagesPage() {
 
       {isEmpty ? (
         <div className="text-center py-16">
-          <Mail size={40} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
+          <Mail size={32} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
           <p className="text-title text-[var(--color-text-muted-48)]">暂无消息</p>
         </div>
       ) : (
@@ -46,7 +46,7 @@ export default function MessagesPage() {
               { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? '' : 'font-semibold'}>{r.title}</span> },
               { key: 'content', title: '内容' },
               { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
-              { key: 'actions', title: '', render: (r) => !r.is_read ? <AppleButton variant="ghost" className="p-3.5" aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)}><ArrowRight size={14} /></AppleButton> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
+              { key: 'actions', title: '', render: (r) => !r.is_read ? <AppleButton variant="ghost" className="p-3.5" aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)}><ArrowRight size={16} /></AppleButton> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
             ]}
             data={messages}
             loading={!data && !error}

@@ -18,21 +18,21 @@ export default function ArticleListPage() {
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
 
   const filterOptions = [
-    { v: '-1', label: '全部', icon: <ListFilter size={15} /> },
-    { v: '1', label: '草稿', icon: <FileText size={15} /> },
-    { v: '2', label: '待审核', icon: <Clock size={15} /> },
-    { v: '4', label: '已发布', icon: <CheckCircle size={15} /> },
-    { v: '0', label: '已停用', icon: <XCircle size={15} /> },
+    { v: '-1', label: '全部', icon: <ListFilter size={16} /> },
+    { v: '1', label: '草稿', icon: <FileText size={16} /> },
+    { v: '2', label: '待审核', icon: <Clock size={16} /> },
+    { v: '4', label: '已发布', icon: <CheckCircle size={16} /> },
+    { v: '0', label: '已停用', icon: <XCircle size={16} /> },
   ];
 
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-3.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
+          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-3.5" aria-label="返回"><ArrowLeft size={16} /></AppleButton>
           <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
         </div>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-2" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
+        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-3.5" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4 flex gap-2">

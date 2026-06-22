@@ -89,7 +89,7 @@ export default function TicketSubmitPage() {
           <AppleInput label="联系邮箱" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" />
         </AppleCard>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={submitting} className="p-2" aria-label="提交申告"><Send size={16} /></AppleButton>
+          <AppleButton type="submit" loading={submitting} className="p-3.5" aria-label="提交申告"><Send size={16} /></AppleButton>
           <AppleButton variant="ghost" type="button" className="p-3.5" aria-label="取消" onClick={() => router.push("/portal/tickets")}><X size={16} /></AppleButton>
         </div>
       </form>

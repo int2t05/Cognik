@@ -94,7 +94,7 @@ export default function NewArticlePage() {
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={saving} className="p-2" aria-label="创建"><FilePlus size={16} /></AppleButton>
+          <AppleButton type="submit" loading={saving} className="p-3.5" aria-label="创建"><FilePlus size={16} /></AppleButton>
           <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} className="p-3.5" aria-label="取消"><X size={16} /></AppleButton>
         </div>
       </form>

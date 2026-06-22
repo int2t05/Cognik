@@ -137,7 +137,7 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
-        <AppleButton onClick={openCreate} className="p-2" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
+        <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
       </div>
 
       <div className="grid gap-3">
@@ -162,8 +162,8 @@ export default function LLMConfigPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={14} /></AppleButton>
-                  <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={14} /></AppleButton>
+                  <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={16} /></AppleButton>
+                  <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={16} /></AppleButton>
                 </div>
               </div>
             </AppleCard>

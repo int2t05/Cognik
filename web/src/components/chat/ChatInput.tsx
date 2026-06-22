@@ -36,7 +36,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               placeholder={placeholder}
               disabled={disabled}
               aria-label="输入消息"
-              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-parchment)] text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)] focus:bg-[var(--color-canvas)]"
+              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-parchment)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:bg-[var(--color-canvas)]"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
               Enter ↵
@@ -46,19 +46,19 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             <button
               onClick={onStop}
               aria-label="停止生成"
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
             >
-              <Square size={15} fill="currentColor" />
+              <Square size={16} fill="currentColor" />
             </button>
           ) : (
             <AppleButton
               onClick={onSend}
               loading={loading}
               disabled={!value.trim() || disabled}
-              className="p-2 rounded-full"
+              className="p-3.5 rounded-full"
               aria-label="发送"
             >
-              <Send size={17} />
+              <Send size={16} />
             </AppleButton>
           )}
         </div>

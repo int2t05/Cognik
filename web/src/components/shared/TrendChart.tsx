@@ -134,26 +134,26 @@ function Chart({ data }: { data: TrendPoint[] }) {
 
   return (
     <>
-      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-[3px] h-[200px] pb-1">
+      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-1 h-[200px] pb-1">
         {data.map((d) => (
           <div key={d.date} className="flex-1 flex flex-col items-center justify-end min-w-0">
-            <div className="flex gap-px items-end h-[160px]">
+            <div className="flex gap-0.5 items-end h-[160px]">
               <div
                 title={`${d.date} 申告: ${d.ticket_count}`}
-                className="w-[12px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
+                className="w-3 rounded-t-sm bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
                 style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
               <div
                 title={`${d.date} 问答: ${d.chat_count}`}
-                className="w-[12px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0 transition-[height] duration-300"
-                style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }}
+                className="w-3 rounded-t-sm bg-[var(--color-success)] opacity-70 min-h-0 transition-[height] duration-300"
+                style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
             </div>
           </div>
         ))}
       </div>
       {/* 横排日期标签 — 始终水平排列，无横向滚动 */}
-      <div className="flex gap-[3px] mt-2">
+      <div className="flex gap-1 mt-2">
         {data.map((d, i) => (
           <div key={d.date} className="flex-1 min-w-0 text-center">
             <span className={`text-fine text-[var(--color-text-muted-48)] whitespace-nowrap ${i % labelStep !== 0 ? 'invisible' : ''}`}>
@@ -164,10 +164,10 @@ function Chart({ data }: { data: TrendPoint[] }) {
       </div>
       <div className="flex gap-4 justify-center mt-3 text-fine text-[var(--color-text-muted-48)]">
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-[10px] h-[10px] rounded-sm inline-block bg-[var(--color-accent)]" /> 申告
+          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-[var(--color-accent)]" /> 申告
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-[10px] h-[10px] rounded-sm inline-block bg-[var(--color-success)] opacity-70" /> 问答
+          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-[var(--color-success)] opacity-70" /> 问答
         </span>
       </div>
     </>

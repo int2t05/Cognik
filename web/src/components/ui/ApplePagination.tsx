@@ -87,11 +87,11 @@ function PageBtn({
       onClick={onClick}
       disabled={disabled}
       {...rest}
-      className={`min-w-11 h-11 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition ${
+      className={`min-w-11 h-11 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition active:scale-95 ${
         active
           ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
           : 'text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)]'
-      } ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
+      } ${disabled ? 'opacity-40 disabled:cursor-not-allowed' : ''}`}
     >
       {children}
     </button>

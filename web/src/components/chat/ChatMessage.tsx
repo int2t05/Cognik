@@ -38,8 +38,8 @@ export function ChatMessage({
       {/* 消息气泡 */}
       <div className={`max-w-[75%] px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
         isUser
-          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] rounded-tr-[6px]'
-          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] rounded-tl-[6px] border border-[var(--color-hairline)]'
+          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] rounded-tr-sm'
+          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] rounded-tl-sm border border-[var(--color-hairline)]'
       }`}>
         {content || (isStreaming ? <AppleSpinner size={16} /> : '')}
 
@@ -48,7 +48,7 @@ export function ChatMessage({
           <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
             {sources.map((s, i) => (
               <div key={i} className={`flex items-center gap-1 text-fine mb-1 ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'}`}>
-                <FileText size={12} />
+                <FileText size={14} />
                 {s.doc_name} ({Number.isFinite(s.confidence) ? (s.confidence * 100).toFixed(0) : '—'}%)
               </div>
             ))}
@@ -60,7 +60,7 @@ export function ChatMessage({
           <div className={`flex items-center gap-1.5 mt-2 text-fine ${
             confidence < 0.6 ? 'text-[var(--badge-warning-text)]' : 'text-[var(--color-text-muted-48)]'
           }`}>
-            {confidence < 0.6 ? <AlertTriangle size={13} /> : <Circle size={8} fill="currentColor" />}
+            {confidence < 0.6 ? <AlertTriangle size={14} /> : <Circle size={14} fill="currentColor" />}
             置信度 {Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : '—'}%
             {confidence < 0.6 && ' — 建议提交申告由人工处理'}
           </div>
@@ -77,9 +77,9 @@ export function ChatMessage({
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
-              } cursor-pointer border-0 bg-transparent disabled:opacity-50`}
+              } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsUp size={13} />
+              <ThumbsUp size={14} />
             </button>
             <button
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
@@ -89,9 +89,9 @@ export function ChatMessage({
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
-              } cursor-pointer border-0 bg-transparent disabled:opacity-50`}
+              } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsDown size={13} />
+              <ThumbsDown size={14} />
             </button>
           </div>
         )}

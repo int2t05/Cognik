@@ -38,18 +38,18 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           >
             OpsMind
           </span>
-          <nav className="flex gap-1">
+          <nav className="flex gap-2">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.path || pathname.startsWith(item.path + '/');
               return (
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-1 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-sm)] cursor-pointer relative transition hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-sm)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold w-5 h-5 rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}
