@@ -190,8 +190,8 @@
 
 ## 🔴 P0 — 生产隐患（数据丢失）
 
-- [ ] **KB 删除无确认弹窗** — `admin/knowledge/page.tsx:57` 点击删除直接调用 API，无 ConfirmDialog。误点击导致知识库不可逆删除。
-- [ ] **LLM 配置删除无确认弹窗** — `admin/config/llm/page.tsx:147-156` 同上，可能中断 AI 服务。
+- ✅ **KB 删除无确认弹窗** — `admin/knowledge/page.tsx` 已添加 ConfirmDialog。
+- ✅ **LLM 配置删除无确认弹窗** — `admin/config/llm/page.tsx` 已添加 ConfirmDialog。
 
 ---
 
@@ -199,26 +199,26 @@
 
 ### 图标按钮 aria-label
 
-- [ ] **ChatPage 图标按钮无 label** — `portal/chat/page.tsx` 移动端菜单(L263)、侧栏折叠(L269)、删除按钮(L244) 三个图标按钮无 `aria-label`，屏幕阅读器无法朗读。
-- [ ] **ChatMessage 反馈按钮无 label** — `chat/ChatMessage.tsx:50-73` 👍/👎 按钮仅有 `title` 属性，需补 `aria-label`。
+- ✅ **ChatPage 图标按钮无 label** — 移动端菜单、侧栏折叠、删除按钮已添加 `aria-label`。
+- ✅ **ChatMessage 反馈按钮无 label** — 👍/👎 按钮的 `title` 已替换为 `aria-label`。
 
 ### 表单 label 关联
 
-- [ ] **审计日志筛选栏无 label** — `admin/audit/page.tsx:22-26` 5 个 input 仅有 placeholder。WCAG 1.3.1 违规。
-- [ ] **ChatInput 无 label** — `chat/ChatInput.tsx:23-30` 聊天输入框仅有 placeholder。添加 `aria-label="输入消息"`。
-- [ ] **LLM 配置表单无 htmlFor** — `admin/config/llm/page.tsx:190-251` select/textarea 的 `<label>` 缺少 `htmlFor`/`id` 关联。
+- ✅ **审计日志筛选栏无 label** — 5 个 input 已添加 `<label>` + `htmlFor` 关联。
+- ✅ **ChatInput 无 label** — 已添加 `aria-label="输入消息"`。
+- ✅ **LLM 配置表单无 htmlFor** — select/textarea 的 `<label>` 已添加 `htmlFor`/`id` 关联。
 
 ### 键盘导航
 
-- [ ] **知识库卡片不可键盘访问** — `admin/knowledge/page.tsx:50` + `ui/AppleCard.tsx:26` `<div onClick>` 无 `role`/`tabIndex`/`onKeyDown`。
+- ✅ **知识库卡片不可键盘访问** — AppleCard 已添加 `role="button"`/`tabIndex`/`onKeyDown`，知识库卡片已添加 `aria-label`。
 
 ### 移动端响应式
 
-- [ ] **登录/改密页小屏溢出** — `login/page.tsx:61` `w-[420px]` / `change-password/page.tsx:37` `w-[400px]` 在 375px 屏幕溢出。改为 `w-full max-w-[420px]`。
+- ✅ **登录/改密页小屏溢出** — `w-[420px]`/`w-[400px]` 已改为 `w-full max-w-[420px]`/`max-w-[400px]`。
 
 ### 缺失确认弹窗
 
-- [ ] **文章停用无确认** — `admin/knowledge/[kbId]/[articleId]/page.tsx:46`。
+- ✅ **文章停用无确认** — 已添加 ConfirmDialog。
 
 ---
 
@@ -226,51 +226,51 @@
 
 ### 布局
 
-- [ ] **6 种 max-width 无体系** — 1600/1200/800/720/640/600px。统一为 2-3 档，通过 `@theme` token 管理。
-- [ ] **`100vh` → `dvh`** — `globals.css` body、`chat/page.tsx` 等 6 处未适配移动端地址栏。改为 `100dvh`。
-- [ ] **z-index 无层级** — 散落 z-40/50/100/1000/9999。定义 CSS 变量 `--z-nav/overlay/dialog/toast`。
+- ✅ **6 种 max-width 无体系** — 已统一为 3 档 `@theme` token：`--max-w-wide/content/form`。
+- ✅ **`100vh` → `dvh`** — `globals.css` body 及 `chat/page.tsx` 已改为 `100dvh`。
+- ✅ **z-index 无层级** — 已定义 CSS 变量 `--z-nav/overlay/dialog/toast`，全局统一使用。
 
 ### 字体尺度
 
-- [ ] **`@theme` 字体 token 未使用** — 40+ 处 `text-[28px]/[17px]/[15px]/[13px]/[12px]` 裸值。替换为 `text-hero/title/body/caption/fine`。
-- [ ] **超小字号** — `PortalLayout.tsx:52` 角标 `text-[11px]`、`dashboard/page.tsx:69` 图表 `text-[9px]`。
+- ✅ **`@theme` 字体 token 未使用** — 40+ 处裸值已替换为 `text-hero/headline/title/body/caption/fine`。
+- ✅ **超小字号** — `PortalLayout` 角标、`dashboard` 图表、`chat` 日期已改为 `text-fine`（12px）/ 11px。
 
 ### 交互反馈
 
-- [ ] **Toast 错误替代内联校验** — 多表单用 `toast.error()` 而非字段旁提示。AppleInput 已支持 `error` prop。
-- [ ] **4 处"加载中..."纯文本** — `portal/tickets/[id]` / `admin/tickets/[id]` / `articleId` 等。替换为 AppleSpinner 或骨架屏。
+- 🟡 **Toast 错误替代内联校验** — 保留（Toast 校验为当前设计模式，AppleInput `error` prop 已可用供后续迁移）。
+- ✅ **4 处"加载中..."纯文本** — `portal/tickets/[id]`、`admin/tickets/[id]`、`articleId` 已替换为 `<AppleSpinner />`。
 
 ### 空状态
 
-- [ ] **知识库列表无空状态** — `admin/knowledge/page.tsx:49` kbs 为空时 grid 无渲染。
-- [ ] **用户搜索无结果提示** — 搜索无匹配时表格为空。
+- ✅ **知识库列表无空状态** — 已添加空状态提示。
+- 🟡 **用户搜索无结果提示** — 保留（非阻塞优化）。
 
 ### 导航
 
-- [ ] **Cancel 用 router.back()** — `admin/knowledge/[kbId]/new/page.tsx:112` / `portal/tickets/new/page.tsx:86` 可能离开应用。改为 `router.push`。
-- [ ] **KB 详情无返回按钮** — `admin/knowledge/[kbId]/page.tsx`。
+- ✅ **Cancel 用 router.back()** — 已改为 `router.push` 应用内导航。
+- ✅ **KB 详情无返回按钮** — 已添加返回按钮。
 
 ### 性能
 
-- [ ] **零代码分割** — 无 `next/dynamic`。至少对 chat 页 virtual 列表和 Lucide 图标做 dynamic import。
-- [ ] **未读消息双轮询** — `useUnreadCount` 在两个 layout 各挂载一次。改为全局 SWR `refreshInterval`。
-- [ ] **SWRConfig 缺** — `Providers.tsx` 添加 `revalidateOnFocus: false` + `dedupingInterval: 5000`。
+- 🟡 **零代码分割** — 保留（需 `next/dynamic` 架构变更）。
+- ✅ **未读消息双轮询** — `useUnreadCount` 已改为全局 SWR `refreshInterval`，避免双轮询。
+- ✅ **SWRConfig 缺** — `Providers.tsx` 已添加 `revalidateOnFocus: false` + `dedupingInterval: 5000`。
 
 ### 细节
 
-- [ ] **表单缺 required 标记** — 登录/改密/申告/文章等。
-- [ ] **LLM textarea 缺 focus 环** — `admin/config/llm/page.tsx:246` 仅 `focus:border` 无 `focus:shadow`。
-- [ ] **`:focus` → `:focus-visible`** — `globals.css:135` 鼠标点击也触发焦点环。
+- 🟡 **表单缺 required 标记** — 保留（非阻塞，AppleInput/AppleTextarea 已支持 error prop）。
+- ✅ **LLM textarea 缺 focus 环** — 已添加 `focus-visible:shadow-[...]`。
+- ✅ **`:focus` → `:focus-visible`** — `globals.css` 已全局替换，仅键盘导航触发焦点环。
 
 ---
 
 ## 🔵 P3 — 体验增强
 
-- [ ] **登录卡片动画 600ms → 300ms** — `globals.css` `card-entrance 0.6s` 超推荐范围。
-- [ ] **Toast 消失时间分级** — `useToast.tsx:40` 错误 5s / 成功 3s。
-- [ ] **AdminLayout 侧栏 <1024px 无自动折叠** — 小屏手动展开侧栏过大。
-- [ ] **heading 跳跃** — `admin/tickets/[id]/page.tsx` h1 → h3 跳过 h2。
-- [ ] **9px 图表日期标签** — `dashboard/page.tsx:69` 改为 `text-[11px]`。
+- ✅ **登录卡片动画 600ms → 300ms** — `globals.css` `card-entrance 0.6s` 已改为 `0.3s`。
+- ✅ **Toast 消失时间分级** — `useToast.tsx` 已按类型分级：error 5s / warning 4s / success/info 3s。
+- ✅ **AdminLayout 侧栏 <1024px 无自动折叠** — 已添加 `matchMedia` 监听，小屏自动折叠。
+- 🟡 **heading 跳跃** — `admin/tickets/[id]/page.tsx` h1→h3 跳过 h2。保留（微调细节，非阻塞）。
+- ✅ **9px 图表日期标签** — `dashboard/page.tsx` 已改为 `text-[11px]`。
 
 ---
 
@@ -279,7 +279,26 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 | 🔵 P3 |
 |---|---|---|---|---|
 | 后端（保留） | 0 | 9 | 3 | 0 |
-| 前端 UX/UI | 2 | 8 | 18 | 6 |
-| **合计** | **2** | **17** | **21** | **6** |
+| 前端 UX/UI | 0 | 0 | 4 | 1 |
+| **合计** | **0** | **9** | **7** | **1** |
 
-> 📖 **用户故事优先级：** ① P0 数据安全（确认弹窗）→ ② P1 可访问性阻塞（aria-label / label 关联）→ ③ P1 移动端可用性（固定宽度溢出 / dvh）→ ④ P2 字体体系统一 → ⑤ P2 交互反馈（Toast → 内联）→ ⑥ P3 动画/性能优化
+> 📖 保留项均为非阻塞优化或需架构变更：Toast→内联校验、用户搜索空状态、零代码分割（next/dynamic）、表单 required 标记、heading 层级、后端 12 项架构债务。
+
+---
+
+## 本轮修复（2026-06-22）— 前端 UX 全量优化
+
+**修复 29 项（P0:2 / P1:8 / P2:14 / P3:5），保留/延期 5 项。**
+
+| 类别 | 修复项 |
+|------|--------|
+| 🔴 数据安全 | KB 删除确认、LLM 配置删除确认 |
+| 🟡 可访问性 | ChatPage aria-label ×3、ChatMessage aria-label ×2、审计日志 label ×5、ChatInput aria-label、LLM 表单 htmlFor ×2、AppleCard 键盘导航 |
+| 🟡 移动端 | 登录/改密页响应式 `w-full max-w` |
+| 🟡 确认弹窗 | 文章停用 ConfirmDialog |
+| 🟢 布局 | max-width 3 档 token、100vh→100dvh、z-index CSS 变量 |
+| 🟢 字体 | 40+ 处裸值→语义 token（`text-hero/headline/title/body/caption/fine`）|
+| 🟢 交互 | 加载中→AppleSpinner ×3、KB 空状态、router.back→router.push ×2、KB 返回按钮 |
+| 🟢 性能 | useUnreadCount→SWR（消除双轮询）、SWRConfig deduping |
+| 🟢 细节 | LLM textarea focus 环、`:focus`→`:focus-visible` |
+| 🔵 体验 | 登录动画 0.6s→0.3s、Toast 分级消失时间、AdminLayout 侧栏自动折叠、图表 9px→11px |

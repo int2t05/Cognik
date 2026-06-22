@@ -12,10 +12,10 @@ interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  pill: 'bg-[var(--color-accent)] text-white text-[15px] rounded-[var(--radius-pill)] px-[22px] py-2.5',
+  pill: 'bg-[var(--color-accent)] text-white text-body rounded-[var(--radius-pill)] px-[22px] py-2.5',
   ghost: 'bg-transparent text-[var(--color-accent)] text-sm rounded-[var(--radius-pill)] px-4 py-2',
   utility:
-    'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-[13px] rounded-[var(--radius-md)] px-3.5 py-1.5 border border-[var(--color-divider-soft)]',
+    'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-caption rounded-[var(--radius-md)] px-3.5 py-1.5 border border-[var(--color-divider-soft)]',
   pearl: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-sm rounded-[var(--radius-md)] px-3.5 py-2',
 };
 

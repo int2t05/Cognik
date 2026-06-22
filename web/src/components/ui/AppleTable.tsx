@@ -34,13 +34,13 @@ export function AppleTable<T extends Record<string, any>>({
 
   return (
     <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] overflow-x-auto">
-      <table className="w-full border-collapse text-[15px]">
+      <table className="w-full border-collapse text-body">
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="text-left text-[13px] font-semibold text-[var(--color-text-muted-48)] px-4 py-3 border-b border-[var(--color-hairline)] whitespace-nowrap"
+                className="text-left text-caption font-semibold text-[var(--color-text-muted-48)] px-4 py-3 border-b border-[var(--color-hairline)] whitespace-nowrap"
                 style={{ width: col.width }}
               >
                 {col.title}

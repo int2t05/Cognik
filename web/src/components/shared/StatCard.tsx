@@ -11,7 +11,7 @@ export function StatCard({
   return (
     <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
       <div className="text-xs text-[var(--color-text-muted-48)] mb-2">{label}</div>
-      <div className="text-[28px] font-medium text-[var(--color-ink)] tracking-[-0.28px]">
+      <div className="text-hero font-medium text-[var(--color-ink)] tracking-[-0.28px]">
         {value}
         {suffix}
       </div>

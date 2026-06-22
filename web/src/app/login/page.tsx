@@ -58,15 +58,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
-      <div className="w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+      <div className="w-full max-w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-10">
-          <h1 className="text-[28px] font-medium tracking-[-0.28px] text-[var(--color-ink)] mb-2">
+          <h1 className="text-hero font-medium tracking-[-0.28px] text-[var(--color-ink)] mb-2">
             OpsMind
           </h1>
-          <p className="text-[17px] text-[var(--color-text-muted-48)]">
+          <p className="text-title text-[var(--color-text-muted-48)]">
             运维数字员工系统
           </p>
-          <p className="text-[15px] text-[var(--color-text-muted-48)]">
+          <p className="text-body text-[var(--color-text-muted-48)]">
             智能问答 · 申告管理 · 知识库
           </p>
         </div>
@@ -80,7 +80,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
-              className="h-11 px-4 text-[15px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
+              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
             />
           </div>
 
@@ -91,7 +91,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="h-11 px-4 text-[15px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
+              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
             />
           </div>
 

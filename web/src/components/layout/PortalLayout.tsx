@@ -26,7 +26,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)]">
-      <header className="h-12 flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[100] backdrop-blur-xl">
+      <header className="h-12 flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
         <div className="flex items-center gap-8">
           <span
             role="button"
@@ -34,7 +34,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             aria-label="返回首页"
             onClick={() => router.push('/portal/chat')}
             onKeyDown={(e) => { if (e.key === 'Enter') router.push('/portal/chat'); }}
-            className="text-[21px] font-medium tracking-[0.231px] text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
+            className="text-headline font-medium tracking-[0.231px] text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
           >
             OpsMind
           </span>
@@ -45,11 +45,11 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-1 border-0 bg-transparent text-[var(--color-ink)] text-[13px] rounded-lg cursor-pointer relative transition hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-lg cursor-pointer relative transition hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-white text-[11px] font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-white text-fine font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}
@@ -67,8 +67,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               <Shield size={14} /> 后台管理
             </AppleButton>
           )}
-          <span className="text-[13px] text-[var(--color-text-muted-48)]">{user?.real_name}</span>
-          <button onClick={() => { logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-[13px]">
+          <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name}</span>
+          <button onClick={() => { logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption">
             <LogOut size={14} /> 登出
           </button>
         </div>

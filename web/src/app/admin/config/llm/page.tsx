@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import {
   createLLMConfig,
   deleteLLMConfig,
@@ -15,6 +15,7 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
@@ -41,6 +42,10 @@ export default function LLMConfigPage() {
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const providerSelectId = useId();
+  const systemPromptId = useId();
   const toast = useToast();
 
   const openCreate = () => {
@@ -108,6 +113,21 @@ export default function LLMConfigPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteLLMConfig(deleteTarget);
+      toast.success('已删除');
+      setDeleteTarget(null);
+      mutate();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (error) {
     return <p className="p-10 text-[var(--color-error)]">加载失败</p>;
   }
@@ -115,7 +135,7 @@ export default function LLMConfigPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-[28px] font-medium text-[var(--color-ink)]">LLM 配置</h1>
+        <h1 className="text-hero font-medium text-[var(--color-ink)]">LLM 配置</h1>
         <AppleButton onClick={openCreate}>新建配置</AppleButton>
       </div>
 
@@ -127,13 +147,13 @@ export default function LLMConfigPage() {
             <AppleCard key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-[17px] font-medium text-[var(--color-ink)]">
+                  <h3 className="text-title font-medium text-[var(--color-ink)]">
                     {config.name}
                     {config.is_default && (
-                      <span className="text-[12px] font-normal text-[var(--color-accent)]"> （默认）</span>
+                      <span className="text-fine font-normal text-[var(--color-accent)]"> （默认）</span>
                     )}
                   </h3>
-                  <p className="mt-1 text-[13px] text-[var(--color-text-muted-48)]">
+                  <p className="mt-1 text-caption text-[var(--color-text-muted-48)]">
                     {config.provider_type === 1 ? 'llama.cpp' : 'OpenAI-compatible'} / {config.llm_model} /{' '}
                     {config.embedding_model}
                   </p>
@@ -142,18 +162,7 @@ export default function LLMConfigPage() {
                   <AppleButton variant="ghost" onClick={() => openEdit(config)}>
                     编辑
                   </AppleButton>
-                  <AppleButton
-                    variant="utility"
-                    onClick={async () => {
-                      try {
-                        await deleteLLMConfig(config.id);
-                        mutate();
-                        toast.success('已删除');
-                      } catch (err: unknown) {
-                        toast.error(err instanceof Error ? err.message : '删除失败');
-                      }
-                    }}
-                  >
+                  <AppleButton variant="utility" onClick={() => setDeleteTarget(config.id)}>
                     删除
                   </AppleButton>
                 </div>
@@ -188,11 +197,12 @@ export default function LLMConfigPage() {
         <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">提供商类型</label>
+          <label htmlFor={providerSelectId} className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">提供商类型</label>
           <select
+            id={providerSelectId}
             value={Number(form.provider_type)}
             onChange={(e) => setForm({ ...form, provider_type: Number(e.target.value) })}
-            className="w-full rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-[15px] text-[var(--color-ink)]"
+            className="w-full rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
           >
             <option value={1}>llama.cpp</option>
             <option value={2}>OpenAI-compatible</option>
@@ -241,9 +251,10 @@ export default function LLMConfigPage() {
         />
 
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">System Prompt</label>
+          <label htmlFor={systemPromptId} className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">System Prompt</label>
           <textarea
-            className="min-h-[80px] w-full resize-y rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-[15px] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
+            id={systemPromptId}
+            className="min-h-[80px] w-full resize-y rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]"
             placeholder="自定义系统提示词，可选"
             value={String(form.system_prompt || '')}
             onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
@@ -256,6 +267,17 @@ export default function LLMConfigPage() {
           </p>
         )}
       </AppleDialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="删除 LLM 配置"
+        message="确定要删除此 LLM 配置吗？删除后可能导致 AI 服务不可用。"
+        confirmLabel="删除"
+        onConfirm={handleDelete}
+        loading={deleting}
+        danger
+      />
     </div>
   );
 }

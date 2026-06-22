@@ -34,7 +34,7 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)]">
-      <div className="w-[400px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
+      <div className="w-full max-w-[400px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
         <h1 className="text-[22px] font-medium text-[var(--color-ink)] text-center mb-6">修改密码</h1>
         <form onSubmit={handleSubmit}>
           <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" />

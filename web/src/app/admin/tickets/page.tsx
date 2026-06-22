@@ -24,11 +24,11 @@ export default function AdminTicketListPage() {
 
   return (
     <div>
-      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-6">申告管理</h1>
+      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">申告管理</h1>
       <div className="mb-4 flex gap-2 flex-wrap">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-ink)] text-[13px] cursor-pointer transition${status === o.v ? ' bg-[var(--color-accent)] text-white font-semibold' : ''}`}>
+            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-ink)] text-caption cursor-pointer transition${status === o.v ? ' bg-[var(--color-accent)] text-white font-semibold' : ''}`}>
             {o.l}
           </button>
         ))}

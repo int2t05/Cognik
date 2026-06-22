@@ -16,11 +16,11 @@ export default function TicketQueryPage() {
 
   return (
     <div>
-      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-6">我的申告</h1>
+      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">我的申告</h1>
       {error && <p className="text-[var(--color-error)] text-sm">加载失败</p>}
       <AppleTable
         columns={[
-          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-['SF_Mono','Fira_Code',monospace] text-[13px]">{r.ticket_no}</span> },
+          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-['SF_Mono','Fira_Code',monospace] text-caption">{r.ticket_no}</span> },
           { key: 'title', title: '标题', render: (r) => <a href={`/portal/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'urgency', title: '紧急程度', render: (r) => URGENCY_LABELS[r.urgency] || '—' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },

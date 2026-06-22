@@ -13,6 +13,7 @@ import { getKBList } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
+import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
@@ -74,15 +75,15 @@ export default function AdminTicketDetailPage() {
     return <p className="p-10 text-[var(--color-error)]">加载失败</p>;
   }
   if (!ticket) {
-    return <div className="p-10 text-[var(--color-text-muted-48)]">加载中...</div>;
+    return <div className="flex justify-center py-10"><AppleSpinner /></div>;
   }
 
   return (
-    <div className="max-w-[800px]">
-      <h1 className="mb-2 text-[28px] font-medium text-[var(--color-ink)]">{ticket.title}</h1>
+    <div className="max-w-content">
+      <h1 className="mb-2 text-hero font-medium text-[var(--color-ink)]">{ticket.title}</h1>
       <div className="mb-6 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
-        <span className="text-[13px] text-[var(--color-text-muted-48)]">
+        <span className="text-caption text-[var(--color-text-muted-48)]">
           {ticket.ticket_no} / 提交人 {ticket.submitter_name || '-'} / {formatDate(ticket.created_at)}
         </span>
       </div>
@@ -127,12 +128,12 @@ export default function AdminTicketDetailPage() {
       )}
 
       <AppleCard className="mb-6">
-        <h3 className="mb-3 text-[17px] font-medium">生成知识候选</h3>
+        <h3 className="mb-3 text-title font-medium">生成知识候选</h3>
         <div className="flex items-end gap-3">
           <select
             value={kbId}
             onChange={(e) => setKbId(Number(e.target.value))}
-            className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-[15px] text-[var(--color-ink)]"
+            className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)]"
           >
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => (
@@ -149,10 +150,10 @@ export default function AdminTicketDetailPage() {
 
       {ticket.records && ticket.records.length > 0 && (
         <AppleCard>
-          <h3 className="mb-3 text-[17px] font-medium">处理记录</h3>
+          <h3 className="mb-3 text-title font-medium">处理记录</h3>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
-              <span className="text-[13px] font-semibold">{actionLabel(record.action)}</span>
+              <span className="text-caption font-semibold">{actionLabel(record.action)}</span>
               <span className="ml-3 text-xs text-[var(--color-text-muted-48)]">{formatDate(record.created_at)}</span>
               <p className="mt-1 text-sm">{record.content}</p>
             </div>

@@ -1,4 +1,5 @@
 /** 全局 Toast 系统 — 统一消息通知，最多堆叠 3 条。 */
+/** Toast 消失时间按类型分级：error 5s，warning 4s，success/info 3s。 */
 
 'use client';
 import {
@@ -27,6 +28,14 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+/** 按类型分级消失时间（ms） */
+const TOAST_DURATION: Record<ToastType, number> = {
+  error: 5000,
+  warning: 4000,
+  success: 3000,
+  info: 3000,
+};
+
 let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -37,7 +46,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => [...prev.slice(-2), { id, type, message }]); // 最多堆叠 3 条
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, TOAST_DURATION[type]);
   }, []);
 
   const success = useCallback((msg: string) => addToast('success', msg), [addToast]);
@@ -56,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           position: 'fixed',
           top: 16,
           right: 16,
-          zIndex: 9999,
+          zIndex: 'var(--z-toast)',
           display: 'flex',
           flexDirection: 'column',
           gap: 8,

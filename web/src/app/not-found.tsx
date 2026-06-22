@@ -5,8 +5,8 @@ export default function NotFound() {
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-parchment)]">
       <div className="text-center">
         <h1 className="text-[64px] font-light text-[var(--color-ink)] tracking-tight">404</h1>
-        <p className="text-[17px] text-[var(--color-text-muted-48)] mt-2">页面不存在</p>
-        <Link href="/portal/chat" className="text-[var(--color-accent)] mt-6 inline-block text-[17px]">返回首页</Link>
+        <p className="text-title text-[var(--color-text-muted-48)] mt-2">页面不存在</p>
+        <Link href="/portal/chat" className="text-[var(--color-accent)] mt-6 inline-block text-title">返回首页</Link>
       </div>
     </div>
   );

@@ -57,15 +57,15 @@ export default function TicketSubmitPage() {
   };
 
   return (
-    <div className="max-w-[640px]">
-      <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-6">提交申告</h1>
+    <div className="max-w-form">
+      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">提交申告</h1>
       <form onSubmit={handleSubmit}>
         <AppleInput label="申告标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" />
         <AppleTextarea label="详细描述" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="请详细描述问题现象、发生时间、影响范围等" />
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">紧急程度</label>
-            <select value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="w-full px-3 py-2 text-[15px] rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+            <select value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="w-full px-3 py-2 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
               <option value={1}>低 — 一般咨询</option>
               <option value={2}>中 — 影响工作</option>
               <option value={3}>高 — 紧急处理</option>
@@ -73,7 +73,7 @@ export default function TicketSubmitPage() {
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">影响范围</label>
-            <select value={impactScope} onChange={(e) => setImpactScope(Number(e.target.value))} className="w-full px-3 py-2 text-[15px] rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+            <select value={impactScope} onChange={(e) => setImpactScope(Number(e.target.value))} className="w-full px-3 py-2 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
               {IMPACT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
@@ -83,7 +83,7 @@ export default function TicketSubmitPage() {
         <AppleInput label="联系邮箱" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" />
         <div className="mt-6 flex gap-3">
           <AppleButton type="submit" loading={submitting}>提交申告</AppleButton>
-          <AppleButton variant="ghost" type="button" onClick={() => router.back()}>取消</AppleButton>
+          <AppleButton variant="ghost" type="button" onClick={() => router.push("/portal/tickets")}>取消</AppleButton>
         </div>
       </form>
     </div>

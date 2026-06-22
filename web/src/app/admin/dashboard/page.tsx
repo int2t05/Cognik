@@ -26,7 +26,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-[28px] font-medium text-[var(--color-ink)]">数据看板</h1>
+        <h1 className="text-hero font-medium text-[var(--color-ink)]">数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh}>刷新</AppleButton>
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-sm">加载失败，请点击刷新重试</p>}
@@ -40,7 +40,7 @@ export default function DashboardPage() {
         <StatCard label="知识条目" value={stats?.knowledge_count ?? '—'} />
       </div>
 
-      <h2 className="text-[21px] font-medium text-[var(--color-ink)] mb-4">30 日趋势</h2>
+      <h2 className="text-headline font-medium text-[var(--color-ink)] mb-4">30 日趋势</h2>
       {!trends ? <AppleSpinner /> : trends.data_points.length === 0 ? (
         <div className="p-10 text-center text-[var(--color-text-muted-48)] text-sm bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">暂无趋势数据</div>
       ) : (
@@ -66,7 +66,7 @@ function TrendChart({ data }: { data: { date: string; ticket_count: number; chat
                 className="w-[6px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0"
                 style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }} />
             </div>
-            {i % 5 === 0 && <span className="text-[9px] text-[var(--color-text-muted-48)] -rotate-45 whitespace-nowrap">{d.date.slice(5)}</span>}
+            {i % 5 === 0 && <span className="text-fine text-[var(--color-text-muted-48)] -rotate-45 whitespace-nowrap">{d.date.slice(5)}</span>}
           </div>
         ))}
       </div>

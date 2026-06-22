@@ -31,7 +31,7 @@ export function AppleDialog({
           className="fixed left-1/2 top-1/2 z-[1001] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[0_20px_60px_rgba(0,0,0,0.15)]"
           style={{ width } as React.CSSProperties}
         >
-          <Dialog.Title className="px-6 pt-5 pb-0 text-[17px] font-medium text-[var(--color-ink)]">
+          <Dialog.Title className="px-6 pt-5 pb-0 text-title font-medium text-[var(--color-ink)]">
             {title}
           </Dialog.Title>
           {description && (

@@ -170,11 +170,11 @@ export default function ChatPage() {
   const isLoading = loading || streaming;
 
   return (
-    <div className="flex h-[calc(100vh-96px)]">
+    <div className="flex h-[calc(100dvh-96px)]">
       {/* 移动端遮罩 */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 z-[var(--z-overlay)] lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -182,7 +182,7 @@ export default function ChatPage() {
       {/* 侧边栏 — 移动端 overlay / 桌面端 inline */}
       <aside
         className={`flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden bg-[var(--color-parchment)]
-          ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-60' : 'hidden lg:flex'}
+          ${mobileOpen ? 'fixed inset-y-0 left-0 z-[var(--z-nav)] w-60' : 'hidden lg:flex'}
           lg:relative lg:${sidebarOpen ? 'w-60' : 'w-0'}
         `}
       >
@@ -229,10 +229,10 @@ export default function ChatPage() {
                           }`}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="truncate text-[13px] leading-tight font-medium">
+                          <div className="truncate text-caption leading-tight font-medium">
                             {s.question}
                           </div>
-                          <div className="text-[11px] text-[var(--color-text-muted-48)] mt-1">
+                          <div className="text-fine text-[var(--color-text-muted-48)] mt-1">
                             {formatDate(s.updated_at)}
                           </div>
                         </div>
@@ -241,6 +241,7 @@ export default function ChatPage() {
                             e.stopPropagation();
                             setDeleteTarget(s.id);
                           }}
+                          aria-label="删除会话"
                           className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--color-error)]/10 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition"
                         >
                           <Trash2 size={13} />
@@ -261,6 +262,7 @@ export default function ChatPage() {
           {/* 移动端菜单按钮 */}
           <button
             onClick={() => setMobileOpen(true)}
+            aria-label="打开菜单"
             className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0"
           >
             <Menu size={18} />
@@ -268,6 +270,7 @@ export default function ChatPage() {
           {/* 桌面端侧边栏切换 */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? '折叠侧栏' : '展开侧栏'}
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0"
           >
             <ChevronLeft
@@ -283,7 +286,7 @@ export default function ChatPage() {
               setSelectedKB(Number(e.target.value));
               handleNewChat();
             }}
-            className="h-11 px-4 text-[15px] rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[200px] cursor-pointer"
+            className="h-11 px-4 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[200px] cursor-pointer"
           >
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => (

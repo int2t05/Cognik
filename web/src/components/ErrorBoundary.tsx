@@ -18,8 +18,8 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex items-center justify-center min-h-[60vh] bg-[var(--color-parchment)]">
           <div className="text-center max-w-[400px]">
-            <h1 className="text-[28px] font-medium text-[var(--color-ink)] mb-3">页面出错了</h1>
-            <p className="text-[15px] text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
+            <h1 className="text-hero font-medium text-[var(--color-ink)] mb-3">页面出错了</h1>
+            <p className="text-body text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
             <AppleButton onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
               刷新页面
             </AppleButton>
@@ -36,8 +36,8 @@ export function ErrorFallback({ error, onReset }: { error: Error; onReset: () =>
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
       <div className="text-center max-w-[400px]">
-        <p className="text-[15px] text-[var(--color-text-muted-48)] mb-2">内容加载出错</p>
-        <p className="text-[13px] text-[var(--color-text-muted-48)] mb-4">{error.message}</p>
+        <p className="text-body text-[var(--color-text-muted-48)] mb-2">内容加载出错</p>
+        <p className="text-caption text-[var(--color-text-muted-48)] mb-4">{error.message}</p>
         <AppleButton onClick={onReset}>重试</AppleButton>
       </div>
     </div>

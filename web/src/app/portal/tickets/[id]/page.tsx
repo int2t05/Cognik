@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { getTicketDetail, supplementTicket } from '@/lib/api/ticket';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleTextarea } from '@/components/ui/AppleInput';
+import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
@@ -32,15 +33,15 @@ export default function TicketDetailPage() {
   };
 
   if (error) return <p className="text-[var(--color-error)] p-10">加载失败: {error.message}</p>;
-  if (!ticket) return <div className="p-10 text-[var(--color-text-muted-48)]">加载中...</div>;
+  if (!ticket) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
 
   return (
-    <div className="max-w-[720px]">
+    <div className="max-w-content">
       <h1 className="text-hero font-medium text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-6 items-center">
         <StatusBadge type="ticket" status={ticket.status} />
-        <span className="text-[13px] text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
-        <span className="text-[13px] text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
+        <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
+        <span className="text-caption text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
       </div>
 
       <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
@@ -54,8 +55,8 @@ export default function TicketDetailPage() {
           {ticket.records.map((r) => (
             <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
               <div className="flex justify-between mb-1">
-                <span className="text-[13px] font-semibold text-[var(--color-text-muted-80)]">{r.action}</span>
-                <span className="text-[12px] text-[var(--color-text-muted-48)]">{formatDate(r.created_at)}</span>
+                <span className="text-caption font-semibold text-[var(--color-text-muted-80)]">{r.action}</span>
+                <span className="text-fine text-[var(--color-text-muted-48)]">{formatDate(r.created_at)}</span>
               </div>
               <p className="text-[14px] text-[var(--color-ink)]">{r.content}</p>
             </div>

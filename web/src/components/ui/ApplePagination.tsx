@@ -52,7 +52,7 @@ export function ApplePagination({
         />
       </div>
       <select
-        className="ml-3 px-2 py-1 text-[13px] rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] font-sans outline-none"
+        className="ml-3 px-2 py-1 text-caption rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] font-sans outline-none"
         value={pageSize}
         onChange={(e) => onChange(1, Number(e.target.value))}
       >

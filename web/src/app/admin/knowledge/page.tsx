@@ -7,6 +7,7 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +18,8 @@ export default function KnowledgeListPage() {
   const [kbName, setKbName] = useState('');
   const [kbDesc, setKbDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const toast = useToast();
   const router = useRouter();
 
@@ -34,27 +37,49 @@ export default function KnowledgeListPage() {
 
   const openEdit = (kb: { id: number; name: string; description: string }) => { setEditId(kb.id); setKbName(kb.name); setKbDesc(kb.description || ''); setShowCreate(true); };
 
-  const handleDelete = async (id: number) => { try { await deleteKB(id); toast.success('已删除'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); } };
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteKB(deleteTarget);
+      toast.success('已删除');
+      setDeleteTarget(null);
+      mutate();
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
+    finally { setDeleting(false); }
+  };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-sm py-10">加载失败</p>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-[28px] font-medium text-[var(--color-ink)]">知识库管理</h1>
+        <h1 className="text-hero font-medium text-[var(--color-ink)]">知识库管理</h1>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}>新建知识库</AppleButton>
       </div>
 
       <div className="grid gap-4">
-        {!kbs ? <AppleSpinner /> : kbs.map((kb) => (
-          <AppleCard key={kb.id} className="flex justify-between items-center cursor-pointer" onClick={() => router.push(`/admin/knowledge/${kb.id}`)}>
+        {!kbs ? <AppleSpinner /> : kbs.length === 0 ? (
+          <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">
+            暂无知识库，点击右上角"新建知识库"开始
+          </div>
+        ) : kbs.map((kb) => (
+          <AppleCard
+            key={kb.id}
+            className="flex justify-between items-center cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-label={`打开知识库 ${kb.name}`}
+            onClick={() => router.push(`/admin/knowledge/${kb.id}`)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/knowledge/${kb.id}`); } }}
+          >
             <div>
-              <h3 className="text-[17px] font-medium text-[var(--color-ink)] mb-1">{kb.name}</h3>
-              <p className="text-[15px] text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
+              <h3 className="text-title font-medium text-[var(--color-ink)] mb-1">{kb.name}</h3>
+              <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
               <AppleButton variant="ghost" onClick={() => openEdit(kb)}>编辑</AppleButton>
-              <AppleButton variant="utility" onClick={() => handleDelete(kb.id)}>删除</AppleButton>
+              <AppleButton variant="utility" onClick={() => setDeleteTarget(kb.id)}>删除</AppleButton>
             </div>
           </AppleCard>
         ))}
@@ -65,6 +90,17 @@ export default function KnowledgeListPage() {
         <AppleInput label="名称" value={kbName} onChange={(e) => setKbName(e.target.value)} />
         <AppleInput label="描述" value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} />
       </AppleDialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="删除知识库"
+        message="确定要删除此知识库吗？此操作不可撤销，知识库中的所有文章将被永久删除。"
+        confirmLabel="删除"
+        onConfirm={handleDelete}
+        loading={deleting}
+        danger
+      />
     </div>
   );
 }

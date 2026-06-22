@@ -1,30 +1,19 @@
 /**
  * useUnreadCount — 消息未读数轮询 hook。
  *
- * AdminLayout 和 PortalLayout 之前各自实现了完全相同的轮询逻辑，
- * 提取为共享 hook 以消除重复。
- * 默认每 30 秒轮询一次。
+ * 使用全局 SWR 缓存避免 AdminLayout + PortalLayout 同时挂载时的双轮询，
+ * SWR 的 dedupingInterval 保证同一时间仅发一次请求。
+ * 默认每 30 秒刷新一次。
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import { getUnreadCount } from '@/lib/api/message';
 
-export function useUnreadCount(interval = 30000) {
-  const [unreadCount, setUnreadCount] = useState(0);
+export function useUnreadCount() {
+  const { data } = useSWR('unread-count', () => getUnreadCount(), {
+    refreshInterval: 30000,
+    dedupingInterval: 5000,
+  });
 
-  const refresh = useCallback(() => {
-    getUnreadCount()
-      .then((d) => setUnreadCount(d.count))
-      .catch((err: unknown) => {
-        console.warn('获取未读数失败:', err);
-      });
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, interval);
-    return () => clearInterval(t);
-  }, [refresh, interval]);
-
-  return { unreadCount, refresh };
+  return { unreadCount: data?.count ?? 0 };
 }
