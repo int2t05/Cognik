@@ -98,6 +98,7 @@ export default function UserListPage() {
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"
+        emptyText={debouncedKeyword ? `未找到与“${debouncedKeyword}”匹配的用户` : '暂无用户'}
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
