@@ -27,7 +27,7 @@ export function AppleCard({
 
   const classNames = [
     'bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]',
-    isInteractive ? 'cursor-pointer hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow focus-visible:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]' : '',
+    isInteractive ? 'cursor-pointer hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-shadow focus-visible:shadow-[var(--focus-ring)]' : '',
     className,
   ]
     .filter(Boolean)

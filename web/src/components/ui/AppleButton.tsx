@@ -21,7 +21,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
   ({ variant = 'pill', loading = false, disabled, className = '', children, ...rest }, ref) => {
     const classes = [
-      'inline-flex items-center gap-1 font-medium cursor-pointer border-0 font-sans whitespace-nowrap select-none transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] disabled:opacity-40 disabled:cursor-not-allowed',
+      'inline-flex items-center gap-1 font-medium cursor-pointer border-0 font-sans whitespace-nowrap select-none transition-all duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] disabled:opacity-40 disabled:cursor-not-allowed',
       variantClasses[variant],
       className,
     ].filter(Boolean).join(' ');

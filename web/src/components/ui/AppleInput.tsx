@@ -27,7 +27,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
     return (
       <div className={label || error ? 'mb-4' : ''}>
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={inputId} className="block text-caption font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
         <input
           ref={ref}
@@ -67,7 +67,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
     return (
       <div className="mb-4">
         {label && (
-          <label htmlFor={textareaId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={textareaId} className="block text-caption font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
         <textarea
           ref={ref}

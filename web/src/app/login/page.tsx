@@ -6,10 +6,12 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { AppleInput } from '@/components/ui/AppleInput';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { apiFetch } from '@/lib/api/client';
 import { isAdminRole } from '@/lib/roles';
+import { LogIn } from 'lucide-react';
 
 interface LoginResponse {
   access_token: string;
@@ -76,32 +78,26 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-5">
-            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">用户名</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              autoFocus
-              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
-            />
+          <AppleInput
+            label="用户名"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoFocus
+          />
+          <AppleInput
+            label="密码"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <div className="mt-8">
+            <AppleButton type="submit" loading={loading} className="w-full">
+              <LogIn size={15} /> 登录
+            </AppleButton>
           </div>
-
-          <div className="mb-8">
-            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">密码</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
-            />
-          </div>
-
-          <AppleButton type="submit" loading={loading} className="w-full">
-            登录
-          </AppleButton>
         </form>
       </div>
     </div>

@@ -52,7 +52,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             <button
               key={p.days}
               onClick={() => applyPreset(p.days)}
-              className={`px-3 py-1 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition ${
+              className={`px-3 py-1.5 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition ${
                 activePreset === p.days
                   ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                   : 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-hairline)]'
@@ -130,7 +130,7 @@ function Chart({ data }: { data: TrendPoint[] }) {
         {data.map((d, i) => (
           <div key={d.date} className="flex-1 min-w-0 text-center">
             {i % labelStep === 0 && (
-              <span className="text-[11px] text-[var(--color-text-muted-48)] whitespace-nowrap">
+              <span className="text-fine text-[var(--color-text-muted-48)] whitespace-nowrap">
                 {d.date.slice(5)}
               </span>
             )}

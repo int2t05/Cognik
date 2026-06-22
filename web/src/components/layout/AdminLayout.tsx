@@ -161,7 +161,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-4">
             <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>
-            <button onClick={handleLogout} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption">
+            <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition">
               <LogOut size={14} /> 登出
             </button>
           </div>
