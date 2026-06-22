@@ -1,6 +1,6 @@
 'use client';
 import useSWR from 'swr';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getTicketDetail, supplementTicket } from '@/lib/api/ticket';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleTextarea } from '@/components/ui/AppleInput';
@@ -9,12 +9,14 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
+import { ArrowLeft, Send } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { data: ticket, error } = useSWR(`portal-ticket-${id}`, () => getTicketDetail(Number(id)));
   const [supplement, setSupplement] = useState('');
   const [sending, setSending] = useState(false);
@@ -37,8 +39,11 @@ export default function TicketDetailPage() {
 
   return (
     <div className="max-w-content">
+      <div className="flex items-center gap-3 mb-6">
+        <AppleButton variant="ghost" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={15} /> 返回</AppleButton>
+      </div>
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
-      <div className="flex gap-3 mb-6 items-center">
+      <div className="flex gap-3 mb-6 items-center flex-wrap">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
         <span className="text-caption text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
@@ -46,7 +51,7 @@ export default function TicketDetailPage() {
 
       <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
         <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
-        <p className="text-title text-[var(--color-ink)] leading-[1.47] whitespace-pre-wrap">{ticket.description}</p>
+        <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
       </div>
 
       {ticket.records && ticket.records.length > 0 && (
@@ -68,7 +73,7 @@ export default function TicketDetailPage() {
         <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
           <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-          <AppleButton onClick={handleSupplement} loading={sending}>提交补充</AppleButton>
+          <AppleButton onClick={handleSupplement} loading={sending}><Send size={15} /> 提交补充</AppleButton>
         </div>
       )}
     </div>

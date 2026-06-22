@@ -2,6 +2,7 @@
 
 import { forwardRef } from 'react';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { Send } from 'lucide-react';
 
 interface ChatInputProps {
   value: string;
@@ -31,7 +32,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
           className="flex-1 h-12 px-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]"
         />
         <AppleButton onClick={onSend} loading={loading} disabled={!value.trim() || disabled}>
-          发送
+          <Send size={15} /> 发送
         </AppleButton>
       </div>
     );
