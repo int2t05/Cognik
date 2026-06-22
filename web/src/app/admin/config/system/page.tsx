@@ -10,7 +10,7 @@ import { Pencil } from 'lucide-react';
 const CONFIG_KEYS = ['app_name', 'ai_default_top_k', 'ai_confidence_threshold'];
 
 export default function SystemConfigPage() {
-  const { data: configs, mutate } = useSWR('all-configs', () => getAllConfigs(CONFIG_KEYS));
+  const { data: configs, error, mutate } = useSWR('all-configs', () => getAllConfigs(CONFIG_KEYS));
 
   const getValue = (key: string): unknown => {
     if (!configs) return undefined;
@@ -20,6 +20,7 @@ export default function SystemConfigPage() {
   return (
     <div>
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">系统配置</h1>
+      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <AppleCard className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用配置</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={getValue('app_name')} onSaved={mutate} />
@@ -55,7 +56,7 @@ function ConfigRow({ label, configKey, value, onSaved }: { label: string; config
       <span className="text-caption font-medium text-[var(--color-ink)] w-[120px] shrink-0">{label}</span>
       {editing ? (
         <>
-          <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]" />
+          <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" />
           <AppleButton variant="ghost" onClick={handleSave} loading={saving}>保存</AppleButton>
         </>
       ) : (

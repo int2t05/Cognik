@@ -34,7 +34,7 @@ export default function TicketDetailPage() {
     } finally { setSending(false); }
   };
 
-  if (error) return <p className="text-[var(--color-error)] p-10">加载失败: {error.message}</p>;
+  if (error) return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   if (!ticket) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
 
   return (
@@ -70,7 +70,7 @@ export default function TicketDetailPage() {
       )}
 
       {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
-        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
+        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
           <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
           <AppleButton onClick={handleSupplement} loading={sending} className="p-2" aria-label="提交补充"><Send size={16} /></AppleButton>

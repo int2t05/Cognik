@@ -130,7 +130,7 @@ export default function LLMConfigPage() {
   };
 
   if (error) {
-    return <p className="p-10 text-[var(--color-error)]">加载失败</p>;
+    return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   }
 
   return (
@@ -140,9 +140,11 @@ export default function LLMConfigPage() {
         <AppleButton onClick={openCreate} className="p-2" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {!configs ? (
           <AppleSpinner />
+        ) : configs.length === 0 ? (
+          <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">暂无 LLM 配置，点击右上角新建</div>
         ) : (
           configs.map((config) => (
             <AppleCard key={config.id}>

@@ -67,7 +67,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             type="date"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
-            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none"
+            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="开始日期"
           />
           <span className="text-caption text-[var(--color-text-muted-48)]">—</span>
@@ -75,12 +75,12 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             type="date"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
-            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none"
+            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
           <button
             onClick={applyCustom}
-            className="px-3 py-1 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-accent)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]"
+            className="px-3 py-1 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-accent)] cursor-pointer transition hover:bg-[var(--color-divider-soft)] focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
           >
             查询
           </button>

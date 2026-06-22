@@ -49,7 +49,7 @@ export function ApplePagination({
 
       <select
         aria-label="每页条数"
-        className="px-2 py-1 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer"
+        className="px-2 py-1 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
         value={pageSize}
         onChange={(e) => onChange(1, Number(e.target.value))}
       >
@@ -87,11 +87,11 @@ function PageBtn({
       onClick={onClick}
       disabled={disabled}
       {...rest}
-      className={`min-w-[30px] h-7 flex items-center justify-center text-caption rounded-full border-0 font-sans cursor-pointer transition ${
+      className={`min-w-[30px] h-7 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition ${
         active
           ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
           : 'text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)]'
-      } ${disabled ? 'opacity-25 pointer-events-none' : ''}`}
+      } ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
     >
       {children}
     </button>

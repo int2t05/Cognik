@@ -72,7 +72,7 @@ export default function AdminTicketDetailPage() {
   };
 
   if (error) {
-    return <p className="p-10 text-[var(--color-error)]">加载失败</p>;
+    return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   }
   if (!ticket) {
     return <div className="flex justify-center py-10"><AppleSpinner /></div>;
