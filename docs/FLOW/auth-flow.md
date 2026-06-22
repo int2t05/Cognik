@@ -1,208 +1,231 @@
 # 认证数据流 — 登录 / 刷新 / 改密 / 登出
 
----
-
-## 用户故事
-
-| 角色 | 目标 | 价值 |
-|------|------|------|
-| 报障人 | 使用工号密码登录门户，获取智能问答和申告权限 | 自助获取运维支持 |
-| 运维人员 / 管理员 | 登录后台管理申告、知识库、系统配置 | 日常运维工作入口 |
-| 首次登录用户 | 登录后强制修改初始密码 | 安全合规 |
-| 会话过期用户 | 无感刷新令牌，不中断当前操作 | 体验连贯 |
+> **聚焦：后端数据逻辑。不含前端调用链和用户故事。**
 
 ---
 
-## 前端调用链路
+## 1. 路由注册与中间件链
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          前端组件 → API 映射                              │
-├───────────────┬────────────────────────────────┬────────────────────────┤
-│     页面       │           组件                  │      API 调用           │
-├───────────────┼────────────────────────────────┼────────────────────────┤
-│ /login        │ LoginPage                      │ POST /api/v1/auth/login│
-│               │  ├─ <input> 用户名/密码         │  → apiFetch<LoginResp> │
-│               │  └─ AppleButton type="submit"   │                        │
-│               │                                │                        │
-│ /change-      │ ChangePasswordPage             │ POST /api/v1/auth/me/  │
-│ password      │  ├─ AppleInput 旧密码/新密码     │   change-password      │
-│               │  └─ AppleButton 提交            │  → changePassword()    │
-│               │                                │                        │
-│ 全局          │ PortalLayout / AdminLayout      │ POST /api/v1/auth/me/  │
-│ (导航栏)       │  └─ "退出登录" 按钮             │   logout               │
-│               │     → useAuth().logout()        │  → logout(refreshToken)│
-│               │                                │                        │
-│ 全局          │ proxy.ts (middleware)            │ POST /api/v1/auth/     │
-│ (路由守卫)     │  自动检测 token 过期             │   refresh              │
-│               │  透明刷新后重放请求               │  → refreshToken()      │
-└───────────────┴────────────────────────────────┴────────────────────────┘
-```
+router.Setup()
+  ├─ public:  POST /api/v1/auth/login       → AuthHandler.Login
+  ├─ public:  POST /api/v1/auth/refresh     → AuthHandler.Refresh
+  ├─ JWT:     POST /api/v1/auth/me/change-password → AuthHandler.ChangePassword
+  └─ JWT:     POST /api/v1/auth/me/logout   → AuthHandler.Logout
 
-> **注意：** `LoginPage` 直接调用 `apiFetch<LoginResponse>('/api/v1/auth/login', ...)`（内联类型），
-> 未使用 `lib/api/auth.ts` 中的 `login()` 封装函数。登录成功后通过 `useAuth().login()` 将
-> token/user/roles/permissions/menus 写入 localStorage + cookie，后续所有请求由
-> `apiFetch` 自动附加 `Authorization: Bearer <token>` 头。
+JWT 中间件链 (/api/v1/auth/me/*, /api/v1/portal/*, /api/v1/admin/*):
+  middleware.JWTAuth(userCache, jwtSecret)
+    ├─ 1. 从 Authorization header 提取 Bearer <token>
+    ├─ 2. jwt.ParseToken(token, secret) — HS256 签名验证 + 过期检查
+    ├─ 3. claims.TokenType == "access"（拒绝 refresh token 访问业务接口）
+    ├─ 4. userCache.GetStatus(userID) — 内存 TTL 缓存(30s)查询用户状态
+    │     └─ 缓存未命中 → userRepo.GetByID(ctx, userID) 回退 DB
+    ├─ 5. status == 2 → "账户已冻结" 中止
+    └─ 6. 写入 gin.Context: CurrentUser{UserID, Username, Roles, Permissions} + userID
+```
 
 ---
 
-# 认证数据流 — 登录
+## 2. 登录 — POST /api/v1/auth/login
 
-## 输入
+### 2.1 Handler: `AuthHandler.Login(c)`
+
 ```
-{
-  "username": "admin",
-  "password": "Admin@123"
+1. c.ShouldBindJSON(&request.LoginRequest{Username, Password})
+2. h.authService.Login(ctx, req.Username, req.Password)
+3. response.Success(c, LoginResponse{...})
+```
+
+### 2.2 Service: `AuthService.Login(ctx, username, password) → *LoginResponse`
+
+```
+1. rateLimiter.allowLogin(username)
+   └─ 滑动窗口: 15 分钟内同一 username 失败次数 < 5
+   └─ 超限 → AppError{10003, "登录失败次数过多，请15分钟后再试"}
+
+2. userRepo.GetByUsername(ctx, username)
+   └─ SQL: SELECT * FROM users WHERE username = ?
+   └─ 未找到 → AppError{10003, "用户名或密码错误"}（与密码错误同码，防用户名枚举）
+
+3. hash.CheckPassword(user.PasswordHash, password)
+   └─ bcrypt.CompareHashAndPassword(hashed, password)
+   └─ 不匹配 → rateLimiter.recordFail(username) → AppError{10003, "用户名或密码错误"}
+
+4. user.Status == 2（冻结态）
+   └─ → AppError{10003, "账号已被冻结"}
+
+5. rateLimiter.recordSuccess(username) — 清除失败计数
+
+6. user.FirstLogin == true
+   └─ go db.Model(&User{}).Where("id=?", id).Update("first_login", false) — 异步清除
+
+7. buildLoginResponse(ctx, user) — 组装完整响应（见 §2.3）
+```
+
+### 2.3 Service: `AuthService.buildLoginResponse(ctx, user) → *LoginResponse`
+
+```
+1. repo.GetUserRoles(ctx, user.ID)
+   └─ SQL: JOIN user_roles + roles WHERE user_roles.user_id = ?
+
+2. repo.GetUserPermissions(ctx, user.ID)
+   └─ SQL: JOIN user_roles + roles → 聚合 roles.permissions(jsonb) → 去重
+
+3. buildMenuTree(ctx, roles)
+   ├─ 系统管理员（roles 含 "系统管理员"）:
+   │   └─ menuRepo.ListMenus(ctx)
+   │       └─ SQL: SELECT * FROM menus ORDER BY sort_order ASC, id ASC
+   │
+   └─ 其他用户:
+       └─ menuRepo.BatchGetRoleMenus(ctx, roleIDs)
+           └─ SQL: SELECT DISTINCT m.* FROM menus m
+               JOIN role_menus rm ON rm.menu_id = m.id WHERE rm.role_id IN ?
+               ORDER BY sort_order ASC, id ASC
+       └─ buildTreeWithMap(childrenMap, parentID=0) — 递归构建树，按 sort_order 排序
+
+4. jwt.GenerateAccessToken(user.ID, username, roles, permissions, secret, expire)
+   └─ Claims{UserID, Username, Roles, Permissions, TokenType:"access"}
+   └─ jwt.SigningMethodHS256 签名
+
+5. jwt.GenerateRefreshToken(...) — 同上，TokenType:"refresh"，expire 更长
+
+6. 返回 *LoginResponse{AccessToken, RefreshToken, User, Roles, Permissions, Menus}
+```
+
+### 2.4 数据层调用汇总
+
+| 步骤 | 调用 | SQL |
+|------|------|-----|
+| 2.2.2 | `UserRepo.GetByUsername` | `SELECT * FROM users WHERE username = ?` |
+| 2.3.1 | `UserRepo.GetUserRoles` | `JOIN user_roles + roles WHERE user_id = ?` |
+| 2.3.2 | `UserRepo.GetUserPermissions` | 聚合 `roles.permissions` JSONB |
+| 2.3.3a | `MenuRepo.ListMenus` | `SELECT * FROM menus ORDER BY sort_order, id` |
+| 2.3.3b | `MenuRepo.BatchGetRoleMenus` | `SELECT DISTINCT m.* FROM menus m JOIN role_menus ...` |
+
+---
+
+## 3. 令牌刷新 — POST /api/v1/auth/refresh
+
+### 3.1 Handler: `AuthHandler.Refresh(c)`
+
+```
+1. c.ShouldBindJSON(&request.RefreshRequest{RefreshToken})
+2. h.authService.RefreshToken(ctx, refreshToken)
+3. response.Success(c, newLoginResponse)
+```
+
+### 3.2 Service: `AuthService.RefreshToken(ctx, refreshToken) → *LoginResponse`
+
+```
+1. tokenBlacklist 检查 — refreshToken 是否已在内存黑名单中
+   └─ 在黑名单 → AppError{10001, "令牌已失效"}
+
+2. jwt.ParseToken(refreshToken, secret)
+   └─ 校验签名 + 过期 + TokenType == "refresh"
+
+3. userRepo.GetByID(ctx, claims.UserID)
+   └─ 未找到 → "用户不存在"
+   └─ Status == 2 → "账号已被冻结"
+
+4. buildLoginResponse(ctx, user) — 重新生成令牌对（同 §2.3）
+```
+
+---
+
+## 4. 修改密码 — POST /api/v1/auth/me/change-password
+
+### 4.1 Handler: `AuthHandler.ChangePassword(c)`
+
+```
+1. getCurrentUserID(c) → 从 JWT context 提取 userID
+2. c.ShouldBindJSON(&request.ChangePasswordRequest{OldPassword, NewPassword})
+3. h.authService.ChangePassword(ctx, userID, oldPwd, newPwd)
+```
+
+### 4.2 Service: `AuthService.ChangePassword(ctx, userID, oldPwd, newPwd)`
+
+```
+1. userRepo.GetByID(ctx, userID)
+
+2. hash.CheckPassword(user.PasswordHash, oldPwd)
+   └─ 不匹配 → AppError{10003, "旧密码错误"}
+
+3. oldPwd == newPwd
+   └─ → AppError{10003, "新密码不能与旧密码相同"}
+
+4. hash.ValidatePassword(newPwd)
+   └─ 正则: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$
+   └─ 不满足 → AppError{10003, "密码需8-32位，含大小写字母和数字"}
+
+5. hash.HashPassword(newPwd)
+   └─ bcrypt.GenerateFromPassword(password, cost)
+   └─ cost 从 OPSMIND_BCRYPT_COST 环境变量读取（默认 10, 范围 4-31）
+
+6. db.Model(&User{}).Where("id=?", userID).Updates(map{
+     "password_hash": hash,
+     "first_login": false,
+   })
+   └─ 直接使用 DB 更新（单表双字段，不需要 Repository 全字段 Save）
+```
+
+---
+
+## 5. 退出登录 — POST /api/v1/auth/me/logout
+
+### 5.1 Handler: `AuthHandler.Logout(c)`
+
+```
+1. c.ShouldBindJSON(&request.LogoutRequest{RefreshToken})
+2. h.authService.Logout(ctx, refreshToken)
+```
+
+### 5.2 Service: `AuthService.Logout(ctx, refreshToken)`
+
+```
+1. jwt.ParseToken(refreshToken, secret)
+   └─ 已过期的 token 也接受解析（仍可写入黑名单）
+
+2. tokenBlacklist[refreshToken] = claims.ExpiresAt.Time
+   └─ 写入内存 map（sync.Mutex 保护）
+
+3. 后台 goroutine: blacklistCleanupLoop()
+   └─ 每 10 分钟扫描一次，删除已过期的黑名单条目
+```
+
+---
+
+## 6. 关键数据结构
+
+### JWT Claims (`pkg/jwt/jwt.go`)
+
+```go
+type Claims struct {
+    UserID      int64    `json:"user_id"`
+    Username    string   `json:"username"`
+    Roles       []string `json:"roles"`
+    Permissions []string `json:"permissions"`
+    TokenType   string   `json:"token_type"` // "access" | "refresh"
+    jwt.RegisteredClaims
 }
 ```
 
-## 分层数据流
+### 密码策略 (`pkg/hash/hash.go`)
 
-### 接入层 — 路由 & 中间件
+| 函数 | 说明 |
+|------|------|
+| `HashPassword(plain) → hash` | bcrypt, cost 可配 `OPSMIND_BCRYPT_COST`（默认 10） |
+| `CheckPassword(hash, plain) → bool` | bcrypt.CompareHashAndPassword |
+| `ValidatePassword(plain) → error` | 正则: `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$` |
 
-1. `router.Setup()` 注册 `POST /api/v1/auth/login` → `AuthHandler.Login`
+### 登录限流 (`service/auth_service.go`)
 
-### 接入层 — Handler
+- 滑动窗口: 15 分钟 / 5 次失败上限
+- `rateLimiter.allowLogin(username)` — 超限返回 error
+- `rateLimiter.recordFail(username)` — 失败计数 +1
+- `rateLimiter.recordSuccess(username)` — 清除计数
 
-2. 经由 `AuthHandler.Login()` 处理：
-   - `c.ShouldBindJSON(&req)` 将 body 反序列化为 `request.LoginRequest`
-   - 校验失败 → `response.Error(c, ErrParam, ...)` 返回 400
+### 令牌黑名单 (`service/auth_service.go`)
 
-### 业务层 — Service
-
-3. 经由 `AuthService.Login(ctx, username, password)` 处理：
-   - `rateLimiter.allowLogin(username)` — 检查滑动窗口限流（15 分钟内 ≤ 5 次失败）
-   - `userRepo.GetByUsername(ctx, username)` 查询用户记录
-   - `hash.CheckPassword(user.PasswordHash, password)` bcrypt 校验
-   - `user.Status == 2` 冻结检查
-   - `rateLimiter.recordSuccess(username)` 或 `recordFail(username)`
-
-4. 经由 `AuthService.buildLoginResponse(ctx, user)` 组装返回：
-   - `userRepo.GetUserRoles(ctx, user.ID)` — 查询用户角色
-   - `userRepo.GetUserPermissions(ctx, user.ID)` — 查询用户权限
-   - `buildMenuTree(ctx, roles)` — 构建菜单树
-     - 系统管理员 → `menuRepo.ListMenus(ctx)` 获取全部菜单
-     - 其他用户 → `menuRepo.BatchGetRoleMenus(ctx, roleIDSlice)` 批量查询
-     - `buildTree(menus, 0)` → `buildTreeWithMap(childrenMap, 0)` 递归构建
-   - `jwt.GenerateAccessToken(user.ID, username, roles, permissions, secret, expire)` 生成 access_token
-   - `jwt.GenerateRefreshToken(...)` 生成 refresh_token
-
-### 数据层 — Repository
-
-5. `UserRepo.GetByUsername(ctx, username)` — `SELECT * FROM users WHERE username = ?`
-6. `UserRepo.GetUserRoles(ctx, userID)` — JOIN user_roles + roles
-7. `UserRepo.GetUserPermissions(ctx, userID)` — JOIN 角色 → JSONB 权限聚合
-8. `MenuRepo.ListMenus(ctx)` 或 `MenuRepo.BatchGetRoleMenus(ctx, roleIDs)` — 菜单查询
-
-## 输出
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "access_token": "eyJhbGciOi...",
-    "refresh_token": "eyJhbGciOi...",
-    "user": { "id": 1, "username": "admin", "real_name": "管理员", ... },
-    "roles": ["系统管理员"],
-    "permissions": ["*"],
-    "menus": [{ "id": 1, "name": "知识管理", "children": [...] }]
-  }
-}
-```
-
-## 关键分支
-
-| 分支 | 条件 | 产出 |
-|------|------|------|
-| 限流拒绝 | 同一用户名 15 分钟内失败 ≥ 5 次 | `ErrParam` — "登录失败次数过多，请15分钟后再试" |
-| 密码/用户名错误 | bcrypt 校验失败或用户不存在 | `ErrParam` — "用户名或密码错误"（统一错误码，防枚举） |
-| 账号已冻结 | `user.Status == 2` | `ErrForbidden` — "账号已被冻结" |
-| 首次登录 | `user.FirstLogin == true` | 异步 `db.Model(&User{}).Where("id=?",id).Update("first_login",false)` |
-
----
-
-# 认证数据流 — 刷新令牌
-
-## 用户故事
-> 作为门户用户，我希望在会话期间令牌过期时自动续期，不被打断当前操作。
-
-## 前端调用链
-`proxy.ts (middleware)` 拦截请求 → 检测 token 过期 → `POST /api/v1/auth/refresh` → 更新 cookie → 重放原始请求
-
-## 输入
-```
-{ "refresh_token": "eyJhbGciOi..." }
-```
-
-## 分层数据流
-
-1. `AuthHandler.Refresh(c)` — Gin Handler，`ShouldBindJSON`
-2. `AuthService.RefreshToken(ctx, refreshToken)`
-   - `tokenBlacklist` map 检查是否已登出
-   - `jwt.ParseToken(refreshToken, secret)` 解析 claims
-   - `claims.TokenType != "refresh"` 类型校验
-   - `userRepo.GetByID(ctx, claims.UserID)` 校验用户仍存在且未冻结
-   - `buildLoginResponse(ctx, user)` 重新生成令牌对
-3. 同 Login 的数据层调用
-
-## 输出
-同登录响应（新令牌对 + 用户信息 + 菜单树）
-
----
-
-# 认证数据流 — 修改密码
-
-## 用户故事
-> 作为首次登录用户，我需要按安全策略修改初始密码后才能使用系统功能。
-
-## 前端调用链
-`ChangePasswordPage` → 用户填写旧密码/新密码/确认 → AppleButton 提交 → `changePassword(old, new)` → `POST /api/v1/auth/me/change-password`
-
-## 输入
-```
-{ "old_password": "Admin@123", "new_password": "NewPass@456" }
-```
-
-## 分层数据流
-
-1. `AuthHandler.ChangePassword(c)` — 从 JWT context 获取 `userID`
-2. `AuthService.ChangePassword(ctx, userID, oldPwd, newPwd)`
-   - `userRepo.GetByID(ctx, userID)` 查询用户
-   - `hash.CheckPassword(user.PasswordHash, oldPwd)` 旧密码校验
-   - `oldPwd == newPwd` 新旧相同校验
-   - `hash.ValidatePassword(newPwd)` 正则校验 `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$`
-   - `hash.HashPassword(newPwd)` bcrypt 哈希 (cost=10)
-   - `db.Model(&User{}).Where("id=?",userID).Updates(map)` 更新 password_hash + first_login=false
-
-## 输出
-```json
-{ "code": 0, "message": "success", "data": null }
-```
-
----
-
-# 认证数据流 — 退出登录
-
-## 用户故事
-> 作为用户，退出后我的会话应立即失效，其他人无法用同一令牌访问系统。
-
-## 前端调用链
-`PortalLayout` 或 `AdminLayout` 导航栏 → 点击"退出登录" → `useAuth().logout()` → 清除 localStorage + cookie → `logout(refreshToken)` → `POST /api/v1/auth/me/logout` → 跳转到 `/login`
-
-## 输入
-```
-{ "refresh_token": "eyJhbGciOi..." }
-```
-
-## 分层数据流
-
-1. `AuthHandler.Logout(c)` — Gin Handler
-2. `AuthService.Logout(ctx, refreshToken)`
-   - `jwt.ParseToken(refreshToken, secret)` 解析（已过期也接受）
-   - `tokenBlacklist[refreshToken] = claims.ExpiresAt.Time` 写入内存黑名单
-3. `blacklistCleanupLoop()` 后台 goroutine 每 10 分钟清理过期条目
-
-## 输出
-```json
-{ "code": 0, "message": "success", "data": null }
-```
+- 内存 `map[string]time.Time`，`sync.Mutex` 保护
+- 登出时写入 `refresh_token → expires_at`
+- `blacklistCleanupLoop()` 每 10 分钟清理过期条目

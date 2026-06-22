@@ -1,302 +1,337 @@
 # 申告生命周期数据流 — 从创建到关闭
 
----
-
-## 用户故事
-
-| 角色 | 目标 | 价值 |
-|------|------|------|
-| 报障人 | 提交运维申告，描述问题、选择紧急程度 | 从 AI 问答无法解决时转入人工处理 |
-| 报障人 | 查看申告处理进度，补充运维要求的信息 | 配合运维人员快速解决问题 |
-| 报障人 | 查看站内消息通知 | 及时响应运维的补充信息请求 |
-| 运维人员 | 查看申告列表，接单处理 | 高效分配和跟踪运维工作 |
-| 运维人员 | 更新申告状态（处理中→请求补充→已解决→关闭） | 标准化申告处理流程 |
-| 运维人员 | 将申告经验沉淀为知识候选 | 闭环：申告→知识→更好的 AI 回答 |
-| 系统 | 自动关闭 7 天无更新的超期申告 | 保持申告列表干净，避免僵尸申告 |
+> **聚焦：后端数据逻辑。不含前端调用链和用户故事。**
 
 ---
 
-## 前端调用链路
+## 1. 路由注册
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           前端组件 → API 映射                                   │
-├────────────────────┬───────────────────────────┬──────────────────────────────┤
-│        页面         │          组件              │          API 调用             │
-├────────────────────┼───────────────────────────┼──────────────────────────────┤
-│ /portal/tickets    │ PortalTicketsPage         │ GET /portal/tickets          │
-│ (我的申告)          │  ├─ AppleTable 申告列表    │  → getMyTickets(page)        │
-│                    │  │   → apiFetchPage<Ticket>│  → apiFetchPage<Ticket>      │
-│                    │  └─ 点击行 → 跳转详情       │                              │
-│                    │                           │                              │
-│ /portal/tickets    │ PortalTicketNewPage       │ POST /portal/tickets         │
-│ /new               │  ├─ AppleInput: title     │  → createTicket(data)        │
-│ (提交申告)          │  ├─ AppleTextarea: desc   │   {title, description,       │
-│                    │  ├─ urgency 选择器          │    urgency, impact_scope,    │
-│                    │  ├─ impact_scope 选择器     │    affected_systems,         │
-│                    │  ├─ affected_systems 多选   │    contact_phone,            │
-│                    │  ├─ contact_phone/email    │    contact_email,            │
-│                    │  ├─ AppleButton 提交        │    chat_context}             │
-│                    │  └─ 支持 ?chat_context     │                              │
-│                    │     查询参数（从 Chat 跳转） │                              │
-│                    │                           │                              │
-│ /portal/tickets    │ PortalTicketDetailPage    │ GET /portal/tickets/:id      │
-│ /[id]              │  ├─ 申告信息展示            │  → getTicketDetail(id)       │
-│ (申告详情)          │  ├─ 处理记录时间线          │                              │
-│                    │  ├─ 补充信息表单             │ PATCH /portal/tickets/:id    │
-│                    │  │   AppleTextarea + 提交   │   /supplement                │
-│                    │  │   → supplementTicket()  │  → supplementTicket(id,text) │
-│                    │  └─ (仅 status=3 时显示)    │                              │
-│                    │                           │                              │
-│ /portal/messages   │ PortalMessagesPage        │ GET /portal/messages         │
-│ (站内消息)          │  ├─ AppleTable 消息列表    │  → apiFetchPage<Message>     │
-│                    │  ├─ "查看" 按钮 → 跳转申告  │ PUT /portal/messages/:id     │
-│                    │  └─ 标记已读               │   /read                      │
-│                    │                           │                              │
-├────────────────────┼───────────────────────────┼──────────────────────────────┤
-│ /admin/tickets     │ AdminTicketsPage          │ GET /admin/tickets           │
-│ (申告管理)          │  ├─ 状态筛选 pill 按钮      │  → listAllTickets(           │
-│                    │  │   全部/待处理/处理中/...  │     page, status, urgency)   │
-│                    │  ├─ AppleTable 申告列表    │  → apiFetchPage<Ticket>      │
-│                    │  │   含提交人/紧急度/状态    │                              │
-│                    │  └─ 点击行 → 跳转详情       │                              │
-│                    │                           │                              │
-│ /admin/tickets     │ AdminTicketDetailPage     │ GET /admin/tickets/:id       │
-│ /[id]              │  ├─ 申告详情 + 状态徽章     │  → getAdminTicketDetail(id)  │
-│ (申告处理)          │  ├─ 操作按钮组              │ PATCH /admin/tickets/:id     │
-│                    │  │   "接单" → start        │   /status                    │
-│                    │  │   "请求补充" → req_info  │  → updateTicketStatus(       │
-│                    │  │   "已解决" → resolve     │     id, action, result)      │
-│                    │  │   "关闭" → close        │                              │
-│                    │  ├─ 处理记录表单             │ POST /admin/tickets/:id      │
-│                    │  │   AppleTextarea + 提交   │   /records                   │
-│                    │  │   → addTicketRecord()   │  → addTicketRecord(          │
-│                    │  │                          │     id, action, content)     │
-│                    │  └─ 知识候选生成             │ POST /admin/tickets/:id      │
-│                    │      KB 下拉 + 生成按钮      │   /knowledge-candidate       │
-│                    │      → createKnowledge     │  → createKnowledgeCandidate( │
-│                    │        Candidate()         │     id, kb_id)               │
-└────────────────────┴───────────────────────────┴──────────────────────────────┘
+router.Setup() → registerPortalRoutes():
+  POST   /api/v1/portal/tickets            → TicketHandler.CreateTicket
+  GET    /api/v1/portal/tickets            → TicketHandler.ListByUser
+  GET    /api/v1/portal/tickets/:id        → TicketHandler.GetDetail
+  PATCH  /api/v1/portal/tickets/:id/supplement → TicketHandler.SupplementTicket
+
+router.Setup() → registerAdminRoutes():
+  GET    /api/v1/admin/tickets             → TicketHandler.ListAll        [PermTicketRead]
+  GET    /api/v1/admin/tickets/:id         → TicketHandler.GetDetail      [PermTicketRead]
+  PATCH  /api/v1/admin/tickets/:id/status  → TicketHandler.UpdateStatus   [PermTicketWrite]
+  POST   /api/v1/admin/tickets/:id/records → TicketHandler.AddRecord      [PermTicketWrite]
+  POST   /api/v1/admin/tickets/:id/knowledge-candidate → TicketHandler.CreateKnowledgeCandidate [PermTicketWrite]
 ```
 
 ---
 
-## 输入
+## 2. 申告状态机
+
 ```
-POST /api/v1/portal/tickets
-Authorization: Bearer <user_jwt>
-{
-  "title": "数据库连接超时",
-  "description": "生产环境 MySQL 频繁超时，ping 正常但业务查询间歇性失败",
-  "urgency": 2,
-  "impact_scope": 2,
-  "affected_systems": ["mysql", "app-server"],
-  "contact_phone": "13800138000",
-  "contact_email": "user@example.com",
-  "chat_context": { "session_id": 100, "kb_id": 1 }
-}
-```
+状态码: 1=待处理  2=处理中  3=需补充信息  4=已解决  5=已关闭
 
----
+                  ┌── CreateTicket ──→ Pending(1)
+                  │                    │
+                  │                    ├── start ──→ Processing(2)
+                  │                    │            │  │
+                  │                    │            │  ├── request_info ──→ NeedSupplement(3)
+                  │                    │            │  │  (supplement_count < 3)
+                  │                    │            │  │                    │
+                  │                    │            │  │←── supplement ─────┘
+                  │                    │            │  │     (CAS: status=3→2)
+                  │                    │            │  │
+                  │                    │            │  ├── resolve ──→ Resolved(4)
+                  │                    │            │  │
+                  │                    │            │  └── close ──→ Closed(5)
+                  │                    │            │
+                  │                    │            └── close ──→ Closed(5)
+                  │                    │
+                  │                    └── close ──→ Closed(5)
 
-## 分层数据流
-
-### 0. 路由 & 中间件
-
-1. `router.Setup()` → `registerPortalRoutes()` 注册 `POST /tickets` → `TicketHandler.CreateTicket`
-2. `middleware.JWTAuth(userCache, jwtSecret)` — JWT 认证
-
-### 接入层 — Handler
-
-3. 经由 `TicketHandler.CreateTicket(c)` 处理：
-   - `c.ShouldBindJSON(&req)` → `request.CreateTicketRequest`
-   - `getCurrentUserID(c)` — 提取申告人 ID
-   - `h.svc.CreateTicket(c.Request.Context(), req, userID)`
-
-### 业务层 — Service
-
-4. 经由 `TicketService.CreateTicket(ctx, req, userID)` 处理：
-   - 参数校验：
-     - `strings.TrimSpace(req.Title) == ""` → "标题不能为空"
-     - `strings.TrimSpace(req.Description) == ""` → "描述不能为空"
-     - `strings.TrimSpace(req.ContactPhone) == ""` → "联系电话不能为空"
-     - `req.Urgency < 1 || req.Urgency > 3` → "紧急程度必须为 1-3"
-   - `generateTicketNo()` — 生成唯一工单编号 `TK-YYYYMMDD-NNNNNN`
-     - `crypto/rand.Int(rand.Reader, big.NewInt(1000000))` 生成 6 位随机数
-     - `fmt.Sprintf("TK-%s-%06d", time.Now().Format("20060102"), n)` 拼接
-   - `marshalTicketTags(req.AffectedSystems)` — JSON 序列化受影响的系统
-   - `json.Marshal(req.ChatContext)` — 序列化对话上下文
-   - 设置 `ticket.Status = TicketStatusPending(1)`, `ticket.Source = TicketSourcePortal(1)`
-
-### 数据层
-
-5. `TicketRepo.Create(ctx, ticket)` — INSERT INTO tickets
-
-### 输出
-```json
-{ "code": 0, "message": "success", "data": null }
+Pending/Processing/NeedSupplement ── 超过7天 ──→ Scheduler.AutoClose → Closed(5)
 ```
 
 ---
 
-## 申告状态机全路径
+## 3. 创建申告 — POST /api/v1/portal/tickets
+
+### Handler: `TicketHandler.CreateTicket(c)`
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  状态码：1=待处理  2=处理中  3=需补充信息  4=已解决  5=已关闭    │
-│  角色： 报障人(portal) / 运维人员(admin) / 调度器(system)         │
-└──────────────────────────────────────────────────────────────────┘
-
-                    ┌── 创建申告 ──→ Pending(1)
-                    │               │
-                    │               ├─ start ──→ Processing(2)
-                    │               │            │  │
-                    │               │            │  ├─ request_info ──→ NeedSupplement(3)
-                    │               │            │  │  (supplement_count < 3)
-                    │               │            │  │                    │
-                    │               │            │  │←── supplement ─────┘
-                    │               │            │  │     (CAS: status=3→2)
-                    │               │            │  │
-                    │               │            │  ├─ resolve ──→ Resolved(4)
-                    │               │            │  │
-                    │               │            │  └─ close ──→ Closed(5)
-                    │               │            │     (不可从 Resolved 关闭)
-                    │               │            │
-                    │               │            └─ close ──→ Closed(5)
-                    │               │
-                    │               └─ close ──→ Closed(5)
-
-Pending/Processing/NeedSupplement ── 超过 7 天 ──→ Scheduler.AutoClose → Closed(5)
+1. c.ShouldBindJSON(&request.CreateTicketRequest{
+     Title, Description, Urgency, ImpactScope, AffectedSystems,
+     ContactPhone, ContactEmail, ChatContext
+   })
+2. getCurrentUserID(c) → userID
+3. h.svc.CreateTicket(ctx, req, userID)
 ```
 
----
+### Service: `TicketService.CreateTicket(ctx, req, userID)`
 
-## 操作流：补充信息 (NeedSupplement → Processing)
-
-### 输入
 ```
-PATCH /api/v1/portal/tickets/:id/supplement
-{ "content": "报错日志见附件，错误码 111：connect timeout after 30s" }
-```
+1. 参数校验:
+   ├─ TrimSpace(Title) == ""        → "标题不能为空"
+   ├─ TrimSpace(Description) == ""  → "描述不能为空"
+   ├─ TrimSpace(ContactPhone) == "" → "联系电话不能为空"
+   └─ Urgency < 1 || Urgency > 3    → "紧急程度必须为1-3"
 
-### 分层数据流
+2. generateTicketNo() — 工单编号 "TK-YYYYMMDD-XXXXXX":
+   ├─ crypto/rand.Int(rand.Reader, big.NewInt(1000000)) → 6位随机数
+   └─ fmt.Sprintf("TK-%s-%06d", time.Now().Format("20060102"), n)
 
-1. `TicketHandler.SupplementTicket(c)`
-2. `TicketService.SupplementTicket(ctx, id, userID, req)`
-   - `repo.FindByID(ctx, id)` — 加载申告
-   - `ticket.UserID != userID` — 仅申告人可补充
-   - `ticket.Status != TicketStatusNeedSupplement(3)` — 状态校验
-   - `txManager.Transaction(ctx, func(tx) { ... })` — 事务内原子操作：
-     - `repository.NewTicketRepo(tx)` — 在事务内创建 Repo
-     - `txRepo.CreateRecord(ctx, &TicketRecord{Action:"supplement", Content:req.Content})` — 写入记录
-     - `txRepo.UpdateStatus(ctx, id, oldStatus=3, newStatus=2)` — CAS 更新（WHERE id=? AND status=?）
-     - `rows == 0` → "申告状态已变更，请刷新后重试"（并发冲突提示）
+3. marshalTicketTags(AffectedSystems) → JSONB
 
-### 输出
-```json
-{ "code": 0, "message": "success", "data": null }
+4. json.Marshal(ChatContext) → JSONB
+
+5. 构建 Ticket{UserID, TicketNo, Title, Description, Urgency, ImpactScope,
+     AffectedSystems(JSONB), ContactPhone, ContactEmail, ChatContext(JSONB),
+     Status:1(Pending), Source:1(Portal)}
+
+6. TicketRepo.Create(ctx, ticket)
+   → SQL: INSERT INTO tickets (...) VALUES (...)
 ```
 
 ---
 
-## 操作流：状态转换 (Admin)
+## 4. 状态转换 — PATCH /api/v1/admin/tickets/:id/status
 
-### 输入
+### Handler: `TicketHandler.UpdateStatus(c)`
+
 ```
-PATCH /api/v1/admin/tickets/:id/status
-{ "action": "start", "result": "已接单，开始排查" }
+1. parseID(c, "id") → ticketID
+2. c.ShouldBindJSON(&request.UpdateTicketStatusRequest{Action, Result})
+3. getCurrentUserID(c) → operatorID
+4. h.svc.UpdateStatus(ctx, ticketID, operatorID, req)
 ```
-> action 取值：start / request_info / resolve / close
 
-### 分层数据流
+### Service: `TicketService.UpdateStatus(ctx, id, operatorID, req)`
 
-1. `TicketHandler.UpdateStatus(c)` → `TicketService.UpdateStatus(ctx, id, operatorID, req)`
-   - `repo.FindByID(ctx, id)` — 加载申告
-   - switch-case 状态机校验（见下方表）
-   - `txManager.Transaction(ctx, func(tx) { ... })` — 事务内原子操作：
-     - `txRepo.UpdateStatus(ctx, id, oldStatus, newStatus)` — CAS 更新
-     - `txRepo.CreateRecord(ctx, &TicketRecord{Action, Content:req.Result})` — 写入时间线
-     - `repository.NewAuditRepo(tx).Create(ctx, &AuditLog{...})` — 审计日志
+```
+1. repo.FindByID(ctx, id) — 加载申告（Preload User + TicketRecords）
 
-   **特殊逻辑 — request_info**：
-   - 事务外：`repo.IncrementSupplementCount(ctx, id)` 原子自增
-     - `UPDATE tickets SET supplement_count = supplement_count + 1 WHERE id=? AND supplement_count < 3`
-     - `ok == false` → "补充信息次数已达上限（3次）"
-   - 事务完成后：`msgSvc.NotifySupplement(ctx, ticketID, ticketUserID, ticketTitle)` 站内消息通知
+2. switch-case 状态机校验:
+
+   action="start":       Status(A)=1(Pending)  → Status(B)=2(Processing)
+   action="request_info": Status(A)=2(Processing) → Status(B)=3(NeedSupplement)
+     附加: repo.IncrementSupplementCount(ctx, id)
+       → SQL: UPDATE tickets SET supplement_count = supplement_count + 1
+           WHERE id=? AND supplement_count < 3
+       → RowsAffected==0 → "补充信息次数已达上限（3次）"
+   action="resolve":     Status(A)=2(Processing) → Status(B)=4(Resolved)
+   action="close":       Status(A)∈{1,2,3} → Status(B)=5(Closed)
+                         (不可从 Resolved 或已 Closed 关闭)
+
+3. txManager.Transaction(ctx, func(tx) {
+     txRepo := repository.NewTicketRepo(tx)
+
+     a. txRepo.UpdateStatus(ctx, id, oldStatus, newStatus) — CAS 原子更新
+        → SQL: UPDATE tickets SET status=? WHERE id=? AND status=?
+        → RowsAffected==0 → "申告状态已变更，请刷新后重试"（并发冲突）
+
+     b. txRepo.CreateRecord(ctx, &TicketRecord{
+          TicketID:id, OperatorID:operatorID, Action:req.Action, Content:req.Result
+        })
+        → SQL: INSERT INTO ticket_records (...)
+
+     c. repository.NewAuditRepo(tx).Create(ctx, &AuditLog{
+          OperatorID:operatorID, Action:"ticket."+req.Action, TargetType:"ticket", TargetID:id
+        })
+   })
+
+4. request_info 特殊逻辑 — 事务完成后:
+   if req.Action == "request_info" && msgSvc != nil:
+     msgSvc.NotifySupplement(ctx, ticketID, ticket.UserID, ticket.Title)
+       → MessageRepo.Create(ctx, &Message{
+           UserID, Title:"申告需补充信息",
+           Content:"您的申告「{title}」需要补充更多信息...",
+           Type:"ticket_supplement", RelatedType:"ticket", RelatedID:ticketID, IsRead:false
+         })
+       → invalidateUnread(userID) — 清除未读数缓存
+```
 
 ### 状态转换矩阵
 
-| action | 前置状态 | 后置状态 | 说明 |
-|--------|----------|----------|------|
-| `start` | Pending(1) | Processing(2) | 运维接单 |
-| `request_info` | Processing(2) | NeedSupplement(3) | 请求补充（需 supplement_count < 3） |
-| `resolve` | Processing(2) | Resolved(4) | 已解决 |
-| `close` | Pending(1)/Processing(2)/NeedSupplement(3) | Closed(5) | 关闭（不可从 Resolved 关闭） |
+| action | 前置状态 | 后置状态 | 额外条件 |
+|--------|---------|---------|---------|
+| `start` | Pending(1) | Processing(2) | — |
+| `request_info` | Processing(2) | NeedSupplement(3) | supplement_count < 3 |
+| `resolve` | Processing(2) | Resolved(4) | — |
+| `close` | Pending(1)/Processing(2)/NeedSupplement(3) | Closed(5) | 不可从 Resolved/Closed 关闭 |
 
-### 输出
-```json
-{ "code": 0, "message": "success", "data": null }
+---
+
+## 5. 补充信息 — PATCH /api/v1/portal/tickets/:id/supplement
+
+### Service: `TicketService.SupplementTicket(ctx, id, userID, req)`
+
+```
+1. repo.FindByID(ctx, id) — 加载申告
+
+2. 归属校验: ticket.UserID != userID → ErrForbidden
+
+3. 状态校验: ticket.Status != NeedSupplement(3) → 拒绝
+
+4. txManager.Transaction(ctx, func(tx) {
+     txRepo := repository.NewTicketRepo(tx)
+
+     a. txRepo.CreateRecord(ctx, &TicketRecord{Action:"supplement", Content:req.Content})
+        → SQL: INSERT INTO ticket_records (...)
+
+     b. txRepo.UpdateStatus(ctx, id, 3, 2) — CAS: NeedSupplement → Processing
+        → SQL: UPDATE tickets SET status=2 WHERE id=? AND status=3
+        → RowsAffected==0 → "申告状态已变更，请刷新后重试"
+   })
 ```
 
 ---
 
-## 操作流：补充信息通知
+## 6. 添加处理记录 — POST /api/v1/admin/tickets/:id/records
 
-### 触发条件
-`UpdateStatus` 中 action=`request_info` 成功且 `msgSvc != nil`
+### Service: `TicketService.AddRecord(ctx, id, operatorID, req)`
 
-### 数据流
-1. `MessageService.NotifySupplement(ctx, ticketID, userID, ticketTitle)`
-2. 构建站内消息：`"您的申告「{title}」需要补充信息，请前往申告详情页查看并补充。"`
-3. `MessageRepo.Create(ctx, &Message{UserID, Title, Content, Type:"ticket_supplement"})`
-   - INSERT INTO messages
+```
+1. isValidRecordAction(req.Action) — 白名单: note / callback / escalate
+
+2. repo.FindByID(ctx, id) — 校验申告存在
+
+3. req.Detail != "" → isValidJSON(req.Detail) — JSON 合法性校验
+
+4. repo.CreateRecord(ctx, &TicketRecord{
+     TicketID:id, OperatorID:operatorID,
+     Action:req.Action, Content:req.Content, Detail:req.Detail
+   })
+   → SQL: INSERT INTO ticket_records (...)
+   → 注意: 不更新申告状态
+```
 
 ---
 
-## 定时任务：自动关闭超期申告
+## 7. 自动关闭超期申告 — Scheduler
 
-### 触发
-`Scheduler.Start(ctx)` 在 `app.run()` 中启动，周期性调用
+### 触发: `Scheduler.Start(ctx)`
 
-### 数据流
-1. `Scheduler.Start(ctx)` — 启动 goroutine + ticker
-2. 每次 tick 调用 `TicketService.AutoClose(ctx, olderThan=7天前)`
-3. `txManager.Transaction(ctx, func(tx) { ... })` — 事务内原子操作：
-   - `txRepo.AutoCloseTickets(ctx, olderThan)` — UPDATE tickets SET status=5 WHERE status IN (1,2,3) AND created_at < ?
-   - 遍历 closed IDs：创建 `TicketRecord{Action:"auto_close", OperatorID:0}`
-   - `repository.NewAuditRepo(tx).Create(ctx, &AuditLog{Action:"ticket.auto_close", OperatorID:0})`
-4. 返回 `closedCount`
+```
+1. sync.Once 保护，防止重复启动
+2. 启动 goroutine runAutoCloseLoop:
+   ├─ 立即执行一次 doAutoClose()
+   └─ 之后每 1 小时执行一次 (time.NewTicker)
+```
+
+### 核心: `TicketService.AutoClose(ctx, olderThan=7天前)`
+
+```
+1. txManager.Transaction(ctx, func(tx) {
+     txRepo := repository.NewTicketRepo(tx)
+
+     a. txRepo.AutoCloseTickets(ctx, olderThan)
+        → SQL: UPDATE tickets SET status=5
+            WHERE status IN (1,2,3) AND created_at < $1
+            RETURNING id
+
+     b. 遍历 closed IDs，创建 auto_close 记录
+        → SQL: INSERT INTO ticket_records (ticket_id, operator_id=0, action='auto_close', ...)
+
+     c. repository.NewAuditRepo(tx).Create(ctx, &AuditLog{
+          OperatorID:0, Action:"ticket.auto_close", TargetType:"ticket", TargetID:id
+        })
+   })
+
+2. 返回 closedCount
+```
 
 ---
 
-## 操作流：从申告创建知识候选
+## 8. 创建知识候选 — POST /api/v1/admin/tickets/:id/knowledge-candidate
 
-### 输入
-```
-POST /api/v1/admin/tickets/:id/knowledge-candidate
-{ "kb_id": 1 }
-```
+### Service: `TicketService.CreateKnowledgeCandidate(ctx, id, kbID, userID)`
 
-### 数据流
-1. `TicketHandler.CreateKnowledgeCandidate(c)` → `TicketService.CreateKnowledgeCandidate(ctx, id, kbID, userID)`
-2. `GetDetail(ctx, id, 0)` — 管理员模式不限制所有权
-3. 拼接内容：`"问题描述：{title}\n\n解决方案：{description}"`
-4. `kbSvc.CreateArticle(ctx, CreateArticleRequest{kbID, "申告经验 - {title}", answer}, userID)`
-   - 与手动创建文章相同路径（草稿状态）
+```
+1. GetDetail(ctx, id, 0) — 管理员模式不限制所有权
+
+2. 拼接内容:
+   title = "申告经验 - " + ticket.Title
+   content = "问题描述：" + ticket.Title + "\n\n解决方案：" + ticket.Description
+
+3. kbSvc.CreateArticle(ctx, CreateArticleRequest{kbID, title, content}, userID)
+   └─ 与手动创建文章相同路径 → 草稿状态(status=1)
+   └─ 走 KnowledgeService.CreateArticle 标准流程
+```
 
 ---
 
-## 操作流：添加处理记录
+## 9. 关键数据表
 
-### 输入
-```
-POST /api/v1/admin/tickets/:id/records
-{ "action": "note", "content": "已联系用户确认影响范围", "detail": "{...}" }
-```
+### `tickets`
 
-### 数据流
-1. `TicketHandler.AddRecord(c)` → `TicketService.AddRecord(ctx, id, operatorID, req)`
-2. `isValidRecordAction(req.Action)` — 白名单校验（note/callback/escalate）
-3. `repo.FindByID(ctx, id)` — 校验申告存在
-4. `isValidJSON(req.Detail)` — JSON 合法性校验
-5. `repo.CreateRecord(ctx, &TicketRecord{...})` — 写入 ticket_records（不更新状态）
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| ticket_no | VARCHAR UNIQUE INDEX | TK-YYYYMMDD-XXXXXX |
+| user_id | BIGINT FK→users | 创建人 |
+| title | VARCHAR | |
+| description | TEXT | |
+| urgency | INT | 1=低 2=中 3=高 |
+| impact_scope | INT | 1=个人 2=部门 3=全公司 |
+| affected_systems | JSONB | ["mysql","app-server"] |
+| contact_phone | VARCHAR | |
+| contact_email | VARCHAR | |
+| status | INT INDEX | 1/2/3/4/5 |
+| supplement_count | INT | 索要补充次数（上限3） |
+| chat_context | JSONB | {session_id, kb_id} |
+| source | INT | 1=门户 2=后台 |
+| created_at | TIMESTAMP INDEX | |
+| updated_at | TIMESTAMP | |
+
+### `ticket_records`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| ticket_id | BIGINT FK INDEX | |
+| operator_id | BIGINT | 0=系统 |
+| action | VARCHAR | create/start/request_info/supplement/resolve/close/auto_close/note/callback/escalate |
+| content | TEXT | |
+| detail | JSONB | |
+| created_at | TIMESTAMP | |
+
+### `messages`（站内通知）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| user_id | BIGINT INDEX | |
+| title | VARCHAR | |
+| content | TEXT | |
+| type | VARCHAR | "ticket_supplement" |
+| related_type | VARCHAR | "ticket" |
+| related_id | BIGINT | |
+| is_read | BOOL INDEX | DEFAULT false |
+| created_at | TIMESTAMP | |
+
+---
+
+## 10. 关键设计决策
+
+### CAS (Compare-And-Swap) 状态更新
+
+所有状态转换使用 `WHERE id=? AND status=?` 条件更新：
+- `RowsAffected == 0` → 并发冲突 → "申告状态已变更，请刷新后重试"
+- 防止 start/close 等并发操作导致状态混乱
+
+### 补充次数原子自增
+
+```sql
+UPDATE tickets SET supplement_count = supplement_count + 1
+WHERE id = ? AND supplement_count < 3
+```
+- 数据库级别原子操作，无需应用层锁
+- 超限时 `RowsAffected == 0`
+
+### 统一事务边界
+
+所有状态转换 + 记录创建 + 审计日志在同一事务内完成，任一步骤失败全部回滚。
+
+### 消息通知同步执行
+
+`request_info` 触发 `msgSvc.NotifySupplement` 是同步的：
+- 消息写入是轻量单行 INSERT
+- 同步执行保证事务一致性
+- MVP 阶段避免异步消息队列
