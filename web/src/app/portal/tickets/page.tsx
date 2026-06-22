@@ -24,7 +24,7 @@ export default function TicketQueryPage() {
       <div className="flex justify-between items-center mb-5">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">我的申告</h1>
         <AppleButton onClick={() => router.push('/portal/tickets/new')} className="p-2" aria-label="提交申告">
-          <TicketPlus size={16} />
+          <TicketPlus size={18} />
         </AppleButton>
       </div>
 
@@ -32,10 +32,10 @@ export default function TicketQueryPage() {
 
       {isEmpty ? (
         <div className="text-center py-16">
-          <FileText size={40} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
+          <FileText size={48} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
           <p className="text-title text-[var(--color-text-muted-48)] mb-2">暂无申告记录</p>
           <p className="text-caption text-[var(--color-text-muted-48)] mb-5">遇到问题？提交申告让运维人员帮您处理</p>
-          <AppleButton onClick={() => router.push('/portal/tickets/new')}><TicketPlus size={16} /> 提交申告</AppleButton>
+          <AppleButton variant="ghost" onClick={() => router.push('/portal/tickets/new')}><TicketPlus size={18} /> 提交申告</AppleButton>
         </div>
       ) : (
         <>

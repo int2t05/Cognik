@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, MessageSquare, Trash2, ChevronLeft, Menu, Bot, Lightbulb, Search, FileQuestion } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Menu, Bot, Lightbulb, Search, FileQuestion } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { getSessionList, getChatDetail, deleteSession, submitFeedback } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -39,10 +39,9 @@ interface ApiChatMessage {
 export default function ChatPage() {
   const { token } = useAuth();
   const toast = useToast();
-  const isBrowser = typeof window !== 'undefined';
-  const { data: kbs } = useSWR(isBrowser ? 'portal-kbs' : null, getPortalKBList);
+  const { data: kbs } = useSWR('portal-kbs', getPortalKBList);
   const { data: sessionsPage, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR(
-    isBrowser ? 'chat-sessions' : null,
+    'chat-sessions',
     () => getSessionList(1),
   );
   const sessions = sessionsPage?.items ?? [];
@@ -50,7 +49,6 @@ export default function ChatPage() {
   const [selectedKB, setSelectedKB] = useState(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [input, setInput] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -175,11 +173,11 @@ export default function ChatPage() {
         <div className="fixed inset-0 bg-black/30 z-[var(--z-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* 侧边栏 */}
+      {/* 侧边栏 — 桌面端固定 240px，移动端 overlay */}
       <aside
-        className={`flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden bg-[var(--color-parchment)]
-          ${mobileOpen ? 'fixed inset-y-0 left-0 z-[var(--z-nav)] w-[220px]' : 'hidden lg:flex'}
-          lg:relative lg:${sidebarOpen ? 'w-[220px]' : 'w-0'}
+        className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)]
+          ${mobileOpen ? 'fixed inset-y-0 left-0 z-[var(--z-nav)] w-[240px]' : 'hidden lg:flex'}
+          lg:relative lg:w-[240px]
         `}
       >
         <div className="flex flex-col h-full p-3">
@@ -187,7 +185,7 @@ export default function ChatPage() {
             <Plus size={18} />
           </AppleButton>
 
-          <div className="flex-1 overflow-y-auto -mx-1">
+          <div className="flex-1 overflow-y-auto">
             {sessionsLoading ? (
               <div className="flex justify-center py-6 text-caption text-[var(--color-text-muted-48)]">加载中...</div>
             ) : sessions.length === 0 ? (
@@ -229,15 +227,11 @@ export default function ChatPage() {
 
       {/* 主区域 */}
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
-        {/* 顶栏：侧栏切换 + 知识库选择 */}
+        {/* 顶栏：移动端菜单 + 知识库选择 */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
           <button onClick={() => setMobileOpen(true)} aria-label="打开菜单"
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
             <Menu size={18} />
-          </button>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '折叠侧栏' : '展开侧栏'}
-            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-tile-1)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
-            <ChevronLeft size={16} className={`transition-transform duration-200 ${sidebarOpen ? '' : 'rotate-180'}`} />
           </button>
           <select
             value={selectedKB}

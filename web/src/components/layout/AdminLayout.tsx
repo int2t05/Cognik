@@ -49,16 +49,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('sidebar-collapsed') === 'true';
-    return false;
-  });
+  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedReady, setCollapsedReady] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<number>>(new Set());
   const { unreadCount } = useUnreadCount();
 
+  // 客户端初始化时从 localStorage 读取侧栏状态，避免 SSR hydration 不匹配
   useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', String(collapsed));
-  }, [collapsed]);
+    const saved = localStorage.getItem('sidebar-collapsed') === 'true';
+    setCollapsed(saved);
+    setCollapsedReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (collapsedReady) localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }, [collapsed, collapsedReady]);
 
   const handleLogout = async () => { await logout(); router.push('/login'); };
 
