@@ -3,6 +3,7 @@
 /* ===== Tailwind v4 Theme — 统一设计 Token ===== */
 @theme {
   /* 字号层级 — 替换所有裸 text-[XXpx] 值 */
+  --font-size-display: 72px;
   --font-size-hero: 28px;
   --font-size-headline: 21px;
   --font-size-title: 17px;

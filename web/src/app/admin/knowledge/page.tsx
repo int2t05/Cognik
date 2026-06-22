@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
@@ -53,7 +54,7 @@ export default function KnowledgeListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识库管理</h1>
+        <PageTitle>知识库管理</PageTitle>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} className="p-3.5" aria-label="新建知识库"><BookPlus size={16} /></AppleButton>
       </div>
 

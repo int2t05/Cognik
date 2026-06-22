@@ -8,6 +8,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/useToast';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { ArrowRight, Mail } from 'lucide-react';
 
 export default function MessagesPage() {
@@ -31,7 +32,7 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">站内消息</h1>
+      <PageTitle>站内消息</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       {isEmpty ? (
@@ -46,7 +47,7 @@ export default function MessagesPage() {
               { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? '' : 'font-semibold'}>{r.title}</span> },
               { key: 'content', title: '内容' },
               { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
-              { key: 'actions', title: '', render: (r) => !r.is_read ? <AppleButton variant="ghost" className="p-3.5" aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)}><ArrowRight size={16} /></AppleButton> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
+              { key: 'actions', title: '操作', render: (r) => !r.is_read ? <AppleButton variant="ghost" className="p-3.5" aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)}><ArrowRight size={16} /></AppleButton> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
             ]}
             data={messages}
             loading={!data && !error}

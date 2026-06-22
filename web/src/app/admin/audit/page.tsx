@@ -2,6 +2,7 @@
 import useSWR from 'swr';
 import { useState, useId } from 'react';
 import { getAuditLogs } from '@/lib/api/audit';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { formatDate } from '@/lib/date';
@@ -18,7 +19,7 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">审计日志</h1>
+      <PageTitle>审计日志</PageTitle>
       <div className="flex gap-3 mb-4 flex-wrap items-end">
         <div>
           <label htmlFor={idOp} className="block text-caption text-[var(--color-text-muted-48)] mb-1">操作人 ID</label>

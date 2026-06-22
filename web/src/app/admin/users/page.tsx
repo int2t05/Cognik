@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -80,7 +81,7 @@ export default function UserListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <h1 className="text-hero font-semibold text-[var(--color-ink)]">用户管理</h1>
+        <PageTitle>用户管理</PageTitle>
         <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建用户"><UserPlus size={16} /></AppleButton>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
@@ -90,7 +91,7 @@ export default function UserListPage() {
           { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
-          { key: 'actions', title: '', render: (r) => <div className="flex gap-2">
+          { key: 'actions', title: '操作', render: (r) => <div className="flex gap-2">
             <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(r)}><Pencil size={16} /></AppleButton>
             {r.status === 1 ? <AppleButton variant="utility" className="p-3.5" aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}><Lock size={16} /></AppleButton>
               : <AppleButton variant="utility" className="p-3.5" aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}><Unlock size={16} /></AppleButton>}

@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/date';
 import { URGENCY_LABELS } from '@/lib/format';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
 const TICKET_FILTERS: FilterOption<number>[] = [
@@ -39,7 +40,7 @@ export default function AdminTicketListPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">申告管理</h1>
+      <PageTitle>申告管理</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4 flex gap-3 items-center flex-wrap">
         <AppleInput pill placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />

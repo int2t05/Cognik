@@ -75,7 +75,7 @@
 
 ## 2. 知识库管理
 
-- 🟢 多处页面加载状态为纯文本"加载中..."，无骨架屏 — 保留（需骨架屏组件，非阻塞优化）
+- ✅ `Skeleton` 骨架屏组件已创建 (`ui/AppleSkeleton.tsx`)，待页面按需接入
 
 ## 3. 表单与交互
 
@@ -88,13 +88,13 @@
 
 ## 5. 可访问性
 
-- 🟢 表格操作列 header 空 title=""，屏幕阅读器会读出空白列头 — 保留（需 th aria-label 或 aria-hidden）
+- ✅ 表格操作列 header `title: ''` → `title: '操作'`（users/roles/messages 三处）
 
 ## 6. 设计系统
 
-- 🟢 页面标题 `text-hero font-semibold` 在 18 处重复，可提取 `<PageTitle>` 组件
-- 🟢 404 页硬编码 `text-[72px]`，不在 type scale 内
-- 🟢 审计页输入框样式在 5 处重复，可提取或复用 AppleInput
+- ✅ `<PageTitle>` 组件提取，15 页面统一迁移
+- ✅ `--font-size-display: 72px` 添加到 theme，404 页使用 `text-display`
+- 🟢 审计页输入框样式在 5 处重复 — 保留（审计页布局特殊，不适合直接 AppleInput）
 
 ## 7. 基础设施
 
@@ -108,8 +108,8 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 |
 |---|---|---|---|
 | 后端（保留） | 0 | 9 | 3 |
-| 前端（保留） | 0 | 1 | 9 |
-| **合计** | **0** | **10** | **12** |
+| 前端（保留） | 0 | 1 | 3 |
+| **合计** | **0** | **10** | **6** |
 
 ---
 
@@ -144,3 +144,10 @@
 - ✅ 全站按钮图标补全（admin 申告/文章操作按钮、修改密码 Key 图标）
 - ✅ 统计卡片 hover 阴影、font-bold、padding 优化
 - ✅ ChatMessage 气泡半径使用 radius token（rounded-tr/tl-sm）
+
+### 设计系统完善（本轮 #5）
+
+- ✅ `<PageTitle>` 组件提取，15 页面迁移（消除 18 处 `text-hero font-semibold` 重复）
+- ✅ `--font-size-display: 72px` 添加到 theme tokens，404 页 `text-[72px]` → `text-display`
+- ✅ 表格操作列 `title: ''` → `title: '操作'`（users/roles/messages 三处，屏幕阅读器友好）
+- ✅ `Skeleton` 骨架屏组件创建 (`ui/AppleSkeleton.tsx`)，`animate-pulse` + 统一 token

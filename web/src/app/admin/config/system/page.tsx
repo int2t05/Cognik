@@ -2,6 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { setConfig, getAllConfigs } from '@/lib/api/config';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
@@ -19,7 +20,7 @@ export default function SystemConfigPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">系统配置</h1>
+      <PageTitle>系统配置</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <AppleCard className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用配置</h2>

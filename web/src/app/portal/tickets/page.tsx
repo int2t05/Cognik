@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/date';
 import { URGENCY_LABELS } from '@/lib/format';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { TicketPlus, FileText } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -34,7 +35,7 @@ export default function TicketQueryPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <h1 className="text-hero font-semibold text-[var(--color-ink)]">我的申告</h1>
+        <PageTitle>我的申告</PageTitle>
         <AppleButton onClick={() => router.push('/portal/tickets/new')} className="p-3.5" aria-label="提交申告">
           <TicketPlus size={18} />
         </AppleButton>

@@ -7,6 +7,7 @@ import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useToast } from '@/hooks/useToast';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
@@ -66,7 +67,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <h1 className="text-hero font-semibold text-[var(--color-ink)]">数据看板</h1>
+        <PageTitle>数据看板</PageTitle>
         <AppleButton variant="ghost" onClick={handleRefresh} className="p-3.5" aria-label="刷新">
           <RotateCw size={16} />
         </AppleButton>

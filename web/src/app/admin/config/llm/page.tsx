@@ -17,6 +17,7 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2 } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
@@ -136,7 +137,7 @@ export default function LLMConfigPage() {
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
+        <PageTitle>LLM 配置</PageTitle>
         <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
       </div>
 

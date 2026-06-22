@@ -9,6 +9,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
 const ARTICLE_FILTERS: FilterOption<string>[] = [
@@ -31,7 +32,7 @@ export default function ArticleListPage() {
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
           <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-3.5" aria-label="返回"><ArrowLeft size={16} /></AppleButton>
-          <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
+          <PageTitle>知识文章</PageTitle>
         </div>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-3.5" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
       </div>

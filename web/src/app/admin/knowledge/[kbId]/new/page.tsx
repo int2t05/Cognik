@@ -6,6 +6,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { FilePlus, X } from 'lucide-react';
 
 export default function NewArticlePage() {
@@ -71,7 +72,7 @@ export default function NewArticlePage() {
 
   return (
     <div className="max-w-content">
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">新建文章</h1>
+      <PageTitle>新建文章</PageTitle>
 
       {/* 文档上传 */}
       <AppleCard className="mb-4">
