@@ -137,7 +137,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-[var(--color-parchment)]">
       <aside
-        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
         <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-semibold text-[var(--color-ink)]'}`}>
@@ -159,7 +159,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col transition-[margin-left] duration-250" style={{ marginLeft: sidebarWidth }}>
+      <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
           <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)] transition hover:opacity-70">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}

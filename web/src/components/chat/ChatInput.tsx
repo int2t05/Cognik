@@ -46,7 +46,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             <button
               onClick={onStop}
               aria-label="停止生成"
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-error)] text-white border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
             >
               <Square size={15} fill="currentColor" />
             </button>

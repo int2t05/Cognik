@@ -28,7 +28,7 @@ export function ApplePagination({
       <span>共 {total} 条</span>
 
       <div className="flex items-center gap-0.5">
-        <PageBtn disabled={page <= 1} onClick={() => onChange(page - 1, pageSize)}>
+        <PageBtn disabled={page <= 1} onClick={() => onChange(page - 1, pageSize)} aria-label="上一页">
           <ChevronLeft size={15} />
         </PageBtn>
 
@@ -42,7 +42,7 @@ export function ApplePagination({
           )
         )}
 
-        <PageBtn disabled={page >= totalPages} onClick={() => onChange(page + 1, pageSize)}>
+        <PageBtn disabled={page >= totalPages} onClick={() => onChange(page + 1, pageSize)} aria-label="下一页">
           <ChevronRight size={15} />
         </PageBtn>
       </div>
@@ -78,14 +78,15 @@ function getVisiblePages(page: number, total: number): number[] {
 }
 
 function PageBtn({
-  active, disabled, onClick, children,
+  active, disabled, onClick, children, ...rest
 }: {
   active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode;
-}) {
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      {...rest}
       className={`min-w-[30px] h-7 flex items-center justify-center text-caption rounded-full border-0 font-sans cursor-pointer transition ${
         active
           ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
