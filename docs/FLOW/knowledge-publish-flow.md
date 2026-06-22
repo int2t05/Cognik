@@ -1,268 +1,242 @@
-# 知识发布数据流 — 手动创建 / 文档上传 / 审核 / 发布
+# Knowledge 数据流 — 每个 API 端点
 
-> **聚焦：后端数据逻辑。不含前端调用链和用户故事。**
-
----
-
-## 1. 路由注册
-
-```
-router.Setup() → registerAdminRoutes():
-  GET    /admin/knowledge-bases              → KnowledgeHandler.ListKBs          [PermKnowledgeRead]
-  POST   /admin/knowledge-bases              → KnowledgeHandler.CreateKB         [PermKnowledgeWrite]
-  PUT    /admin/knowledge-bases/:id          → KnowledgeHandler.UpdateKB         [PermKnowledgeWrite]
-  DELETE /admin/knowledge-bases/:id          → KnowledgeHandler.DeleteKB         [PermKnowledgeWrite]
-  GET    /admin/knowledge-bases/:kb_id/articles → KnowledgeHandler.ListArticles  [PermKnowledgeRead]
-  POST   /admin/knowledge-bases/:kb_id/articles → KnowledgeHandler.CreateArticle [PermKnowledgeWrite]
-  PUT    /admin/articles/:id                 → KnowledgeHandler.UpdateArticle    [PermKnowledgeWrite]
-  GET    /admin/articles/:id                 → KnowledgeHandler.GetArticleDetail [PermKnowledgeRead]
-  POST   /admin/articles/:id/submit-review   → KnowledgeHandler.SubmitReview     [PermKnowledgeWrite]
-  POST   /admin/articles/:id/review          → KnowledgeHandler.Review           [PermKnowledgeReview]
-  POST   /admin/articles/:id/publish         → KnowledgeHandler.Publish          [PermKnowledgeReview]
-  POST   /admin/articles/:id/disable         → KnowledgeHandler.Disable          [PermKnowledgeReview]
-  POST   /admin/articles/:id/enable          → KnowledgeHandler.Enable           [PermKnowledgeReview]
-  POST   /admin/knowledge-bases/:kb_id/documents/upload → KnowledgeHandler.UploadDocuments [PermKnowledgeWrite]
-  GET    /admin/knowledge-bases/:kb_id/documents/:id/status → KnowledgeHandler.GetDocumentStatus [PermKnowledgeRead]
-  POST   /admin/knowledge-bases/:kb_id/documents/:id/retry → KnowledgeHandler.RetryDocument [PermKnowledgeWrite]
-
-registerPortalRoutes():
-  GET    /portal/knowledge-bases → KnowledgeHandler.ListKBsForPortal  [仅 JWT，无 RBAC]
-```
+> 涉及文件: `handler/knowledge.go`, `service/knowledge_service.go`, `repository/knowledge_repo.go`, `repository/audit_repo.go`, `rag/chunker.go`, `rag/embedder.go`, `rag/processor.go`, `rag/document_parser.go`, `adapter/vector_store.go`, `adapter/storage_client.go`, `model/knowledge.go`, `model/audit.go`
 
 ---
 
-## 2. 文章状态机
+## 知识库 CRUD
+
+### GET /api/v1/admin/knowledge-bases &emsp; 全部 KB &emsp; [PermKnowledgeRead]
 
 ```
-Draft(1) ── SubmitReview ──→ Reviewing(2) ── Review(approved) ──→ Approved(3)
-    │                              │                                       │
-    │                              └── Review(rejected) ──→ Rejected(5)    │
-    │                                   (驳回需填写理由)          │         │
-    │                                                            │         │
-    └──────────────────────(可重新编辑提交)─────────────────────┘         │
-                                                                          │
-Approved(3) ── Publish ──→ Published(4) ── Disable ──→ Disabled(0)       │
-                                                             │            │
-Disabled(0) ── Enable ──→ (status=3, republish) ──→ Published(4) ────────┘
+KnowledgeHandler.ListKBs (handler/knowledge.go:123)
+  → KnowledgeService.ListKBs (service/knowledge_service.go:225)
+    ├─ KnowledgeRepo.ListKBs (repository/knowledge_repo.go:46) → SELECT ... ORDER BY id ASC
+    └─ KnowledgeRepo.CountArticlesByKB (repository/knowledge_repo.go:58)
+        → SELECT kb_id, COUNT(*) FROM knowledge_articles WHERE status!=0 GROUP BY kb_id
 ```
 
----
-
-## 3. 场景 A：手动创建文章 → 审核 → 发布
-
-### 3.1 创建文章 — `KnowledgeService.CreateArticle(ctx, req, userID)`
+### GET /api/v1/portal/knowledge-bases &emsp; 门户 KB 列表 &emsp; [仅 JWT]
 
 ```
-1. KnowledgeRepo.FindKBByID(ctx, req.KBID) — 校验知识库存在
-
-2. 构建 &KnowledgeArticle{
-     KBID:       req.KBID,
-     Title:      req.Title,
-     Content:    req.Content,
-     SourceType: 1 (手动),
-     Status:     1 (草稿),
-     Category:   req.Category,
-     Tags:       marshalTags(req.Tags),   // JSONB, 最多10个, 去重
-     CreatedBy:  userID,
-   }
-
-3. KnowledgeRepo.CreateArticle(ctx, article)
-   → SQL: INSERT INTO knowledge_articles (...) VALUES (...)
+KnowledgeHandler.ListKBsForPortal (handler/knowledge.go:42)
+  → KnowledgeService.ListKBs (同上) → 仅返回 id/name/description
 ```
 
-### 3.2 提交审核 — `KnowledgeService.SubmitReview(ctx, id, userID)`
+### POST /api/v1/admin/knowledge-bases &emsp; 创建 &emsp; [PermKnowledgeWrite]
 
 ```
-1. KnowledgeRepo.FindArticleByID(ctx, id) — 预加载 KnowledgeBase
-2. 状态机: Status != Draft(1) → 拒绝
-3. article.Status = Reviewing(2)
-4. KnowledgeRepo.UpdateArticle(ctx, article)
+KnowledgeHandler.CreateKB (handler/knowledge.go:64)
+  → KnowledgeService.CreateKB (service/knowledge_service.go:158)
+    ├─ 生成 workspace slug
+    └─ KnowledgeRepo.CreateKB (repository/knowledge_repo.go:29)
+        → INSERT INTO knowledge_bases (...)
 ```
 
-### 3.3 审核 — `KnowledgeService.Review(ctx, id, reviewerID, approved, comment)`
+### PUT /api/v1/admin/knowledge-bases/:id &emsp; 更新 &emsp; [PermKnowledgeWrite]
 
 ```
-1. KnowledgeRepo.FindArticleByID(ctx, id)
-2. 状态机: Status != Reviewing(2) → 拒绝
-3. 审核人 ≠ 创建人: article.CreatedBy == reviewerID → 拒绝
-4. 驳回必填理由: !approved && comment == "" → 拒绝
-
-5. approved → Status = Approved(3); 否则 Status = Rejected(5), ReviewComment = comment
-6. article.ReviewedBy = &reviewerID
-7. KnowledgeRepo.UpdateArticle(ctx, article)
-8. AuditRepo.Create(ctx, &AuditLog{Action:"knowledge.review", ...})
+KnowledgeHandler.UpdateKB (handler/knowledge.go:83)
+  → KnowledgeService.UpdateKB (service/knowledge_service.go:177)
+    ├─ KnowledgeRepo.FindKBByID → 校验存在
+    └─ KnowledgeRepo.UpdateKB → 更新 name/description/embedding/vectorDimension
 ```
 
-### 3.4 发布 — `KnowledgeService.Publish(ctx, id, publisherID)`
+### GET /api/v1/admin/knowledge-bases/:kb_id/articles &emsp; 文章列表 &emsp; [PermKnowledgeRead]
 
 ```
-1. 组件非空校验: chunker/embedder/store 任一为 nil → ErrRAGUnavailable
-2. KnowledgeRepo.FindArticleByID(ctx, id)
-3. 状态机: Status != Approved(3) → 拒绝
-4. republishFromApproved(ctx, article, publisherID) — 核心管道
+KnowledgeHandler.ListArticles (handler/knowledge.go:284)
+  → KnowledgeService.ListArticles (service/knowledge_service.go:541)
+    └─ KnowledgeRepo.ListArticles (repository/knowledge_repo.go:100)
+        → SELECT COUNT(*) + SELECT * ... WHERE kb_id=? [AND status=?] [AND source_type=?]
+          ORDER BY updated_at DESC LIMIT ? OFFSET ? (Preload KnowledgeBase)
 ```
 
-### 3.5 核心管道: `KnowledgeService.republishFromApproved(ctx, article, publisherID)`
+### GET /api/v1/admin/articles/:id &emsp; 文章详情 &emsp; [PermKnowledgeRead]
 
 ```
-Step 1 — 分块 (chunker.Split):
-   ├─ ChunkSize=1000, ChunkOverlap=200（clamp 到 chunkSize/2）
-   ├─ 分割优先级: \n\n → \n → 。 → . → 空格 → 字符级硬切
-   ├─ 预处理: CRLF→LF, 合并空白行, 合并水平空格, 全角→半角 ASCII
-   └─ mergeSplits: 合并小片段到接近 chunkSize → 返回 []string
-
-Step 2 — Embedding (embedder.Embed):
-   ├─ 批大小=20, fail-fast
-   ├─ EmbeddingClient.CreateEmbeddings → HTTP POST /v1/embeddings（重试3次）
-   ├─ 维度一致性校验: 所有批次 dimension 必须相等
-   └─ 返回 [][]float32, dimension
-
-Step 3 — 批量写入 pgvector (store.BatchInsert) — 先写新向量:
-   ├─ SQL: INSERT INTO knowledge_chunks (article_id,kb_id,content,chunk_index,
-   │       embedding,embedding_model,vector_dimension,created_at)
-   │       VALUES ($1,...,$7::halfvec,NOW()), ...
-   └─ float32ToPgVector: NaN/Inf → 0.0 降级
-
-Step 4 — 删除旧向量 (store.DeleteByArticle) — 幂等:
-   ├─ SQL: DELETE FROM knowledge_chunks WHERE article_id = $1
-   └─ 失败不阻塞发布（旧向量残留优于全部丢失）
-
-Step 5 — 更新文章状态:
-   ├─ article.Status = Published(4)
-   ├─ article.PublishedBy = &publisherID
-   └─ KnowledgeRepo.UpdateArticle(ctx, article)
-
-Step 6 — 审计日志:
-   └─ AuditRepo.Create(ctx, &AuditLog{Action:"knowledge.publish", ...})
+KnowledgeHandler.GetArticleDetail (handler/knowledge.go:307)
+  → KnowledgeService.GetArticleDetail (service/knowledge_service.go:588)
+    ├─ KnowledgeRepo.FindArticleByID (repository/knowledge_repo.go:87)
+    │   → SELECT * FROM knowledge_articles WHERE id=? (Preload KnowledgeBase)
+    └─ UserRepo.FindByIDs → 批量查询创建人/审核人姓名
 ```
 
-### 3.6 禁用/启用
+### DELETE /api/v1/admin/knowledge-bases/:id &emsp; 删除 &emsp; [PermKnowledgeWrite]
 
 ```
-Disable(ctx, id):
-  1. FindArticleByID → Status != Published(4) → 拒绝
-  2. store.DeleteByArticle(ctx, id) — 删除 pgvector 向量
-  3. Status = Disabled(0), UpdateArticle
-
-Enable(ctx, id, publisherID):
-  1. FindArticleByID → Status != Disabled(0) → 拒绝
-  2. article.Status = Approved(3) — 临时设为已审核（绕过状态校验）
-  3. republishFromApproved(ctx, article, publisherID) — 复用发布管道
+KnowledgeHandler.DeleteKB (handler/knowledge.go:106)
+  → KnowledgeService.DeleteKB (service/knowledge_service.go:202)
+    ├─ PgvectorStore.DeleteByKB (adapter/vector_store.go:230)
+    │   → DELETE FROM knowledge_chunks WHERE kb_id = ?  (先清向量)
+    └─ KnowledgeRepo.DeleteKB (repository/knowledge_repo.go:155)
+        → 事务: DELETE articles → DELETE kb
 ```
 
 ---
 
-## 4. 场景 B：文档上传 → 异步处理
+## 文章 CRUD + 审核 + 发布
 
-### 4.1 上传 — `KnowledgeService.UploadDocuments(ctx, kbID, userID, filename, fileType, fileSize, reader)`
+### POST /api/v1/admin/knowledge-bases/:kb_id/articles &emsp; 创建文章 &emsp; [PermKnowledgeWrite]
 
-```
-1. KnowledgeRepo.FindKBByID(ctx, kbID) — 校验知识库存在
-2. 格式白名单: pdf/docx/md/txt
-3. 大小上限: fileSize > 50MB → 拒绝
-4. io.ReadAll(io.LimitReader(content, 50MB)) → data; len(data)==0 → 拒绝
-
-5. 分支处理:
-   ┌─ MinIO 路径 (storageClient != nil):
-   │   a. storageClient.Upload(ctx, bucket, key, reader, size, "") — MinIO PutObject
-   │   b. article.MinioPath = "opsmind-documents/documents/<ts>_<filename>"
-   │   c. task = ProcessTask{Bucket, Key, FileType, OnStatusChange, OnMetrics}
-   │
-   └─ 降级路径 (storageClient == nil):
-       a. docParser.Parse(reader, fileType) → text
-          ├─ .txt/.md: 直接读取
-          ├─ .pdf: ledongthuc/pdf 逐页提取（容错单页失败）
-          └─ .docx: ZIP 解压 → XML 解析（含 namespace 回退 → 正则）
-       b. text == "" → 返回错误
-       c. article.Content = text
-       d. task = ProcessTask{Content, OnStatusChange, OnMetrics}
-
-6. KnowledgeRepo.CreateArticle(ctx, article) — 插入文章记录
-   └─ 若 MinIO 已写但 DB 失败 → storageClient.Delete(bucket, key) 回滚
-
-7. processor.Submit(task) — 非阻塞 channel 发送 (buffer=100)
-   └─ channel 满 → "处理队列已满"
-   └─ processor 已停止 → "处理器已关闭"
-```
-
-### 4.2 异步 Worker: `Processor.processTask(ctx, task)`
+**输入** `{"title":"VPN配置","content":"...# 步骤1...","category":"网络","tags":["VPN"]}`
 
 ```
-每个 worker goroutine 循环消费 taskCh:
-
-1. context.WithTimeout(ctx, 10min) — 单任务超时保护
-2. processWithRecovery(id, task) — panic recovery 包装
-
-3. 处理管道:
-   阶段 1 — 解析 (status=parsing):
-     ├─ MinIO: storage.Download → parser.Parse
-     └─ 纯文本: 直接用 task.Content
-     └─ 失败 → OnStatusChange(articleID, "failed", errMsg)
-
-   阶段 2 — 分块 (status=chunking):
-     chunker.Split(content) → []string
-     OnMetrics(articleID, wordCount, chunkCount)
-       → repo.UpdateArticleMetrics(ctx, id, wordCount, chunkCount)
-
-   阶段 3 — Embedding (status=embedding):
-     embedder.Embed(ctx, chunks) → [][]float32
-     len(vectors) != len(chunks) → failed
-
-   阶段 4 — 写入 pgvector (status=indexing):
-     store.BatchInsert(ctx, vectorChunks)
-     成功 → OnStatusChange(articleID, "completed", "")
+KnowledgeHandler.CreateArticle (handler/knowledge.go:140)
+  → KnowledgeService.CreateArticle (service/knowledge_service.go:264)
+    ├─ KnowledgeRepo.FindKBByID → 校验知识库
+    ├─ marshalTags(tags) → JSONB, 最多10个, 去重
+    └─ KnowledgeRepo.CreateArticle (repository/knowledge_repo.go:83)
+        → INSERT INTO knowledge_articles (status=1 draft)
 ```
 
-### 4.3 状态回调
+### PUT /api/v1/admin/articles/:id &emsp; 编辑 &emsp; [PermKnowledgeWrite]
 
 ```
-OnStatusChange → KnowledgeService.onProcessStatusChange()
-  → KnowledgeRepo.UpdateArticleProcessStatus(ctx, id, status, errMsg)
-  → SQL: UPDATE knowledge_articles SET process_status=?, process_error=? WHERE id=?
-
-OnMetrics → KnowledgeService.onProcessMetrics()
-  → KnowledgeRepo.UpdateArticleMetrics(ctx, id, wordCount, chunkCount)
-  → SQL: UPDATE knowledge_articles SET word_count=?, chunk_count=? WHERE id=?
+KnowledgeHandler.UpdateArticle → KnowledgeService.UpdateArticle (service/knowledge_service.go:293)
+  ├─ KnowledgeRepo.FindArticleByID → 仅 draft/rejected 可编辑
+  └─ KnowledgeRepo.UpdateArticle
 ```
 
-### 4.4 文档处理状态机
+### POST /api/v1/admin/articles/:id/submit-review &emsp; 提交审核 &emsp; [PermKnowledgeWrite]
 
 ```
-pending → parsing → chunking → embedding → indexing → completed
-    │        │         │          │           │
-    └────────┴─────────┴──────────┴───────────┴──→ failed
-                                                     │
-                                     POST .../retry ─┘（重新入队 Submit）
+KnowledgeHandler.SubmitReview → KnowledgeService.SubmitReview (service/knowledge_service.go:312)
+  ├─ KnowledgeRepo.FindArticleByID
+  ├─ Status != Draft(1) → 拒绝
+  └─ article.Status = Reviewing(2) → KnowledgeRepo.UpdateArticle
 ```
 
----
+### POST /api/v1/admin/articles/:id/review &emsp; 审核 &emsp; [PermKnowledgeReview]
 
-## 5. 知识库 CRUD
-
-### 5.1 创建/更新/删除 KB
+**输入** `{"approved":true, "review_comment":""}`
 
 ```
-CreateKB: 生成 workspace slug → INSERT INTO knowledge_bases
-UpdateKB: 校验存在 → 更新 name/description/embedding/vectorDimension
-DeleteKB:
-  1. store.DeleteByKB(ctx, id) — 先删 pgvector 向量
-     → SQL: DELETE FROM knowledge_chunks WHERE kb_id = ?
-  2. KnowledgeRepo.DeleteKB(ctx, id) — 事务级联删文章 + KB
+KnowledgeHandler.Review → KnowledgeService.Review (service/knowledge_service.go:327)
+  ├─ Status != Reviewing(2) → 拒绝
+  ├─ 审核人 ≠ 创建人 → 防止自审
+  ├─ 驳回需填写 review_comment
+  ├─ approved → Status=Approved(3) / rejected → Status=Rejected(5)
+  ├─ KnowledgeRepo.UpdateArticle
+  └─ AuditRepo.Create (repository/audit_repo.go:50) → "knowledge.review"
+```
 
-ListKBs:
-  1. ListKBs(ctx) — 按 id ASC
-  2. CountArticlesByKB(ctx) — 批量统计（排除已禁用）
-     → SQL: SELECT kb_id, COUNT(*) FROM knowledge_articles WHERE status != 0 GROUP BY kb_id
+### POST /api/v1/admin/articles/:id/publish &emsp; 发布 &emsp; [PermKnowledgeReview]
+
+```
+KnowledgeHandler.Publish (handler/knowledge.go:230)
+  → KnowledgeService.Publish (service/knowledge_service.go:367)
+    ├─ Status != Approved(3) → 拒绝
+    └─ republishFromApproved (核心管道):
+        ├─ Step 1: Chunker.Split (rag/chunker.go:56)
+        │   → chunkSize=1000, overlap=200, 优先级 \n\n→\n→。→.→空格
+        │   → 预处理: CRLF→LF, 全角→半角 ASCII
+        ├─ Step 2: Embedder.Embed (rag/embedder.go:57)
+        │   → batchSize=20, fail-fast → POST /v1/embeddings
+        │   → 维度一致性校验
+        ├─ Step 3: PgvectorStore.BatchInsert (adapter/vector_store.go:115)
+        │   → INSERT INTO knowledge_chunks (embedding::halfvec) VALUES ...
+        │   → NaN/Inf → 0.0; 先写新向量
+        ├─ Step 4: PgvectorStore.DeleteByArticle (adapter/vector_store.go:220)
+        │   → DELETE FROM knowledge_chunks WHERE article_id = ? (幂等, 后删旧)
+        ├─ Step 5: article.Status = Published(4)
+        │   → KnowledgeRepo.UpdateArticle
+        └─ Step 6: AuditRepo.Create → "knowledge.publish"
+```
+
+### POST /api/v1/admin/articles/:id/disable &emsp; 禁用 &emsp; [PermKnowledgeReview]
+
+```
+KnowledgeHandler.Disable → KnowledgeService.Disable (service/knowledge_service.go:483)
+  ├─ Status != Published(4) → 拒绝
+  ├─ PgvectorStore.DeleteByArticle → 删除 pgvector 向量
+  └─ Status=Disabled(0) → KnowledgeRepo.UpdateArticle
+```
+
+### POST /api/v1/admin/articles/:id/enable &emsp; 启用 &emsp; [PermKnowledgeReview]
+
+```
+KnowledgeHandler.Enable → KnowledgeService.Enable (service/knowledge_service.go:520)
+  ├─ Status != Disabled(0) → 拒绝
+  ├─ article.Status = Approved(3) (临时, 绕过发布状态校验)
+  └─ republishFromApproved → 复用完整发布管道
 ```
 
 ---
 
-## 6. 关键组件参数
+## 文档上传 + 异步处理
 
-| 组件 | 关键参数 |
-|------|---------|
-| Chunker | ChunkSize=1000, ChunkOverlap=200, 分段优先级: \n\n→\n→。→.→空格→硬切 |
-| Embedder | BatchSize=20, fail-fast, 维度一致性校验 |
-| Processor | PoolSize=2 workers, Channel=100 buffer, 10min timeout/task, panic recovery |
-| DocParser | 支持 pdf/docx/md/txt, 最大 100MB |
-| pgvector | halfvec 类型, HNSW 索引, NaN/Inf→0.0, 先写新向量后删旧向量 |
+### POST /api/v1/admin/knowledge-bases/:kb_id/documents/upload &emsp; 上传 &emsp; [PermKnowledgeWrite]
+
+**输入** `multipart/form-data files: [运维手册.pdf, FAQ.docx]`
+
+```
+KnowledgeHandler.UploadDocuments (handler/knowledge.go:329)
+  ├─ parseID("kb_id"), c.Request.ParseMultipartForm(32MB)
+  ├─ sniffFileType → http.DetectContentType(前512字节)
+  └─ for each file:
+      → KnowledgeService.UploadDocuments (service/knowledge_service.go:656)
+        ├─ KnowledgeRepo.FindKBByID → 校验
+        ├─ io.ReadAll(LimitReader(content, 50MB)) → 读取全部内容
+        ├─ 分支:
+        │   ├─ storageClient != nil: MinIOClient.Upload (adapter/storage_client.go:102)
+        │   │   → PUT object → article.MinioPath = "documents/<ts>_<name>"
+        │   │   → task = ProcessTask{Bucket, Key, FileType}
+        │   └─ storageClient == nil: DocParser.Parse (rag/document_parser.go:45)
+        │       → pdf: ledongthuc/pdf 逐页提取 / docx: ZIP → XML 解析
+        │       → article.Content = text; task = ProcessTask{Content}
+        ├─ KnowledgeRepo.CreateArticle → INSERT; MinIO失败则回滚
+        └─ Processor.Submit (rag/processor.go:106)
+            → 非阻塞 channel 发送 (buffer=100) → worker 异步处理
+```
+
+### GET /api/v1/admin/knowledge-bases/:kb_id/documents/:id/status &emsp; 状态查询 &emsp; [PermKnowledgeRead]
+
+```
+KnowledgeHandler.GetDocumentStatus (handler/knowledge.go:435)
+  → KnowledgeService.GetDocumentStatus (service/knowledge_service.go:755)
+    └─ 校验 article.KBID == kbID → 返回 process_status/process_error
+```
+
+### POST /api/v1/admin/knowledge-bases/:kb_id/documents/:id/retry &emsp; 重试 &emsp; [PermKnowledgeWrite]
+
+```
+KnowledgeHandler.RetryDocument (handler/knowledge.go:457)
+  → KnowledgeService.RetryDocument (service/knowledge_service.go:776)
+    ├─ process_status != "failed" → 拒绝
+    └─ Processor.Submit → 重新入队
+```
+
+### 异步 Worker: Processor.processTask
+
+```
+Processor worker goroutine (rag/processor.go):
+  ├─ context.WithTimeout(10min), panic recovery
+  ├─ Stage 1: DocParser.Parse → 解析文本
+  ├─ Stage 2: Chunker.Split → 分块
+  ├─ Stage 3: Embedder.Embed → 向量化
+  └─ Stage 4: PgvectorStore.BatchInsert → 写入 pgvector
+
+回调:
+  OnStatusChange → KnowledgeRepo.UpdateArticleProcessStatus
+  OnMetrics → KnowledgeRepo.UpdateArticleMetrics (word_count, chunk_count)
+```
+
+---
+
+## 状态机速查
+
+```
+Draft(1) → submit-review → Reviewing(2) → approve → Approved(3) → publish → Published(4)
+                                           → reject → Rejected(5)
+Published(4) → disable → Disabled(0) → enable → (republish) → Published(4)
+```
+
+## 关键组件参数
+
+| 组件 | 文件 | 关键参数 |
+|------|------|---------|
+| Chunker | `rag/chunker.go` | size=1000, overlap=200, 优先级 \n\n→。→.→空格 |
+| Embedder | `rag/embedder.go` | batchSize=20, fail-fast, 维度一致性校验 |
+| Processor | `rag/processor.go` | pool=2, buffer=100, timeout=10min, panic recovery |
+| DocParser | `rag/document_parser.go` | pdf/docx/md/txt, max 100MB |

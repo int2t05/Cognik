@@ -1,221 +1,167 @@
-# LLM 配置管理与热重载数据流
+# LLM 配置热重载数据流 — 每个 API 端点
 
-> **聚焦：后端数据逻辑。不含前端调用链和用户故事。**
-
----
-
-## 1. 路由注册
-
-```
-router.Setup() → registerAdminRoutes():
-  GET    /api/v1/admin/llm-configs       → LLMConfigHandler.ListConfigs     [PermSystemConfig]
-  POST   /api/v1/admin/llm-configs       → LLMConfigHandler.CreateConfig    [PermSystemConfig]
-  GET    /api/v1/admin/llm-configs/:id   → LLMConfigHandler.GetConfig       [PermSystemConfig]
-  PUT    /api/v1/admin/llm-configs/:id   → LLMConfigHandler.UpdateConfig    [PermSystemConfig]
-  DELETE /api/v1/admin/llm-configs/:id   → LLMConfigHandler.DeleteConfig    [PermSystemConfig]
-  POST   /api/v1/admin/llm-configs/:id/test → LLMConfigHandler.TestConnection [PermSystemConfig]
-```
+> 涉及文件: `handler/llm_config.go`, `service/llm_config_service.go`, `repository/llm_config_repo.go`, `service/llm_service.go`, `service/chat_service.go`, `adapter/llm_client.go`, `adapter/embedding_client.go`, `rag/embedder.go`, `model/llm_config.go`
 
 ---
 
-## 2. 数据模型
+## LLMConfigManager — 热重载核心
 
-### `llm_configs` 表
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| ID | BIGINT PK | 自增主键 |
-| Name | VARCHAR | 配置名称（如 "DeepSeek-v3"） |
-| ProviderType | INT | 1=llama.cpp, 2=OpenAI-compatible |
-| BaseURL | VARCHAR | LLM API 地址 |
-| EmbeddingBaseURL | VARCHAR | Embedding API 地址（空则回退 BaseURL） |
-| APIKey | VARCHAR | API 密钥（BeforeSave 加密/AfterFind 解密） |
-| LLMModel | VARCHAR | 模型名（如 "deepseek-chat"） |
-| EmbeddingModel | VARCHAR | Embedding 模型名（如 "bge-m3"） |
-| MaxTokens | INT | 最大生成 Token（默认 8192） |
-| VectorDimension | INT | 向量维度（默认 1024） |
-| SystemPrompt | TEXT | 自定义系统提示词 |
-| IsDefault | BOOL | 是否为默认配置 |
-
-### API Key 加解密机制
+`LLMConfigManager` (service/llm_config_service.go) 使用 `atomic.Value` 无锁读写:
 
 ```
-BeforeSave hook:
-  APIKey = crypto.Encrypt(secret, plaintext)
-  → AES-GCM 加密 → base64 编码 → 存库
+LLMConfigManager.SetConfig (service/llm_config_service.go 内部)
+  → current.Store(config) — atomic 写入, 纳秒级
+  → if onChange != nil: onChange() — 触发回调
 
-AfterFind hook:
-  APIKey = crypto.Decrypt(secret, ciphertext)
-  → base64 解码 → AES-GCM 解密 → 内存明文
+LLMConfigManager.GetConfig (service/llm_config_service.go:38)
+  → current.Load() — atomic 读取
 
-API 响应脱敏 (MarshalJSON):
-  返回 "前4位****后4位" 格式
+LLMConfigManager.OnChange (service/llm_config_service.go:33)
+  → 注册回调: configMgr 变更时自动重建客户端
 ```
+
+### OnChange 回调（wireApp 装配时注册）
+
+```
+1. cfg := configMgr.GetConfig()
+2. OpenAIClient ← NewOpenAIClient (adapter/llm_client.go:68)
+      (cfg.BaseURL, cfg.APIKey, llmTimeout)
+3. LLMService.SetLLMClient (service/llm_service.go:103)
+4. OpenAIEmbeddingClient ← NewOpenAIEmbeddingClient (adapter/embedding_client.go:62)
+      (cfg.GetEmbeddingBaseURL(), cfg.APIKey, cfg.EmbeddingModel, embedTimeout)
+5. Embedder.SetClient (rag/embedder.go:42)
+```
+
+### 热配置生效路径
+
+```
+每次 LLM 调用 → LLMService.getModelConfig (service/llm_service.go 内部):
+  model = configMgr.GetConfig().LLMModel || defaultModel (config.yaml)
+  maxTokens = configMgr.GetConfig().MaxTokens || 2048
+
+每次 LLM 调用 → buildMessages:
+  systemPrompt = configMgr.GetConfig().SystemPrompt || "你是一个运维知识助手..."
+
+每次 Embedding → Embedder.Embed:
+  client 已被 OnChange 回调替换
+```
+
+优先: `DB 热配置 (atomic.Value)` > `config.yaml` > `硬编码默认值`
 
 ---
 
-## 3. 热重载核心: `LLMConfigManager`
+## CRUD 端点
 
-### 数据结构
-
-```go
-type LLMConfigManager struct {
-    current  atomic.Value  // 持有 *model.LlmConfig 或 nil，无锁读写
-    onChange func()        // 配置变更回调（在 wireApp 依赖注入时注册）
-}
-```
-
-### 核心方法
+### GET /api/v1/admin/llm-configs &emsp; 列出全部 &emsp; [PermSystemConfig]
 
 ```
-SetConfig(config):
-  1. current.Store(config)   // atomic 写入（纳秒级延迟）
-  2. if onChange != nil: onChange()  // 触发回调
-
-GetConfig() *model.LlmConfig:
-  1. v := current.Load()    // atomic 读取
-  2. v == nil → return nil
-  3. return v.(*model.LlmConfig)
+LLMConfigHandler.ListConfigs (handler/llm_config.go:52)
+  → LLMConfigService.ListConfigs (service/llm_config_service.go:211)
+    └─ LlmConfigRepo.List (repository/llm_config_repo.go:62)
+        → SELECT * FROM llm_configs ORDER BY id ASC
+        → AfterFind: 解密 APIKey → 内存明文
+    返回: APIKey 脱敏 (LlmConfigResponse.MarshalJSON: 前4位****后4位)
 ```
 
-### OnChange 回调（在 wireApp 装配时注册）
+### POST /api/v1/admin/llm-configs &emsp; 创建 &emsp; [PermSystemConfig]
+
+**输入** `{"name":"DeepSeek","provider_type":2,"base_url":"https://api.deepseek.com/v1",`<br/>`"api_key":"sk-xxx","llm_model":"deepseek-chat","embedding_model":"bge-m3","is_default":true}`
 
 ```
-configMgr.OnChange(func() {
-  1. cfg := configMgr.GetConfig()
-
-  2. 重建 LLM 客户端:
-     llmClient = adapter.NewOpenAIClient(cfg.BaseURL, cfg.APIKey, llmTimeout)
-     llmService.SetLLMClient(llmClient)  // 替换运行时引用
-
-  3. 重建 Embedding 客户端:
-     embedClient = adapter.NewOpenAIEmbeddingClient(
-       cfg.GetEmbeddingBaseURL(), // EmbeddingBaseURL || BaseURL
-       cfg.APIKey, cfg.EmbeddingModel, embedTimeout,
-     )
-     embedder.SetClient(embedClient)  // 替换运行时引用
-})
+LLMConfigHandler.CreateConfig (handler/llm_config.go:64)
+  → LLMConfigService.CreateConfig (service/llm_config_service.go:103)
+    ├─ 校验: name 唯一, providerType∈{1,2}, baseURL 非空
+    ├─ 默认值: MaxTokens=8192, VectorDimension=1024
+    │
+    ├─ is_default=true:
+    │   GormTxManager.Transaction:
+    │     ├─ LlmConfigRepo.ClearDefault (repository/llm_config_repo.go:83)
+    │     │   → UPDATE llm_configs SET is_default=false
+    │     ├─ LlmConfigRepo.Create (repository/llm_config_repo.go:33)
+    │     │   → BeforeSave: AES-GCM 加密 APIKey → INSERT
+    │     ├─ LlmConfigRepo.FindByID → AfterFind 解密 → 热配置
+    │     └─ LLMConfigManager.SetConfig → 触发热重载 → OnChange 回调
+    │
+    └─ is_default=false: LlmConfigRepo.Create → 直接插入（不触发重载）
 ```
 
-### 热重载生效路径
+### GET /api/v1/admin/llm-configs/:id &emsp; 详情 &emsp; [PermSystemConfig]
 
 ```
-每次 LLM 调用:
-  LLMService.getModelConfig()
-    → cfg := configMgr.GetConfig()  // 读 atomic.Value
-    → model = cfg.LLMModel || defaultModel (config.yaml)
-    → maxTokens = cfg.MaxTokens || 2048
-
-  LLMService.buildMessages()
-    → systemPrompt = configMgr.GetConfig().SystemPrompt || "你是一个运维知识助手..."
-
-每次 Embedding 调用:
-  Embedder.Embed()
-    → embedder.client.Embeddings(...)  // client 已被 OnChange 回调替换
+LLMConfigHandler.GetConfig (handler/llm_config.go:83)
+  → LLMConfigService.GetConfig (service/llm_config_service.go:229)
+    └─ LlmConfigRepo.FindByID → AfterFind 解密 → 返回完整配置 (含明文 Key, 供测试连接用)
 ```
 
----
+### PUT /api/v1/admin/llm-configs/:id &emsp; 更新 &emsp; [PermSystemConfig]
 
-## 4. CRUD 操作数据流
-
-### 4.1 创建 — `LLMConfigService.CreateConfig(ctx, req)`
+**输入** `{"name":"DeepSeek-v3","api_key":"",...}` (留空 APIKey 保留已存密文)
 
 ```
-1. 校验: name 唯一, providerType ∈ {1,2}, baseURL 非空
-
-2. 默认值: MaxTokens=8192, VectorDimension=1024
-
-3. 分支:
-   ┌─ req.IsDefault == true:
-   │   db.Transaction(func(tx) {
-   │     a. txRepo.ClearDefault(ctx)  → UPDATE llm_configs SET is_default=false
-   │     b. txRepo.Create(ctx, &config)  → INSERT INTO llm_configs (...)
-   │     c. fresh := txRepo.FindByID(ctx, config.ID)
-   │     d. configMgr.SetConfig(fresh) → 触发热重载
-   │   })
-   │
-   └─ req.IsDefault == false:
-       llmConfigRepo.Create(ctx, &config)  // 直接插入，不触发重载
+LLMConfigHandler.UpdateConfig (handler/llm_config.go:101)
+  → LLMConfigService.UpdateConfig (service/llm_config_service.go:161)
+    ├─ LlmConfigRepo.FindByID → 校验存在
+    ├─ APIKey 空值: BeforeSave 跳过 → 保留已存密文
+    │
+    └─ is_default 变更:
+        Transaction → ClearDefault → Update → FindByID → SetConfig → 热重载
 ```
 
-### 4.2 更新 — `LLMConfigService.UpdateConfig(ctx, id, req)`
+### DELETE /api/v1/admin/llm-configs/:id &emsp; 删除 &emsp; [PermSystemConfig]
 
 ```
-1. llmConfigRepo.FindByID(ctx, id) → 校验存在
-
-2. API Key 空值处理: req.APIKey == "" → 保留已存密文（BeforeSave 跳过空值）
-
-3. 字段更新: name, providerType, baseURL, embeddingBaseURL, llmModel, embeddingModel, ...
-
-4. 分支:
-   ┌─ req.IsDefault == true:
-   │   Transaction:
-   │     a. ClearDefault → txRepo.Update → txRepo.FindByID → configMgr.SetConfig → 热重载
-   └─ req.IsDefault == false:
-       llmConfigRepo.Update(ctx, config)
+LLMConfigHandler.DeleteConfig (handler/llm_config.go:140)
+  → LLMConfigService.DeleteConfig (service/llm_config_service.go:237)
+    ├─ config.IsDefault → 拒绝 (不能删默认配置)
+    ├─ LlmConfigRepo.CountReferencingKBs (repository/llm_config_repo.go:76)
+    │   → SELECT COUNT(*) FROM knowledge_bases WHERE llm_config_id=?
+    │   → count>0 → 拒绝 (存在关联知识库)
+    ├─ LlmConfigRepo.Delete → DELETE FROM llm_configs WHERE id=?
+    └─ 若为默认 → configMgr.SetConfig(nil) → OnChange → 重建空客户端 → 降级到 config.yaml
 ```
 
-### 4.3 删除 — `LLMConfigService.DeleteConfig(ctx, id)`
+### POST /api/v1/admin/llm-configs/:id/test &emsp; 测试连接 &emsp; [PermSystemConfig]
 
 ```
-1. llmConfigRepo.FindByID(ctx, id)
-2. config.IsDefault == true → 拒绝（不能删除默认配置）
-3. llmConfigRepo.CountReferencingKBs(ctx, id)
-   → SQL: SELECT COUNT(*) FROM knowledge_bases WHERE llm_config_id = ?
-   → count > 0 → 拒绝（存在关联知识库）
-4. llmConfigRepo.Delete(ctx, id) → SQL: DELETE FROM llm_configs WHERE id = ?
-5. 若删除的是默认配置 → configMgr.SetConfig(nil) → OnChange → 重建空客户端 → 降级到 config.yaml
-```
-
-### 4.4 测试连接 — `LLMConfigService.Test(ctx, id)`
-
-```
-1. llmConfigRepo.FindByID(ctx, id)
-2. 创建临时客户端: adapter.NewOpenAIClient(config.BaseURL, config.APIKey, 10s)
-3. tempClient.ChatCompletion(ctx, ChatRequest{
-     Model: config.LLMModel, Messages: [{role:"user", content:"hello"}], MaxTokens: 10
-   })
-4. 返回 {success, latency_ms, tokens_used, model, test_message}
+LLMConfigHandler.TestConnection (handler/llm_config.go:157)
+  → LLMConfigService.TestConnection (service/llm_config_service.go 内部)
+    ├─ LlmConfigRepo.FindByID → AfterFind 解密
+    ├─ 临时客户端: NewOpenAIClient(config.BaseURL, config.APIKey, 10s)
+    └─ OpenAIClient.ChatCompletion (adapter/llm_client.go:108)
+        → POST /chat/completions {model, messages:[{role:"user",content:"hello"}], max_tokens:10}
+    → 返回 {success, latency_ms, tokens_used, model}
 ```
 
 ---
 
-## 5. 配置读取优先级
+## 数据模型与加解密
+
+`model/llm_config.go`:
 
 ```
-LLMService.getModelConfig() → (model, maxTokens):
-  1. cfg := configMgr.GetConfig()        // DB 热配置 (atomic.Value)
-  2. model    = cfg.LLMModel || defaultModel    // fallback: config.yaml OPSMIND_LLM_MODEL
-  3. maxTokens = cfg.MaxTokens || 2048           // fallback: 硬编码默认值
+LlmConfig.BeforeSave (model/llm_config.go:43)
+  → crypto.Encrypt(secret, APIKey) → AES-GCM → base64
 
-优先级: DB 热配置 > config.yaml > 硬编码默认值
+LlmConfig.AfterFind (model/llm_config.go:55)
+  → crypto.Decrypt(secret, ciphertext) → base64 → AES-GCM → 明文
+
+LlmConfig.GetEmbeddingBaseURL (model/llm_config.go:70)
+  → 返回 EmbeddingBaseURL || BaseURL
 ```
 
----
-
-## 6. 完整数据流图
+## 完整数据流
 
 ```
-┌─ HTTP ─┐  ┌── Handler ──┐  ┌─── Service ───┐  ┌── Repository ──┐  ┌─ PostgreSQL ─┐
-│         │  │             │  │                │  │                 │  │              │
-│ CRUD    │→│ LLMConfig   │→│ LLMConfig      │→│ LLMConfigRepo   │→│ llm_configs  │
-│ 操作    │  │ Handler     │  │ Service        │  │  .Create        │  │              │
-│         │  │             │  │   └─若 default→│  │  .FindByID      │  │              │
-│         │  │             │  │     configMgr  │  │  .Update        │  │              │
-│         │  │             │  │     .SetConfig │  │  .Delete        │  │              │
-└─────────┘  └─────────────┘  └───────┬────────┘  │  .ClearDefault  │  └──────────────┘
-                                      │            │  .FindDefault   │
-                           ┌──────────▼──────────┐ └─────────────────┘
-                           │  LLMConfigManager    │
-                           │  atomic.Value        │
-                           │  ┌────────────────┐  │
-                           │  │ GetConfig() ←──┼──┼── LLMService.getModelConfig()
-                           │  │                │  │     (每次 LLM 调用时读取)
-                           │  │ SetConfig()───→┼──┼── onChange():
-                           │  │                │  │     ├─ NewOpenAIClient
-                           │  │                │  │     ├─ llmService.SetLLMClient
-                           │  │                │  │     ├─ NewOpenAIEmbeddingClient
-                           │  │                │  │     └─ embedder.SetClient
-                           │  └────────────────┘  │
-                           └──────────────────────┘
+CRUD 操作 →
+  LLMConfigHandler →
+    LLMConfigService →
+      LlmConfigRepo (BeforeSave 加密/AfterFind 解密) →
+        PostgreSQL llm_configs
+      └─ is_default=true →
+        LLMConfigManager.SetConfig (atomic.Value) →
+          OnChange 回调 →
+            NewOpenAIClient → LLMService.SetLLMClient
+            NewOpenAIEmbeddingClient → Embedder.SetClient
+              ↓
+        所有后续 Chat/Embedding 调用自动使用新配置
 ```
