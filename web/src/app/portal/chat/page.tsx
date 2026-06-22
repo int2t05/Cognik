@@ -300,7 +300,7 @@ export default function ChatPage() {
                   const isPipeline = virtualItem.index === messages.length && currentStep;
                   if (isPipeline) {
                     return (
-                      <div key={`pipeline-${currentStep}`} className="absolute top-0 left-0 w-full"
+                      <div key={`pipeline-${currentStep}`} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
                         style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                         <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
                       </div>
@@ -308,7 +308,7 @@ export default function ChatPage() {
                   }
                   const msg = messages[virtualItem.index];
                   return (
-                    <div key={msg.id} className="absolute top-0 left-0 w-full"
+                    <div key={msg.id} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
                       style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                       <ChatMessage
                         id={msg.id} role={msg.role} content={msg.content}
