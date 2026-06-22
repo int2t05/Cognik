@@ -10,12 +10,12 @@ import { URGENCY_LABELS } from '@/lib/format';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 
 const FILTERS = [
-  { v: -1, l: '全部申告', icon: <ListFilter size={13} /> },
-  { v: 1, l: '待处理', icon: <AlertCircle size={13} /> },
-  { v: 2, l: '处理中', icon: <Clock size={13} /> },
-  { v: 3, l: '需补充信息', icon: <MessageSquare size={13} /> },
-  { v: 4, l: '已解决', icon: <CheckCircle size={13} /> },
-  { v: 5, l: '已关闭', icon: <XCircle size={13} /> },
+  { v: -1, l: '全部申告', icon: <ListFilter size={14} /> },
+  { v: 1, l: '待处理', icon: <AlertCircle size={14} /> },
+  { v: 2, l: '处理中', icon: <Clock size={14} /> },
+  { v: 3, l: '需补充信息', icon: <MessageSquare size={14} /> },
+  { v: 4, l: '已解决', icon: <CheckCircle size={14} /> },
+  { v: 5, l: '已关闭', icon: <XCircle size={14} /> },
 ];
 
 export default function AdminTicketListPage() {
@@ -31,7 +31,7 @@ export default function AdminTicketListPage() {
           <button
             key={o.v}
             onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${
               status === o.v
                 ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] font-semibold'
                 : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'
