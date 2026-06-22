@@ -23,8 +23,8 @@ export default function TicketQueryPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">我的申告</h1>
-        <AppleButton onClick={() => router.push('/portal/tickets/new')}>
-          <TicketPlus size={15} /> 提交申告
+        <AppleButton onClick={() => router.push('/portal/tickets/new')} className="p-2" aria-label="提交申告">
+          <TicketPlus size={16} />
         </AppleButton>
       </div>
 
@@ -35,9 +35,7 @@ export default function TicketQueryPage() {
           <FileText size={40} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
           <p className="text-title text-[var(--color-text-muted-48)] mb-2">暂无申告记录</p>
           <p className="text-caption text-[var(--color-text-muted-48)] mb-6">遇到问题？提交申告让运维人员帮您处理</p>
-          <AppleButton onClick={() => router.push('/portal/tickets/new')}>
-            <TicketPlus size={15} /> 提交申告
-          </AppleButton>
+          <AppleButton onClick={() => router.push('/portal/tickets/new')}><TicketPlus size={16} /> 提交申告</AppleButton>
         </div>
       ) : (
         <>

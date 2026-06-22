@@ -31,8 +31,8 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
 	          aria-label="输入消息"
           className="flex-1 h-12 px-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]"
         />
-        <AppleButton onClick={onSend} loading={loading} disabled={!value.trim() || disabled}>
-          <Send size={15} /> 发送
+        <AppleButton onClick={onSend} loading={loading} disabled={!value.trim() || disabled} className="p-2" aria-label="发送">
+          <Send size={17} />
         </AppleButton>
       </div>
     );

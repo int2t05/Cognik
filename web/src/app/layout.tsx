@@ -1,8 +1,9 @@
 /**
- * 根布局 — Apple Design 主题注入 + 全局 Toast。
+ * 根布局 — 服务端读取 Cookie 注入 data-theme 消除 FOUC，无需客户端 script。
  */
 
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { Providers } from '@/components/Providers';
 import './globals.css';
 
@@ -12,18 +13,12 @@ export const metadata: Metadata = {
   icons: { icon: '/icon-64.png', apple: '/icon-180.png' },
 };
 
-// 消除 FOUC：在 HTML 解析前通过 cookie 设置 data-theme
-const themeScript = `
-  (function() {
-    var m = document.cookie.match(/(?:^|;\\s*)theme-preference=([^;]*)/);
-    var t = m ? m[1] : 'light';
-    document.documentElement.setAttribute('data-theme', t);
-  })();
-`.replace(/\s+/g, ' ');
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const theme = cookieStore.get('theme-preference')?.value || 'light';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" data-theme={theme} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -33,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>{children}</Providers>
       </body>
     </html>

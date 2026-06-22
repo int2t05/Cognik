@@ -63,13 +63,13 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           {isAdmin && (
-            <AppleButton variant="utility" onClick={() => router.push('/admin/dashboard')}>
-              <Shield size={14} /> 后台管理
+            <AppleButton variant="utility" className="p-1.5" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
+              <Shield size={15} />
             </AppleButton>
           )}
           <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name}</span>
-          <button onClick={async () => { await logout(); router.push('/login'); }} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition">
-            <LogOut size={14} /> 登出
+          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-1 hover:text-[var(--color-ink)] transition">
+            <LogOut size={15} />
           </button>
         </div>
       </header>
