@@ -38,16 +38,16 @@ export function ChatMessage({
       {/* 消息气泡 */}
       <div className={`max-w-[75%] px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
         isUser
-          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-2xl rounded-tr-md'
-          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-2xl rounded-tl-md border border-[var(--color-hairline)]'
+          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] rounded-tr-[6px]'
+          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] rounded-tl-[6px] border border-[var(--color-hairline)]'
       }`}>
         {content || (isStreaming ? <AppleSpinner size={16} /> : '')}
 
         {/* 引用来源 */}
         {sources && sources.length > 0 && (
-          <div className={`mt-2 pt-2 border-t ${isUser ? 'border-white/20' : 'border-[var(--color-divider-soft)]'}`}>
+          <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
             {sources.map((s, i) => (
-              <div key={i} className={`flex items-center gap-1 text-fine mb-1 ${isUser ? 'text-white/70' : 'text-[var(--color-text-muted-48)]'}`}>
+              <div key={i} className={`flex items-center gap-1 text-fine mb-1 ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'}`}>
                 <FileText size={12} />
                 {s.doc_name} ({Number.isFinite(s.confidence) ? (s.confidence * 100).toFixed(0) : '—'}%)
               </div>

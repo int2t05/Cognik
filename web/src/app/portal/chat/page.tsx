@@ -254,7 +254,7 @@ export default function ChatPage() {
             /* 欢迎页 — 豆包风格品牌区 + 建议卡片 */
             <div className="flex flex-col items-center justify-center h-full px-4">
               <div className="text-center mb-10">
-                <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent)]/10 flex items-center justify-center mx-auto mb-5">
+                <div className="w-16 h-16 rounded-[var(--radius-lg)] bg-[var(--color-accent)]/10 flex items-center justify-center mx-auto mb-5">
                   <Bot size={32} className="text-[var(--color-accent)]" />
                 </div>
                 <h1 className="text-headline font-semibold text-[var(--color-ink)] mb-2">
