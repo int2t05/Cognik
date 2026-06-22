@@ -31,7 +31,7 @@ export default function AdminTicketListPage() {
           <button
             key={o.v}
             onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${
+            className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${
               status === o.v
                 ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] font-semibold'
                 : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'
