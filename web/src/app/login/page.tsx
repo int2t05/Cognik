@@ -58,7 +58,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
-      <div className="w-full max-w-form p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+      <div className="w-full max-w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-10">
           <h1 className="text-hero font-medium tracking-[-0.28px] text-[var(--color-ink)] mb-2">
             OpsMind

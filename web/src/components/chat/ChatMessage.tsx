@@ -24,7 +24,7 @@ export function ChatMessage({
   const isAi = role === 'assistant';
   return (
     <div className={`mb-6 flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold ${isUser ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-tile-1)] text-[var(--color-ink)]'}`}>
+      <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold ${isUser ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]' : 'bg-[var(--color-tile-1)] text-[var(--color-ink)]'}`}>
         {isUser ? 'U' : 'AI'}
       </div>
       <div className={`max-w-[85%] px-4 py-3 rounded-[var(--radius-lg)] text-body leading-relaxed whitespace-pre-wrap text-[var(--color-ink)] ${isUser ? 'bg-[var(--color-pearl)] rounded-tr-[6px]' : 'bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-tl-[6px]'}`}>

@@ -107,7 +107,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const menuTree = useMemo(() => {
     const topMenus = menus.filter((m) => !m.parent_id);
     const childMenus = menus.filter((m) => m.parent_id);
-    return topMenus.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
+    // 去重：多条菜单项可能映射到同一前端路由，按 sort_order 保留第一条
+    const seenRoutes = new Set<string>();
+    const deduped = topMenus.filter((m) => {
+      const route = FRONTEND_ROUTES[m.path] || m.path;
+      if (seenRoutes.has(route)) return false;
+      seenRoutes.add(route);
+      return true;
+    });
+    return deduped.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
   }, [menus]);
 
   // 小屏（< 1024px）自动折叠侧栏，避免手动操作
@@ -147,7 +155,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-250" style={{ marginLeft: sidebarWidth }}>
-        <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-[20px] backdrop-saturate-[180%]">
+        <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
           <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)]">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>

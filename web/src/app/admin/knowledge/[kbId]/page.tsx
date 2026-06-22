@@ -36,7 +36,7 @@ export default function ArticleListPage() {
       <div className="mb-4 flex gap-2">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] text-caption cursor-pointer transition hover:bg-[var(--color-hairline)] ${status === o.v ? 'bg-[var(--color-accent)] text-white font-semibold' : 'bg-[var(--color-divider-soft)] text-[var(--color-ink)]'}`}>
+            className={`px-3.5 py-1.5 border-0 rounded-[var(--radius-pill)] text-caption cursor-pointer transition hover:bg-[var(--color-hairline)] ${status === o.v ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] font-semibold' : 'bg-[var(--color-divider-soft)] text-[var(--color-ink)]'}`}>
             {o.l}
           </button>
         ))}

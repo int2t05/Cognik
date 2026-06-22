@@ -84,7 +84,7 @@ function PaginationBtn({
       disabled={disabled}
       className={`min-w-[36px] h-9 flex items-center justify-center text-caption rounded-lg border-0 font-sans cursor-pointer transition hover:bg-[var(--color-divider-soft)] ${
         active
-          ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
+          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]'
           : 'bg-transparent text-[var(--color-ink)]'
       } ${disabled ? 'opacity-30 cursor-default' : ''}`}
     >

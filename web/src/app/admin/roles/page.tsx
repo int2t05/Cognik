@@ -114,7 +114,7 @@ export default function RoleManagePage() {
           <div className="flex flex-wrap gap-1.5">
             {knownPermissions.map((p) => (
               <button key={p} onClick={() => togglePerm(p)}
-                className={`px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition ${perms.includes(p) ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white' : ''}`}>
+                className={`px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition ${perms.includes(p) ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]' : ''}`}>
                 {p}
               </button>
             ))}

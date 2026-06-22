@@ -114,7 +114,7 @@ export default function UserListPage() {
                 onClick={() => toggleRole(role.id)}
                 className={
                   form.role_ids.includes(role.id)
-                    ? 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-white cursor-pointer transition'
+                    ? 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)] cursor-pointer transition'
                     : 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]'
                 }
               >

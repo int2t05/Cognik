@@ -49,7 +49,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-white text-fine font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold w-[18px] h-[18px] rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}

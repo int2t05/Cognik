@@ -29,6 +29,7 @@
   --color-accent: #0066cc;
   --color-accent-hover: #0055aa;
   --color-accent-focus: #0071e3;
+  --color-on-accent: #ffffff;
 
   /* 画布 */
   --color-canvas: #ffffff;
@@ -98,6 +99,7 @@
   --color-accent: #2997ff;
   --color-accent-hover: #40a9ff;
   --color-accent-focus: #40a9ff;
+  --color-on-accent: #ffffff;
   --color-canvas: #1d1d1f;
   --color-parchment: #161618;
   --color-pearl: #2a2a2c;
@@ -170,7 +172,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* ===== 选择 ===== */
-::selection { background: var(--color-accent); color: #fff; }
+::selection { background: var(--color-accent); color: var(--color-canvas); }
 
 /* ===== Toast 入场动画 ===== */
 @keyframes fadeIn {

@@ -183,8 +183,8 @@ export default function ChatPage() {
       {/* 侧边栏 — 移动端 overlay / 桌面端 inline */}
       <aside
         className={`flex flex-col border-r border-[var(--color-hairline)] transition-all duration-200 shrink-0 overflow-hidden bg-[var(--color-parchment)]
-          ${mobileOpen ? 'fixed inset-y-0 left-0 z-[var(--z-nav)] w-60' : 'hidden lg:flex'}
-          lg:relative lg:${sidebarOpen ? 'w-60' : 'w-0'}
+          ${mobileOpen ? 'fixed inset-y-0 left-0 z-[var(--z-nav)] w-[220px]' : 'hidden lg:flex'}
+          lg:relative lg:${sidebarOpen ? 'w-[220px]' : 'w-0'}
         `}
       >
         <div className="flex flex-col h-full p-3">
