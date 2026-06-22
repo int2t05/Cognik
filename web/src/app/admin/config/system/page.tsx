@@ -19,7 +19,7 @@ export default function SystemConfigPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">系统配置</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">系统配置</h1>
       <AppleCard className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用配置</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={getValue('app_name')} onSaved={mutate} />

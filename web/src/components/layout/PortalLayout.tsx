@@ -73,7 +73,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <main className="w-full max-w-wide mx-auto p-6">{children}</main>
+      <main className="w-full max-w-wide mx-auto p-5">{children}</main>
     </div>
   );
 }

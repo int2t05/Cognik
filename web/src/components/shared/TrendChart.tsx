@@ -44,7 +44,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
   };
 
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h3 className="text-title font-semibold text-[var(--color-ink)]">趋势图</h3>
         <div className="flex items-center gap-2 flex-wrap">

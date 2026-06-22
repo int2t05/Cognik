@@ -52,14 +52,14 @@ export default function KnowledgeListPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识库管理</h1>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} className="p-2" aria-label="新建知识库"><BookPlus size={16} /></AppleButton>
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {error ? null : !kbs ? <AppleSpinner /> : kbs.length === 0 ? (
           <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">
             暂无知识库，点击右上角"新建知识库"开始

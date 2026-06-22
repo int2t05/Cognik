@@ -11,8 +11,8 @@ export function StatCard({
   icon?: ReactNode;
 }) {
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-4">
+      <div className="flex items-center gap-2 mb-2">
         {icon && <span className="text-[var(--color-text-muted-48)]">{icon}</span>}
         <span className="text-caption text-[var(--color-text-muted-48)]">{label}</span>
       </div>

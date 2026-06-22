@@ -31,7 +31,7 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">站内消息</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">站内消息</h1>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       {isEmpty ? (

@@ -39,23 +39,23 @@ export default function TicketDetailPage() {
 
   return (
     <div className="max-w-content">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-5">
         <AppleButton variant="ghost" className="p-1.5" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={15} /></AppleButton>
       </div>
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
-      <div className="flex gap-3 mb-6 items-center flex-wrap">
+      <div className="flex gap-3 mb-5 items-center flex-wrap">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
         <span className="text-caption text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
       </div>
 
-      <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
+      <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5 mb-5">
         <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
         <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
       </div>
 
       {ticket.records && ticket.records.length > 0 && (
-        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
+        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5 mb-5">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
           {ticket.records.map((r) => (
             <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">

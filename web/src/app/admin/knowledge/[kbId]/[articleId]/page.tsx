@@ -36,10 +36,10 @@ export default function ArticleEditPage() {
 
   return (
     <div className="max-w-content">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-5">
         <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} className="p-1.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
       </div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <div>
           <h1 className="text-hero font-semibold text-[var(--color-ink)]">{article.title}</h1>
           <div className="flex gap-2 mt-2">

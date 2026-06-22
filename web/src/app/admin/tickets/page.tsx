@@ -25,7 +25,7 @@ export default function AdminTicketListPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">申告管理</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">申告管理</h1>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4 flex gap-2 flex-wrap">
         {FILTERS.map((o) => (

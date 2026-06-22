@@ -40,7 +40,7 @@ export function AppleTable<T extends Record<string, any>>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="text-left text-caption font-semibold text-[var(--color-text-muted-48)] px-4 py-3 border-b border-[var(--color-hairline)] whitespace-nowrap"
+                className="text-left text-caption font-semibold text-[var(--color-text-muted-48)] px-3 py-2.5 border-b border-[var(--color-hairline)] whitespace-nowrap"
                 style={{ width: col.width }}
               >
                 {col.title}
@@ -65,7 +65,7 @@ export function AppleTable<T extends Record<string, any>>({
             data.map((row) => (
               <tr key={getKey(row)} className="hover:bg-[var(--color-pearl)]">
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3.5 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-caption">
+                  <td key={col.key} className="px-3 py-2.5 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-caption">
                     {col.render ? col.render(row) : String(row[col.key] ?? '')}
                   </td>
                 ))}

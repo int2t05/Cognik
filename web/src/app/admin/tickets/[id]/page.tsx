@@ -81,7 +81,7 @@ export default function AdminTicketDetailPage() {
   return (
     <div className="max-w-content">
       <h1 className="mb-2 text-hero font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">
           {ticket.ticket_no} / 提交人 {ticket.submitter_name || '-'} / {formatDate(ticket.created_at)}
@@ -92,7 +92,7 @@ export default function AdminTicketDetailPage() {
         <p className="whitespace-pre-wrap">{ticket.description}</p>
       </AppleCard>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
           <AppleButton onClick={() => handleAction('start')} loading={processing}>
             开始处理
@@ -127,7 +127,7 @@ export default function AdminTicketDetailPage() {
         </AppleCard>
       )}
 
-      <AppleCard className="mb-6">
+      <AppleCard className="mb-5">
         <h3 className="mb-3 text-title font-semibold">生成知识候选</h3>
         <div className="flex items-end gap-3">
           <select

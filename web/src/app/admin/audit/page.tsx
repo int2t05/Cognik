@@ -18,7 +18,7 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">审计日志</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">审计日志</h1>
       <div className="flex gap-3 mb-4 flex-wrap items-end">
         <div>
           <label htmlFor={idOp} className="block text-caption text-[var(--color-text-muted-48)] mb-1">操作人 ID</label>

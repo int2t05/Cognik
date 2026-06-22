@@ -79,7 +79,7 @@ export default function UserListPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">用户管理</h1>
         <AppleButton onClick={openCreate} className="p-2" aria-label="新建用户"><UserPlus size={16} /></AppleButton>
       </div>

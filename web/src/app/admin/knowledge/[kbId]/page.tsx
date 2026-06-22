@@ -27,7 +27,7 @@ export default function ArticleListPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
           <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-1.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
           <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>

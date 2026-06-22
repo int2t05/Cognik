@@ -71,7 +71,7 @@ export default function NewArticlePage() {
 
   return (
     <div className="max-w-content">
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">新建文章</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">新建文章</h1>
 
       {/* 文档上传 */}
       <AppleCard className="mb-4">

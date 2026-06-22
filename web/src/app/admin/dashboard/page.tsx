@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-5">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh} className="p-1.5" aria-label="刷新">
           <RotateCw size={16} />
@@ -52,7 +52,7 @@ export default function DashboardPage() {
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-5">
         {STAT_CARDS.map((c) => (
           <StatCard key={c.key} label={c.label} value={cardValue(c.key)} icon={c.icon} />
         ))}

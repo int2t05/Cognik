@@ -135,7 +135,7 @@ export default function LLMConfigPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
         <AppleButton onClick={openCreate} className="p-2" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
       </div>

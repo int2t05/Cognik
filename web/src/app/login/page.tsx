@@ -61,9 +61,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
-      <div className="w-full max-w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
-        <div className="text-center mb-10">
-          <div className="mb-6">
+      <div className="w-full max-w-[420px] p-8 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+        <div className="text-center mb-8">
+          <div className="mb-5">
             <Image src="/icon.svg" alt="OpsMind" width={56} height={56} className="mx-auto" priority />
           </div>
           <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">

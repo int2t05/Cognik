@@ -166,7 +166,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 p-6 max-w-wide w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
+        <main className="flex-1 p-5 max-w-wide w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
       </div>
     </div>
   );

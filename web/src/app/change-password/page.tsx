@@ -34,8 +34,8 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)]">
-      <div className="w-full max-w-form p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
-        <h1 className="text-headline font-semibold text-[var(--color-ink)] text-center mb-6">修改密码</h1>
+      <div className="w-full max-w-form p-8 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
+        <h1 className="text-headline font-semibold text-[var(--color-ink)] text-center mb-5">修改密码</h1>
         <form onSubmit={handleSubmit}>
           <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" disabled={loading} />
           <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} />

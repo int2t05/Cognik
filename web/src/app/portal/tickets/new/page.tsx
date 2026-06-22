@@ -60,7 +60,7 @@ export default function TicketSubmitPage() {
 
   return (
     <div className="max-w-form">
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">提交申告</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">提交申告</h1>
       <form onSubmit={handleSubmit}>
         <AppleCard className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
