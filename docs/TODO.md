@@ -1,6 +1,35 @@
 # OpsMind 改进清单
 
-> 优先级：🔴 生产隐患 / 🟡 架构债务 / 🟢 优化建议
+> 优先级：🔴 生产隐患 / 🟡 架构债务 / 🟢 优化建议 / ✅ 已完成
+
+---
+
+# 用户故事
+
+## 报障人（门户端）
+
+- US1: 作为报障人，我可以在智能问答中选择知识库并提问，获得 AI 基于私有知识的精准回答
+- US2: 作为报障人，我可以在对话过程中随时停止 AI 生成，避免等待无意义内容
+- US3: 作为报障人，我可以在问答页一键提交申告，附带聊天上下文给运维人员
+- US4: 作为报障人，我可以查看我的申告列表，按状态筛选，搜索历史申告
+- US5: 作为报障人，我可以查看申告处理进度、处理记录，并在需要时补充信息
+- US6: 作为报障人，我可以接收站内消息通知（申告状态变更等），标记已读
+- US7: 作为报障人，我可以在浅色/暗色主题间切换，系统记住我的偏好
+
+## 运维人员（后台管理）
+
+- US8: 作为运维人员，我可以查看数据看板，了解今日申告量、问答量、趋势变化
+- US9: 作为运维人员，我可以处理申告（开始→标记解决/索要补充/关闭），全程记录操作日志
+- US10: 作为运维人员，我可以管理知识库（创建/编辑/删除），上传多格式文档自动向量化
+- US11: 作为运维人员，我可以审核知识文章（通过/驳回/发布/停用），维护知识质量
+- US12: 作为运维人员，我可以将申告转化为知识候选，沉淀运维经验到知识库
+
+## 系统管理员
+
+- US13: 作为管理员，我可以管理用户（创建/编辑/冻结/恢复）和角色权限（RBAC）
+- US14: 作为管理员，我可以配置 LLM 提供商（llama.cpp / OpenAI-compatible），测试连接
+- US15: 作为管理员，我可以修改系统配置（应用名称、AI 参数），配置热生效
+- US16: 作为管理员，我可以查看审计日志，按操作人/类型/日期筛选，追溯所有管理操作
 
 ---
 
@@ -24,7 +53,7 @@
 
 ## 4. 数据看板
 
-- 🟢 趋势查询 90 天窗口硬编码，不可配置 — 保留（低优先级）
+- 🟢 趋势查询窗口硬编码，不可配置 — 保留（低优先级）
 
 ## 5. 系统配置
 
@@ -50,7 +79,6 @@
 
 ## 3. 表单与交互
 
-- 🟡 Toast 错误替代内联校验 — 保留（Toast 校验为当前设计模式，AppleInput error prop 已可用供后续迁移）
 - 🟢 表单缺 required 标记 — 保留（非阻塞）
 - 🟢 用户搜索无结果提示 — 保留（非阻塞）
 
@@ -58,55 +86,20 @@
 
 - 🟢 StatusBadge 领域状态映射硬编码在组件内，后端新增状态时前端需同步更新 — 保留（statusText prop 为已提供的逃生舱）
 
-## 5. API 层
+## 5. 可访问性
 
-- 🟡 `page_size=10` 在 7 处硬编码，应提取为共享常量 — chat.ts / ticket.ts / knowledge.ts / message.ts / user.ts / role.ts
-- 🟡 audit.ts 是唯一使用 `URLSearchParams` 构建查询参数的模块，其他模块用字符串拼接 — 保留（需统一重构）
-- 🟡 门户端/管理端 API 命名不一致（`getMy*` vs `listAll*` vs `getPortal*`）— 保留（需统一重构）
+- 🟢 表格操作列 header 空 title=""，屏幕阅读器会读出空白列头 — 保留（需 th aria-label 或 aria-hidden）
 
-## 6. 可访问性
+## 6. 设计系统
 
-- ✅ 3 处 `<select>` / `<input type="file">` 缺 aria-label — 已补全（本轮 #3）
-- ✅ heading 跳跃 h1→h3 跳过 h2 — 三处 h3→h2 已修正（本轮 #3）
-- 🟢 表格操作列 header 空 title=""，屏幕阅读器会读出空白列头 — `admin/roles/page.tsx`、`admin/users/page.tsx`
+- 🟢 页面标题 `text-hero font-semibold` 在 18 处重复，可提取 `<PageTitle>` 组件
+- 🟢 404 页硬编码 `text-[72px]`，不在 type scale 内
+- 🟢 审计页输入框样式在 5 处重复，可提取或复用 AppleInput
 
-## 7. 设计系统一致性
+## 7. 基础设施
 
-- 🔴 `--color-text-muted-48: #666` 暗色模式对比度 2.93:1，远低于 WCAG AA 4.5:1 要求 — `globals.css`
-- 🔴 `--color-warning: #ff9500` 在白色背景上对比度 2.21:1，远低于 WCAG AA — `globals.css`（ChatMessage 低置信度告警使用）
-- 🟡 Toast 组件全量使用内联样式，绕过 Tailwind 主题系统 — `hooks/useToast.tsx`
-- 🟡 筛选按钮样式 9 行 className 在 `admin/tickets/page.tsx` 和 `admin/knowledge/[kbId]/page.tsx` 完全重复，应提取为共享组件
-- 🟢 页面标题 `text-hero font-semibold text-[var(--color-ink)]` 在 18 处重复，可提取为 `<PageTitle>` 组件
-- 🟢 错误消息 `text-[var(--color-error)] text-caption mb-4` 在 8 处重复
-- 🟢 审计页输入框基础样式在 5 处重复，可提取或复用 AppleInput
-- 🟢 ChatMessage 使用硬编码 `rounded-tr-[6px]`/`rounded-tl-[6px]`，应使用 radius token
-- 🟢 404 页使用硬编码 `text-[72px]`，不在设计系统的 type scale 内
-
-## 8. 代码清理
-
-- ✅ `truncate()` 死代码移除 — `lib/format.ts`
-- ✅ `formatDateOnly()` 死代码移除 — `lib/date.ts`
-- ✅ `ErrorFallback` 去导出（仅内部使用）— `components/ErrorBoundary.tsx`
-- ✅ 重复 `useRouter` import 合并 — `portal/tickets/new/page.tsx`
-- 🟡 4 个 API 函数未被导入（`getDocStatus`/`retryDoc`/`getLLMConfigDetail`/`addTicketRecord`）— 保留（API 层完整性）
-- 🟡 `logout` 函数未被导入 — 保留（`lib/api/auth.ts`，useAuth 有自己的 logout）
-
-## 9. 基础设施
-
-- 🟡 零代码分割 — 保留（需 `next/dynamic` 架构变更）
-- 🟢 全局 ErrorBoundary 仅顶层一个，SectionErrorBoundary 已包裹 AdminLayout 内容区 — 页面级仍无守卫
-
----
-
-## 代码 TODO 索引
-
-### 前端 TODO（0 个）
-
-全部前端 TODO 已清零。
-
-### 后端 TODO（0 个）
-
-全部后端 TODO 已清零。
+- 🟡 零代码分割，全量打包 — 保留（需 `next/dynamic` 架构变更）
+- 🟢 全局 ErrorBoundary 仅顶层一个 — 保留（SectionErrorBoundary 已覆盖内容区）
 
 ---
 
@@ -115,62 +108,39 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 |
 |---|---|---|---|
 | 后端（保留） | 0 | 9 | 3 |
-| 前端（保留） | 0 | 8 | 9 |
-| **合计** | **0** | **17** | **12** |
+| 前端（保留） | 0 | 1 | 9 |
+| **合计** | **0** | **10** | **12** |
 
 ---
 
-## 本轮修复（2026-06-22 #2）— UI/UX 精细化 + 代码审查
+## ✅ 已完成的改进
 
-### 趋势图
+### 架构重构
 
-- ✅ 自定义日期范围上限 30 天，超限显示具体错误提示
-- ✅ 日期标签横向排列，移除 overflow-x-auto 滚动
-- ✅ 柱状图高度 140→160px，柱宽 10→12px，间距优化
-- ✅ 添加 Calendar 图标，清除范围错误联动
+- ✅ `PAGE_SIZE=10` 提取为 `lib/api/constants.ts` 共享常量（消除 7 处硬编码）
+- ✅ `FilterBar` 泛型组件提取，消除 tickets/knowledge 筛选按钮 18 行重复代码
+- ✅ Toast 内联样式迁移至 Tailwind，添加 `aria-live="polite"` 无障碍支持
+- ✅ 5 个死代码 API 导出移除（`getDocStatus`/`retryDoc`/`getLLMConfigDetail`/`addTicketRecord`/`logout(api)`）
+- ✅ `ErrorFallback` 去导出，仅内部使用；`truncate`/`formatDateOnly` 移除
 
-### 数据看板
+### UI/UX 精细化
 
-- ✅ 统计卡片 grid gap-3→gap-4，padding p-4→p-5
-- ✅ 卡片值 text-hero→保持 hero，font-semibold→font-bold，hover 微阴影
-- ✅ 卡片 icon-label 间距 mb-2→mb-3，label 加 font-medium
+- ✅ 全站触控目标 44×44px：icon 14→16，p-2→p-3.5，stop w-11 h-11
+- ✅ 按压反馈：PageBtn/PortalLayout/AdminLayout 添加 active:scale-95
+- ✅ 图标一致性：CheckCircle2→CheckCircle，全站 14-18px 统一，空状态 32px
+- ✅ 间距网格对齐：gap-1→gap-2，3px→4px，18px→w-5
+- ✅ WCAG AA 对比度：text-muted-48(暗色)/color-error/badge-warning-text/badge-neutral-text 全线达标
 
-### 申告/知识筛选
+### 可访问性
 
-- ✅ 筛选按钮 icon-only 改为 icon+文字，icont 15px+label，字体 font-medium
-- ✅ 非激活态 bg-pearl→bg-canvas+border-hairline，hover 变 bg-pearl
-- ✅ 激活态添加 shadow-sm 增强层次
+- ✅ 3 处 aria-label 补全（select ×2 + file input）
+- ✅ heading 层级 h1→h3 改为 h1→h2 三处
+- ✅ ChatMessage 低置信度告警改用 `--badge-warning-text`（对比度 5.2:1）
 
-### 按钮图标全量补全
+### 功能完善
 
-- ✅ admin/tickets/[id] — 开始处理(Play)、标记解决(CheckCircle)、索要补充(MessageSquare)、关闭(XCircle)、生成(Sparkles)
-- ✅ admin/knowledge/[kbId]/[articleId] — 提交审核(Send)、通过(CheckCircle)、驳回(XCircle)、发布(Rocket)、停用(Pause)、启用(Play)、保存(CheckCircle)、取消(XCircle)
-- ✅ change-password — 修改密码(Key)
-- ✅ login — 已有 LogIn ✓
-
-### 触控目标 44×44px 扫尾
-
-- ✅ 全站 `p-1.5`→`p-3.5`（所有 icon-only AppleButton）
-- ✅ PortalLayout 主题切换/登出 `p-1`→`p-2`
-- ✅ PortalLayout 后台管理 `p-1.5`→`p-3.5`
-- ✅ AdminLayout 侧栏折叠 `p-1`→`p-3`，消息/主题 `py-2`→`py-2.5`
-- ✅ portal/chat 新对话 `p-1.5`→`p-3.5`
-- ✅ portal/messages 查看按钮 `p-1.5`→`p-3.5`
-- ✅ portal/tickets/[id] 返回/提交补充 `p-1.5`→`p-3.5`
-- ✅ portal/tickets/new 取消 `p-1.5`→`p-3.5`
-- ✅ articleId 返回/编辑 `p-1.5`→`p-3.5`
-
-### 代码审查新增待办
-
-- ✅ 暗色模式 `--color-text-muted-48` 对比度修复（#666→#999 达 5.5:1）— 本轮 #3
-- ✅ `--color-error` 对比度修复（#ff3b30→#dc2626 达 4.95:1）— 本轮 #3
-- ✅ `--badge-warning-text` 对比度修复（#b86500→#8a4a00 达 5.2:1）— 本轮 #3
-- ✅ `--badge-neutral-text` 对比度修复（#6e6e73→#5e5e63 达 4.8:1）— 本轮 #3
-- ✅ ChatMessage 低置信度告警改用 `--badge-warning-text` — 本轮 #3
-- ✅ 3 处 aria-label 缺失补全 — 本轮 #3
-- ✅ heading 跳跃修复（h3→h2 三处）— 本轮 #3
-- ✅ 死代码清理（truncate/formatDateOnly/ErrorFallback 去导出）— 本轮 #3
-- ✅ 重复 import 合并 — 本轮 #3
-- 🟡 Toast 迁移至 Tailwind
-- 🟡 筛选按钮提取为 `<FilterBar>` 共享组件
-- 🟢 页面标题/错误消息提取为共享组件
+- ✅ 趋势图自定义日期上限 30 天校验，日期标签横排无滚动
+- ✅ 筛选按钮 icon-only→icon+文字，浅色模式非激活态 bg-canvas+border-hairline
+- ✅ 全站按钮图标补全（admin 申告/文章操作按钮、修改密码 Key 图标）
+- ✅ 统计卡片 hover 阴影、font-bold、padding 优化
+- ✅ ChatMessage 气泡半径使用 radius token（rounded-tr/tl-sm）

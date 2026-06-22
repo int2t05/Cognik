@@ -57,37 +57,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toasts, success, error, warning, info }}>
       {children}
-      {/* Toast 容器 — 右上角固定 */}
-      <div
-        role="region"
-        aria-label="通知"
-        style={{
-          position: 'fixed',
-          top: 16,
-          right: 16,
-          zIndex: 'var(--z-toast)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
+      {/* Toast 容器 — 右上角固定，最多堆叠 3 条 */}
+      <div role="region" aria-label="通知" aria-live="polite"
+        className="fixed top-4 right-4 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            role="alert"
-            style={{
-              background: 'var(--color-parchment)',
-              color: 'var(--color-ink)',
-              padding: '12px 20px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 14,
-              fontWeight: 500,
-              boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-              backdropFilter: 'blur(20px)',
-              animation: 'fadeIn 0.25s ease-out',
-              maxWidth: 360,
-            }}
-          >
+          <div key={t.id} role="alert"
+            className="px-5 py-3 text-caption font-medium rounded-[var(--radius-md)] bg-[var(--color-parchment)] text-[var(--color-ink)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.25s_ease-out]">
             {t.message}
           </div>
         ))}

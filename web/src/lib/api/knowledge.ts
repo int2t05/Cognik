@@ -1,9 +1,9 @@
 import { apiFetch, apiFetchPage } from './client';
+import { PAGE_SIZE } from './constants';
 
 export interface KB { id: number; name: string; description: string; embedding_model: string; vector_dimension: number; llm_config_id: number; article_count: number; created_at: string; }
 export interface Article { id: number; kb_id: number; kb_name: string; title: string; content: string; source_type: number; status: number; status_text: string; category: string; tags: string[]; word_count: number; chunk_count: number; file_type: string; process_status: string; process_error: string; created_by_name: string; created_at: string; updated_at: string; }
 export interface ArticleDetail extends Article { chunks: unknown[]; reviewed_by: number | null; published_by: number | null; minio_path: string; }
-export interface DocStatus { article_id: number; file_name: string; process_status: string; process_error: string; }
 
 // KB
 export function getKBList() { return apiFetch<KB[]>('/api/v1/admin/knowledge-bases'); }
@@ -14,7 +14,7 @@ export function deleteKB(id: number) { return apiFetch<null>(`/api/v1/admin/know
 
 // 文章
 export function getArticleList(kbId: number, page: number, status?: string) {
-  let url = `/api/v1/admin/knowledge-bases/${kbId}/articles?page=${page}&page_size=10`;
+  let url = `/api/v1/admin/knowledge-bases/${kbId}/articles?page=${page}&page_size=${PAGE_SIZE}`;
   if (status && status !== '-1') url += `&status=${status}`;
   return apiFetchPage<Article>(url);
 }
@@ -31,7 +31,5 @@ export function enableArticle(id: number) { return apiFetch<null>(`/api/v1/admin
 export function uploadDocuments(kbId: number, files: FileList) {
   const fd = new FormData();
   Array.from(files).forEach((f) => fd.append('files', f));
-  return apiFetch<{ documents: DocStatus[] }>(`/api/v1/admin/knowledge-bases/${kbId}/documents/upload`, { method: 'POST', body: fd, headers: {} as Record<string, string> });
+  return apiFetch<{ documents: { article_id: number; file_name: string; process_status: string; process_error: string }[] }>(`/api/v1/admin/knowledge-bases/${kbId}/documents/upload`, { method: 'POST', body: fd, headers: {} as Record<string, string> });
 }
-export function getDocStatus(kbId: number, articleId: number) { return apiFetch<DocStatus>(`/api/v1/admin/knowledge-bases/${kbId}/documents/${articleId}/status`); }
-export function retryDoc(kbId: number, articleId: number) { return apiFetch<null>(`/api/v1/admin/knowledge-bases/${kbId}/documents/${articleId}/retry`, { method: 'POST' }); }

@@ -9,6 +9,15 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
+
+const ARTICLE_FILTERS: FilterOption<string>[] = [
+  { value: '-1', label: '全部', icon: <ListFilter size={16} /> },
+  { value: '1', label: '草稿', icon: <FileText size={16} /> },
+  { value: '2', label: '待审核', icon: <Clock size={16} /> },
+  { value: '4', label: '已发布', icon: <CheckCircle size={16} /> },
+  { value: '0', label: '已停用', icon: <XCircle size={16} /> },
+];
 
 export default function ArticleListPage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -16,14 +25,6 @@ export default function ArticleListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('-1');
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
-
-  const filterOptions = [
-    { v: '-1', label: '全部', icon: <ListFilter size={16} /> },
-    { v: '1', label: '草稿', icon: <FileText size={16} /> },
-    { v: '2', label: '待审核', icon: <Clock size={16} /> },
-    { v: '4', label: '已发布', icon: <CheckCircle size={16} /> },
-    { v: '0', label: '已停用', icon: <XCircle size={16} /> },
-  ];
 
   return (
     <div>
@@ -35,15 +36,7 @@ export default function ArticleListPage() {
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-3.5" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4 flex gap-2">
-        {filterOptions.map((o) => (
-          <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }} aria-label={o.label}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-caption font-medium rounded-[var(--radius-pill)] border cursor-pointer transition ${status === o.v ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm' : 'bg-[var(--color-canvas)] border-[var(--color-hairline)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-pearl)] hover:border-[var(--color-divider-soft)]'}`}>
-            {o.icon}
-            <span>{o.label}</span>
-          </button>
-        ))}
-      </div>
+      <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
       <AppleTable
         columns={[
           { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
