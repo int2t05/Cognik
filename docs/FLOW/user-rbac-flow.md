@@ -203,14 +203,23 @@ RoleHandler.UpdateRoleMenus (handler/role.go:127)
 
 ---
 
-## 权限白名单
+## 权限常量
 
-`validPermissions` 定义于 `service/role_service.go:36`：
+定义于 `router/permissions.go:6-19`：
 
 ```
-dashboard.read, ticket.read, ticket.write,
-knowledge.read, knowledge.write, knowledge.review,
-user.manage, system.config, audit.read
+user:manage       — 用户与角色管理
+ticket:read       — 申告查看
+ticket:write      — 申告操作（状态变更/记录/知识候选）
+ticket:manage     — 申告全管理（=read+write）
+knowledge:read    — 知识库查看
+knowledge:write   — 知识库编辑
+knowledge:create  — 知识创建
+knowledge:manage  — 知识全管理（=read+write+review）
+knowledge:review  — 知识审核与发布
+audit:read        — 审计日志查看
+dashboard:read    — 看板查看
+system:config     — 系统配置与 LLM 配置管理
 ```
 
 ## RBAC 中间件校验链
@@ -221,6 +230,6 @@ middleware.JWTAuth (middleware/auth.go:37)
 
 middleware.RequirePermission (middleware/rbac.go:24)
   → 从 context 取 CurrentUser.Permissions
-  → 精确匹配 / 通配符前缀 ("ticket.*" 匹配 "ticket.read") / "*" 全局
+  → 精确匹配 / 通配符前缀 ("ticket:*" 匹配 "ticket:read") / "*" 全局
   → 无匹配 → 403 ErrForbidden
 ```

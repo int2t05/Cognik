@@ -120,18 +120,6 @@ LLMConfigHandler.DeleteConfig (handler/llm_config.go:140)
     └─ 若为默认 → configMgr.SetConfig(nil) → OnChange → 重建空客户端 → 降级到 config.yaml
 ```
 
-### POST /api/v1/admin/llm-configs/:id/test &emsp; 测试连接 &emsp; [PermSystemConfig]
-
-```
-LLMConfigHandler.TestConnection (handler/llm_config.go:157)
-  → LLMConfigService.TestConnection (service/llm_config_service.go 内部)
-    ├─ LlmConfigRepo.FindByID → AfterFind 解密
-    ├─ 临时客户端: NewOpenAIClient(config.BaseURL, config.APIKey, 10s)
-    └─ OpenAIClient.ChatCompletion (adapter/llm_client.go:108)
-        → POST /chat/completions {model, messages:[{role:"user",content:"hello"}], max_tokens:10}
-    → 返回 {success, latency_ms, tokens_used, model}
-```
-
 ---
 
 ## 数据模型与加解密

@@ -67,8 +67,7 @@ AuditHandler.List (handler/audit.go:30)
 ```
 ConfigHandler.Get (handler/config.go:29)
   → ConfigService.GetConfig (service/config_service.go:55)
-    ├─ validConfigKeys[key] → 静态白名单校验
-    │   (system_name, welcome_message, ticket_auto_close_days, ai_confidence_threshold, ai_default_top_k)
+    ├─ validConfigKeys[key] → 白名单校验 (app_name / ai.top_k / ai.threshold)
     └─ ConfigRepo.GetByKey (repository/config_repo.go:27)
         → SELECT * FROM system_configs WHERE config_key=?
 ```
@@ -80,8 +79,8 @@ ConfigHandler.Get (handler/config.go:29)
 ```
 ConfigHandler.Update (handler/config.go:51)
   → ConfigService.UpdateConfig (service/config_service.go:80)
-    ├─ validConfigKeys[key] → 白名单校验
-    ├─ configKeyMeta.typeValidation → 值类型校验（string/int/float）
+    ├─ validConfigKeys[key] → 白名单校验 (app_name: string / ai.top_k: number / ai.threshold: number)
+    ├─ configKeyMeta.ValueType → 值类型校验（string/number）
     ├─ ConfigRepo.Upsert (repository/config_repo.go:37)
     │   → INSERT INTO system_configs (...) ON CONFLICT(config_key) DO UPDATE ...
     └─ AuditRepo.Create → "config.update"

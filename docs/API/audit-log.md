@@ -124,11 +124,11 @@ Authorization: Bearer <token>
 
 **可用配置键：**
 
-| key | 默认值 | 说明 |
-|-----|--------|------|
-| `app_name` | OpsMind | 应用名称 |
-
-> `ai_confidence_threshold` 和 `ai_default_top_k` 在 [llm-configs API](llm-config.md) 中统一管理。LLM 配置热替换生效，无需重启。
+| key | 类型 | 说明 |
+|-----|------|------|
+| `app_name` | string | 应用名称，显示在页面标题和系统通知中 |
+| `ai.top_k` | number | RAG 默认检索 Top K |
+| `ai.threshold` | number | AI 置信度阈值 |
 
 **错误码：**
 
