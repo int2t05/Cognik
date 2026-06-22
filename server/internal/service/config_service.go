@@ -60,7 +60,7 @@ func (s *ConfigService) GetConfig(ctx context.Context, key string) (interface{},
 	cfg, err := s.repo.GetByKey(ctx, key)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, AppError{Code: errcode.ErrNotFound, Message: fmt.Sprintf("配置项 %s 不存在", key)}
+			return nil, nil // 有效 key 但尚未初始化：返回 null 而非报错
 		}
 		return nil, err
 	}

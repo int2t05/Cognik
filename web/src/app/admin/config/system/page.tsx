@@ -8,7 +8,7 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
 import { Pencil } from 'lucide-react';
 
-const CONFIG_KEYS = ['app_name', 'ai_default_top_k', 'ai_confidence_threshold'];
+const CONFIG_KEYS = ['app_name', 'ai.top_k', 'ai.threshold'];
 
 export default function SystemConfigPage() {
   const { data: configs, error, mutate } = useSWR('all-configs', () => getAllConfigs(CONFIG_KEYS));

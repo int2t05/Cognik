@@ -198,7 +198,7 @@ func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.U
 // 执行顺序：pgvector 向量删除 → 文章 + KB 数据库记录删除。
 // 为什么先删向量再删数据库：VectorStore 删除可能失败（DB 连接问题），
 // 如果先删数据库记录再失败则向量成为孤儿数据。
-// MinIO 文档文件和 BM25 缓存在后续迭代中完善。
+// MinIO 文件和 BM25 缓存由对应适配器异步管理，DeleteKB 仅负责 DB 和向量清理。
 func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 	// 1. 校验知识库存在
 	_, err := s.repo.FindKBByID(ctx, id)
