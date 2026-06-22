@@ -4,19 +4,31 @@ import { getMyTickets } from '@/lib/api/ticket';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { AppleInput } from '@/components/ui/AppleInput';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { URGENCY_LABELS } from '@/lib/format';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { TicketPlus, FileText } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 300);
   const router = useRouter();
   const { data, error } = useSWR(`portal-tickets-${page}`, () => getMyTickets(page));
 
-  const tickets = data?.items ?? [];
+  const tickets = useMemo(() => {
+    const items = data?.items ?? [];
+    if (!debouncedKeyword) return items;
+    const kw = debouncedKeyword.toLowerCase();
+    return items.filter((t: { title?: string; ticket_no?: string }) =>
+      (t.title?.toLowerCase().includes(kw)) ||
+      (t.ticket_no?.toLowerCase().includes(kw))
+    );
+  }, [data, debouncedKeyword]);
   const isEmpty = !error && data && tickets.length === 0;
 
   return (
@@ -29,6 +41,10 @@ export default function TicketQueryPage() {
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+
+      <div className="mb-4">
+        <AppleInput pill placeholder="搜索申告编号或标题..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
+      </div>
 
       {isEmpty ? (
         <div className="text-center py-16">

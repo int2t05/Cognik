@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { listAllTickets } from '@/lib/api/ticket';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
+import { AppleInput } from '@/components/ui/AppleInput';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { URGENCY_LABELS } from '@/lib/format';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const FILTERS = [
   { v: -1, label: '全部申告', icon: <ListFilter size={17} /> },
@@ -21,13 +23,25 @@ const FILTERS = [
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState(-1);
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 300);
   const { data, error } = useSWR(`admin-tickets-${page}-${status}`, () => listAllTickets(page, status));
+
+  // 客户端关键词过滤
+  const items = (data?.items || []).filter((t: { title?: string; ticket_no?: string; submitter_name?: string }) => {
+    if (!debouncedKeyword) return true;
+    const kw = debouncedKeyword.toLowerCase();
+    return (t.title?.toLowerCase().includes(kw)) ||
+           (t.ticket_no?.toLowerCase().includes(kw)) ||
+           (t.submitter_name?.toLowerCase().includes(kw));
+  });
 
   return (
     <div>
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">申告管理</h1>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4 flex gap-2 flex-wrap">
+      <div className="mb-4 flex gap-3 items-center flex-wrap">
+        <AppleInput pill placeholder="搜索编号/标题/提交人..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
         {FILTERS.map((o) => (
           <button
             key={o.v}
@@ -52,7 +66,7 @@ export default function AdminTicketListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
           { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },
         ]}
-        data={data?.items || []}
+        data={items}
         loading={!data && !error}
         rowKey="id"
       />

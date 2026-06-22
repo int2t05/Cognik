@@ -1,23 +1,25 @@
 /**
- * ChatInput — 豆包风格居中圆角药丸输入框。
+ * ChatInput — 豆包风格居中药丸输入框，流式中显示 Stop 按钮（AI Chat 最佳实践）。
  */
 'use client';
 
 import { forwardRef } from 'react';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { Send } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 
 interface ChatInputProps {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  onStop?: () => void;
   disabled: boolean;
   loading: boolean;
+  streaming: boolean;
   placeholder: string;
 }
 
 export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
-  ({ value, onChange, onSend, disabled, loading, placeholder }, ref) => {
+  ({ value, onChange, onSend, onStop, disabled, loading, streaming, placeholder }, ref) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); }
     };
@@ -34,18 +36,31 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               placeholder={placeholder}
               disabled={disabled}
               aria-label="输入消息"
-              className="w-full h-11 px-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-parchment)] text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)] focus:bg-[var(--color-canvas)]"
+              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-parchment)] text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)] focus:bg-[var(--color-canvas)]"
             />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
+              Enter ↵
+            </span>
           </div>
-          <AppleButton
-            onClick={onSend}
-            loading={loading}
-            disabled={!value.trim() || disabled}
-            className="p-2 rounded-full"
-            aria-label="发送"
-          >
-            <Send size={17} />
-          </AppleButton>
+          {streaming ? (
+            <button
+              onClick={onStop}
+              aria-label="停止生成"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-error)] text-white border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
+            >
+              <Square size={15} fill="currentColor" />
+            </button>
+          ) : (
+            <AppleButton
+              onClick={onSend}
+              loading={loading}
+              disabled={!value.trim() || disabled}
+              className="p-2 rounded-full"
+              aria-label="发送"
+            >
+              <Send size={17} />
+            </AppleButton>
+          )}
         </div>
       </div>
     );

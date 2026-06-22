@@ -62,6 +62,7 @@ export default function ChatPage() {
     pipelineSteps,
     currentStep,
     send,
+    abort,
     clear,
     loadMessages,
   } = useChatStream(token || '', (msg) => toast.error(msg));
@@ -327,8 +328,10 @@ export default function ChatPage() {
             value={input}
             onChange={setInput}
             onSend={() => handleSend()}
-            disabled={isLoading}
-            loading={isLoading}
+            onStop={abort}
+            disabled={!streaming && isLoading}
+            loading={loading}
+            streaming={streaming}
             placeholder="输入问题，按 Enter 发送..."
           />
         )}

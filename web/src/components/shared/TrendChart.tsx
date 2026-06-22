@@ -15,6 +15,7 @@ interface TrendChartProps {
 }
 
 const PRESETS = [
+  { label: '昨天', days: 1 },
   { label: '7 天', days: 7 },
   { label: '30 天', days: 30 },
 ] as const;
