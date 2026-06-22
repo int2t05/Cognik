@@ -44,6 +44,7 @@ export default function NewArticlePage() {
       const formData = new FormData();
       Array.from(files).forEach((f) => formData.append('files', f));
 
+      // TODO: 应使用 apiFetch 统一客户端，避免硬编码 URL 和手动管理 Authorization 头
       const response = await fetch(
         `/api/v1/admin/knowledge-bases/${kbId}/documents/upload`,
         {

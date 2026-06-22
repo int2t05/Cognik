@@ -1,4 +1,5 @@
 /** AppleBadge — 语义状态标签。使用 CSS 变量适配亮/暗双主题。 */
+// TODO: 显式 import type { CSSProperties } from 'react' 而非依赖全局 React 命名空间
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 function badgeStyle(v: BadgeVariant): React.CSSProperties {

@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/date';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export default function AuditLogPage() {
+  // TODO: page 状态与 filters.page 重复，可能导致不同步，应合并为单一数据源
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<Record<string, string | number>>({ page: 1, page_size: 10 });
   const debouncedFilters = useDebounce(filters, 300);

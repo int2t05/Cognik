@@ -28,6 +28,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
+        {/* TODO: error 状态时添加 aria-invalid="true" + aria-describedby 关联错误消息 */}
         <input ref={ref} id={inputId} className={inputClass} {...rest} />
         {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
       </div>
@@ -60,6 +61,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
         {label && (
           <label htmlFor={textareaId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
+        {/* TODO: error 状态时添加 aria-invalid="true" + aria-describedby 关联错误消息 */}
         <textarea ref={ref} id={textareaId} rows={rows} className={textareaClass} {...rest} />
         {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
       </div>

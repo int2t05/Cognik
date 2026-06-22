@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 export default function DashboardPage() {
   const toast = useToast();
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
+  // TODO: useMemo 包裹 new Date() 无依赖数组，Date() 不纯，useMemo 无实际效果，应改为普通 const
   const { start, end } = useMemo(() => {
     const today = new Date();
     const DAYS_30_MS = 30 * 86400000;

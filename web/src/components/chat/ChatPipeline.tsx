@@ -20,6 +20,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
       {steps.length > 0 && (
         <div className="flex gap-1.5 flex-wrap mt-2">
           {steps.map((s) => (
+            /* TODO: 区分 success=true/false/undefined — undefined 应为 pending 态而非成功态 */
             <span
               key={s.id}
               className={`px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] text-[var(--color-canvas)] ${s.success === false ? 'bg-[var(--color-error)] opacity-60' : 'bg-[var(--color-success)] opacity-75'}`}

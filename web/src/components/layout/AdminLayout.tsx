@@ -62,7 +62,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     setExpandedMenus((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
 
+  // TODO: 折叠态下 depthPadding 不应生效（图标会偏右），需在 collapsed 时返回空字符串
   const depthPadding = (depth: number): string => {
+    if (collapsed) return '';
     if (depth === 1) return 'pl-[36px]';
     if (depth === 2) return 'pl-[52px]';
     return '';
@@ -105,6 +107,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return topMenus.map((m) => ({ ...m, children: childMenus.filter((c) => c.parent_id === m.id) }));
   }, [menus]);
 
+  // TODO: 侧栏宽度 64/220 为魔术数字，应提取为 SIDEBAR_COLLAPSED_WIDTH / SIDEBAR_EXPANDED_WIDTH 常量
   // 小屏（< 1024px）自动折叠侧栏，避免手动操作
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
@@ -149,6 +152,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-4">
             <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>
             <button onClick={() => { logout(); router.push('/login'); }} className="flex items-center gap-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption">
+              {/* TODO: await logout() 以清除服务端会话后再跳转，避免竞态 */}
               <LogOut size={14} /> 登出
             </button>
           </div>

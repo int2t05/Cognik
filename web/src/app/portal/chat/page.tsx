@@ -44,6 +44,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // TODO: feedback 按消息维度存储，当前仅支持单会话单反馈值，需改为 Record<messageId, number>
   const [feedback, setFeedback] = useState(0);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -115,6 +116,8 @@ export default function ChatPage() {
 
   const handleSelectSession = async (id: number) => {
     if (id === sessionId) return;
+    // TODO: 回退逻辑有 bug — setSessionId(id) 后 sessionId 已是 id，catch 中 setSessionId(sessionId) 是空操作
+    const prevId = sessionId;
     setSessionId(id);
     setMobileOpen(false);
     try {
@@ -131,7 +134,7 @@ export default function ChatPage() {
       setFeedback(detail.feedback);
     } catch {
       toast.error('加载会话失败');
-      setSessionId(sessionId);
+      setSessionId(prevId);
     }
   };
 
