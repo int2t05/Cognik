@@ -10,6 +10,7 @@ import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
+import { BookPlus } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -55,7 +56,7 @@ export default function KnowledgeListPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识库管理</h1>
-        <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}>新建知识库</AppleButton>
+        <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}><BookPlus size={14} /> 新建知识库</AppleButton>
       </div>
 
       <div className="grid gap-4">

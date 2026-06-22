@@ -6,6 +6,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
+import { FilePlus } from 'lucide-react';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -92,7 +93,7 @@ export default function NewArticlePage() {
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={saving}>创建文章</AppleButton>
+          <AppleButton type="submit" loading={saving}><FilePlus size={14} /> 创建文章</AppleButton>
           <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)}>取消</AppleButton>
         </div>
       </form>

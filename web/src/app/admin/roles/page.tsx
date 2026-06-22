@@ -9,6 +9,7 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
+import { ShieldPlus } from 'lucide-react';
 
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
@@ -90,7 +91,7 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">角色管理</h1>
-        <AppleButton onClick={openCreate}>新建角色</AppleButton>
+        <AppleButton onClick={openCreate}><ShieldPlus size={14} /> 新建角色</AppleButton>
       </div>
       <AppleTable
         columns={[

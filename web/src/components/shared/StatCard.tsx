@@ -1,20 +1,22 @@
-/** StatCard — 看板统计卡片 */
+/** StatCard — 看板统计卡片，支持图标。 */
+import { type ReactNode } from 'react';
+
 export function StatCard({
   label,
   value,
-  suffix = '',
+  icon,
 }: {
   label: string;
   value: string | number;
-  suffix?: string;
+  icon?: ReactNode;
 }) {
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
-      <div className="text-fine text-[var(--color-text-muted-48)] mb-2">{label}</div>
-      <div className="text-hero font-semibold text-[var(--color-ink)]">
-        {value}
-        {suffix}
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
+      <div className="flex items-center gap-2 mb-3">
+        {icon && <span className="text-[var(--color-text-muted-48)]">{icon}</span>}
+        <span className="text-caption text-[var(--color-text-muted-48)]">{label}</span>
       </div>
+      <div className="text-hero font-semibold text-[var(--color-ink)]">{value}</div>
     </div>
   );
 }

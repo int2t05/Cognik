@@ -7,9 +7,21 @@ import { TrendChart } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useToast } from '@/hooks/useToast';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
+
+/** 7 张统计卡片定义，保持单一数据源 */
+const STAT_CARDS = [
+  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={15} /> },
+  { key: 'pending_tickets', label: '待处理', icon: <AlertTriangle size={15} /> },
+  { key: 'processing_tickets', label: '处理中', icon: <Clock size={15} /> },
+  { key: 'resolved_tickets', label: '已解决', icon: <CheckCircle size={15} /> },
+  { key: 'today_chats', label: '今日问答', icon: <MessageSquare size={15} /> },
+  { key: 'avg_confidence', label: '平均置信度', icon: <TrendingUp size={15} /> },
+  { key: 'knowledge_count', label: '知识条目', icon: <BookOpen size={15} /> },
+] as const;
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -22,21 +34,28 @@ export default function DashboardPage() {
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
 
+  /** 从 stats 中提取卡片值，avg_confidence 需特殊格式化 */
+  const cardValue = (key: string): string | number => {
+    if (!stats) return '—';
+    if (key === 'avg_confidence') return formatPercent(stats.avg_confidence ?? null);
+    const v = (stats as unknown as Record<string, number>)[key];
+    return v ?? '—';
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">数据看板</h1>
-        <AppleButton variant="ghost" onClick={handleRefresh}>刷新</AppleButton>
+        <AppleButton variant="ghost" onClick={handleRefresh}>
+          <RotateCw size={14} /> 刷新
+        </AppleButton>
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mb-8">
-        <StatCard label="今日申告" value={stats?.today_tickets ?? '—'} />
-        <StatCard label="待处理" value={stats?.pending_tickets ?? '—'} />
-        <StatCard label="处理中" value={stats?.processing_tickets ?? '—'} />
-        <StatCard label="已解决" value={stats?.resolved_tickets ?? '—'} />
-        <StatCard label="今日问答" value={stats?.today_chats ?? '—'} />
-        <StatCard label="平均置信度" value={formatPercent(stats?.avg_confidence ?? null)} />
-        <StatCard label="知识条目" value={stats?.knowledge_count ?? '—'} />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+        {STAT_CARDS.map((c) => (
+          <StatCard key={c.key} label={c.label} value={cardValue(c.key)} icon={c.icon} />
+        ))}
       </div>
 
       <TrendChart

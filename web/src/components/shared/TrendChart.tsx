@@ -17,7 +17,6 @@ interface TrendChartProps {
 const PRESETS = [
   { label: '7 天', days: 7 },
   { label: '30 天', days: 30 },
-  { label: '90 天', days: 90 },
 ] as const;
 
 function daysAgo(days: number): string {
@@ -56,12 +55,13 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
               className={`px-3 py-1 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition ${
                 activePreset === p.days
                   ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
-                  : 'bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-hairline)]'
+                  : 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-hairline)]'
               }`}
             >
               {p.label}
             </button>
           ))}
+          <span className="text-[var(--color-hairline)]">|</span>
           <input
             type="date"
             value={customStart}
@@ -99,29 +99,38 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
   );
 }
 
+/** 横排日期标签 + 柱状条，标签在柱下方自然排列 */
 function Chart({ data }: { data: TrendPoint[] }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
-  const labelInterval = data.length <= 14 ? 1 : Math.ceil(data.length / 7);
+  // 7 天数据全部标注，30 天数据每隔 5 天标注一次
+  const labelStep = data.length <= 10 ? 1 : Math.ceil(data.length / 6);
 
   return (
     <>
-      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-[3px] h-[200px] overflow-x-auto">
+      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-[2px] h-[180px] overflow-x-auto pb-1">
         {data.map((d, i) => (
-          <div key={d.date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-            <div className="flex gap-[2px] items-end h-[160px]">
+          <div key={d.date} className="flex-1 flex flex-col items-center justify-end min-w-0">
+            <div className="flex gap-px items-end h-[140px]">
               <div
                 title={`${d.date} 申告: ${d.ticket_count}`}
-                className="w-[8px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0"
-                style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
+                className="w-[10px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0"
+                style={{ height: `${(d.ticket_count / maxVal) * 140}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
               <div
                 title={`${d.date} 问答: ${d.chat_count}`}
-                className="w-[8px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0"
-                style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }}
+                className="w-[10px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0"
+                style={{ height: `${(d.chat_count / maxVal) * 140}px`, minHeight: d.chat_count > 0 ? 4 : 0 }}
               />
             </div>
-            {i % labelInterval === 0 && (
-              <span className="text-fine text-[var(--color-text-muted-48)] -rotate-45 whitespace-nowrap mt-1">
+          </div>
+        ))}
+      </div>
+      {/* 横排日期标签 */}
+      <div className="flex gap-[2px] mt-2 overflow-x-auto">
+        {data.map((d, i) => (
+          <div key={d.date} className="flex-1 min-w-0 text-center">
+            {i % labelStep === 0 && (
+              <span className="text-[11px] text-[var(--color-text-muted-48)] whitespace-nowrap">
                 {d.date.slice(5)}
               </span>
             )}

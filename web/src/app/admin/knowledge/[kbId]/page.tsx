@@ -8,6 +8,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
+import { FilePlus } from 'lucide-react';
 
 export default function ArticleListPage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -31,7 +32,7 @@ export default function ArticleListPage() {
       </div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}>新建文章</AppleButton>
+        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}><FilePlus size={14} /> 新建文章</AppleButton>
       </div>
       <div className="mb-4 flex gap-2">
         {filterOptions.map((o) => (
