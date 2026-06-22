@@ -10,12 +10,12 @@ import { URGENCY_LABELS } from '@/lib/format';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 
 const FILTERS = [
-  { v: -1, l: '全部申告', icon: <ListFilter size={14} /> },
-  { v: 1, l: '待处理', icon: <AlertCircle size={14} /> },
-  { v: 2, l: '处理中', icon: <Clock size={14} /> },
-  { v: 3, l: '需补充信息', icon: <MessageSquare size={14} /> },
-  { v: 4, l: '已解决', icon: <CheckCircle size={14} /> },
-  { v: 5, l: '已关闭', icon: <XCircle size={14} /> },
+  { v: -1, label: '全部申告', icon: <ListFilter size={17} /> },
+  { v: 1, label: '待处理', icon: <AlertCircle size={17} /> },
+  { v: 2, label: '处理中', icon: <Clock size={17} /> },
+  { v: 3, label: '需补充信息', icon: <MessageSquare size={17} /> },
+  { v: 4, label: '已解决', icon: <CheckCircle size={17} /> },
+  { v: 5, label: '已关闭', icon: <XCircle size={17} /> },
 ];
 
 export default function AdminTicketListPage() {
@@ -31,14 +31,14 @@ export default function AdminTicketListPage() {
           <button
             key={o.v}
             onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${
+            aria-label={o.label}
+            className={`p-2 border rounded-[var(--radius-pill)] cursor-pointer transition ${
               status === o.v
-                ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] font-semibold'
+                ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)]'
                 : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'
             }`}
           >
             {o.icon}
-            {o.l}
           </button>
         ))}
       </div>

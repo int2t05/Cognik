@@ -8,7 +8,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { FilePlus } from 'lucide-react';
+import { FilePlus, Pencil, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 
 export default function ArticleListPage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -18,27 +18,27 @@ export default function ArticleListPage() {
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
 
   const filterOptions = [
-    { v: '-1', l: '全部' },
-    { v: '1', l: '草稿' },
-    { v: '2', l: '待审核' },
-    { v: '4', l: '已发布' },
-    { v: '0', l: '已停用' },
+    { v: '-1', label: '全部', icon: <ListFilter size={17} /> },
+    { v: '1', label: '草稿', icon: <FileText size={17} /> },
+    { v: '2', label: '待审核', icon: <Clock size={17} /> },
+    { v: '4', label: '已发布', icon: <CheckCircle size={17} /> },
+    { v: '0', label: '已停用', icon: <XCircle size={17} /> },
   ];
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')}>← 返回</AppleButton>
+        <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-1.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
       </div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}><FilePlus size={13} /> 新建</AppleButton>
+        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-2" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
       </div>
       <div className="mb-4 flex gap-2">
         {filterOptions.map((o) => (
-          <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
-            className={`px-3 py-1.5 border rounded-[var(--radius-pill)] text-caption cursor-pointer transition ${status === o.v ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] font-semibold' : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'}`}>
-            {o.l}
+          <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }} aria-label={o.label}
+            className={`p-2 border rounded-[var(--radius-pill)] cursor-pointer transition ${status === o.v ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)]' : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'}`}>
+            {o.icon}
           </button>
         ))}
       </div>

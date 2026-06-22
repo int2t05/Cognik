@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { formatDate } from '@/lib/date';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -81,7 +81,7 @@ export default function UserListPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">用户管理</h1>
-        <AppleButton onClick={openCreate}><UserPlus size={13} /> 新建</AppleButton>
+        <AppleButton onClick={openCreate} className="p-2" aria-label="新建用户"><UserPlus size={16} /></AppleButton>
       </div>
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
@@ -90,9 +90,9 @@ export default function UserListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
           { key: 'actions', title: '', render: (r) => <div className="flex gap-1">
-            <AppleButton variant="ghost" onClick={() => openEdit(r)}>编辑</AppleButton>
-            {r.status === 1 ? <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}>冻结</AppleButton>
-              : <AppleButton variant="utility" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}>恢复</AppleButton>}
+            <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(r)}><Pencil size={14} /></AppleButton>
+            {r.status === 1 ? <AppleButton variant="utility" className="p-1.5" aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}><Lock size={14} /></AppleButton>
+              : <AppleButton variant="utility" className="p-1.5" aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}><Unlock size={14} /></AppleButton>}
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"

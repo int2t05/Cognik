@@ -5,6 +5,7 @@ import { setConfig, getAllConfigs } from '@/lib/api/config';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
+import { Pencil } from 'lucide-react';
 
 const CONFIG_KEYS = ['app_name', 'ai_default_top_k', 'ai_confidence_threshold'];
 
@@ -60,7 +61,7 @@ function ConfigRow({ label, configKey, value, onSaved }: { label: string; config
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{currentVal || '—'}</span>
-          <AppleButton variant="ghost" onClick={startEdit}>编辑</AppleButton>
+          <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={startEdit}><Pencil size={14} /></AppleButton>
         </>
       )}
     </div>

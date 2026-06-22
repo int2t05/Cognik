@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
+import { ArrowLeft, Pencil } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -36,7 +37,7 @@ export default function ArticleEditPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-6">
-        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)}>← 返回</AppleButton>
+        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} className="p-1.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
       </div>
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -53,7 +54,7 @@ export default function ArticleEditPage() {
           {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}>发布</AppleButton>}
           {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
           {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}>启用</AppleButton>}
-          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" onClick={startEdit}>编辑</AppleButton>}
+          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={startEdit}><Pencil size={15} /></AppleButton>}
         </div>
       </div>
 

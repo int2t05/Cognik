@@ -17,7 +17,7 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
-import { Cpu } from 'lucide-react';
+import { Cpu, Pencil, Trash2 } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
 
@@ -137,7 +137,7 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
-        <AppleButton onClick={openCreate}><Cpu size={13} /> 新建</AppleButton>
+        <AppleButton onClick={openCreate} className="p-2" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
       </div>
 
       <div className="grid gap-4">
@@ -160,12 +160,8 @@ export default function LLMConfigPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <AppleButton variant="ghost" onClick={() => openEdit(config)}>
-                    编辑
-                  </AppleButton>
-                  <AppleButton variant="utility" onClick={() => setDeleteTarget(config.id)}>
-                    删除
-                  </AppleButton>
+                  <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={14} /></AppleButton>
+                  <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={14} /></AppleButton>
                 </div>
               </div>
             </AppleCard>

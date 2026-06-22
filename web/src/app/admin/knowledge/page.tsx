@@ -10,7 +10,7 @@ import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
-import { BookPlus } from 'lucide-react';
+import { BookPlus, Pencil, Trash2 } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -56,7 +56,7 @@ export default function KnowledgeListPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识库管理</h1>
-        <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}><BookPlus size={13} /> 新建</AppleButton>
+        <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} className="p-2" aria-label="新建知识库"><BookPlus size={16} /></AppleButton>
       </div>
 
       <div className="grid gap-4">
@@ -79,8 +79,8 @@ export default function KnowledgeListPage() {
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <AppleButton variant="ghost" onClick={() => openEdit(kb)}>编辑</AppleButton>
-              <AppleButton variant="utility" onClick={() => setDeleteTarget(kb.id)}>删除</AppleButton>
+              <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil size={14} /></AppleButton>
+              <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 size={14} /></AppleButton>
             </div>
           </AppleCard>
         ))}

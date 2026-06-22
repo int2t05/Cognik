@@ -191,10 +191,10 @@ export default function ChatPage() {
           <AppleButton
             variant="pill"
             onClick={handleNewChat}
-            className="w-full mb-3"
+            className="w-full p-2.5 mb-3"
+            aria-label="新对话"
           >
-            <Plus size={16} className="mr-1.5" />
-            新对话
+            <Plus size={18} />
           </AppleButton>
 
           <div className="flex-1 overflow-y-auto -mx-1">
@@ -297,8 +297,8 @@ export default function ChatPage() {
             ))}
           </select>
           {sessionId && (
-            <AppleButton variant="utility" onClick={handleNewChat}>
-              新对话
+            <AppleButton variant="utility" onClick={handleNewChat} className="p-1.5" aria-label="新对话">
+              <Plus size={15} />
             </AppleButton>
           )}
         </div>

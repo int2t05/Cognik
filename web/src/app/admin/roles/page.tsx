@@ -9,7 +9,7 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
-import { ShieldPlus } from 'lucide-react';
+import { ShieldPlus, Pencil, Trash2 } from 'lucide-react';
 
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
@@ -91,15 +91,15 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">角色管理</h1>
-        <AppleButton onClick={openCreate}><ShieldPlus size={13} /> 新建</AppleButton>
+        <AppleButton onClick={openCreate} className="p-2" aria-label="新建角色"><ShieldPlus size={16} /></AppleButton>
       </div>
       <AppleTable
         columns={[
           { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
           { key: 'permissions', title: '权限', render: (r) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(r.permissions as string[]).join(', ') || '—'}</span> },
           { key: 'actions', title: '', render: (r) => <div className="flex gap-1">
-            <AppleButton variant="ghost" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}>编辑</AppleButton>
-            <AppleButton variant="utility" onClick={() => setDeleteId(r.id as number)}>删除</AppleButton>
+            <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}><Pencil size={14} /></AppleButton>
+            <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteId(r.id as number)}><Trash2 size={14} /></AppleButton>
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"

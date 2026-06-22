@@ -3,7 +3,6 @@
  */
 
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import { Providers } from '@/components/Providers';
 import './globals.css';
 
@@ -34,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Script id="theme-fouc" strategy="beforeInteractive">{themeScript}</Script>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>{children}</Providers>
       </body>
     </html>
