@@ -18,18 +18,18 @@ export default function ArticleListPage() {
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
 
   const filterOptions = [
-    { v: '-1', label: '全部', icon: <ListFilter size={17} /> },
-    { v: '1', label: '草稿', icon: <FileText size={17} /> },
-    { v: '2', label: '待审核', icon: <Clock size={17} /> },
-    { v: '4', label: '已发布', icon: <CheckCircle size={17} /> },
-    { v: '0', label: '已停用', icon: <XCircle size={17} /> },
+    { v: '-1', label: '全部', icon: <ListFilter size={15} /> },
+    { v: '1', label: '草稿', icon: <FileText size={15} /> },
+    { v: '2', label: '待审核', icon: <Clock size={15} /> },
+    { v: '4', label: '已发布', icon: <CheckCircle size={15} /> },
+    { v: '0', label: '已停用', icon: <XCircle size={15} /> },
   ];
 
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-1.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
+          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-3.5" aria-label="返回"><ArrowLeft size={15} /></AppleButton>
           <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
         </div>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-2" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
@@ -38,8 +38,9 @@ export default function ArticleListPage() {
       <div className="mb-4 flex gap-2">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }} aria-label={o.label}
-            className={`p-2 border rounded-[var(--radius-pill)] cursor-pointer transition ${status === o.v ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)]' : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'}`}>
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-caption font-medium rounded-[var(--radius-pill)] border cursor-pointer transition ${status === o.v ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm' : 'bg-[var(--color-canvas)] border-[var(--color-hairline)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-pearl)] hover:border-[var(--color-divider-soft)]'}`}>
             {o.icon}
+            <span>{o.label}</span>
           </button>
         ))}
       </div>

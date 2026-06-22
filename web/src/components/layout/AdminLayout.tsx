@@ -149,10 +149,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
-          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
+          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>
@@ -161,7 +161,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
-          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)] transition hover:opacity-70">
+          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] transition hover:opacity-70">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
           <div className="flex items-center gap-4">

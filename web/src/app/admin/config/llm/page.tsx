@@ -150,20 +150,20 @@ export default function LLMConfigPage() {
             <AppleCard key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-title font-semibold text-[var(--color-ink)]">
+                  <h2 className="text-title font-semibold text-[var(--color-ink)]">
                     {config.name}
                     {config.is_default && (
                       <span className="text-fine font-normal text-[var(--color-accent)]"> （默认）</span>
                     )}
-                  </h3>
+                  </h2>
                   <p className="mt-1 text-caption text-[var(--color-text-muted-48)]">
                     {config.provider_type === 1 ? 'llama.cpp' : 'OpenAI-compatible'} / {config.llm_model} /{' '}
                     {config.embedding_model}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={14} /></AppleButton>
-                  <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={14} /></AppleButton>
+                  <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={14} /></AppleButton>
+                  <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={14} /></AppleButton>
                 </div>
               </div>
             </AppleCard>

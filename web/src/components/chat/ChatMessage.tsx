@@ -58,7 +58,7 @@ export function ChatMessage({
         {/* 置信度显示 — AI 消息内联 */}
         {isAi && confidence != null && (
           <div className={`flex items-center gap-1.5 mt-2 text-fine ${
-            confidence < 0.6 ? 'text-[var(--color-warning)]' : 'text-[var(--color-text-muted-48)]'
+            confidence < 0.6 ? 'text-[var(--badge-warning-text)]' : 'text-[var(--color-text-muted-48)]'
           }`}>
             {confidence < 0.6 ? <AlertTriangle size={13} /> : <Circle size={8} fill="currentColor" />}
             置信度 {Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : '—'}%

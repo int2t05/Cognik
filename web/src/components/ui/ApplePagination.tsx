@@ -87,7 +87,7 @@ function PageBtn({
       onClick={onClick}
       disabled={disabled}
       {...rest}
-      className={`min-w-[30px] h-7 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition ${
+      className={`min-w-11 h-11 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition ${
         active
           ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
           : 'text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)]'

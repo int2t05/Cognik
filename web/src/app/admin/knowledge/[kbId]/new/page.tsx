@@ -79,6 +79,7 @@ export default function NewArticlePage() {
         <p className="text-caption text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
         <div className="flex gap-3 items-center">
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
+            aria-label="选择文档文件"
             className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-medium file:border-0 file:bg-[var(--color-accent)] file:text-[var(--color-on-accent)] file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
         </div>
       </AppleCard>
@@ -94,7 +95,7 @@ export default function NewArticlePage() {
         </AppleCard>
         <div className="flex gap-3">
           <AppleButton type="submit" loading={saving} className="p-2" aria-label="创建"><FilePlus size={16} /></AppleButton>
-          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} className="p-1.5" aria-label="取消"><X size={16} /></AppleButton>
+          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} className="p-3.5" aria-label="取消"><X size={16} /></AppleButton>
         </div>
       </form>
     </div>

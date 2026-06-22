@@ -237,13 +237,14 @@ export default function ChatPage() {
           <select
             value={selectedKB}
             onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
+            aria-label="选择知识库"
             className="h-9 px-4 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[180px] cursor-pointer outline-none"
           >
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
           </select>
           {sessionId && (
-            <AppleButton variant="utility" className="p-1.5" aria-label="新对话" onClick={handleNewChat}>
+            <AppleButton variant="utility" className="p-3.5" aria-label="新对话" onClick={handleNewChat}>
               <Plus size={15} />
             </AppleButton>
           )}

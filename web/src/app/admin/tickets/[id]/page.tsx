@@ -17,6 +17,7 @@ import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
+import { Play, CheckCircle, XCircle, MessageSquare, Sparkles } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
@@ -95,22 +96,22 @@ export default function AdminTicketDetailPage() {
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
           <AppleButton onClick={() => handleAction('start')} loading={processing}>
-            开始处理
+            <Play size={15} /> 开始处理
           </AppleButton>
         )}
         {ticket.status === 2 && (
           <>
             <AppleButton onClick={() => handleAction('resolve')} loading={processing}>
-              标记解决
+              <CheckCircle size={15} /> 标记解决
             </AppleButton>
             <AppleButton variant="ghost" onClick={() => handleAction('request_info')} loading={processing}>
-              索要补充
+              <MessageSquare size={15} /> 索要补充
             </AppleButton>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
           <AppleButton variant="utility" onClick={() => handleAction('close')} loading={processing}>
-            关闭申告
+            <XCircle size={15} /> 关闭申告
           </AppleButton>
         )}
       </div>
@@ -128,11 +129,12 @@ export default function AdminTicketDetailPage() {
       )}
 
       <AppleCard className="mb-5">
-        <h3 className="mb-3 text-title font-semibold">生成知识候选</h3>
+        <h2 className="mb-3 text-title font-semibold">生成知识候选</h2>
         <div className="flex items-end gap-3">
           <select
             value={kbId}
             onChange={(e) => setKbId(Number(e.target.value))}
+            aria-label="选择知识库"
             className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)]"
           >
             <option value={0}>选择知识库...</option>
@@ -143,14 +145,14 @@ export default function AdminTicketDetailPage() {
             ))}
           </select>
           <AppleButton variant="ghost" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}>
-            生成
+            <Sparkles size={15} /> 生成
           </AppleButton>
         </div>
       </AppleCard>
 
       {ticket.records && ticket.records.length > 0 && (
         <AppleCard>
-          <h3 className="mb-3 text-title font-semibold">处理记录</h3>
+          <h2 className="mb-3 text-title font-semibold">处理记录</h2>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
               <span className="text-caption font-semibold">{actionLabel(record.action)}</span>

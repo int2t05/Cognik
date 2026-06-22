@@ -1,7 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
@@ -91,7 +90,7 @@ export default function TicketSubmitPage() {
         </AppleCard>
         <div className="flex gap-3">
           <AppleButton type="submit" loading={submitting} className="p-2" aria-label="提交申告"><Send size={16} /></AppleButton>
-          <AppleButton variant="ghost" type="button" className="p-1.5" aria-label="取消" onClick={() => router.push("/portal/tickets")}><X size={16} /></AppleButton>
+          <AppleButton variant="ghost" type="button" className="p-3.5" aria-label="取消" onClick={() => router.push("/portal/tickets")}><X size={16} /></AppleButton>
         </div>
       </form>
     </div>

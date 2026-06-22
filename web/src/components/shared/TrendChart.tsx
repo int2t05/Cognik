@@ -1,8 +1,9 @@
-/** TrendChart — 申告/问答趋势柱状图，支持日期范围选择。 */
+/** TrendChart — 申告/问答趋势柱状图，支持日期范围选择。自定义范围上限 30 天。 */
 'use client';
 
 import { useState } from 'react';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Calendar } from 'lucide-react';
 
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
 
@@ -14,6 +15,9 @@ interface TrendChartProps {
   onDateRangeChange: (range: { start: string; end: string }) => void;
 }
 
+/** 最大自定义查询天数 */
+const MAX_CUSTOM_DAYS = 30;
+
 const PRESETS = [
   { label: '昨天', days: 1 },
   { label: '7 天', days: 7 },
@@ -24,13 +28,20 @@ function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
 
+/** 计算两个日期字符串之间的天数差 */
+function daysBetween(start: string, end: string): number {
+  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+}
+
 export function TrendChart({ data, loading, error, dateRange, onDateRangeChange }: TrendChartProps) {
   const [customStart, setCustomStart] = useState(dateRange.start);
   const [customEnd, setCustomEnd] = useState(dateRange.end);
   const [activePreset, setActivePreset] = useState<number>(7);
+  const [rangeError, setRangeError] = useState('');
 
   const applyPreset = (days: number) => {
     setActivePreset(days);
+    setRangeError('');
     const end = new Date().toISOString().slice(0, 10);
     const start = daysAgo(days);
     setCustomStart(start);
@@ -40,6 +51,16 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
 
   const applyCustom = () => {
     if (!customStart || !customEnd) return;
+    const diff = daysBetween(customStart, customEnd);
+    if (diff > MAX_CUSTOM_DAYS) {
+      setRangeError(`日期范围不能超过 ${MAX_CUSTOM_DAYS} 天（当前 ${diff} 天）`);
+      return;
+    }
+    if (diff < 0) {
+      setRangeError('结束日期不能早于开始日期');
+      return;
+    }
+    setRangeError('');
     setActivePreset(0);
     onDateRangeChange({ start: customStart, end: customEnd });
   };
@@ -53,9 +74,9 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             <button
               key={p.days}
               onClick={() => applyPreset(p.days)}
-              className={`px-3 py-1.5 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition ${
+              className={`px-3 py-1.5 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition font-medium ${
                 activePreset === p.days
-                  ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+                  ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm'
                   : 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-hairline)]'
               }`}
             >
@@ -63,10 +84,11 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             </button>
           ))}
           <span className="text-[var(--color-hairline)]">|</span>
+          <Calendar size={14} className="text-[var(--color-text-muted-48)] shrink-0" />
           <input
             type="date"
             value={customStart}
-            onChange={(e) => setCustomStart(e.target.value)}
+            onChange={(e) => { setCustomStart(e.target.value); setRangeError(''); }}
             className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="开始日期"
           />
@@ -74,7 +96,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
           <input
             type="date"
             value={customEnd}
-            onChange={(e) => setCustomEnd(e.target.value)}
+            onChange={(e) => { setCustomEnd(e.target.value); setRangeError(''); }}
             className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
@@ -86,6 +108,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
           </button>
         </div>
       </div>
+      {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}
 
       {loading ? (
         <div className="flex justify-center py-16"><AppleSpinner /></div>
@@ -100,50 +123,51 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
   );
 }
 
-/** 横排日期标签 + 柱状条，标签在柱下方自然排列 */
+/**
+ * 柱状图渲染。
+ * 日期标签始终横排显示在柱下方，通过自动步长避免拥挤。
+ * 短周期（≤10 天）全部标注，长周期每隔 ~6 天标注一次。
+ */
 function Chart({ data }: { data: TrendPoint[] }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.ticket_count, d.chat_count)), 1);
-  // 7 天数据全部标注，30 天数据每隔 5 天标注一次
   const labelStep = data.length <= 10 ? 1 : Math.ceil(data.length / 6);
 
   return (
     <>
-      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-[2px] h-[180px] overflow-x-auto pb-1">
-        {data.map((d, i) => (
+      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-[3px] h-[200px] pb-1">
+        {data.map((d) => (
           <div key={d.date} className="flex-1 flex flex-col items-center justify-end min-w-0">
-            <div className="flex gap-px items-end h-[140px]">
+            <div className="flex gap-px items-end h-[160px]">
               <div
                 title={`${d.date} 申告: ${d.ticket_count}`}
-                className="w-[10px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0"
-                style={{ height: `${(d.ticket_count / maxVal) * 140}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
+                className="w-[12px] rounded-t-[3px] bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
+                style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
               <div
                 title={`${d.date} 问答: ${d.chat_count}`}
-                className="w-[10px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0"
-                style={{ height: `${(d.chat_count / maxVal) * 140}px`, minHeight: d.chat_count > 0 ? 4 : 0 }}
+                className="w-[12px] rounded-t-[3px] bg-[var(--color-success)] opacity-70 min-h-0 transition-[height] duration-300"
+                style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.chat_count > 0 ? 4 : 0 }}
               />
             </div>
           </div>
         ))}
       </div>
-      {/* 横排日期标签 */}
-      <div className="flex gap-[2px] mt-2 overflow-x-auto">
+      {/* 横排日期标签 — 始终水平排列，无横向滚动 */}
+      <div className="flex gap-[3px] mt-2">
         {data.map((d, i) => (
           <div key={d.date} className="flex-1 min-w-0 text-center">
-            {i % labelStep === 0 && (
-              <span className="text-fine text-[var(--color-text-muted-48)] whitespace-nowrap">
-                {d.date.slice(5)}
-              </span>
-            )}
+            <span className={`text-fine text-[var(--color-text-muted-48)] whitespace-nowrap ${i % labelStep !== 0 ? 'invisible' : ''}`}>
+              {d.date.slice(5)}
+            </span>
           </div>
         ))}
       </div>
       <div className="flex gap-4 justify-center mt-3 text-fine text-[var(--color-text-muted-48)]">
-        <span className="inline-flex items-center gap-1">
-          <span className="w-[10px] h-[10px] rounded inline-block bg-[var(--color-accent)]" /> 申告
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-[10px] h-[10px] rounded-sm inline-block bg-[var(--color-accent)]" /> 申告
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-[10px] h-[10px] rounded inline-block bg-[var(--color-success)] opacity-70" /> 问答
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-[10px] h-[10px] rounded-sm inline-block bg-[var(--color-success)] opacity-70" /> 问答
         </span>
       </div>
     </>

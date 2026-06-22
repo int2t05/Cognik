@@ -64,13 +64,36 @@
 - 🟡 audit.ts 是唯一使用 `URLSearchParams` 构建查询参数的模块，其他模块用字符串拼接 — 保留（需统一重构）
 - 🟡 门户端/管理端 API 命名不一致（`getMy*` vs `listAll*` vs `getPortal*`）— 保留（需统一重构）
 
-## 6. 页面状态处理
+## 6. 可访问性
 
-- 🟢 heading 跳跃 — `admin/tickets/[id]/page.tsx` h1→h3 跳过 h2。保留（微调，非阻塞）
+- ✅ 3 处 `<select>` / `<input type="file">` 缺 aria-label — 已补全（本轮 #3）
+- ✅ heading 跳跃 h1→h3 跳过 h2 — 三处 h3→h2 已修正（本轮 #3）
+- 🟢 表格操作列 header 空 title=""，屏幕阅读器会读出空白列头 — `admin/roles/page.tsx`、`admin/users/page.tsx`
+
+## 7. 设计系统一致性
+
+- 🔴 `--color-text-muted-48: #666` 暗色模式对比度 2.93:1，远低于 WCAG AA 4.5:1 要求 — `globals.css`
+- 🔴 `--color-warning: #ff9500` 在白色背景上对比度 2.21:1，远低于 WCAG AA — `globals.css`（ChatMessage 低置信度告警使用）
+- 🟡 Toast 组件全量使用内联样式，绕过 Tailwind 主题系统 — `hooks/useToast.tsx`
+- 🟡 筛选按钮样式 9 行 className 在 `admin/tickets/page.tsx` 和 `admin/knowledge/[kbId]/page.tsx` 完全重复，应提取为共享组件
+- 🟢 页面标题 `text-hero font-semibold text-[var(--color-ink)]` 在 18 处重复，可提取为 `<PageTitle>` 组件
+- 🟢 错误消息 `text-[var(--color-error)] text-caption mb-4` 在 8 处重复
+- 🟢 审计页输入框基础样式在 5 处重复，可提取或复用 AppleInput
+- 🟢 ChatMessage 使用硬编码 `rounded-tr-[6px]`/`rounded-tl-[6px]`，应使用 radius token
+- 🟢 404 页使用硬编码 `text-[72px]`，不在设计系统的 type scale 内
+
+## 8. 代码清理
+
+- ✅ `truncate()` 死代码移除 — `lib/format.ts`
+- ✅ `formatDateOnly()` 死代码移除 — `lib/date.ts`
+- ✅ `ErrorFallback` 去导出（仅内部使用）— `components/ErrorBoundary.tsx`
+- ✅ 重复 `useRouter` import 合并 — `portal/tickets/new/page.tsx`
+- 🟡 4 个 API 函数未被导入（`getDocStatus`/`retryDoc`/`getLLMConfigDetail`/`addTicketRecord`）— 保留（API 层完整性）
+- 🟡 `logout` 函数未被导入 — 保留（`lib/api/auth.ts`，useAuth 有自己的 logout）
+
+## 9. 基础设施
+
 - 🟡 零代码分割 — 保留（需 `next/dynamic` 架构变更）
-
-## 7. 基础设施
-
 - 🟢 全局 ErrorBoundary 仅顶层一个，SectionErrorBoundary 已包裹 AdminLayout 内容区 — 页面级仍无守卫
 
 ---
@@ -92,58 +115,62 @@
 | | 🔴 P0 | 🟡 P1 | 🟢 P2 |
 |---|---|---|---|
 | 后端（保留） | 0 | 9 | 3 |
-| 前端（保留） | 0 | 5 | 7 |
-| **合计** | **0** | **14** | **10** |
+| 前端（保留） | 0 | 8 | 9 |
+| **合计** | **0** | **17** | **12** |
 
 ---
 
-## 本轮修复（2026-06-22）— 前端 TODO 全量清零
+## 本轮修复（2026-06-22 #2）— UI/UX 精细化 + 代码审查
 
-**修复 16 项代码 TODO，7 项文档 TODO。**
+### 趋势图
 
-### 认证与授权
+- ✅ 自定义日期范围上限 30 天，超限显示具体错误提示
+- ✅ 日期标签横向排列，移除 overflow-x-auto 滚动
+- ✅ 柱状图高度 140→160px，柱宽 10→12px，间距优化
+- ✅ 添加 Calendar 图标，清除范围错误联动
 
-- ✅ `AdminLayout.tsx` — `logout()` 改为 async/await，跳转前等待会话清除；侧栏宽度提取常量
-- ✅ `PortalLayout.tsx` — `logout()` 改为 async/await
+### 数据看板
 
-### 智能问答
+- ✅ 统计卡片 grid gap-3→gap-4，padding p-4→p-5
+- ✅ 卡片值 text-hero→保持 hero，font-semibold→font-bold，hover 微阴影
+- ✅ 卡片 icon-label 间距 mb-2→mb-3，label 加 font-medium
 
-- ✅ `chat/page.tsx` — feedback 改为按消息维度 `Record<string, number>` 存储
-- ✅ `chat/page.tsx` — `handleSelectSession` 回退逻辑修复（`prevId` 捕获）
-- ✅ `useChatStream.ts` — 卸载清理设置 `userAborted=true`
-- ✅ `ChatMessage.tsx` — 置信度添加 `Number.isFinite` 守卫
-- ✅ `ChatPipeline.tsx` — `success=undefined` 区分为 pending 态（灰底）
+### 申告/知识筛选
 
-### 知识库管理
+- ✅ 筛选按钮 icon-only 改为 icon+文字，icont 15px+label，字体 font-medium
+- ✅ 非激活态 bg-pearl→bg-canvas+border-hairline，hover 变 bg-pearl
+- ✅ 激活态添加 shadow-sm 增强层次
 
-- ✅ `new/page.tsx` — 文档上传改用 `uploadDocuments()` 统一 API 客户端，移除 raw fetch 和手动 Authorization
+### 按钮图标全量补全
 
-### 表单与交互
+- ✅ admin/tickets/[id] — 开始处理(Play)、标记解决(CheckCircle)、索要补充(MessageSquare)、关闭(XCircle)、生成(Sparkles)
+- ✅ admin/knowledge/[kbId]/[articleId] — 提交审核(Send)、通过(CheckCircle)、驳回(XCircle)、发布(Rocket)、停用(Pause)、启用(Play)、保存(CheckCircle)、取消(XCircle)
+- ✅ change-password — 修改密码(Key)
+- ✅ login — 已有 LogIn ✓
 
-- ✅ `AppleInput.tsx` — 错误态添加 `aria-invalid="true"` + `aria-describedby` + `role="alert"`
-- ✅ `ApplePagination.tsx` — select 添加 `aria-label="每页条数"`
-- ✅ `PortalLayout.tsx` — OpsMind 品牌按钮补全 Space 键处理
-- ✅ `change-password/page.tsx` — 提交期间禁用输入框
+### 触控目标 44×44px 扫尾
 
-### 组件架构
+- ✅ 全站 `p-1.5`→`p-3.5`（所有 icon-only AppleButton）
+- ✅ PortalLayout 主题切换/登出 `p-1`→`p-2`
+- ✅ PortalLayout 后台管理 `p-1.5`→`p-3.5`
+- ✅ AdminLayout 侧栏折叠 `p-1`→`p-3`，消息/主题 `py-2`→`py-2.5`
+- ✅ portal/chat 新对话 `p-1.5`→`p-3.5`
+- ✅ portal/messages 查看按钮 `p-1.5`→`p-3.5`
+- ✅ portal/tickets/[id] 返回/提交补充 `p-1.5`→`p-3.5`
+- ✅ portal/tickets/new 取消 `p-1.5`→`p-3.5`
+- ✅ articleId 返回/编辑 `p-1.5`→`p-3.5`
 
-- ✅ `AppleBadge.tsx` — 显式 `import type { CSSProperties } from 'react'`
-- ✅ `AdminLayout.tsx` — 侧栏宽度提取为 `SIDEBAR_COLLAPSED_WIDTH` / `SIDEBAR_EXPANDED_WIDTH` 常量
-- ✅ `AdminLayout.tsx` — `depthPadding` 折叠态返回空字符串
-- ✅ `AppleDialog.tsx` — Overlay 移除无效 `flex items-center justify-center`
+### 代码审查新增待办
 
-### 数据看板与审计
-
-- ✅ `dashboard/page.tsx` — `useMemo(Date)` 改为立即执行函数
-- ✅ `audit/page.tsx` — `page`/`filters.page` 双状态合并为单一 `params` 源
-
-### API 层
-
-- ✅ `client.ts` — `swrFetcher` 规范化（保留以备统一 SWR fetcher 模式）
-
-### 页面状态处理
-
-- ✅ `audit/page.tsx` — 添加 SWR error 渲染
-- ✅ `articleId/page.tsx` — 编辑保存添加 `editSaving` loading 态
-
-**保留/延期 5 项：** 虚拟列表 estimateSize、骨架屏、Toast→内联校验、required 标记、零代码分割。
+- ✅ 暗色模式 `--color-text-muted-48` 对比度修复（#666→#999 达 5.5:1）— 本轮 #3
+- ✅ `--color-error` 对比度修复（#ff3b30→#dc2626 达 4.95:1）— 本轮 #3
+- ✅ `--badge-warning-text` 对比度修复（#b86500→#8a4a00 达 5.2:1）— 本轮 #3
+- ✅ `--badge-neutral-text` 对比度修复（#6e6e73→#5e5e63 达 4.8:1）— 本轮 #3
+- ✅ ChatMessage 低置信度告警改用 `--badge-warning-text` — 本轮 #3
+- ✅ 3 处 aria-label 缺失补全 — 本轮 #3
+- ✅ heading 跳跃修复（h3→h2 三处）— 本轮 #3
+- ✅ 死代码清理（truncate/formatDateOnly/ErrorFallback 去导出）— 本轮 #3
+- ✅ 重复 import 合并 — 本轮 #3
+- 🟡 Toast 迁移至 Tailwind
+- 🟡 筛选按钮提取为 `<FilterBar>` 共享组件
+- 🟢 页面标题/错误消息提取为共享组件

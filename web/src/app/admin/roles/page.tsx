@@ -99,8 +99,8 @@ export default function RoleManagePage() {
           { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
           { key: 'permissions', title: '权限', render: (r) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(r.permissions as string[]).join(', ') || '—'}</span> },
           { key: 'actions', title: '', render: (r) => <div className="flex gap-1">
-            <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}><Pencil size={14} /></AppleButton>
-            <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteId(r.id as number)}><Trash2 size={14} /></AppleButton>
+            <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}><Pencil size={14} /></AppleButton>
+            <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteId(r.id as number)}><Trash2 size={14} /></AppleButton>
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"

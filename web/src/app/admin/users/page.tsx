@@ -91,9 +91,9 @@ export default function UserListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
           { key: 'actions', title: '', render: (r) => <div className="flex gap-1">
-            <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(r)}><Pencil size={14} /></AppleButton>
-            {r.status === 1 ? <AppleButton variant="utility" className="p-1.5" aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}><Lock size={14} /></AppleButton>
-              : <AppleButton variant="utility" className="p-1.5" aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}><Unlock size={14} /></AppleButton>}
+            <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(r)}><Pencil size={14} /></AppleButton>
+            {r.status === 1 ? <AppleButton variant="utility" className="p-3.5" aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}><Lock size={14} /></AppleButton>
+              : <AppleButton variant="utility" className="p-3.5" aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}><Unlock size={14} /></AppleButton>}
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"

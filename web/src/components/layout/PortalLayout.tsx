@@ -59,16 +59,16 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)] flex transition hover:opacity-70">
+          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-2 text-[var(--color-ink)] flex transition hover:opacity-70">
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           {isAdmin && (
-            <AppleButton variant="utility" className="p-1.5" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
+            <AppleButton variant="utility" className="p-3.5" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
               <Shield size={15} />
             </AppleButton>
           )}
           <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name}</span>
-          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-1 hover:text-[var(--color-ink)] transition">
+          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-2 hover:text-[var(--color-ink)] transition">
             <LogOut size={15} />
           </button>
         </div>

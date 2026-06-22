@@ -12,12 +12,12 @@ import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } f
 import { useDebounce } from '@/hooks/useDebounce';
 
 const FILTERS = [
-  { v: -1, label: '全部申告', icon: <ListFilter size={17} /> },
-  { v: 1, label: '待处理', icon: <AlertCircle size={17} /> },
-  { v: 2, label: '处理中', icon: <Clock size={17} /> },
-  { v: 3, label: '需补充信息', icon: <MessageSquare size={17} /> },
-  { v: 4, label: '已解决', icon: <CheckCircle size={17} /> },
-  { v: 5, label: '已关闭', icon: <XCircle size={17} /> },
+  { v: -1, label: '全部', icon: <ListFilter size={15} /> },
+  { v: 1, label: '待处理', icon: <AlertCircle size={15} /> },
+  { v: 2, label: '处理中', icon: <Clock size={15} /> },
+  { v: 3, label: '需补充', icon: <MessageSquare size={15} /> },
+  { v: 4, label: '已解决', icon: <CheckCircle size={15} /> },
+  { v: 5, label: '已关闭', icon: <XCircle size={15} /> },
 ];
 
 export default function AdminTicketListPage() {
@@ -47,13 +47,14 @@ export default function AdminTicketListPage() {
             key={o.v}
             onClick={() => { setStatus(o.v); setPage(1); }}
             aria-label={o.label}
-            className={`p-2 border rounded-[var(--radius-pill)] cursor-pointer transition ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-caption font-medium rounded-[var(--radius-pill)] border cursor-pointer transition ${
               status === o.v
-                ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)]'
-                : 'bg-[var(--color-pearl)] border-[var(--color-divider-soft)] text-[var(--color-text-muted-80)] hover:border-[var(--color-hairline)]'
+                ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm'
+                : 'bg-[var(--color-canvas)] border-[var(--color-hairline)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-pearl)] hover:border-[var(--color-divider-soft)]'
             }`}
           >
             {o.icon}
+            <span>{o.label}</span>
           </button>
         ))}
       </div>

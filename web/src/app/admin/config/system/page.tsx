@@ -62,7 +62,7 @@ function ConfigRow({ label, configKey, value, onSaved }: { label: string; config
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{currentVal || '—'}</span>
-          <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={startEdit}><Pencil size={14} /></AppleButton>
+          <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={startEdit}><Pencil size={14} /></AppleButton>
         </>
       )}
     </div>

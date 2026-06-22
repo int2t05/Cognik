@@ -40,7 +40,7 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" className="p-1.5" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={15} /></AppleButton>
+        <AppleButton variant="ghost" className="p-3.5" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={15} /></AppleButton>
       </div>
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-5 items-center flex-wrap">

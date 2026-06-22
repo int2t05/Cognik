@@ -75,12 +75,12 @@ export default function KnowledgeListPage() {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/knowledge/${kb.id}`); } }}
           >
             <div>
-              <h3 className="text-title font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h3>
+              <h2 className="text-title font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h2>
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <AppleButton variant="ghost" className="p-1.5" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil size={14} /></AppleButton>
-              <AppleButton variant="utility" className="p-1.5" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 size={14} /></AppleButton>
+              <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil size={14} /></AppleButton>
+              <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 size={14} /></AppleButton>
             </div>
           </AppleCard>
         ))}

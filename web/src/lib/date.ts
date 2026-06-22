@@ -17,19 +17,3 @@ export function formatDate(dateStr: string | null | undefined): string {
     return dateStr;
   }
 }
-
-/** 格式化为期日期 (仅日期) */
-export function formatDateOnly(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
-}

@@ -6,6 +6,7 @@ import { changePassword } from '@/lib/api/auth';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { useToast } from '@/hooks/useToast';
+import { Key } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState('');
@@ -41,7 +42,7 @@ export default function ChangePasswordPage() {
           <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} />
           <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} />
           <div className="mt-6">
-            <AppleButton type="submit" loading={loading} className="w-full">修改密码</AppleButton>
+            <AppleButton type="submit" loading={loading} className="w-full"><Key size={15} /> 修改密码</AppleButton>
           </div>
         </form>
       </div>
