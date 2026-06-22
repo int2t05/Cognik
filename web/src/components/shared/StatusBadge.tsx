@@ -1,4 +1,6 @@
-/** StatusBadge — 状态标签。优先使用后端返回的 status_text，否则回退到前端映射。 */
+/** StatusBadge — 领域状态标签。将领域状态码映射为 AppleBadge 语义变体。 */
+import { AppleBadge } from '@/components/ui/AppleBadge';
+
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 const TICKET_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
@@ -34,16 +36,6 @@ const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> =
   disabled: { label: '已停用', variant: 'neutral' },
 };
 
-/** 使用 CSS 变量实现亮/暗双主题 — 变量在 globals.css `:root` 和 `[data-theme="dark"]` 中定义 */
-function badgeStyle(v: BadgeVariant): React.CSSProperties {
-  return {
-    backgroundColor: `var(--badge-${v}-bg)`,
-    color: `var(--badge-${v}-text)`,
-  };
-}
-
-const baseClass = 'inline-flex px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)]';
-
 interface StatusBadgeProps {
   type: 'ticket' | 'user' | 'article' | 'process';
   status: number | string;
@@ -52,15 +44,10 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
+  // 后端返回 status_text 时优先使用
+  if (statusText) return <AppleBadge variant="neutral" label={statusText} />;
+
   let entry: { label: string; variant: BadgeVariant } | undefined;
-
-  if (statusText)
-    return (
-      <span className={baseClass} style={badgeStyle('neutral')}>
-        {statusText}
-      </span>
-    );
-
   switch (type) {
     case 'ticket': entry = TICKET_STATUS[status as number]; break;
     case 'user': entry = USER_STATUS[status as number]; break;
@@ -68,16 +55,7 @@ export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
     case 'process': entry = PROCESS_STATUS[status as string]; break;
   }
 
-  if (!entry)
-    return (
-      <span className={baseClass} style={badgeStyle('neutral')}>
-        {String(status)}
-      </span>
-    );
+  if (!entry) return <AppleBadge variant="neutral" label={String(status)} />;
 
-  return (
-    <span className={baseClass} style={badgeStyle(entry.variant)}>
-      {entry.label}
-    </span>
-  );
+  return <AppleBadge variant={entry.variant} label={entry.label} />;
 }

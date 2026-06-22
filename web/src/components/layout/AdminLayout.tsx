@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { getUnreadCount } from '@/lib/api/message';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { isActivePath } from '@/lib/menu';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
@@ -52,19 +52,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return false;
   });
   const [expandedMenus, setExpandedMenus] = useState<Set<number>>(new Set());
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount } = useUnreadCount();
 
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', String(collapsed));
   }, [collapsed]);
-
-  // 消息轮询
-  useEffect(() => {
-    const fetch = () => { getUnreadCount().then((d) => setUnreadCount(d.count)).catch(() => {}); };
-    fetch();
-    const t = setInterval(fetch, 30000);
-    return () => clearInterval(t);
-  }, []);
 
   const toggleSubmenu = (id: number) => {
     setExpandedMenus((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });

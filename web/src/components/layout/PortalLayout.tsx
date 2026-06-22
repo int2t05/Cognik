@@ -2,11 +2,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { getUnreadCount } from '@/lib/api/message';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { MessageSquare, TicketPlus, ListTodo, Bot, Sun, Moon, Shield, LogOut } from 'lucide-react';
 
@@ -22,15 +21,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount } = useUnreadCount();
   const isAdmin = menus.length > 0;
-
-  useEffect(() => {
-    const fetch = () => { getUnreadCount().then((d) => setUnreadCount(d.count)).catch(() => {}); };
-    fetch();
-    const t = setInterval(fetch, 30000);
-    return () => clearInterval(t);
-  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)]">

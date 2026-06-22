@@ -102,17 +102,17 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	userSvc := service.NewUserService(userRepo, auditRepo, db, userCache)
 	roleSvc := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
 	messageSvc := service.NewMessageService(messageRepo)
-	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), messageSvc, nil)
+	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), messageSvc, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
 	dashboardSvc := service.NewDashboardService(dashboardRepo)
 	configSvc := service.NewConfigService(configRepo, auditRepo)
 	auditSvc := service.NewAuditService(auditRepo)
 
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditRepo)
 	require.NoError(t, err)
 
 	knowledgeSvc := service.NewKnowledgeService(knowledgeRepo,
 		service.WithUserNames(userRepo), service.WithAuditRepo(auditRepo))
-	ticketSvc.SetKnowledgeService(knowledgeSvc)
+	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
 
 	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,

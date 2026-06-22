@@ -108,7 +108,7 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 
 	// 创建 LLM 配置
 	llmConfigRepo := repository.NewLlmConfigRepo(knowledgeSvcDB)
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}

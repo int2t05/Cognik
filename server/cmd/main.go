@@ -191,7 +191,7 @@ func wireApp() (*app, error) {
 	auditRepo := repository.NewAuditRepo(db)
 	dashboardRepo := repository.NewDashboardRepo(db)
 
-	// 5. Service 层
+	// 5. Service 层（无 RAG 依赖的部分）
 	txManager := service.NewGormTxManager(db)
 	menuRepo := repository.NewMenuRepo(db)
 
@@ -203,12 +203,11 @@ func wireApp() (*app, error) {
 	userService := service.NewUserService(userRepo, auditRepo, db, userCache)
 	roleService := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
 	messageService := service.NewMessageService(messageRepo)
-	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, nil)
 	dashboardService := service.NewDashboardService(dashboardRepo)
 	configService := service.NewConfigService(configRepo, auditRepo)
 
 	llmConfigRepo := repository.NewLlmConfigRepo(db)
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditRepo)
 	if err != nil {
 		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
 	}
@@ -261,7 +260,10 @@ func wireApp() (*app, error) {
 		service.WithAuditRepo(auditRepo),
 	)
 	slog.Info("KnowledgeService 已初始化")
-	ticketService.SetKnowledgeService(knowledgeService)
+
+	// TicketService 依赖 KnowledgeService 的 CreateArticle（知识候选），
+	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
+	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, knowledgeService)
 
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")

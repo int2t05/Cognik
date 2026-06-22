@@ -28,22 +28,34 @@ import (
 	"gorm.io/gorm"
 )
 
+// KnowledgeCandidateSaver 知识候选保存接口。
+//
+// TicketService 仅需从申告创建知识候选文章，不需要完整的 KnowledgeService。
+// 消费者接口模式消除了两阶段构造（New + Setter）的循环依赖 workaround。
+type KnowledgeCandidateSaver interface {
+	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) error
+}
+
 // TicketService 申告管理服务。
 type TicketService struct {
-	repo      *repository.TicketRepo
-	txManager TxManager
-	msgSvc    *MessageService
-	kbSvc     *KnowledgeService
+	repo              *repository.TicketRepo
+	txManager         TxManager
+	msgSvc            *MessageService
+	knowledgeCandidate KnowledgeCandidateSaver
 }
 
 // NewTicketService 创建 TicketService 实例。
-func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, kbSvc *KnowledgeService) *TicketService {
-	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, kbSvc: kbSvc}
+//
+// knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
+// 所有依赖在构造时注入，对象始终处于有效状态。
+func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver) *TicketService {
+	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate}
 }
 
-// SetKnowledgeService 延迟注入 KnowledgeService（解决循环依赖）。
-func (s *TicketService) SetKnowledgeService(kbSvc *KnowledgeService) {
-	s.kbSvc = kbSvc
+// SetKnowledgeCandidate 延迟注入知识候选保存接口。
+// 仅用于集成测试等需要两阶段构造的场景。
+func (s *TicketService) SetKnowledgeCandidate(kc KnowledgeCandidateSaver) {
+	s.knowledgeCandidate = kc
 }
 
 // =============================================================================
@@ -545,10 +557,10 @@ func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, 
 		Content: answer,
 	}
 
-	if s.kbSvc == nil {
+	if s.knowledgeCandidate == nil {
 		return AppError{Code: errcode.ErrUnknown, Message: "知识库服务未初始化"}
 	}
-	if err := s.kbSvc.CreateArticle(ctx, articleReq, userID); err != nil {
+	if err := s.knowledgeCandidate.CreateArticle(ctx, articleReq, userID); err != nil {
 		return err
 	}
 

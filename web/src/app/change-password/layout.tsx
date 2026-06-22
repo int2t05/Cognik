@@ -1,7 +1,4 @@
-'use client';
-
-import { AuthProvider } from '@/hooks/useAuth';
-
+/** 修改密码页无需独立布局，AuthProvider 已在根 Providers 中挂载。 */
 export default function ChangePasswordLayout({ children }: { children: React.ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>;
+  return <>{children}</>;
 }

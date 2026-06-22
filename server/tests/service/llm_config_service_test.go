@@ -21,7 +21,7 @@ func setupLLMConfigService(t *testing.T) *service.LLMConfigService {
 	// 清空旧数据，避免默认配置唯一索引冲突
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
 	repo := repository.NewLlmConfigRepo(knowledgeSvcDB)
-	svc, err := service.NewLLMConfigService(repo)
+	svc, err := service.NewLLMConfigService(repo, knowledgeSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}

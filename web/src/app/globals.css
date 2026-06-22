@@ -24,7 +24,6 @@
   --color-accent: #0066cc;
   --color-accent-hover: #0055aa;
   --color-accent-focus: #0071e3;
-  --color-accent-dark: #2997ff;
 
   /* 画布 */
   --color-canvas: #ffffff;
@@ -33,14 +32,10 @@
 
   /* 暗色瓦片 */
   --color-tile-1: #272729;
-  --color-tile-2: #2a2a2c;
-  --color-tile-3: #252527;
-  --color-black: #000000;
 
   /* 文字 */
   --color-ink: #1d1d1f;
   --color-text-body: #1d1d1f;
-  --color-text-muted: #cccccc;
   --color-text-muted-80: #333333;
   --color-text-muted-48: #7a7a7a;
 
@@ -53,7 +48,6 @@
   --color-warning: #ff9500;
   --color-error: #ff3b30;
   --color-info: #007aff;
-  --color-neutral: #8e8e93;
 
   /* 徽章语义色 — 亮色主题 */
   --badge-success-bg: #e8f8ed;
@@ -69,7 +63,6 @@
 
   /* 字体 */
   --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
   /* 圆角 */
   --radius-sm: 8px;
@@ -78,14 +71,7 @@
   --radius-pill: 9999px;
 
   /* 阴影 */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.15);
-
-  /* 间距 */
-  --spacing-section: 80px;
-  --spacing-sidebar: 220px;
-  --spacing-sidebar-collapsed: 64px;
-  --spacing-topbar: 52px;
 }
 
 /* ===== 暗色主题 ===== */
@@ -97,15 +83,12 @@
   --color-parchment: #161618;
   --color-pearl: #2a2a2c;
   --color-tile-1: #000000;
-  --color-tile-2: #1a1a1c;
-  --color-tile-3: #0d0d0f;
   --color-ink: #f5f5f7;
   --color-text-body: #f5f5f7;
   --color-text-muted-80: #cccccc;
   --color-text-muted-48: #666666;
   --color-divider-soft: rgba(255, 255, 255, 0.08);
   --color-hairline: rgba(255, 255, 255, 0.12);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
 
   /* 徽章语义色 — 暗色主题 */
   --badge-success-bg: rgba(52, 199, 89, 0.15);

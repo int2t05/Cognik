@@ -6,7 +6,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -76,23 +75,19 @@ type LLMConfigService struct {
 }
 
 // NewLLMConfigService 创建 LLMConfigService 实例。
-// repo 可以是 *repository.LlmConfigRepo 或测试 mock。
+//
+// repo 为数据访问接口（具体实现或测试 mock）。db 和 auditRepo 仅在完整服务构造时传入，
+// 测试可传 nil——此时不注册事务工厂和审计日志。
 // 返回 error 而非 panic，便于 main 统一处理装配错误。
-func NewLLMConfigService(repo interface{}) (*LLMConfigService, error) {
+func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditRepo *repository.AuditRepo) (*LLMConfigService, error) {
 	svc := &LLMConfigService{
-		manager: NewLLMConfigManager(),
+		repo:      repo,
+		manager:   NewLLMConfigManager(),
+		db:        db,
+		auditRepo: auditRepo,
 	}
-
-	switch r := repo.(type) {
-	case *repository.LlmConfigRepo:
-		svc.repo = r
-		svc.db = r.DB()
+	if db != nil {
 		svc.newRepo = func(tx *gorm.DB) llmConfigRepo { return repository.NewLlmConfigRepo(tx) }
-		svc.auditRepo = repository.NewAuditRepo(r.DB())
-	case llmConfigRepo:
-		svc.repo = r
-	default:
-		return nil, fmt.Errorf("NewLLMConfigService: unsupported repo type %T", repo)
 	}
 
 	if cfg, err := svc.repo.FindDefault(context.Background()); err == nil && cfg != nil {

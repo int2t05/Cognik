@@ -11,13 +11,15 @@ function badgeStyle(v: BadgeVariant): React.CSSProperties {
 export function AppleBadge({
   variant = 'neutral',
   label,
+  className = '',
 }: {
   variant?: BadgeVariant;
   label: string;
+  className?: string;
 }) {
   return (
     <span
-      className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)]"
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-[var(--radius-pill)] ${className}`}
       style={badgeStyle(variant)}
     >
       {label}

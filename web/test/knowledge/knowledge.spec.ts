@@ -33,7 +33,7 @@ test.describe('知识库管理', () => {
       const saveBtn = dialog.getByRole('button', { name: '保存' });
       if (await saveBtn.isVisible()) {
         await saveBtn.click();
-        await expect(page.getByText('E2E 测试知识库')).toBeVisible({ timeout: 5000 });
+        await expect(page.getByText('E2E 测试知识库').first()).toBeVisible({ timeout: 5000 });
       }
     }
   });

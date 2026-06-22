@@ -61,46 +61,15 @@ async function safeResJson(res: Response): Promise<unknown> {
   }
 }
 
-/** 通用 JSON API 调用，返回 data 字段 */
-export async function apiFetch<T>(
-  url: string,
-  options?: RequestInit
-): Promise<T> {
-  let res: Response;
-  try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options?.headers as Record<string, string>),
-    };
-    const token = _tokenGetter();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    res = await fetch(`${BASE_URL}${url}`, {
-      ...options,
-      headers,
-    });
-  } catch (err) {
-    // fetch 本身失败（网络不可达、CORS 等）
-    throw new Error(
-      err instanceof TypeError && err.message === 'Failed to fetch'
-        ? '后端服务不可达，请确认服务已启动（端口 8080）'
-        : err instanceof Error ? err.message : '网络请求失败'
-    );
-  }
-
-  const json = (await safeResJson(res)) as ApiResponse<T>;
-
-  if (json.code !== 0) {
-    throw new ApiError(json.code, json.message || `请求失败 (code=${json.code})`);
-  }
-
-  return json.data;
-}
-
-/** 分页 API 调用，返回类型安全的 PageResponse */
-export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+/**
+ * rawApiRequest 发送已认证的 API 请求，返回完整响应 JSON。
+ * apiFetch 和 apiFetchPage 共享此底层调用，消除重复的请求构造逻辑。
+ */
+async function rawApiRequest(url: string, options?: RequestInit): Promise<Record<string, unknown>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
   const token = _tokenGetter();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -108,17 +77,33 @@ export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${url}`, { headers });
-  } catch {
-    throw new Error('后端服务不可达，请确认服务已启动（端口 8080）');
+    res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+  } catch (err) {
+    throw new Error(
+      err instanceof TypeError && err.message === 'Failed to fetch'
+        ? '后端服务不可达，请确认服务已启动（端口 8080）'
+        : err instanceof Error ? err.message : '网络请求失败'
+    );
   }
 
   const json = (await safeResJson(res)) as Record<string, unknown>;
 
   if (json.code !== 0) {
-    throw new ApiError(json.code as number, json.message as string || `请求失败`);
+    throw new ApiError(json.code as number, json.message as string || `请求失败 (code=${json.code})`);
   }
 
+  return json;
+}
+
+/** 通用 JSON API 调用，返回 data 字段 */
+export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const json = await rawApiRequest(url, options);
+  return json.data as T;
+}
+
+/** 分页 API 调用，返回类型安全的 PageResponse */
+export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
+  const json = await rawApiRequest(url);
   return {
     items: json.data as T[],
     total: json.total as number,
