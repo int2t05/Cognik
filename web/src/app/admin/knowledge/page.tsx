@@ -50,8 +50,6 @@ export default function KnowledgeListPage() {
     finally { setDeleting(false); }
   };
 
-  if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
-
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -59,8 +57,10 @@ export default function KnowledgeListPage() {
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} className="p-2" aria-label="新建知识库"><BookPlus size={16} /></AppleButton>
       </div>
 
+      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+
       <div className="grid gap-4">
-        {!kbs ? <AppleSpinner /> : kbs.length === 0 ? (
+        {error ? null : !kbs ? <AppleSpinner /> : kbs.length === 0 ? (
           <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">
             暂无知识库，点击右上角"新建知识库"开始
           </div>

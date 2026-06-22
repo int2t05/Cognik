@@ -93,6 +93,7 @@ export default function RoleManagePage() {
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">角色管理</h1>
         <AppleButton onClick={openCreate} className="p-2" aria-label="新建角色"><ShieldPlus size={16} /></AppleButton>
       </div>
+      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <AppleTable
         columns={[
           { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
