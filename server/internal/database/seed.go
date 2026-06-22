@@ -109,10 +109,16 @@ func AutoSeed(db *gorm.DB) {
 }
 
 // findSeedSQL 查找 001_init.sql 文件。
+//
+// 按优先级搜索多个可能路径：
+//   - 本地开发：migrations/001_init.sql（当前目录）
+//   - Docker 容器：/app/migrations/001_init.sql（Dockerfile COPY 目标）
+//   - 开发备选：../migrations/001_init.sql
 func findSeedSQL() string {
 	paths := []string{
 		"migrations/001_init.sql",
 		filepath.Join("..", "migrations", "001_init.sql"),
+		"/app/migrations/001_init.sql",
 	}
 	for _, p := range paths {
 		if _, err := os.Stat(p); err == nil {

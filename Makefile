@@ -1,46 +1,83 @@
 # OpsMind Makefile — 构建和开发命令
 #
 # 使用方式：
-#   make dev          本地开发启动
+#   make dev          本地开发启动（仅启动依赖服务）
 #   make build        构建全部 Docker 镜像
-#   make up           启动全部服务
+#   make up           一键启动全部服务（含健康检查等待）
+#   make up-ai        启动含 llama.cpp 的完整 AI 环境
 #   make down         停止全部服务
-#   make test         运行全部测试
-#   make migrate      运行数据库迁移
-#   make seed         加载演示数据
+#   make down-v       停止并清除数据卷
+#   make restart      重启全部服务
+#   make logs         查看全部服务日志
+#   make status       查看服务运行状态
+#   make ps           查看服务运行状态（别名）
+#   make test         运行全部非集成测试
+#   make test-integration 运行集成测试（需 PostgreSQL opsmind_test 库）
+#   make seed         加载演示数据（含清空旧数据）
+#   make db-reset     清空所有数据（保留表结构）
+#   make db-init      清空并重新加载演示数据
+#   make db-drop      仅清空数据
+#   make shell-db     进入 PostgreSQL 交互终端
+#   make model-download 下载 llama.cpp GGUF 模型文件
+#   make clean        清理构建产物和运行时数据
 
-.PHONY: dev build up up-ai down down-v test test-integration migrate seed db-reset db-init db-drop clean help model-download
+.PHONY: help dev build up up-ai down down-v restart logs status ps test test-integration seed db-reset db-init db-drop shell-db model-download clean
 
 # 默认目标
 help:
 	@echo "OpsMind 构建和开发命令"
 	@echo ""
-	@echo "  make dev             本地开发启动（仅启动依赖服务）"
-	@echo "  make build           构建全部 Docker 镜像"
-	@echo "  make up              一键启动全部服务"
-	@echo "  make up-ai           启动含 llama.cpp 的完整 AI 环境"
-	@echo "  make down            停止全部服务"
-	@echo "  make down-v          停止并清除数据卷"
-	@echo "  make test            运行全部测试"
-	@echo "  make test-integration 运行集成测试"
-	@echo "  make seed            加载演示数据"
-	@echo "  make db-reset        清空所有数据（保留表结构）"
-	@echo "  make db-init         清空并重新加载演示数据"
-	@echo "  make db-drop         仅清空数据"
-	@echo "  make model-download  下载 llama.cpp 对话模型和 Embedding 模型（GGUF 格式）"
-	@echo "  make clean           清理构建产物和运行时数据"
+	@echo "  启动与部署："
+	@echo "    make dev             本地开发启动（仅启动依赖服务）"
+	@echo "    make build           构建全部 Docker 镜像"
+	@echo "    make up              一键启动全部服务（含健康检查等待）"
+	@echo "    make up-ai           启动含 llama.cpp 的完整 AI 环境"
+	@echo "    make down            停止全部服务"
+	@echo "    make down-v          停止并清除数据卷"
+	@echo "    make restart         重启全部服务"
+	@echo ""
+	@echo "  运维与监控："
+	@echo "    make logs            查看全部服务日志（Ctrl+C 退出）"
+	@echo "    make status          查看服务运行状态"
+	@echo "    make ps              查看服务运行状态（别名）"
+	@echo "    make shell-db        进入 PostgreSQL 交互终端"
+	@echo ""
+	@echo "  数据库："
+	@echo "    make seed            加载演示数据（幂等：DELETE + INSERT）"
+	@echo "    make db-reset        清空所有数据（保留表结构）"
+	@echo "    make db-init         先清空再加载演示数据"
+	@echo "    make db-drop         仅清空数据"
+	@echo ""
+	@echo "  测试："
+	@echo "    make test            运行全部非集成测试"
+	@echo "    make test-integration 运行集成测试（需 docker compose up -d postgres）"
+	@echo ""
+	@echo "  AI 模型："
+	@echo "    make model-download  下载 llama.cpp GGUF 模型文件"
+	@echo ""
+	@echo "  其他："
+	@echo "    make clean           清理构建产物和运行时数据"
 
 # ===== 本地开发 =====
 
 # 启动本地开发所需的依赖服务（PostgreSQL + MinIO）
 dev:
+	@echo "=== 启动依赖服务 ==="
 	docker compose up -d postgres minio
-	@echo "依赖服务已启动"
-	@echo "  PostgreSQL: localhost:5432"
-	@echo "  MinIO API:  localhost:9000"
-	@echo "  MinIO Web:  http://localhost:9001"
 	@echo ""
-	@echo "接下来手动启动："
+	@echo "等待 PostgreSQL 就绪..."
+	@timeout=30; while [ $$timeout -gt 0 ]; do \
+		if docker compose exec -T postgres pg_isready -U opsmind >/dev/null 2>&1; then \
+			echo "PostgreSQL 已就绪 ✓"; \
+			break; \
+		fi; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
+	done; \
+	if [ $$timeout -le 0 ]; then echo "PostgreSQL 启动超时！"; exit 1; fi
+	@echo "MinIO 已启动（API: :9000, Web: :9001）"
+	@echo ""
+	@echo "依赖服务已就绪，接下来手动启动："
 	@echo "  cd server && go run ./cmd/main.go"
 	@echo "  cd web && npm run dev"
 
@@ -50,37 +87,68 @@ dev:
 build:
 	docker compose build
 
-# 一键启动全部服务（4 个必须服务，不含 llama.cpp）
+# 一键启动全部服务（4 个必须服务，含健康检查等待）
 up:
-	docker compose up -d --build
+	docker compose up -d --build --wait
 	@echo ""
 	@echo "============================================"
-	@echo "  OpsMind 服务已启动"
+	@echo "  OpsMind 服务已启动（全部 healthy）"
 	@echo "============================================"
-	@echo "  前端:     http://localhost:5173"
+	@echo "  前端:     http://localhost:3000"
 	@echo "  后端 API: http://localhost:8080"
+	@echo "  数据库:   postgres:5432"
+	@echo "  MinIO:    http://localhost:9001 (Console)"
 	@echo ""
+	@echo "  种子数据已自动加载（首次启动）"
 	@echo "  如需启动 llama.cpp: make up-ai"
 	@echo "============================================"
 
 # 启动含 llama.cpp 的完整 AI 环境（需要先下载模型: make model-download）
 up-ai:
-	docker compose --profile ai-local up -d --build
+	docker compose --profile ai-local up -d --build --wait
 	@echo ""
-	@echo "llama.cpp 已启动。如果使用 OpenAI/DeepSeek 等云 API，"
-	@echo "只需要 make up 并在 .env 中配置 LLM_BASE_URL 即可。"
+	@echo "============================================"
+	@echo "  OpsMind + llama.cpp 已启动（全部 healthy）"
+	@echo "============================================"
+	@echo "  前端:       http://localhost:3000"
+	@echo "  后端 API:   http://localhost:8080"
+	@echo "  LLM API:    http://localhost:8081/v1"
+	@echo "  Embedding:  http://localhost:8082/v1"
+	@echo "============================================"
 
 # 停止全部服务
 down:
-	docker compose down
+	docker compose $(if $(filter ai-local,$(PROFILE)),--profile ai-local,) down
 
 # 停止并清除数据卷
 down-v:
 	docker compose down -v
 
+# 重启全部服务
+restart:
+	docker compose restart
+	@echo "服务已重启"
+
+# ===== 运维与监控 =====
+
+# 查看全部服务日志（Ctrl+C 退出）
+logs:
+	docker compose logs -f
+
+# 查看服务运行状态
+status:
+	docker compose ps
+
+# 查看服务运行状态（别名）
+ps: status
+
+# 进入 PostgreSQL 交互终端
+shell-db:
+	docker compose exec postgres psql -U opsmind -d opsmind
+
 # ===== 测试 =====
 
-# 运行全部测试（非集成）
+# 运行全部非集成测试
 test:
 	cd server && go test ./tests/pkg/... ./tests/middleware/... ./tests/router/... ./tests/config/... ./tests/adapter/... -v
 
@@ -90,17 +158,13 @@ test-integration:
 
 # ===== 数据库 =====
 
-# 数据库自动迁移（启动后端后自动执行，也可手动触发）
-migrate:
-	cd server && go run ./cmd/main.go &
-	sleep 5
-	@echo "数据库迁移已通过 AutoMigrate 完成"
-	kill %1 2>/dev/null || true
-
-# 加载演示数据（需要先启动 PostgreSQL）
+# 加载演示数据。
+#
+# 使用 scripts/seed-db.sh --reset 确保幂等：
+# 先 TRUNCATE 清空所有表，再 INSERT 种子数据。
+# 这样避免重复执行时的主键冲突。
 seed:
-	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/001_init.sql
-	@echo "演示数据加载完成"
+	@bash scripts/seed-db.sh --reset
 
 # 清空所有数据（保留表结构）
 db-reset:
@@ -156,6 +220,7 @@ model-download:
 # 清理构建产物和运行时数据
 clean:
 	docker compose down -v
+	docker builder prune -f
 	rm -rf server/bin/
 	rm -rf server/*.exe
 	rm -rf web/dist/

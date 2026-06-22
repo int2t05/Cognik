@@ -77,6 +77,9 @@ COPY --from=builder /go/pkg/mod/github.com/go-ego/gse@v1.0.2/data/ /go/pkg/mod/g
 COPY --from=builder /build/opsmind-server .
 COPY rerank_server.py .
 
+# 复制种子数据 SQL（AutoSeed 启动时自动检测并填充）
+COPY migrations/ ./migrations/
+
 EXPOSE 8080
 
 ENTRYPOINT ["./opsmind-server"]
