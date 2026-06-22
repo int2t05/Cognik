@@ -41,7 +41,7 @@ export default function AdminTicketListPage() {
       <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-5">申告管理</h1>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4 flex gap-3 items-center flex-wrap">
-        <AppleInput pill placeholder="搜索编号/标题/提交人..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
+        <AppleInput pill placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
         {FILTERS.map((o) => (
           <button
             key={o.v}

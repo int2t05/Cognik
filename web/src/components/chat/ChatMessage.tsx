@@ -1,7 +1,7 @@
 /**
  * ChatMessage — 豆包风格消息气泡：用户右对齐蓝底，AI 左对齐卡片底。
  */
-import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User } from 'lucide-react';
+import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, Circle } from 'lucide-react';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 
 interface SourceItem { doc_name: string; chunk_content: string; confidence: number; }
@@ -60,7 +60,7 @@ export function ChatMessage({
           <div className={`flex items-center gap-1.5 mt-2 text-fine ${
             confidence < 0.6 ? 'text-[var(--color-warning)]' : 'text-[var(--color-text-muted-48)]'
           }`}>
-            {confidence < 0.6 ? <AlertTriangle size={13} /> : <span className="opacity-50">●</span>}
+            {confidence < 0.6 ? <AlertTriangle size={13} /> : <Circle size={8} fill="currentColor" />}
             置信度 {Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : '—'}%
             {confidence < 0.6 && ' — 建议提交申告由人工处理'}
           </div>

@@ -171,7 +171,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
       {/* 移动端遮罩 */}
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/30 z-[var(--z-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 bg-black/40 z-[var(--z-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* 侧边栏 — 桌面端固定 240px，移动端 overlay */}

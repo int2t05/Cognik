@@ -84,7 +84,7 @@ export default function UserListPage() {
         <AppleButton onClick={openCreate} className="p-2" aria-label="新建用户"><UserPlus size={16} /></AppleButton>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4"><AppleInput pill placeholder="搜索用户..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
+      <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
         columns={[
           { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },

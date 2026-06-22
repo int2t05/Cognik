@@ -43,7 +43,7 @@ export default function TicketQueryPage() {
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       <div className="mb-4">
-        <AppleInput pill placeholder="搜索申告编号或标题..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
+        <AppleInput pill placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
       </div>
 
       {isEmpty ? (
