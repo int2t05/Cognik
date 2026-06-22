@@ -57,7 +57,7 @@ export function AppleTable<T extends Record<string, any>>({
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="py-12 text-center text-[var(--color-text-muted-48)] text-sm">
+              <td colSpan={columns.length} className="py-12 text-center text-[var(--color-text-muted-48)] text-caption">
                 {emptyText}
               </td>
             </tr>
@@ -65,7 +65,7 @@ export function AppleTable<T extends Record<string, any>>({
             data.map((row) => (
               <tr key={getKey(row)} className="hover:bg-[var(--color-pearl)]">
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3.5 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-sm">
+                  <td key={col.key} className="px-4 py-3.5 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-caption">
                     {col.render ? col.render(row) : String(row[col.key] ?? '')}
                   </td>
                 ))}

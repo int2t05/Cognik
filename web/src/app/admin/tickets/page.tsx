@@ -35,7 +35,7 @@ export default function AdminTicketListPage() {
       </div>
       <AppleTable
         columns={[
-          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-mono text-xs">{r.ticket_no}</span> },
+          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-[var(--font-mono)] text-fine">{r.ticket_no}</span> },
           { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'submitter_name', title: '提交人' },
           { key: 'urgency', title: '紧急', render: (r) => URGENCY_LABELS[r.urgency] },

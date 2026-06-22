@@ -170,7 +170,7 @@ export default function ChatPage() {
   const isLoading = loading || streaming;
 
   return (
-    <div className="flex h-[calc(100dvh-96px)]">
+    <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
       {/* 移动端遮罩 */}
       {mobileOpen && (
         <div
@@ -198,11 +198,11 @@ export default function ChatPage() {
 
           <div className="flex-1 overflow-y-auto -mx-1">
             {sessionsLoading ? (
-              <div className="flex justify-center py-6 text-sm text-[var(--color-text-muted-48)]">
+              <div className="flex justify-center py-6 text-caption text-[var(--color-text-muted-48)]">
                 加载中...
               </div>
             ) : sessions.length === 0 ? (
-              <div className="text-sm text-[var(--color-text-muted-48)] text-center py-6">
+              <div className="text-caption text-[var(--color-text-muted-48)] text-center py-6">
                 暂无历史会话
               </div>
             ) : (
@@ -213,7 +213,7 @@ export default function ChatPage() {
                     <button
                       key={s.id}
                       onClick={() => handleSelectSession(s.id)}
-                      className={`w-full text-left px-2 py-2.5 rounded-[var(--radius-md)] text-sm transition-colors group ${
+                      className={`w-full text-left px-2 py-2.5 rounded-[var(--radius-md)] text-caption transition-colors group ${
                         isActive
                           ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]'
                           : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-tile-1)]'
@@ -304,7 +304,7 @@ export default function ChatPage() {
 
         <div ref={listRef} className="flex-1 overflow-y-auto mb-4 px-4 lg:px-6">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-[var(--color-text-muted-48)] text-lg">
+            <div className="flex items-center justify-center h-full text-[var(--color-text-muted-48)] text-title">
               {selectedKB ? '输入问题开始对话' : '请先选择一个知识库'}
             </div>
           ) : (

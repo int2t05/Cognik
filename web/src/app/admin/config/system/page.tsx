@@ -51,15 +51,15 @@ function ConfigRow({ label, configKey, value, onSaved }: { label: string; config
 
   return (
     <div className="flex items-center gap-3 mb-3">
-      <span className="text-sm font-medium text-[var(--color-ink)] w-[120px] shrink-0">{label}</span>
+      <span className="text-caption font-medium text-[var(--color-ink)] w-[120px] shrink-0">{label}</span>
       {editing ? (
         <>
-          <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-sm rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]" />
+          <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]" />
           <AppleButton variant="ghost" onClick={handleSave} loading={saving}>保存</AppleButton>
         </>
       ) : (
         <>
-          <span className="flex-1 text-sm text-[var(--color-ink)]">{currentVal || '—'}</span>
+          <span className="flex-1 text-caption text-[var(--color-ink)]">{currentVal || '—'}</span>
           <AppleButton variant="ghost" onClick={startEdit}>编辑</AppleButton>
         </>
       )}

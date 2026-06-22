@@ -110,7 +110,7 @@ export default function RoleManagePage() {
         <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
         <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
         <div className="mt-2">
-          <label className="block text-sm font-medium text-[var(--color-ink)] mb-2">权限</label>
+          <label className="block text-caption font-medium text-[var(--color-ink)] mb-2">权限</label>
           <div className="flex flex-wrap gap-1.5">
             {knownPermissions.map((p) => (
               <button key={p} onClick={() => togglePerm(p)}
@@ -122,16 +122,16 @@ export default function RoleManagePage() {
         </div>
         {menus && menus.length > 0 && (
           <div className="mt-2">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-2">菜单权限</label>
+            <label className="block text-caption font-medium text-[var(--color-ink)] mb-2">菜单权限</label>
             <div className="border border-[var(--color-hairline)] rounded-lg p-3 space-y-1 max-h-[240px] overflow-y-auto">
               {topMenus.map((parent) => (
                 <div key={parent.id}>
-                  <label className="flex items-center gap-2 cursor-pointer py-1 text-[14px] text-[var(--color-ink)]">
+                  <label className="flex items-center gap-2 cursor-pointer py-1 text-caption text-[var(--color-ink)]">
                     <input type="checkbox" checked={menuIds.includes(parent.id)} onChange={() => toggleMenu(parent.id)} className="accent-[var(--color-accent)]" />
                     {parent.name}
                   </label>
                   {getChildren(parent.id).map((child) => (
-                    <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-[14px] text-[var(--color-text-muted-48)]">
+                    <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-caption text-[var(--color-text-muted-48)]">
                       <input type="checkbox" checked={menuIds.includes(child.id)} onChange={() => toggleMenu(child.id)} className="accent-[var(--color-accent)]" />
                       {child.name}
                     </label>

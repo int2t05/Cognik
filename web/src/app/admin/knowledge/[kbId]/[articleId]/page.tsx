@@ -28,7 +28,7 @@ export default function ArticleEditPage() {
   const handleSave = async () => { try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } };
   const handleAction = async (fn: () => Promise<unknown>) => { setProcessing(true); try { await fn(); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
-  if (error) return <p className="text-[var(--color-error)] text-center text-sm py-10">加载失败</p>;
+  if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
   if (!article) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
 
   return (
@@ -71,7 +71,7 @@ export default function ArticleEditPage() {
         </AppleCard>
       )}
 
-      {article.process_status === 'failed' && <AppleCard className="border border-[var(--color-error)] mb-4"><p className="text-[var(--color-error)] text-sm">处理失败: {article.process_error}</p></AppleCard>}
+      {article.process_status === 'failed' && <AppleCard className="border border-[var(--color-error)] mb-4"><p className="text-[var(--color-error)] text-caption">处理失败: {article.process_error}</p></AppleCard>}
 
       <ConfirmDialog
         open={disableConfirm}

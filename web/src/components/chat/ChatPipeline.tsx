@@ -22,7 +22,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
           {steps.map((s) => (
             <span
               key={s.id}
-              className={`px-2.5 py-0.5 text-xs rounded-[var(--radius-pill)] text-white ${s.success === false ? 'bg-[var(--color-error)] opacity-60' : 'bg-[var(--color-success)] opacity-75'}`}
+              className={`px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] text-[var(--color-canvas)] ${s.success === false ? 'bg-[var(--color-error)] opacity-60' : 'bg-[var(--color-success)] opacity-75'}`}
             >
               {s.label}{s.duration_ms ? ` ${s.duration_ms}ms` : ''}
             </span>

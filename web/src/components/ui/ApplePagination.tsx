@@ -22,7 +22,7 @@ export function ApplePagination({
 
   return (
     <div className="flex items-center justify-center gap-1 py-4">
-      <span className="text-sm text-[var(--color-text-muted-48)]">
+      <span className="text-caption text-[var(--color-text-muted-48)]">
         {total > 0 ? `${start}-${end} / ${total} 条` : '0 条'}
       </span>
       <div className="flex items-center gap-1">
@@ -81,7 +81,7 @@ function PaginationBtn({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`min-w-[36px] h-9 flex items-center justify-center text-sm rounded-lg border-0 font-sans cursor-pointer transition hover:bg-[var(--color-divider-soft)] ${
+      className={`min-w-[36px] h-9 flex items-center justify-center text-caption rounded-lg border-0 font-sans cursor-pointer transition hover:bg-[var(--color-divider-soft)] ${
         active
           ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
           : 'bg-transparent text-[var(--color-ink)]'

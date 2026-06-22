@@ -29,7 +29,7 @@ export default function DashboardPage() {
         <h1 className="text-hero font-medium text-[var(--color-ink)]">数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh}>刷新</AppleButton>
       </div>
-      {statsErr && <p className="text-[var(--color-error)] mb-4 text-sm">加载失败，请点击刷新重试</p>}
+      {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mb-8">
         <StatCard label="今日申告" value={stats?.today_tickets ?? '—'} />
         <StatCard label="待处理" value={stats?.pending_tickets ?? '—'} />
@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
       <h2 className="text-headline font-medium text-[var(--color-ink)] mb-4">30 日趋势</h2>
       {!trends ? <AppleSpinner /> : trends.data_points.length === 0 ? (
-        <div className="p-10 text-center text-[var(--color-text-muted-48)] text-sm bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">暂无趋势数据</div>
+        <div className="p-10 text-center text-[var(--color-text-muted-48)] text-caption bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">暂无趋势数据</div>
       ) : (
         <TrendChart data={trends.data_points} />
       )}
@@ -70,7 +70,7 @@ function TrendChart({ data }: { data: { date: string; ticket_count: number; chat
           </div>
         ))}
       </div>
-      <div className="flex gap-4 justify-center mt-3 text-xs text-[var(--color-text-muted-48)]">
+      <div className="flex gap-4 justify-center mt-3 text-fine text-[var(--color-text-muted-48)]">
         <span className="inline-flex items-center gap-1">
           <span className="w-[10px] h-[10px] rounded inline-block bg-[var(--color-accent)]" /> 申告
         </span>

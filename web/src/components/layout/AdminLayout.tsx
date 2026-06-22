@@ -75,7 +75,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-sm cursor-pointer text-left rounded-lg transition hover:bg-[var(--color-divider-soft)]',
+      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-lg transition hover:bg-[var(--color-divider-soft)]',
       collapsed ? 'justify-center px-0 py-3' : '',
       active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : '',
       depthPadding(depth),
@@ -119,10 +119,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-[var(--color-parchment)]">
       <aside
-        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
-        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-base' : 'text-lg font-medium text-[var(--color-ink)]'}`}>
+        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-medium text-[var(--color-ink)]'}`}>
           {collapsed ? 'OM' : 'OpsMind'}
         </div>
 
@@ -142,7 +142,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-250" style={{ marginLeft: sidebarWidth }}>
-        <header className="h-[52px] flex items-center justify-between px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-[20px] backdrop-saturate-[180%]">
+        <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-[20px] backdrop-saturate-[180%]">
           <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-1 text-[var(--color-ink)]">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>

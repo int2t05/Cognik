@@ -91,10 +91,10 @@ export default function NewArticlePage() {
       {/* 文档上传 */}
       <AppleCard className="mb-4">
         <h2 className="text-title font-medium mb-3 text-[var(--color-ink)]">文档上传</h2>
-        <p className="text-sm text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
+        <p className="text-caption text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
         <div className="flex gap-3 items-center">
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
-            className="text-sm file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-sm file:font-medium file:border-0 file:bg-[var(--color-accent)] file:text-white file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
+            className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-medium file:border-0 file:bg-[var(--color-accent)] file:text-white file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
         </div>
       </AppleCard>
 

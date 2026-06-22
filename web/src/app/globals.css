@@ -68,6 +68,13 @@
 
   /* 字体 */
   --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+
+  /* 聚焦环 — 软辉光，随主题切换颜色 */
+  --focus-ring: 0 0 0 3px rgba(0, 102, 204, 0.12);
+
+  /* 布局尺寸 */
+  --header-height: 48px;
 
   /* 圆角 */
   --radius-sm: 8px;
@@ -77,6 +84,7 @@
 
   /* 阴影 */
   --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.15);
+  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.04);
 
   /* z-index 层级 — 统一散落的 z-40/50/100/1000/9999 */
   --z-nav: 50;
@@ -112,6 +120,10 @@
   --badge-info-text: #2997ff;
   --badge-neutral-bg: rgba(142, 142, 147, 0.15);
   --badge-neutral-text: #8e8e93;
+
+  /* 聚焦环 — 暗色主题用更亮的辉光 */
+  --focus-ring: 0 0 0 3px rgba(41, 151, 255, 0.2);
+  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.2);
 }
 
 /* ===== 基础样式 ===== */
@@ -145,7 +157,7 @@ input, select, textarea {
 }
 input:focus-visible, select:focus-visible, textarea:focus-visible {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 

@@ -38,7 +38,7 @@ export function ConfirmDialog({
             variant="pill"
             onClick={onConfirm}
             loading={loading}
-            className={danger ? '!bg-[var(--color-error)] border-0 hover:opacity-90' : ''}
+            className={danger ? 'bg-[var(--color-error)] hover:opacity-90' : ''}
           >
             {confirmLabel}
           </AppleButton>

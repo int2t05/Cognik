@@ -32,7 +32,7 @@ export function ChatMessage({
         {sources && sources.length > 0 && (
           <div className="mt-2">
             {sources.map((s, i) => (
-              <div key={i} className="flex items-center gap-1 text-xs text-[var(--color-text-muted-48)] mb-1">
+              <div key={i} className="flex items-center gap-1 text-fine text-[var(--color-text-muted-48)] mb-1">
                 <FileText size={12} />
                 {s.doc_name} ({(s.confidence * 100).toFixed(0)}%)
               </div>
@@ -51,7 +51,7 @@ export function ChatMessage({
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
               disabled={feedbackLoading}
               aria-label="有帮助"
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-[var(--radius-pill)] transition ${
+              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
@@ -63,7 +63,7 @@ export function ChatMessage({
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
               disabled={feedbackLoading}
               aria-label="没有帮助"
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-[var(--radius-pill)] transition ${
+              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'

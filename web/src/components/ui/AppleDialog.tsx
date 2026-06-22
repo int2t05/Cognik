@@ -26,16 +26,16 @@ export function AppleDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000] backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 flex items-center justify-center z-[var(--z-dialog)] backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-[1001] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[0_20px_60px_rgba(0,0,0,0.15)]"
+          className="fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)]"
           style={{ width } as React.CSSProperties}
         >
           <Dialog.Title className="px-6 pt-5 pb-0 text-title font-medium text-[var(--color-ink)]">
             {title}
           </Dialog.Title>
           {description && (
-            <Dialog.Description className="text-sm text-[var(--color-text-muted-48)] mt-1 px-6">
+            <Dialog.Description className="text-caption text-[var(--color-text-muted-48)] mt-1 px-6">
               {description}
             </Dialog.Description>
           )}

@@ -154,8 +154,8 @@ export default function AdminTicketDetailPage() {
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
               <span className="text-caption font-semibold">{actionLabel(record.action)}</span>
-              <span className="ml-3 text-xs text-[var(--color-text-muted-48)]">{formatDate(record.created_at)}</span>
-              <p className="mt-1 text-sm">{record.content}</p>
+              <span className="ml-3 text-fine text-[var(--color-text-muted-48)]">{formatDate(record.created_at)}</span>
+              <p className="mt-1 text-caption">{record.content}</p>
             </div>
           ))}
         </AppleCard>

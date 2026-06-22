@@ -58,7 +58,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
-      <div className="w-full max-w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+      <div className="w-full max-w-form p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-10">
           <h1 className="text-hero font-medium tracking-[-0.28px] text-[var(--color-ink)] mb-2">
             OpsMind
@@ -73,25 +73,25 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">用户名</label>
+            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">用户名</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
-              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
+              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
             />
           </div>
 
           <div className="mb-8">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">密码</label>
+            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">密码</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full"
+              className="h-11 px-4 text-body rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none w-full transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
             />
           </div>
 

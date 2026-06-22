@@ -197,7 +197,7 @@ export default function LLMConfigPage() {
         <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
         <div className="mb-4">
-          <label htmlFor={providerSelectId} className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">提供商类型</label>
+          <label htmlFor={providerSelectId} className="mb-1.5 block text-caption font-medium text-[var(--color-ink)]">提供商类型</label>
           <select
             id={providerSelectId}
             value={Number(form.provider_type)}
@@ -251,10 +251,10 @@ export default function LLMConfigPage() {
         />
 
         <div className="mb-4">
-          <label htmlFor={systemPromptId} className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">System Prompt</label>
+          <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-medium text-[var(--color-ink)]">System Prompt</label>
           <textarea
             id={systemPromptId}
-            className="min-h-[80px] w-full resize-y rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]"
+            className="min-h-[80px] w-full resize-y rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             placeholder="自定义系统提示词，可选"
             value={String(form.system_prompt || '')}
             onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
@@ -262,7 +262,7 @@ export default function LLMConfigPage() {
         </div>
 
         {testResult && (
-          <p className={`mt-3 text-sm ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+          <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
             {testResult.message}
           </p>
         )}

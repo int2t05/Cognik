@@ -105,7 +105,7 @@ export default function UserListPage() {
         <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <div className="mt-4">
-          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">角色</label>
+          <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">角色</label>
           <div className="flex flex-wrap gap-2">
             {roles.map(role => (
               <button
@@ -114,8 +114,8 @@ export default function UserListPage() {
                 onClick={() => toggleRole(role.id)}
                 className={
                   form.role_ids.includes(role.id)
-                    ? 'px-2.5 py-1 text-xs rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-white cursor-pointer transition'
-                    : 'px-2.5 py-1 text-xs rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]'
+                    ? 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-white cursor-pointer transition'
+                    : 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]'
                 }
               >
                 {role.name}

@@ -58,7 +58,7 @@ export default function TicketDetailPage() {
                 <span className="text-caption font-semibold text-[var(--color-text-muted-80)]">{r.action}</span>
                 <span className="text-fine text-[var(--color-text-muted-48)]">{formatDate(r.created_at)}</span>
               </div>
-              <p className="text-[14px] text-[var(--color-ink)]">{r.content}</p>
+              <p className="text-caption text-[var(--color-ink)]">{r.content}</p>
             </div>
           ))}
         </div>

@@ -13,16 +13,16 @@ interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   pill: 'bg-[var(--color-accent)] text-white text-body rounded-[var(--radius-pill)] px-[22px] py-2.5',
-  ghost: 'bg-transparent text-[var(--color-accent)] text-sm rounded-[var(--radius-pill)] px-4 py-2',
+  ghost: 'bg-transparent text-[var(--color-accent)] text-caption rounded-[var(--radius-pill)] px-4 py-2',
   utility:
     'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-caption rounded-[var(--radius-md)] px-3.5 py-1.5 border border-[var(--color-divider-soft)]',
-  pearl: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-sm rounded-[var(--radius-md)] px-3.5 py-2',
+  pearl: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-caption rounded-[var(--radius-md)] px-3.5 py-2',
 };
 
 export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
   ({ variant = 'pill', loading = false, disabled, className = '', children, ...rest }, ref) => {
     const classes = [
-      'inline-flex items-center gap-1.5 font-medium cursor-pointer border-0 font-sans whitespace-nowrap select-none transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)] disabled:opacity-40 disabled:cursor-not-allowed',
+      'inline-flex items-center gap-1.5 font-medium cursor-pointer border-0 font-sans whitespace-nowrap select-none transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] disabled:opacity-40 disabled:cursor-not-allowed',
       variantClasses[variant],
       className,
     ]

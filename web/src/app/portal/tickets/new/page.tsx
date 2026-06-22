@@ -64,7 +64,7 @@ export default function TicketSubmitPage() {
         <AppleTextarea label="详细描述" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="请详细描述问题现象、发生时间、影响范围等" />
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">紧急程度</label>
+            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">紧急程度</label>
             <select value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="w-full px-3 py-2 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
               <option value={1}>低 — 一般咨询</option>
               <option value={2}>中 — 影响工作</option>
@@ -72,7 +72,7 @@ export default function TicketSubmitPage() {
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1.5">影响范围</label>
+            <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">影响范围</label>
             <select value={impactScope} onChange={(e) => setImpactScope(Number(e.target.value))} className="w-full px-3 py-2 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
               {IMPACT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>

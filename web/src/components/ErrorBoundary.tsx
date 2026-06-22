@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="flex items-center justify-center min-h-[60vh] bg-[var(--color-parchment)]">
-          <div className="text-center max-w-[400px]">
+          <div className="text-center max-w-form">
             <h1 className="text-hero font-medium text-[var(--color-ink)] mb-3">页面出错了</h1>
             <p className="text-body text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
             <AppleButton onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
 export function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="text-center max-w-[400px]">
+      <div className="text-center max-w-form">
         <p className="text-body text-[var(--color-text-muted-48)] mb-2">内容加载出错</p>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">{error.message}</p>
         <AppleButton onClick={onReset}>重试</AppleButton>

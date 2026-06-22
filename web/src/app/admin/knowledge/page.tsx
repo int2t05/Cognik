@@ -49,7 +49,7 @@ export default function KnowledgeListPage() {
     finally { setDeleting(false); }
   };
 
-  if (error) return <p className="text-[var(--color-error)] text-center text-sm py-10">加载失败</p>;
+  if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
 
   return (
     <div>

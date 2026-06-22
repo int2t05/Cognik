@@ -26,7 +26,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)]">
-      <header className="h-12 flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
+      <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
         <div className="flex items-center gap-8">
           <span
             role="button"
@@ -73,7 +73,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <main className="max-w-[1200px] mx-auto p-6">{children}</main>
+      <main className="w-full max-w-wide mx-auto p-6">{children}</main>
     </div>
   );
 }

@@ -15,7 +15,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
     const inputId = id || generatedId;
 
     const inputClass = [
-      'w-full h-11 px-4 text-body rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
+      'w-full h-11 px-4 text-body rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
       pill ? 'rounded-[var(--radius-pill)]' : '',
       className,
@@ -29,7 +29,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
           <label htmlFor={inputId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
         <input ref={ref} id={inputId} className={inputClass} {...rest} />
-        {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
+        {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );
   },
@@ -48,7 +48,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
     const textareaId = id || generatedId;
 
     const textareaClass = [
-      'w-full px-4 py-3 text-body leading-relaxed rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(0,102,204,0.12)]',
+      'w-full px-4 py-3 text-body leading-relaxed rounded-lg border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
       className,
     ]
@@ -61,7 +61,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
           <label htmlFor={textareaId} className="block text-sm font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
         <textarea ref={ref} id={textareaId} rows={rows} className={textareaClass} {...rest} />
-        {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
+        {error && <p className="text-fine text-[var(--color-error)] mt-1">{error}</p>}
       </div>
     );
   },
