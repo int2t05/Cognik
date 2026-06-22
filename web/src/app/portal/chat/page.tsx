@@ -120,7 +120,10 @@ export default function ChatPage() {
     setMobileOpen(false);
     try {
       const detail = await getChatDetail(id);
-      const msgs: ChatMsg[] = (detail.messages as ApiChatMessage[]).map((msg) => ({
+      // 后端 messages 字段带 omitempty：0 消息的会话（新建未问、或问答失败）
+      // 响应里不含该字段，直接 .map 会抛 TypeError 触发"加载会话失败"。
+      // 用 ?? [] 兜底，空会话也能正常打开为空对话。
+      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map((msg) => ({
         id: String(msg.id),
         role: msg.role,
         content: msg.content,
