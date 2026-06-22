@@ -30,7 +30,7 @@ export default function ArticleListPage() {
         <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')}>← 返回</AppleButton>
       </div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-hero font-medium text-[var(--color-ink)]">知识文章</h1>
+        <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识文章</h1>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}>新建文章</AppleButton>
       </div>
       <div className="mb-4 flex gap-2">

@@ -58,7 +58,7 @@ export default function TicketSubmitPage() {
 
   return (
     <div className="max-w-form">
-      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">提交申告</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">提交申告</h1>
       <form onSubmit={handleSubmit}>
         <AppleInput label="申告标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" />
         <AppleTextarea label="详细描述" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="请详细描述问题现象、发生时间、影响范围等" />

@@ -26,7 +26,7 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">站内消息</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">站内消息</h1>
       {error && <p className="text-[var(--color-error)] text-caption">加载失败</p>}
       <AppleTable
         columns={[

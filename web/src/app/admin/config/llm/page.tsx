@@ -135,7 +135,7 @@ export default function LLMConfigPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-hero font-medium text-[var(--color-ink)]">LLM 配置</h1>
+        <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
         <AppleButton onClick={openCreate}>新建配置</AppleButton>
       </div>
 
@@ -147,7 +147,7 @@ export default function LLMConfigPage() {
             <AppleCard key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-title font-medium text-[var(--color-ink)]">
+                  <h3 className="text-title font-semibold text-[var(--color-ink)]">
                     {config.name}
                     {config.is_default && (
                       <span className="text-fine font-normal text-[var(--color-accent)]"> （默认）</span>

@@ -80,7 +80,7 @@ export default function AdminTicketDetailPage() {
 
   return (
     <div className="max-w-content">
-      <h1 className="mb-2 text-hero font-medium text-[var(--color-ink)]">{ticket.title}</h1>
+      <h1 className="mb-2 text-hero font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
       <div className="mb-6 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">
@@ -128,7 +128,7 @@ export default function AdminTicketDetailPage() {
       )}
 
       <AppleCard className="mb-6">
-        <h3 className="mb-3 text-title font-medium">生成知识候选</h3>
+        <h3 className="mb-3 text-title font-semibold">生成知识候选</h3>
         <div className="flex items-end gap-3">
           <select
             value={kbId}
@@ -150,7 +150,7 @@ export default function AdminTicketDetailPage() {
 
       {ticket.records && ticket.records.length > 0 && (
         <AppleCard>
-          <h3 className="mb-3 text-title font-medium">处理记录</h3>
+          <h3 className="mb-3 text-title font-semibold">处理记录</h3>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
               <span className="text-caption font-semibold">{actionLabel(record.action)}</span>

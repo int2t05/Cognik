@@ -40,7 +40,7 @@ export default function ArticleEditPage() {
       </div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-hero font-medium text-[var(--color-ink)]">{article.title}</h1>
+          <h1 className="text-hero font-semibold text-[var(--color-ink)]">{article.title}</h1>
           <div className="flex gap-2 mt-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
@@ -67,7 +67,7 @@ export default function ArticleEditPage() {
         </AppleCard>
       ) : (
         <AppleCard className="mb-4">
-          <h2 className="text-headline font-medium mb-4 text-[var(--color-ink)]">正文</h2>
+          <h2 className="text-headline font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
           <div className="text-title leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <span key={t} className="px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
         </AppleCard>

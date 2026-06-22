@@ -34,7 +34,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             aria-label="返回首页"
             onClick={() => router.push('/portal/chat')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/portal/chat'); } }}
-            className="text-headline font-medium tracking-[0.231px] text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
+            className="text-headline font-semibold text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
           >
             OpsMind
           </span>

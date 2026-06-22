@@ -18,11 +18,11 @@ export default function SystemConfigPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">系统配置</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">系统配置</h1>
       <AppleCard className="max-w-form">
-        <h2 className="text-title font-medium text-[var(--color-ink)] mb-4">应用配置</h2>
+        <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用配置</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={getValue('app_name')} onSaved={mutate} />
-        <h2 className="text-title font-medium text-[var(--color-ink)] mt-6 mb-4">AI 参数</h2>
+        <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">AI 参数</h2>
         <ConfigRow label="默认 Top K" configKey="ai_default_top_k" value={getValue('ai_default_top_k')} onSaved={mutate} />
         <ConfigRow label="置信度阈值" configKey="ai_confidence_threshold" value={getValue('ai_confidence_threshold')} onSaved={mutate} />
       </AppleCard>

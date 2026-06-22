@@ -18,7 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex items-center justify-center min-h-[60vh] bg-[var(--color-parchment)]">
           <div className="text-center max-w-form">
-            <h1 className="text-hero font-medium text-[var(--color-ink)] mb-3">页面出错了</h1>
+            <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-3">页面出错了</h1>
             <p className="text-body text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
             <AppleButton onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
               刷新页面

@@ -37,7 +37,7 @@ export default function TicketDetailPage() {
 
   return (
     <div className="max-w-content">
-      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-6 items-center">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
@@ -45,13 +45,13 @@ export default function TicketDetailPage() {
       </div>
 
       <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
-        <h2 className="text-title font-medium mb-3 text-[var(--color-ink)]">问题描述</h2>
+        <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
         <p className="text-title text-[var(--color-ink)] leading-[1.47] whitespace-pre-wrap">{ticket.description}</p>
       </div>
 
       {ticket.records && ticket.records.length > 0 && (
         <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 mb-6">
-          <h2 className="text-title font-medium mb-4 text-[var(--color-ink)]">处理记录</h2>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
           {ticket.records.map((r) => (
             <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
               <div className="flex justify-between mb-1">
@@ -66,7 +66,7 @@ export default function TicketDetailPage() {
 
       {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
         <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
-          <h2 className="text-title font-medium mb-3 text-[var(--color-ink)]">补充信息</h2>
+          <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
           <AppleButton onClick={handleSupplement} loading={sending}>提交补充</AppleButton>
         </div>

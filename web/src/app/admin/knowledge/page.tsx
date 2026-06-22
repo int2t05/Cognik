@@ -54,7 +54,7 @@ export default function KnowledgeListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-hero font-medium text-[var(--color-ink)]">知识库管理</h1>
+        <h1 className="text-hero font-semibold text-[var(--color-ink)]">知识库管理</h1>
         <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }}>新建知识库</AppleButton>
       </div>
 
@@ -74,7 +74,7 @@ export default function KnowledgeListPage() {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/knowledge/${kb.id}`); } }}
           >
             <div>
-              <h3 className="text-title font-medium text-[var(--color-ink)] mb-1">{kb.name}</h3>
+              <h3 className="text-title font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h3>
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

@@ -133,8 +133,7 @@ body {
   font-family: var(--font-sans);
   font-size: var(--font-size-body);
   font-weight: 400;
-  line-height: 1.47;
-  letter-spacing: -0.374px;
+  line-height: 1.6;
   color: var(--color-text-body);
   background-color: var(--color-parchment);
   min-height: 100dvh;

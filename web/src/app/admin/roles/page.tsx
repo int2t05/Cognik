@@ -89,7 +89,7 @@ export default function RoleManagePage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-hero font-medium text-[var(--color-ink)]">角色管理</h1>
+        <h1 className="text-hero font-semibold text-[var(--color-ink)]">角色管理</h1>
         <AppleButton onClick={openCreate}>新建角色</AppleButton>
       </div>
       <AppleTable

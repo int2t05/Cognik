@@ -135,7 +135,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
-        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-medium text-[var(--color-ink)]'}`}>
+        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-semibold text-[var(--color-ink)]'}`}>
           {collapsed ? 'OM' : 'OpsMind'}
         </div>
 

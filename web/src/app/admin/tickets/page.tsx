@@ -24,7 +24,7 @@ export default function AdminTicketListPage() {
 
   return (
     <div>
-      <h1 className="text-hero font-medium text-[var(--color-ink)] mb-6">申告管理</h1>
+      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-6">申告管理</h1>
       <div className="mb-4 flex gap-2 flex-wrap">
         {filterOptions.map((o) => (
           <button key={o.v} onClick={() => { setStatus(o.v); setPage(1); }}
