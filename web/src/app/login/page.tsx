@@ -4,7 +4,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Cpu } from 'lucide-react';
+import Image from 'next/image';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
@@ -61,8 +61,8 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
       <div className="w-full max-w-[420px] p-10 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-[var(--color-accent)]/8 mb-6">
-            <Cpu size={32} className="text-[var(--color-accent)]" />
+          <div className="mb-6">
+            <Image src="/icon.svg" alt="OpsMind" width={56} height={56} className="mx-auto" priority />
           </div>
           <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">
             OpsMind

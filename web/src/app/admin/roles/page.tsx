@@ -91,7 +91,7 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">角色管理</h1>
-        <AppleButton onClick={openCreate}><ShieldPlus size={14} /> 新建角色</AppleButton>
+        <AppleButton onClick={openCreate}><ShieldPlus size={13} /> 新建</AppleButton>
       </div>
       <AppleTable
         columns={[

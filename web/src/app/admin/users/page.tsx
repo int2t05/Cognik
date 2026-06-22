@@ -81,7 +81,7 @@ export default function UserListPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">用户管理</h1>
-        <AppleButton onClick={openCreate}><UserPlus size={14} /> 新建用户</AppleButton>
+        <AppleButton onClick={openCreate}><UserPlus size={13} /> 新建</AppleButton>
       </div>
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable

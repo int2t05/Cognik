@@ -47,7 +47,7 @@ export default function DashboardPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">数据看板</h1>
         <AppleButton variant="ghost" onClick={handleRefresh}>
-          <RotateCw size={14} /> 刷新
+          <RotateCw size={13} /> 刷新
         </AppleButton>
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}

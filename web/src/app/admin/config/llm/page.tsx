@@ -137,7 +137,7 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-hero font-semibold text-[var(--color-ink)]">LLM 配置</h1>
-        <AppleButton onClick={openCreate}><Cpu size={14} /> 新建配置</AppleButton>
+        <AppleButton onClick={openCreate}><Cpu size={13} /> 新建</AppleButton>
       </div>
 
       <div className="grid gap-4">
