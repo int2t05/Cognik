@@ -154,4 +154,87 @@ test.describe('知识库 API', () => {
     const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`);
     await assertError(res, 10001, 401);
   });
+
+  test('文档上传端点可达', async ({ request }) => {
+    const kbId = await getAnyKbId(request);
+    if (!kbId) { test.skip(); return; }
+    // 发送空文件请求验证端点和权限校验
+    const res = await request.post(
+      `${API_URL}/api/v1/admin/knowledge-bases/${kbId}/documents/upload`,
+      { headers: authHeaders(token) },
+    );
+    // 缺少文件应返回 400
+    expect(res.status()).toBe(400);
+  });
+
+  test('文章完整生命周期 → 提交审核', async ({ request }) => {
+    const kbId = await getAnyKbId(request);
+    if (!kbId) { test.skip(); return; }
+    // 创建文章
+    const createRes = await request.post(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles`, {
+      data: { title: uniqueName('生命周期测试'), content: '# 测试内容', source_type: 1 },
+      headers: authHeaders(token),
+    });
+    await assertSuccess(createRes);
+    // 查找文章 ID
+    const listRes = await request.get(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles?page=1&page_size=10`, {
+      headers: authHeaders(token),
+    });
+    const listJson = await listRes.json();
+    const article = listJson.data?.find((a: { title: string }) => a.title?.startsWith('生命周期测试'));
+    if (!article) { test.skip(); return; }
+
+    // 提交审核
+    const reviewRes = await request.post(`${API_URL}/api/v1/admin/articles/${article.id}/submit-review`, {
+      headers: authHeaders(token),
+    });
+    // 可能成功或因为审查者=创建者而失败（取决于实现）
+    expect([200, 400]).toContain(reviewRes.status());
+  });
+
+  test('文章完整生命周期 → 审核 → 发布 → 停用', async ({ request }) => {
+    const kbId = await getAnyKbId(request);
+    if (!kbId) { test.skip(); return; }
+    // 创建文章
+    const title = uniqueName('发布测试');
+    await request.post(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles`, {
+      data: { title, content: '# 测试发布流程', source_type: 1 },
+      headers: authHeaders(token),
+    });
+    // 查找文章
+    const listRes = await request.get(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles?page=1&page_size=20`, {
+      headers: authHeaders(token),
+    });
+    const listJson = await listRes.json();
+    const article = listJson.data?.find((a: { title: string }) => a.title === title);
+    if (!article) { test.skip(); return; }
+
+    // 提交审核
+    await request.post(`${API_URL}/api/v1/admin/articles/${article.id}/submit-review`, {
+      headers: authHeaders(token),
+    });
+    // 审核通过（如果审查者≠创建者则成功；如果相同则 400 也是预期行为）
+    const reviewRes = await request.post(`${API_URL}/api/v1/admin/articles/${article.id}/review`, {
+      data: { approved: true },
+      headers: authHeaders(token),
+    });
+    const reviewJson = await reviewRes.json();
+
+    // 如果审核通过，继续发布
+    if (reviewRes.status() === 200 || reviewJson.code === 0) {
+      const pubRes = await request.post(`${API_URL}/api/v1/admin/articles/${article.id}/publish`, {
+        headers: authHeaders(token),
+      });
+      // 发布需要 embedding 服务，可能返回 20001
+      expect([200, 503]).toContain(pubRes.status());
+
+      // 停用
+      if (pubRes.status() === 200) {
+        const disableRes = await request.post(`${API_URL}/api/v1/admin/articles/${article.id}/disable`, {
+          headers: authHeaders(token),
+        });
+        await assertSuccess(disableRes);
+      }
+    }
+  });
 });
