@@ -87,7 +87,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const btnClass = [
       'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]',
       collapsed ? 'justify-center px-0 py-3' : '',
-      active ? 'bg-[var(--color-divider-soft)] text-[var(--color-accent)] font-semibold' : '',
+      active ? 'bg-[var(--color-divider-soft)] text-[var(--color-ink)] font-semibold shadow-[inset_3px_0_0_var(--color-accent)]' : '',
       depthPadding(depth),
     ].filter(Boolean).join(' ');
 

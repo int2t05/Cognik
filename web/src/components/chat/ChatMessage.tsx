@@ -55,11 +55,14 @@ export function ChatMessage({
           </div>
         )}
 
-        {/* 低置信度警告 — 仅 AI 消息 */}
-        {isAi && confidence != null && confidence < 0.6 && (
-          <div className="flex items-center gap-1.5 mt-2 text-caption text-[var(--color-warning)]">
-            <AlertTriangle size={14} />
-            置信度较低，建议提交申告由人工处理
+        {/* 置信度显示 — AI 消息内联 */}
+        {isAi && confidence != null && (
+          <div className={`flex items-center gap-1.5 mt-2 text-fine ${
+            confidence < 0.6 ? 'text-[var(--color-warning)]' : 'text-[var(--color-text-muted-48)]'
+          }`}>
+            {confidence < 0.6 ? <AlertTriangle size={13} /> : <span className="opacity-50">●</span>}
+            置信度 {Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : '—'}%
+            {confidence < 0.6 && ' — 建议提交申告由人工处理'}
           </div>
         )}
 

@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { getStats, getTrends } from '@/lib/api/dashboard';
 import { StatCard } from '@/components/shared/StatCard';
-import { TrendChart } from '@/components/shared/TrendChart';
+import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useToast } from '@/hooks/useToast';
@@ -12,16 +12,26 @@ import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertT
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
 
-/** 7 张统计卡片定义，保持单一数据源 */
+/** 7 张统计卡片定义 */
 const STAT_CARDS = [
-  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={15} /> },
+  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={15} />, trendKey: 'ticket' as const },
   { key: 'pending_tickets', label: '待处理', icon: <AlertTriangle size={15} /> },
   { key: 'processing_tickets', label: '处理中', icon: <Clock size={15} /> },
   { key: 'resolved_tickets', label: '已解决', icon: <CheckCircle size={15} /> },
-  { key: 'today_chats', label: '今日问答', icon: <MessageSquare size={15} /> },
+  { key: 'today_chats', label: '今日问答', icon: <MessageSquare size={15} />, trendKey: 'chat' as const },
   { key: 'avg_confidence', label: '平均置信度', icon: <TrendingUp size={15} /> },
   { key: 'knowledge_count', label: '知识条目', icon: <BookOpen size={15} /> },
 ] as const;
+
+/** 从趋势数据计算环比变化 */
+function calcDelta(points: TrendPoint[] | undefined, key: 'ticket' | 'chat'): number | undefined {
+  if (!points || points.length < 2) return undefined;
+  const field = key === 'ticket' ? 'ticket_count' : 'chat_count';
+  const today = points[points.length - 1][field];
+  const yesterday = points[points.length - 2][field];
+  if (yesterday === 0) return today > 0 ? 100 : 0;
+  return ((today - yesterday) / yesterday) * 100;
+}
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -34,12 +44,23 @@ export default function DashboardPage() {
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
 
-  /** 从 stats 中提取卡片值，avg_confidence 需特殊格式化 */
+  const points = trends?.data_points;
+
+  const deltas = useMemo(() => ({
+    ticket: calcDelta(points, 'ticket'),
+    chat: calcDelta(points, 'chat'),
+  }), [points]);
+
   const cardValue = (key: string): string | number => {
     if (!stats) return '—';
     if (key === 'avg_confidence') return formatPercent(stats.avg_confidence ?? null);
     const v = (stats as unknown as Record<string, number>)[key];
     return v ?? '—';
+  };
+
+  const cardDelta = (trendKey?: 'ticket' | 'chat'): number | undefined => {
+    if (!trendKey) return undefined;
+    return deltas[trendKey];
   };
 
   return (
@@ -54,12 +75,18 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-5">
         {STAT_CARDS.map((c) => (
-          <StatCard key={c.key} label={c.label} value={cardValue(c.key)} icon={c.icon} />
+          <StatCard
+            key={c.key}
+            label={c.label}
+            value={cardValue(c.key)}
+            icon={c.icon}
+            delta={cardDelta('trendKey' in c ? c.trendKey : undefined)}
+          />
         ))}
       </div>
 
       <TrendChart
-        data={trends?.data_points}
+        data={points}
         loading={trendsLoading}
         error={trendsErr}
         dateRange={dateRange}
