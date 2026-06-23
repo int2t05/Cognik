@@ -1,6 +1,6 @@
 # OpsMind 改进清单
 
-> 优先级：🔴 生产隐患 / 🟡 架构债务 / 🟢 优化建议 / ✅ 已完成
+> 优先级：🔴 生产隐患 / 🟠 功能缺陷 / 🟡 架构债务 / 🟢 优化建议 / ✅ 已完成
 
 ---
 
@@ -35,35 +35,88 @@
 
 # 后端
 
-## 1. 智能问答
+## 1. 智能问答与 RAG 管道
 
-- 🟡 BM25 索引无增量更新，每次刷新全量重建 — 保留（需算法重构）
-- 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止 — 保留（需架构变更）
-- 🟢 RAG 历史截断按消息条数而非 token 数 — 保留（设计权衡，非阻塞）
+### 🔴 生产隐患
+
+- 🔴 `nil VectorRetriever` 赋值给接口后调用 `Retrieve` 可能 panic——pgvector 初始化失败后向量检索触发服务崩溃（`retriever.go:30`, `main.go:222`）
+- 🔴 `tryRefreshIndex` panic 无 recovery——`buildIndex()` 崩溃时 building 标志未清除 + 写锁未释放，BM25 索引永久死锁（`bm25.go:378`）
+- 🔴 DB 宕机时 `chat_service` 的 `FindByID` 失败全部返回 `"会话不存在"(10004)`——用户无法区分"DB 故障"和"真的不存在"（`chat_service.go:133`）
+
+### 🟠 功能缺陷
+
+- 🟠 流式中断丢弃已累积答案——`answerBuf` 在 SSE error 事件时被丢弃，前端收不到部分回答（`llm_service.go:256`）
+- 🟠 多路检索失败返回 nil error——LLM 调用失败时 `MultiRoute` 返回 nil 而非 error，管道日志显示 `Success=true`（`multi_route.go:57`）
+- 🟠 `llmClient` 指针替换无同步——`SetLLMClient` 写与 `StreamChat` 读无 mutex 保护，存在数据竞争（`llm_service.go:104`）
+
+### 🟡 架构债务
+
+- 🟡 BM25 索引无增量更新，每次刷新全量重建——需算法重构
+- 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止——需架构变更
+- 🟡 错误事件未使用 `sendOrCancel` 保护——消费者退出时 goroutine 可能永久阻塞（`llm_service.go:201`）
+- 🟡 Embedding 连接/超时不重试——与 LLM 流式调用的重试策略不对称（`embedding_client.go:150`）
+- 🟡 重排序子进程崩溃后永不重启——恢复需重启服务（`rerank_client.go:178`）
+
+### 🟢 优化建议
+
+- 🟢 RAG 历史截断按消息条数而非 token 数——设计权衡，非阻塞
+- 🟢 无向量检索模式开关——`RAGOptions` 缺 `DisableRetrieval`，无法做纯 LLM 对话（`rag/types.go:40`）
+- 🟢 Sync/Stream 两个路径的 AI 不可用兜底文本不一致（`llm_service.go:151` vs `chat_service.go:24`）
+- 🟢 重排序无内部超时，仅依赖调用者 context（`rerank_client.go:247`）
 
 ## 2. 知识库管理
 
-- 🟡 DOCX 解析仅读取 `word/document.xml`，不处理 `word/document2.xml` 分割文档 — 保留（需解析器改进）
-- 🟡 PDF/DOCX 解析前全量读入内存（`io.ReadAll`），大文件 OOM 风险 — 保留（需流式解析重构）
-- 🟡 50MB 上传上限硬编码，不支持按 KB 粒度配置 — 保留（低优先级配置化）
+### 🟠 功能缺陷
+
+- 🟠 发布失败后向量丢失窗口——旧向量删除成功但新向量写入失败时，文章暂时无向量（`knowledge_service.go:433`）
+
+### 🟡 架构债务
+
+- 🟡 DOCX 解析仅读取 `word/document.xml`，不处理 `word/document2.xml` 分割文档——需解析器改进
+- 🟡 PDF/DOCX 解析前全量读入内存（`io.ReadAll`），大文件 OOM 风险——需流式解析重构
+- 🟡 50MB 上传上限硬编码，不支持按 KB 粒度配置——低优先级配置化
+- 🟡 MinIO 惰性下载——`GetObject` 成功不代表数据可读，`defer reader.Close()` 不检查错误（`processor.go:201`）
+
+### 🟢 优化建议
+
+- 🟢 文档处理缺自动重试队列和死信队列——当前仅手动 `RetryDocument`
 
 ## 3. 申告管理
 
-- 🟢 TicketRecord.OperatorID 系统自动操作时设为 0，无 FK 约束 — 保留（模型字段变更）
+### 🟠 功能缺陷
+
+- 🟠 自动关闭事务中的一条 Record 插入失败会阻塞全量工单关闭（`ticket_service.go:515`）
+
+### 🟢 优化建议
+
+- 🟢 `TicketRecord.OperatorID` 系统自动操作时设为 0，无 FK 约束——模型字段变更
+- 🟢 消息通知失败静默吞没（仅 `slog.Warn`），调用方无感知——设计决策（通知是尽力而为）
 
 ## 4. 数据看板
 
-- 🟢 趋势查询窗口硬编码，不可配置 — 保留（低优先级）
+- 🟢 趋势查询窗口硬编码，不可配置——低优先级
 
 ## 5. 系统配置
 
-- 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限 — 保留（需架构改进）
-- 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等 — 保留（低优先级配置化）
+- 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限——需架构改进
+- 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等——低优先级配置化
 
 ## 6. 基础设施
 
-- 🟡 `database/migrate.go` 每次启动重建全部索引（含 `IF NOT EXISTS`）— 保留（风险较高，需慎重评估）
-- 🟡 Router 中 ~150 行 handler nil-check 样板代码 — 保留（需大规模重构）
+### 🟠 功能缺陷
+
+- 🟠 `autoClose` 调度器退出时不等待进行中的任务完成——`ctx.Done()` 直接退出 goroutine（`scheduler.go:61`）
+
+### 🟡 架构债务
+
+- 🟡 `database/migrate.go` 每次启动重建全部索引（含 `IF NOT EXISTS`）——风险较高，需慎重评估
+- 🟡 Router 中 ~150 行 handler nil-check 样板代码——需大规模重构
+- 🟡 `ListSessions` 泄露原始 DB 错误——未包装为 AppError，可能暴露 SQL/连接信息（`chat_service.go:322`）
+
+### 🟢 优化建议
+
+- 🟢 无 DB / LLM / Embedding 健康检查端点或熔断器——下游依赖故障时无快速失败机制
+- 🟢 默认 LLM 配置缺失时静默降级为硬编码 fallback，无日志警告（`llm_service.go:336`）
 
 ---
 
@@ -71,83 +124,34 @@
 
 ## 1. 智能问答
 
-- 🟢 虚拟列表 `estimateSize: () => 80` 常量估算，变长消息滚动位置不准 — 保留（需消息高度测量，非阻塞）
+- 🟢 虚拟列表 `estimateSize: () => 80` 常量估算，变长消息滚动位置不准——需消息高度测量，非阻塞
 
-## 2. 知识库管理
+## 2. 表单与交互
 
-- ✅ `Skeleton` 骨架屏组件已创建 (`ui/AppleSkeleton.tsx`)，待页面按需接入
+- 🟢 表单缺 required 标记——非阻塞
+- 🟢 用户搜索无结果提示——非阻塞
 
-## 3. 表单与交互
+## 3. 组件架构
 
-- 🟢 表单缺 required 标记 — 保留（非阻塞）
-- 🟢 用户搜索无结果提示 — 保留（非阻塞）
+- 🟢 StatusBadge 领域状态映射硬编码在组件内，后端新增状态时前端需同步更新——`statusText` prop 为已提供的逃生舱
 
-## 4. 组件架构
+## 4. 设计系统
 
-- 🟢 StatusBadge 领域状态映射硬编码在组件内，后端新增状态时前端需同步更新 — 保留（statusText prop 为已提供的逃生舱）
+- 🟢 审计页输入框样式在 5 处重复——审计页布局特殊，不适合直接 `AppleInput`
 
-## 5. 可访问性
+## 5. 基础设施
 
-- ✅ 表格操作列 header `title: ''` → `title: '操作'`（users/roles/messages 三处）
-
-## 6. 设计系统
-
-- ✅ `<PageTitle>` 组件提取，15 页面统一迁移
-- ✅ `--font-size-display: 72px` 添加到 theme，404 页使用 `text-display`
-- 🟢 审计页输入框样式在 5 处重复 — 保留（审计页布局特殊，不适合直接 AppleInput）
-
-## 7. 基础设施
-
-- 🟡 零代码分割，全量打包 — 保留（需 `next/dynamic` 架构变更）
-- 🟢 全局 ErrorBoundary 仅顶层一个 — 保留（SectionErrorBoundary 已覆盖内容区）
+- 🟡 零代码分割，全量打包——需 `next/dynamic` 架构变更
+- 🟢 全局 ErrorBoundary 仅顶层一个——`SectionErrorBoundary` 已覆盖内容区
 
 ---
 
 ## 统计
 
-| | 🔴 P0 | 🟡 P1 | 🟢 P2 |
-|---|---|---|---|
-| 后端（保留） | 0 | 9 | 3 |
-| 前端（保留） | 0 | 1 | 3 |
-| **合计** | **0** | **10** | **6** |
+| | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
+|---|---|---|---|---|
+| 后端 | 3 | 6 | 8 | 9 |
+| 前端 | 0 | 0 | 1 | 5 |
+| **合计** | **3** | **6** | **9** | **14** |
 
----
-
-## ✅ 已完成的改进
-
-### 架构重构
-
-- ✅ `PAGE_SIZE=10` 提取为 `lib/api/constants.ts` 共享常量（消除 7 处硬编码）
-- ✅ `FilterBar` 泛型组件提取，消除 tickets/knowledge 筛选按钮 18 行重复代码
-- ✅ Toast 内联样式迁移至 Tailwind，添加 `aria-live="polite"` 无障碍支持
-- ✅ 5 个死代码 API 导出移除（`getDocStatus`/`retryDoc`/`getLLMConfigDetail`/`addTicketRecord`/`logout(api)`）
-- ✅ `ErrorFallback` 去导出，仅内部使用；`truncate`/`formatDateOnly` 移除
-
-### UI/UX 精细化
-
-- ✅ 全站触控目标 44×44px：icon 14→16，p-2→p-3.5，stop w-11 h-11
-- ✅ 按压反馈：PageBtn/PortalLayout/AdminLayout 添加 active:scale-95
-- ✅ 图标一致性：CheckCircle2→CheckCircle，全站 14-18px 统一，空状态 32px
-- ✅ 间距网格对齐：gap-1→gap-2，3px→4px，18px→w-5
-- ✅ WCAG AA 对比度：text-muted-48(暗色)/color-error/badge-warning-text/badge-neutral-text 全线达标
-
-### 可访问性
-
-- ✅ 3 处 aria-label 补全（select ×2 + file input）
-- ✅ heading 层级 h1→h3 改为 h1→h2 三处
-- ✅ ChatMessage 低置信度告警改用 `--badge-warning-text`（对比度 5.2:1）
-
-### 功能完善
-
-- ✅ 趋势图自定义日期上限 30 天校验，日期标签横排无滚动
-- ✅ 筛选按钮 icon-only→icon+文字，浅色模式非激活态 bg-canvas+border-hairline
-- ✅ 全站按钮图标补全（admin 申告/文章操作按钮、修改密码 Key 图标）
-- ✅ 统计卡片 hover 阴影、font-bold、padding 优化
-- ✅ ChatMessage 气泡半径使用 radius token（rounded-tr/tl-sm）
-
-### 设计系统完善（本轮 #5）
-
-- ✅ `<PageTitle>` 组件提取，15 页面迁移（消除 18 处 `text-hero font-semibold` 重复）
-- ✅ `--font-size-display: 72px` 添加到 theme tokens，404 页 `text-[72px]` → `text-display`
-- ✅ 表格操作列 `title: ''` → `title: '操作'`（users/roles/messages 三处，屏幕阅读器友好）
-- ✅ `Skeleton` 骨架屏组件创建 (`ui/AppleSkeleton.tsx`)，`animate-pulse` + 统一 token
+> 来源：`docs/degradation-matrix.md` 全链路降级审计 v1.0（2026-06-23）
