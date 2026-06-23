@@ -53,6 +53,10 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 		t.Fatalf("初始化数据库失败: %v", err)
 	}
 
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
+
 	// 建表
 	db.Exec(`CREATE TABLE IF NOT EXISTS knowledge_bases (
 		id BIGSERIAL PRIMARY KEY, name VARCHAR(128) NOT NULL, description TEXT,
@@ -94,7 +98,7 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 	chatRepo := repository.NewChatRepo(db)
 	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
 		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
-	})
+	}, nil)
 	chatH := handler.NewChatHandler(chatSvc)
 
 	// 路由

@@ -30,7 +30,7 @@ func setupRouter() *gin.Engine {
 			Secret: "test_router_secret",
 		},
 	}
-	return router.Setup(cfg, nil, nil)
+	return router.Setup(cfg, nil, nil, nil)
 }
 
 // TestSetup_ReturnsEngine 测试 Setup 返回有效的 Gin 引擎

@@ -16,8 +16,8 @@ type User struct {
 	Email        string    `gorm:"type:varchar(128)" json:"email"`
 	Status       int16     `gorm:"not null;default:1" json:"status"`
 	FirstLogin   bool      `gorm:"not null;default:true;column:first_login" json:"first_login"`
-	CreatedAt    time.Time `gorm:"not null" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"not null" json:"updated_at"`
+	CreatedAt    time.Time `gorm:"not null;default:now()" json:"created_at"`
+	UpdatedAt    time.Time `gorm:"not null;default:now()" json:"updated_at"`
 }
 
 func (User) TableName() string { return "users" }

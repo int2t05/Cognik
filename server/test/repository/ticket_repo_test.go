@@ -32,6 +32,10 @@ func setupTicketTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("初始化数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id BIGSERIAL PRIMARY KEY, username VARCHAR(64) NOT NULL UNIQUE,
 		password_hash VARCHAR(255) NOT NULL, real_name VARCHAR(64) NOT NULL,

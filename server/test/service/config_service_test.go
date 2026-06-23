@@ -48,6 +48,10 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("初始化数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	if err := db.AutoMigrate(&model.SystemConfig{}); err != nil {
 		t.Fatalf("自动迁移 SystemConfig 失败: %v", err)
 	}

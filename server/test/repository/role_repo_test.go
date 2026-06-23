@@ -31,6 +31,10 @@ func setupRoleTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS roles (
 		id BIGSERIAL PRIMARY KEY, name VARCHAR(64) NOT NULL UNIQUE,
 		description VARCHAR(255), permissions JSONB, is_system BOOLEAN NOT NULL DEFAULT FALSE,

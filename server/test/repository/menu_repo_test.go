@@ -26,6 +26,10 @@ func setupMenuTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS menus (
 		id BIGSERIAL PRIMARY KEY, name VARCHAR(64) NOT NULL, path VARCHAR(255),
 		icon VARCHAR(64), parent_id BIGINT DEFAULT 0, sort_order INT DEFAULT 0,

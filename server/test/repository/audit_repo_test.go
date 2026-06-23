@@ -45,6 +45,10 @@ func getTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	return db
 }
 

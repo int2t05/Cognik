@@ -39,6 +39,10 @@ func setupUserTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("初始化数据库失败: %v", err)
 	}
 
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
+
 	// 确保 users 表存在
 	err = db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id BIGSERIAL PRIMARY KEY,

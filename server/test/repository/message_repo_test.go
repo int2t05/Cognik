@@ -27,6 +27,10 @@ func setupMessageTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
 		id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, type VARCHAR(32) NOT NULL,
 		related_type VARCHAR(32), related_id BIGINT, title VARCHAR(255) NOT NULL,

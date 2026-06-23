@@ -116,7 +116,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 
 	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
-	})
+	}, nil)
 
 	// Handler → Router → HTTP Server
 	handlers := &router.Handlers{
@@ -132,7 +132,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 		Server: config.ServerConfig{Mode: "debug", ReadTimeout: 15 * time.Second, WriteTimeout: 60 * time.Second},
 		JWT:    jwtCfg, CORS: config.CORSConfig{AllowOrigins: "http://localhost:5173"},
 		Database: dbCfg,
-	}, userCache, handlers)
+	}, userCache, handlers, nil)
 
 	srv := httptest.NewServer(r)
 	ts := &apiTestServer{Server: srv, DB: db, BaseURL: srv.URL, authSvc: authSvc}

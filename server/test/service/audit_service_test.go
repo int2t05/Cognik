@@ -30,6 +30,10 @@ func setupAuditServiceTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id BIGSERIAL PRIMARY KEY, username VARCHAR(64) NOT NULL, password_hash VARCHAR(255) NOT NULL,
 		real_name VARCHAR(64) NOT NULL, phone VARCHAR(20) NOT NULL,
@@ -96,7 +100,7 @@ func TestAuditService_List_ByOperator(t *testing.T) {
 	// 使用唯一 operator_id 避免与其他测试的用户数据冲突
 	const testOpID = 99001
 	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone, created_at, updated_at)
-		VALUES (?, 'audit_op_test', 'hashed_pwd_test', '操作人A', '13800000001', NOW(), NOW())
+		VALUES (?, 'audit_op_test', 'hashed_pwd_test', '操作人A', '13900000001', NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET real_name = '操作人A', updated_at = NOW()`,
 		testOpID)
 	repo.Create(ctx, &model.AuditLog{OperatorID: testOpID, Action: "test_op1", TargetType: "user", TargetID: 1})

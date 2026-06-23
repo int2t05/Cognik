@@ -11,24 +11,24 @@ import "github.com/gin-gonic/gin"
 // 仅需 JWT 认证，不做角色校验——任何已登录用户均可使用门户功能。
 func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 知识库列表（门户端 Chat 需要选择知识库，无需 admin 权限）
-	rg.GET("/knowledge-bases", safeHandler(h, h.Knowledge != nil, func() gin.HandlerFunc { return h.Knowledge.ListKBsForPortal }))
+	rg.GET("/knowledge-bases", safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ListKBsForPortal }))
 
 	// 智能问答 — 会话 CRUD + 流式对话
-	rg.POST("/chat-sessions", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.CreateChatSession }))
-	rg.GET("/chat-sessions", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.ListSessions }))
-	rg.GET("/chat-sessions/:id", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.GetChatDetail }))
-	rg.DELETE("/chat-sessions/:id", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.DeleteSession }))
-	rg.POST("/chat-sessions/:id/stream", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.StreamChatMessage }))
-	rg.POST("/chat-sessions/:id/feedback", safeHandler(h, h.Chat != nil, func() gin.HandlerFunc { return h.Chat.SubmitFeedback }))
+	rg.POST("/chat-sessions", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.CreateChatSession }))
+	rg.GET("/chat-sessions", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.ListSessions }))
+	rg.GET("/chat-sessions/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.GetChatDetail }))
+	rg.DELETE("/chat-sessions/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.DeleteSession }))
+	rg.POST("/chat-sessions/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.StreamChatMessage }))
+	rg.POST("/chat-sessions/:id/feedback", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.SubmitFeedback }))
 
 	// 申告管理
-	rg.POST("/tickets", safeHandler(h, h.Ticket != nil, func() gin.HandlerFunc { return h.Ticket.CreateTicket }))
-	rg.GET("/tickets", safeHandler(h, h.Ticket != nil, func() gin.HandlerFunc { return h.Ticket.ListByUser }))
-	rg.GET("/tickets/:id", safeHandler(h, h.Ticket != nil, func() gin.HandlerFunc { return h.Ticket.GetDetail }))
-	rg.PATCH("/tickets/:id/supplement", safeHandler(h, h.Ticket != nil, func() gin.HandlerFunc { return h.Ticket.SupplementTicket }))
+	rg.POST("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateTicket }))
+	rg.GET("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.ListByUser }))
+	rg.GET("/tickets/:id", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetail }))
+	rg.PATCH("/tickets/:id/supplement", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.SupplementTicket }))
 
 	// 站内消息
-	rg.GET("/messages", safeHandler(h, h.Message != nil, func() gin.HandlerFunc { return h.Message.ListMessages }))
-	rg.PUT("/messages/:id/read", safeHandler(h, h.Message != nil, func() gin.HandlerFunc { return h.Message.MarkAsRead }))
-	rg.GET("/messages/unread-count", safeHandler(h, h.Message != nil, func() gin.HandlerFunc { return h.Message.CountUnread }))
+	rg.GET("/messages", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.ListMessages }))
+	rg.PUT("/messages/:id/read", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.MarkAsRead }))
+	rg.GET("/messages/unread-count", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.CountUnread }))
 }

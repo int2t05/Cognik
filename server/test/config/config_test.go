@@ -62,19 +62,19 @@ func TestLoad_DefaultValues(t *testing.T) {
 	}
 
 	// LLM 配置
-	if cfg.LLM.BaseURL != "http://llama-cpp:8080/v1" {
-		t.Errorf("LLM.BaseURL = %q, 期望 http://llama-cpp:8080/v1", cfg.LLM.BaseURL)
+	if cfg.LLM.BaseURL != "http://llama-cpp:8081/v1" {
+		t.Errorf("LLM.BaseURL = %q, 期望 http://llama-cpp:8081/v1", cfg.LLM.BaseURL)
 	}
-	if cfg.LLM.Model != "qwen3-4b" {
-		t.Errorf("LLM.Model = %q, 期望 qwen3-4b", cfg.LLM.Model)
+	if cfg.LLM.Model != "Qwen3-4B-Q4_K_M" {
+		t.Errorf("LLM.Model = %q, 期望 Qwen3-4B-Q4_K_M", cfg.LLM.Model)
 	}
 	if cfg.LLM.MaxTokens != 8192 {
 		t.Errorf("LLM.MaxTokens = %d, 期望 8192", cfg.LLM.MaxTokens)
 	}
 
 	// Embedding 配置（与 LLM 共用 BaseURL，但独立模型名和维度）
-	if cfg.Embedding.Model != "bge-m3" {
-		t.Errorf("Embedding.Model = %q, 期望 bge-m3", cfg.Embedding.Model)
+	if cfg.Embedding.Model != "Qwen3-Embedding-0.6B-Q8_0" {
+		t.Errorf("Embedding.Model = %q, 期望 Qwen3-Embedding-0.6B-Q8_0", cfg.Embedding.Model)
 	}
 	if cfg.Embedding.Dimension != 1024 {
 		t.Errorf("Embedding.Dimension = %d, 期望 1024", cfg.Embedding.Dimension)

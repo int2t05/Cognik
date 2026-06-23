@@ -214,7 +214,7 @@ func TestChatService_SessionFlow(t *testing.T) {
 	// 创建 ChatService
 	knowledgeRepo := repository.NewKnowledgeRepo(knowledgeSvcDB)
 	chatRepo := repository.NewChatRepo(knowledgeSvcDB)
-	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 3})
+	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 3}, nil)
 
 	// 创建会话
 	session, err := chatSvc.CreateSession(bgCtx, request.CreateSessionRequest{

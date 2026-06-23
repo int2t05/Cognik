@@ -65,7 +65,7 @@ func setupChatServiceTest(t *testing.T) (*service.ChatService, *model.KnowledgeB
 
 	knowledgeRepo := repository.NewKnowledgeRepo(chatSvcDB)
 	chatRepo := repository.NewChatRepo(chatSvcDB)
-	svc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 5})
+	svc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 5}, nil)
 
 	kb := &model.KnowledgeBase{
 		Name:            "测试知识库",

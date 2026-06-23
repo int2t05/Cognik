@@ -115,20 +115,17 @@ func TestMultiRoute_Success(t *testing.T) {
 	}
 }
 
-// TestMultiRoute_LLMFail 验证 LLM 失败时降级返回原查询。
+// TestMultiRoute_LLMFail 验证 LLM 失败时返回错误，Pipeline 层负责降级处理。
 func TestMultiRoute_LLMFail(t *testing.T) {
 	llm := &mockLLMClient{
 		chatError: fmt.Errorf("LLM 服务不可用"),
 	}
 
 	original := "邮箱无法登录"
-	routes, err := rag.MultiRoute(context.Background(), llm, original, 3)
+	_, err := rag.MultiRoute(context.Background(), llm, original, 3)
 
-	if err != nil {
-		t.Fatalf("LLM 失败不应报错（应降级）: %v", err)
-	}
-	if len(routes) != 1 || routes[0] != original {
-		t.Errorf("LLM 失败应返回 [原始查询], 实际 %v", routes)
+	if err == nil {
+		t.Fatal("LLM 失败应返回错误（Pipeline 层负责降级）")
 	}
 }
 

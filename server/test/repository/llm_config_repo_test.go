@@ -27,6 +27,10 @@ func setupLLMConfigRepoTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.AutoMigrate(&model.LlmConfig{}, &model.KnowledgeBase{})
 	db.Exec("DELETE FROM knowledge_bases WHERE name LIKE 'test_llmcfg_%'")
 	db.Exec("DELETE FROM llm_configs WHERE name LIKE 'test_llmcfg_%'")

@@ -21,12 +21,11 @@ func placeholder() gin.HandlerFunc {
 	}
 }
 
-// safeHandler 安全获取 handler：ok 为 true 时调用 get() 返回真实 handler，否则返回 placeholder。
+// safeHandler 安全获取 handler：cond() 仅在 h != nil 时调用，避免 nil deref。
 //
-// get 仅在条件满足时调用，避免 nil deref panic。
-// h 参数用于未来扩展（目前仅依赖 ok 判断）。
-func safeHandler(h *Handlers, ok bool, get func() gin.HandlerFunc) gin.HandlerFunc {
-	if h != nil && ok {
+// cond 和 get 均为惰性求值——h 为 nil 时不会触发 panic。
+func safeHandler(h *Handlers, cond func() bool, get func() gin.HandlerFunc) gin.HandlerFunc {
+	if h != nil && cond() {
 		return get()
 	}
 	return placeholder()

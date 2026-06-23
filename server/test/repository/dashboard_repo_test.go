@@ -26,6 +26,10 @@ func setupDashboardRepoTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32) NOT NULL, user_id BIGINT NOT NULL,
 		title VARCHAR(255) NOT NULL, description TEXT NOT NULL, urgency SMALLINT NOT NULL DEFAULT 1,

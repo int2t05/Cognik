@@ -28,6 +28,10 @@ func setupConfigRepoTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
+
+	if err := database.AutoMigrate(db); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
 	db.AutoMigrate(&model.SystemConfig{})
 	db.Exec("DELETE FROM system_configs WHERE key LIKE 'test_%'")
 	return db
