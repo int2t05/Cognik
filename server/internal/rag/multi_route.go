@@ -55,7 +55,7 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, query string, count 
 		Temperature: 0.3,
 	})
 	if err != nil {
-		return []string{query}, nil
+		return []string{query}, fmt.Errorf("多路检索 LLM 调用失败，降级为单路: %w", err)
 	}
 
 	// 从 LLM 响应中提取 JSON 数组

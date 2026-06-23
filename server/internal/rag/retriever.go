@@ -26,8 +26,11 @@ func NewVectorRetriever(embedder *Embedder, store adapter.VectorStore) *VectorRe
 }
 
 // Retrieve 执行向量检索：embedding 查询 → pgvector cosine 搜索。
+//
+// r 为 nil（pgvector 初始化失败时 main.go 传入 nil 值）
+// 或 store 为 nil 时静默降级返回空结果，不阻塞管道。
 func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error) {
-	if r.store == nil {
+	if r == nil || r.store == nil {
 		return nil, nil
 	}
 	if r.embedder == nil {

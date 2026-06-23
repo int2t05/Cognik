@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"opsmind/internal/model"
 	"opsmind/internal/rag"
 	"opsmind/pkg/errcode"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -132,7 +135,10 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	// 加载会话并校验归属
 	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
-		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+		}
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
 	}
 	if session.UserID != userID {
 		return nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
@@ -241,7 +247,10 @@ func (s *ChatService) SubmitFeedback(ctx context.Context, sessionID int64, userI
 	}
 	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
-		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+		}
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
 	}
 	if session.UserID != userID {
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权操作该会话"}

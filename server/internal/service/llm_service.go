@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"opsmind/internal/adapter"
@@ -77,6 +78,7 @@ type ChatPipelineStep struct {
 
 // LLMService 封装 RAG + LLM 调用编排。StreamChat 用于 SSE 流式，SyncChat 用于非流式。
 type LLMService struct {
+	mu                 sync.Mutex
 	llmClient          adapter.LLMClient
 	configMgr          *LLMConfigManager
 	defaultModel       string
@@ -101,7 +103,16 @@ func NewLLMService(llmClient adapter.LLMClient, configMgr *LLMConfigManager, def
 
 // SetLLMClient 替换 LLM 客户端（默认配置变更时由回调调用）。
 func (s *LLMService) SetLLMClient(client adapter.LLMClient) {
+	s.mu.Lock()
 	s.llmClient = client
+	s.mu.Unlock()
+}
+
+// getLLMClient 线程安全地获取当前 LLM 客户端。
+func (s *LLMService) getLLMClient() adapter.LLMClient {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.llmClient
 }
 
 // =============================================================================
@@ -138,10 +149,10 @@ func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, 
 
 	// Step 3: LLM 同步生成（仅当 llmClient 可用）
 	var answer string
-	if s.llmClient != nil {
+	if client := s.getLLMClient(); client != nil {
 		messages := s.buildMessages(chunks, question, history)
 		model, maxTokens := s.getModelConfig()
-		llmResp, llmErr := s.llmClient.ChatCompletion(ctx, adapter.ChatRequest{
+		llmResp, llmErr := client.ChatCompletion(ctx, adapter.ChatRequest{
 			Messages:    messages,
 			Model:       model,
 			MaxTokens:   maxTokens,
@@ -217,7 +228,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		}
 
 		// Step 3: LLM 流式生成（仅当 llmClient 可用）
-		if s.llmClient == nil {
+		if s.getLLMClient() == nil {
 			// 无 LLM：模拟流式输出检索摘要
 			var sb strings.Builder
 			for i, c := range chunks {
@@ -233,7 +244,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 
 		messages := s.buildMessages(chunks, question, history)
 		model, maxTokens := s.getModelConfig()
-		tokenCh, llmErr := s.llmClient.ChatCompletionStream(ctx, adapter.ChatRequest{
+		tokenCh, llmErr := s.getLLMClient().ChatCompletionStream(ctx, adapter.ChatRequest{
 			Messages:    messages,
 			Model:       model,
 			MaxTokens:   maxTokens,
@@ -254,7 +265,17 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 			default:
 			}
 			if chunk.Error != nil {
-				eventCh <- StreamEvent{Type: "error", Error: "LLM 生成中断: " + chunk.Error.Error()}
+				if answerBuf.Len() > 0 {
+					sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+						Answer:          answerBuf.String(),
+						Sources:         extractSources(chunks),
+						Confidence:      maxConfidence(chunks),
+						CanSubmitTicket: maxConfidence(chunks) < 0.6,
+						DurationMS:      int(time.Since(start).Milliseconds()),
+					}})
+				} else {
+					sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: "LLM 生成中断: " + chunk.Error.Error()})
+				}
 				return
 			}
 			if chunk.Content != "" {

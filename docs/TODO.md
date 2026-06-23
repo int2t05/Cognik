@@ -39,15 +39,15 @@
 
 ### 🔴 生产隐患
 
-- 🔴 `nil VectorRetriever` 赋值给接口后调用 `Retrieve` 可能 panic——pgvector 初始化失败后向量检索触发服务崩溃（`retriever.go:30`, `main.go:222`）
-- 🔴 `tryRefreshIndex` panic 无 recovery——`buildIndex()` 崩溃时 building 标志未清除 + 写锁未释放，BM25 索引永久死锁（`bm25.go:378`）
-- 🔴 DB 宕机时 `chat_service` 的 `FindByID` 失败全部返回 `"会话不存在"(10004)`——用户无法区分"DB 故障"和"真的不存在"（`chat_service.go:133`）
+- ✅ `nil VectorRetriever` panic — `Retrieve` 增加 nil receiver 检查，静默降级返回空结果（`retriever.go:30`）
+- ✅ `tryRefreshIndex` panic 无 recovery — 增加 `defer recover()` 保护，panic 时清除 building 标志（`bm25.go:378`）
+- ✅ DB 宕机伪装为"会话不存在" — `FindByID` 增加 `errors.Is(err, gorm.ErrRecordNotFound)` 区分 DB 故障（`chat_service.go:133`）
 
 ### 🟠 功能缺陷
 
-- 🟠 流式中断丢弃已累积答案——`answerBuf` 在 SSE error 事件时被丢弃，前端收不到部分回答（`llm_service.go:256`）
-- 🟠 多路检索失败返回 nil error——LLM 调用失败时 `MultiRoute` 返回 nil 而非 error，管道日志显示 `Success=true`（`multi_route.go:57`）
-- 🟠 `llmClient` 指针替换无同步——`SetLLMClient` 写与 `StreamChat` 读无 mutex 保护，存在数据竞争（`llm_service.go:104`）
+- ✅ 流式中断丢弃已累积答案 — 已有 `answerBuf` 时发送 `done`（含部分回答），无内容时发送 `error`（`llm_service.go:256`）
+- ✅ 多路检索失败返回 nil error — 改为返回 `fmt.Errorf("多路检索 LLM 调用失败，降级为单路: %w", err)`（`multi_route.go:57`）
+- ✅ `llmClient` 指针替换数据竞争 — 添加 `sync.Mutex` 保护读写，通过 `getLLMClient()` 访问（`llm_service.go:104`）
 
 ### 🟡 架构债务
 
@@ -150,8 +150,8 @@
 
 | | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
 |---|---|---|---|---|
-| 后端 | 3 | 6 | 8 | 9 |
+| 后端 | 0 | 2 | 8 | 9 |
 | 前端 | 0 | 0 | 1 | 5 |
-| **合计** | **3** | **6** | **9** | **14** |
+| **合计** | **0** | **2** | **9** | **14** |
 
-> 来源：`docs/degradation-matrix.md` 全链路降级审计 v1.0（2026-06-23）
+> 最近修复（2026-06-23）：3 项 🔴 + 3 项 🟠，详见 `docs/degradation-matrix.md`

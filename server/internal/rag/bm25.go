@@ -377,13 +377,20 @@ func (r *BM25Retriever) tryRefreshIndex(kbID int64) *bm25Entry {
 
 	if len(e.documents) > 0 && !r.building[kbID] {
 		r.building[kbID] = true
-		idx := r.buildIndex(e.documents)
-		r.indexes[kbID] = &bm25Entry{
-			index:     idx,
-			documents: e.documents,
-			builtAt:   time.Now(),
-		}
-		r.building[kbID] = false
+		func() {
+			defer func() {
+				r.building[kbID] = false
+				if rec := recover(); rec != nil {
+					slog.Error("BM25 tryRefreshIndex panic 已恢复", "kb_id", kbID, "panic", rec)
+				}
+			}()
+			idx := r.buildIndex(e.documents)
+			r.indexes[kbID] = &bm25Entry{
+				index:     idx,
+				documents: e.documents,
+				builtAt:   time.Now(),
+			}
+		}()
 	}
 	return r.indexes[kbID]
 }
