@@ -147,9 +147,6 @@ func (c *OpenAIEmbeddingClient) doRequest(ctx context.Context, jsonBody []byte) 
 			return resp, nil
 		}
 		lastErr = err
-		if !isRetryable(err) {
-			return nil, fmt.Errorf("embedding 请求失败: %w", err)
-		}
 	}
 	return nil, fmt.Errorf("embedding 重试 %d 次后仍失败: %w", c.maxRetries, lastErr)
 }

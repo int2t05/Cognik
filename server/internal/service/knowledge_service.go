@@ -392,13 +392,7 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 //  5. 更新文章状态为已发布 status=4
 //
 // 为什么先删旧向量再写新向量：
-// DeleteByArticle 按 article_id 删除该文章的所有向量，无法区分新旧。
-// 若先写后删，第 4 步刚写入的新向量会被第 3 步（原顺序）的删除一并清空，
-// 导致发布后 knowledge_chunks 为空、RAG 检索失败
-// （converting NULL to float64 / 混合检索无结果）。
-// pgvector 写入与删除非同一事务、无法原子替换；删除成功后若写入失败，
-// 文章会暂时无向量，此时记录 process_status=failed 供前端重试发布。
-//
+// ReplaceVectors 在事务内原子替换向量：写入新向量 → 删除旧向量。
 // 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
 	// RAG 依赖未注入时不可执行发布管道，返回明确错误而非 panic
@@ -428,14 +422,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks))}
 	}
 
-	// Step 3: 先清除旧向量（幂等——无旧向量也不报错）。
-	// 删除失败必须中止发布：否则后续写入会与残留旧向量重复堆叠。
-	if err := s.store.DeleteByArticle(ctx, id); err != nil {
-		s.recordPublishFailure(ctx, article, "清除旧向量失败: "+err.Error())
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "清除旧向量失败: " + err.Error()}
-	}
-
-	// Step 4: 写入新向量
+	// Step 3-4: 事务内写入新向量 + 删除旧向量
 	vc := make([]adapter.VectorChunk, len(chunks))
 	for i, chunk := range chunks {
 		vc[i] = adapter.VectorChunk{
@@ -448,9 +435,9 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 			VectorDimension: dimension,
 		}
 	}
-	if err := s.store.BatchInsert(ctx, vc); err != nil {
-		s.recordPublishFailure(ctx, article, "写入向量失败: "+err.Error())
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "写入向量失败: " + err.Error()}
+	if err := s.store.ReplaceVectors(ctx, id, vc); err != nil {
+		s.recordPublishFailure(ctx, article, "替换向量失败: "+err.Error())
+		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "替换向量失败: " + err.Error()}
 	}
 
 	// Step 5: 更新状态

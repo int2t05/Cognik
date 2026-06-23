@@ -159,7 +159,7 @@ func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, 
 			Temperature: 0.3,
 		})
 		if llmErr != nil {
-			answer = "AI 服务不可用，请稍后重试或提交申告。"
+			answer = "当前 AI 服务暂不可用，请提交申告由人工处理"
 		} else {
 			answer = llmResp.Content
 		}
@@ -209,7 +209,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		}
 		chunks, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, onStep)
 		if err != nil {
-			eventCh <- StreamEvent{Type: "error", Error: err.Error()}
+			sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: err.Error()})
 			return
 		}
 
@@ -251,7 +251,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 			Temperature: 0.3,
 		})
 		if llmErr != nil {
-			eventCh <- StreamEvent{Type: "error", Error: "LLM 流式调用失败: " + llmErr.Error()}
+			sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: "LLM 流式调用失败: " + llmErr.Error()})
 			return
 		}
 

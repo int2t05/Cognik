@@ -9,6 +9,7 @@
 package adapter
 
 import (
+	"time"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -71,13 +72,15 @@ type RerankResult struct {
 // 调用方（rag.Rerank）在收到错误后降级为原始排序，
 // Pipeline 无需感知子进程生命周期。
 type SubprocessReranker struct {
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	mu      sync.Mutex // 保护 stdin 写入
-	pending map[string]chan *rerankResponse // reqID → 响应 channel
-	pendingMu sync.Mutex
-	reqSeq   int
-	closed   atomic.Bool
+	cmd        *exec.Cmd
+	pythonPath string // 保存用于自动重启
+	scriptPath string
+	stdin      io.WriteCloser
+	mu         sync.Mutex // 保护 stdin 写入
+	pending    map[string]chan *rerankResponse // reqID → 响应 channel
+	pendingMu  sync.Mutex
+	reqSeq     int
+	closed     atomic.Bool
 }
 
 // rerankRequest JSON Lines 输入格式。
@@ -102,7 +105,9 @@ type rerankResponse struct {
 // 返回 nil 表示子进程启动失败（调用方应降级跳过重排序）。
 func NewSubprocessReranker(pythonPath, scriptPath string) *SubprocessReranker {
 	r := &SubprocessReranker{
-		pending: make(map[string]chan *rerankResponse),
+		pythonPath: pythonPath,
+		scriptPath: scriptPath,
+		pending:    make(map[string]chan *rerankResponse),
 	}
 
 	if err := r.start(pythonPath, scriptPath); err != nil {
@@ -174,23 +179,27 @@ func (r *SubprocessReranker) readStdout(stdout io.Reader) {
 	}
 }
 
-// monitorProcess 监控子进程退出，通知所有等待中的请求返回错误。
-//
-// 不实现自动重启：重启需要重新加载模型（2-5s），
-// 期间所有请求超时，不如直接降级让后续请求走原始排序。
-// 子进程如果频繁崩溃，slog.Warn 会暴露问题。
+// monitorProcess 监控子进程退出，通知等待中的请求，并尝试重启。
 func (r *SubprocessReranker) monitorProcess() {
 	err := r.cmd.Wait()
-	slog.Warn("rerank 子进程已退出", "error", err)
+	slog.Warn("rerank 子进程已退出，将自动重启", "error", err)
 
 	r.pendingMu.Lock()
 	r.closed.Store(true)
-	// 通知所有等待中的请求
 	for id, ch := range r.pending {
 		ch <- &rerankResponse{Error: "rerank 子进程已退出"}
 		delete(r.pending, id)
 	}
 	r.pendingMu.Unlock()
+
+	// 等待模型文件稳定后尝试重启
+	time.Sleep(3 * time.Second)
+	if restartErr := r.start(r.pythonPath, r.scriptPath); restartErr != nil {
+		slog.Error("rerank 子进程重启失败，需人工恢复", "error", restartErr)
+	} else {
+		r.closed.Store(false)
+		slog.Info("rerank 子进程已自动重启")
+	}
 }
 
 // Rerank 执行重排序。
@@ -243,10 +252,13 @@ func (r *SubprocessReranker) Rerank(ctx context.Context, query string, passages 
 		return nil, fmt.Errorf("写入 rerank 子进程失败: %w", err)
 	}
 
-	// 等待响应、ctx 取消、或子进程退出
+	// 内部 30s 超时（防止子进程挂起时无 ctx deadline 永久阻塞）
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-timeoutCtx.Done():
+		return nil, timeoutCtx.Err()
 	case resp := <-respCh:
 		if resp.Error != "" {
 			return nil, fmt.Errorf("rerank 子进程错误: %s", resp.Error)

@@ -41,6 +41,9 @@ type VectorStore interface {
 	// CountByKB 统计知识库的分块总数。
 	CountByKB(ctx context.Context, kbID int64) (int64, error)
 
+	// ReplaceVectors 原子替换文章向量：事务内写入新向量后删除旧向量。
+	ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error
+
 	// GetChunksByArticle 获取指定文章的所有分块内容（不含向量）。
 	GetChunksByArticle(ctx context.Context, articleID int64) ([]ChunkContent, error)
 }
@@ -234,6 +237,38 @@ func (s *PgvectorStore) DeleteByKB(ctx context.Context, kbID int64) error {
 		return fmt.Errorf("删除知识库向量失败 (kb_id=%d): %w", kbID, err)
 	}
 	return nil
+}
+
+// ReplaceVectors 原子替换文章向量：事务内写入新向量后删除旧向量。
+func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("ReplaceVectors 开启事务失败: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 写入新向量（复用 BatchInsert 的 SQL 构建逻辑，此处操作 tx 而非 db）
+	query := "INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, created_at) VALUES "
+	var placeholders []string
+	var args []interface{}
+	for i, ch := range chunks {
+		base := i * 7
+		placeholders = append(placeholders,
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d::halfvec, $%d, $%d, NOW())",
+				base+1, base+2, base+3, base+4, base+5, base+6, base+7))
+		args = append(args, ch.ArticleID, ch.KBID, ch.Content, ch.ChunkIndex,
+			float32ToPgVector(ch.Embedding), ch.EmbeddingModel, ch.VectorDimension)
+	}
+	query += strings.Join(placeholders, ", ")
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("ReplaceVectors 写入新向量失败 (count=%d): %w", len(chunks), err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		"DELETE FROM knowledge_chunks WHERE article_id = $1", articleID); err != nil {
+		return fmt.Errorf("ReplaceVectors 删除旧向量失败: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // CountByKB 统计知识库的分块总数。

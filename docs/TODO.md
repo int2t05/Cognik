@@ -53,22 +53,22 @@
 
 - 🟡 BM25 索引无增量更新，每次刷新全量重建——需算法重构
 - 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止——需架构变更
-- 🟡 错误事件未使用 `sendOrCancel` 保护——消费者退出时 goroutine 可能永久阻塞（`llm_service.go:201`）
-- 🟡 Embedding 连接/超时不重试——与 LLM 流式调用的重试策略不对称（`embedding_client.go:150`）
-- 🟡 重排序子进程崩溃后永不重启——恢复需重启服务（`rerank_client.go:178`）
+- ✅ 错误事件改用 sendOrCancel 保护（llm_service.go:201）
+- ✅ Embedding 连接/超时改为始终重试（embedding_client.go:150）
+- ✅ 重排序子进程崩溃后 3s 自动重启（rerank_client.go:178）
 
 ### 🟢 优化建议
 
 - 🟢 RAG 历史截断按消息条数而非 token 数——设计权衡，非阻塞
 - 🟢 无向量检索模式开关——`RAGOptions` 缺 `DisableRetrieval`，无法做纯 LLM 对话（`rag/types.go:40`）
-- 🟢 Sync/Stream 两个路径的 AI 不可用兜底文本不一致（`llm_service.go:151` vs `chat_service.go:24`）
-- 🟢 重排序无内部超时，仅依赖调用者 context（`rerank_client.go:247`）
+- ✅ Sync/Stream 兜底文本统一为 chat_service.go 常量（llm_service.go:151）
+- ✅ 重排序增加内部 30s 超时保护（rerank_client.go:247）
 
 ## 2. 知识库管理
 
 ### 🟠 功能缺陷
 
-- 🟠 发布失败后向量丢失窗口——旧向量删除成功但新向量写入失败时，文章暂时无向量（`knowledge_service.go:433`）
+- ✅ 发布向量替换改为事务内操作 ReplaceVectors（vector_store.go）
 
 ### 🟡 架构债务
 
@@ -150,8 +150,8 @@
 
 | | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
 |---|---|---|---|---|
-| 后端 | 0 | 2 | 8 | 9 |
+| 后端 | 0 | 1 | 5 | 7 |
 | 前端 | 0 | 0 | 1 | 5 |
-| **合计** | **0** | **2** | **9** | **14** |
+| **合计** | **0** | **1** | **6** | **12** |
 
 > 最近修复（2026-06-23）：3 项 🔴 + 3 项 🟠，详见 `docs/degradation-matrix.md`
