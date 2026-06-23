@@ -27,16 +27,16 @@ minio:
   use_ssl: false
 
 llm:
-  base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
+  base_url: http://llama-cpp:8081/v1  # Docker 内部地址（端口与宿主机统一）；OpenAI: https://api.openai.com/v1
   api_key: ""                          # 通过环境变量 OPSMIND_LLM_API_KEY 设置
-  model: qwen3-4b                      # LLM 模型名称
+  model: Qwen3-4B-Q4_K_M               # LLM 模型名称（与 docker-compose 中 GGUF 文件名一致）
   max_tokens: 8192                     # 最大生成 Token 数
 
 embedding:
-  base_url: ""                         # Embedding 独立地址，空则回退到 llm.base_url
-  api_key: ""                          # Embedding 独立 API Key，空则回退到 llm.api_key
-  model: bge-m3                        # Embedding 模型名称
-  dimension: 1024                      # 向量维度
+  base_url: http://llama-cpp-emb:8082/v1  # Embedding 独立地址（端口与宿主机统一）
+  api_key: ""                             # Embedding 独立 API Key，空则回退到 llm.api_key
+  model: Qwen3-Embedding-0.6B-Q8_0        # Embedding 模型名称（与 docker-compose 中 GGUF 文件名一致）
+  dimension: 1024                          # 向量维度
 
 ai:
   default_top_k: 5

@@ -15,12 +15,11 @@
 #   make test-integration 运行集成测试（需 PostgreSQL opsmind_test 库）
 #   make db-init      执行 DDL 增强脚本（HNSW 索引、列注释）
 #   make db-seed      加载最小测试数据（角色 + 用户）
-#   make db-demo      加载完整演示数据（LLM 配置 + 知识库 + 工单）
 #   make shell-db     进入 PostgreSQL 交互终端
 #   make model-download 下载 llama.cpp GGUF 模型文件
 #   make clean        清理构建产物和运行时数据
 
-.PHONY: help dev build up up-ai down down-v restart logs status ps test test-integration db-init db-seed db-demo shell-db model-download clean
+.PHONY: help dev build up up-ai down down-v restart logs status ps test test-integration db-init db-seed shell-db model-download clean
 
 # 默认目标
 help:
@@ -44,7 +43,6 @@ help:
 	@echo "  数据库："
 	@echo "    make db-init          执行 DDL 增强脚本"
 	@echo "    make db-seed          加载角色和用户"
-	@echo "    make db-demo          加载完整演示数据"
 	@echo ""
 	@echo "  测试："
 	@echo "    make test            运行全部非集成测试"
@@ -110,8 +108,8 @@ up-ai:
 	@echo "============================================"
 	@echo "  前端:       http://localhost:3000"
 	@echo "  后端 API:   http://localhost:8080"
-	@echo "  LLM API:    http://localhost:8081/v1"
-	@echo "  Embedding:  http://localhost:8082/v1"
+	@echo "  LLM API:    http://llama-cpp:8081/v1 (localhost:8081/v1)"
+	@echo "  Embedding:  http://llama-cpp-emb:8082/v1 (localhost:8082/v1)"
 	@echo "============================================"
 
 # 停止全部服务
@@ -160,13 +158,9 @@ test-integration:
 db-init:
 	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql
 
-# 加载最小测试数据（角色 + 用户 + 菜单，不含 LLM 配置和知识库）
+# 加载必要种子数据（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
 db-seed:
 	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
-
-# 加载完整演示数据（LLM 配置 + 知识库 + 工单 + 消息）
-db-demo:
-	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_demo.sql
 
 # ===== 模型下载 =====
 
@@ -188,9 +182,9 @@ model-download:
 			--include "*Q4_K_M*" --local-dir ./models/ || \
 			echo "下载失败，请手动下载 .gguf 文件放到 ./models/"; \
 		echo ""; \
-		echo "下载 Embedding 模型 BGE-M3 Q4_K_M (~1.5 GB)..."; \
-		huggingface-cli download ChristianAzinn/bge-m3-gguf \
-			--include "*Q4_K_M*" --local-dir ./models/ || \
+		echo "下载 Embedding 模型 Qwen3-Embedding-0.6B Q8_0 (~0.6 GB)..."; \
+		huggingface-cli download bartowski/Qwen3-Embedding-0.6B-GGUF \
+			--include "*Q8_0*" --local-dir ./models/ || \
 			echo "下载失败，请手动下载 .gguf 文件放到 ./models/"; \
 	else \
 		echo "未安装 huggingface-cli。"; \

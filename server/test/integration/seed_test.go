@@ -1,17 +1,18 @@
 //go:build integration
 
-// Package integration_test 验证 seed_demo.sql 演示数据的正确性。
+// Package integration_test 验证 seed_essential.sql 必要数据的正确性。
 //
-// 测试覆盖演示数据场景：
+// 测试覆盖必要数据场景：
 //   - 预设角色数据完整性
 //   - 预设用户账号和密码可用性
-//   - 知识库和文章数据完整性
-//   - 申告工单状态正确性
+//   - 用户-角色关联
+//   - LLM 配置存在性
+//   - 系统配置存在性
 //
-// 运行前需先加载演示数据：
+// 运行前需先加载必要数据：
 //
-//   make db-demo
-//   go test -tags=integration -run TestSeedData ./tests/integration/ -v
+//	make db-seed
+//	go test -tags=integration -run TestSeedData ./tests/integration/ -v
 package integration_test
 
 import (
@@ -36,7 +37,7 @@ func TestSeedData_Roles(t *testing.T) {
 	// 种子数据检测：通过特定角色名判断是否已加载
 	var seedRole model.Role
 	if db.Where("name = ?", "系统管理员").First(&seedRole).Error != nil {
-		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
+		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
 	}
 
 	require.GreaterOrEqual(t, len(roles), 4, "至少应有 4 个预设角色")
@@ -60,7 +61,7 @@ func TestSeedData_Users(t *testing.T) {
 	db.Order("id ASC").Find(&users)
 	var seedUser model.User
 	if db.Where("username = ?", "admin").First(&seedUser).Error != nil {
-		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
+		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
 	}
 
 	require.GreaterOrEqual(t, len(users), 6, "至少应有 6 个预设用户")
@@ -99,7 +100,7 @@ func TestSeedData_UserRoles(t *testing.T) {
 	var count int64
 	db.Table("user_roles").Count(&count)
 	if count == 0 {
-		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
+		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
 	}
 
 	assert.GreaterOrEqual(t, len(userRoles), 6, "至少应有 6 条用户-角色关联")
@@ -112,93 +113,51 @@ func TestSeedData_UserRoles(t *testing.T) {
 	t.Logf("✅ admin 用户-角色关联: %d 条", count)
 }
 
-// TestSeedData_KnowledgeBase 验证知识库和文章数据。
-func TestSeedData_KnowledgeBase(t *testing.T) {
+// TestSeedData_LLMConfig 验证 LLM 配置数据。
+func TestSeedData_LLMConfig(t *testing.T) {
 	db := setupSeedDB(t)
 
-	var kbs []model.KnowledgeBase
-	db.Find(&kbs)
-	var seedKB model.KnowledgeBase
-	if db.Where("name = ?", "IT 运维 FAQ").First(&seedKB).Error != nil {
-		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
+	var configs []model.LlmConfig
+	db.Find(&configs)
+	if len(configs) == 0 {
+		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
 	}
-	require.GreaterOrEqual(t, len(kbs), 1, "至少应有 1 个知识库")
-	assert.Equal(t, "IT 运维 FAQ", kbs[0].Name)
-	assert.Equal(t, "opsmind-it-ops", kbs[0].RAGWorkspaceSlug)
-	t.Logf("✅ 知识库: name=%s, slug=%s", kbs[0].Name, kbs[0].RAGWorkspaceSlug)
 
-	// 验证文章数据
-	var articles []model.KnowledgeArticle
-	db.Find(&articles)
-	assert.GreaterOrEqual(t, len(articles), 5, "至少应有 5 条知识文章")
+	assert.GreaterOrEqual(t, len(configs), 2, "至少应有 2 条 LLM 配置")
 
-	// 验证各状态的文章
-	statusCounts := map[int16]int{}
-	for _, a := range articles {
-		statusCounts[a.Status]++
-	}
-	assert.GreaterOrEqual(t, statusCounts[int16(4)], 3, "至少 3 篇已发布(status=4)")
-	assert.GreaterOrEqual(t, statusCounts[int16(2)], 1, "至少 1 篇待审核(status=2)")
-	assert.GreaterOrEqual(t, statusCounts[int16(1)], 1, "至少 1 篇草稿(status=1)")
-	t.Logf("✅ 文章: %d 篇 (已发布=%d, 待审核=%d, 草稿=%d)",
-		len(articles), statusCounts[4], statusCounts[2], statusCounts[1])
-
-	// 验证 chunks
-	var chunks []model.KnowledgeChunk
-	db.Find(&chunks)
-	assert.GreaterOrEqual(t, len(chunks), 5, "至少应有 5 个知识切片")
-	t.Logf("✅ 知识切片: %d 个", len(chunks))
-}
-
-// TestSeedData_Tickets 验证申告工单数据。
-func TestSeedData_Tickets(t *testing.T) {
-	db := setupSeedDB(t)
-
-	var tickets []model.Ticket
-	db.Order("id ASC").Find(&tickets)
-	var seedTicket model.Ticket
-	if db.Where("ticket_no LIKE ?", "TK-DEMO%").First(&seedTicket).Error != nil {
-		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
-	}
-	require.GreaterOrEqual(t, len(tickets), 4, "至少应有 4 个申告工单")
-
-	// 验证各状态工单存在
-	statusCounts := map[int16]int{}
-	for _, tk := range tickets {
-		statusCounts[tk.Status]++
-	}
-	assert.GreaterOrEqual(t, statusCounts[int16(1)], 1, "应有待处理工单(status=1)")
-	assert.GreaterOrEqual(t, statusCounts[int16(2)], 1, "应有处理中工单(status=2)")
-	assert.GreaterOrEqual(t, statusCounts[int16(3)], 1, "应有需补充信息工单(status=3)")
-	assert.GreaterOrEqual(t, statusCounts[int16(4)], 1, "应有已解决工单(status=4)")
-	t.Logf("✅ 申告: %d 个 (待处理=%d, 处理中=%d, 需补充=%d, 已解决=%d)",
-		len(tickets), statusCounts[1], statusCounts[2], statusCounts[3], statusCounts[4])
-
-	// 验证处理记录
-	var records []model.TicketRecord
-	db.Find(&records)
-	assert.GreaterOrEqual(t, len(records), 5, "至少应有 5 条处理记录")
-	t.Logf("✅ 处理记录: %d 条", len(records))
-}
-
-// TestSeedData_Messages 验证站内消息。
-func TestSeedData_Messages(t *testing.T) {
-	db := setupSeedDB(t)
-
-	var messages []model.Message
-	db.Find(&messages)
-	assert.GreaterOrEqual(t, len(messages), 3, "至少应有 3 条站内消息")
-
-	// 验证有未读消息
-	hasUnread := false
-	for _, m := range messages {
-		if !m.IsRead {
-			hasUnread = true
+	// 验证存在默认配置
+	hasDefault := false
+	for _, c := range configs {
+		if c.IsDefault {
+			hasDefault = true
+			t.Logf("✅ 默认配置: name=%s, llm=%s, embedding=%s, provider_type=%d",
+				c.Name, c.LLMModel, c.EmbeddingModel, c.ProviderType)
 			break
 		}
 	}
-	assert.True(t, hasUnread, "应有未读消息")
-	t.Logf("✅ 站内消息: %d 条", len(messages))
+	assert.True(t, hasDefault, "应存在一条 is_default=true 的配置")
+
+	// 验证 llama.cpp 本地配置存在
+	var localCfg model.LlmConfig
+	err := db.Where("provider_type = ?", 1).First(&localCfg).Error
+	require.NoError(t, err, "应有 llama.cpp 本地配置 (provider_type=1)")
+	assert.NotEmpty(t, localCfg.LLMModel, "llm_model 不应为空")
+	assert.NotEmpty(t, localCfg.EmbeddingModel, "embedding_model 不应为空")
+	t.Logf("✅ llama.cpp 配置: llm=%s, embedding=%s", localCfg.LLMModel, localCfg.EmbeddingModel)
+}
+
+// TestSeedData_Menus 验证菜单数据。
+func TestSeedData_Menus(t *testing.T) {
+	db := setupSeedDB(t)
+
+	var menus []model.Menu
+	db.Order("id ASC").Find(&menus)
+	if len(menus) == 0 {
+		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
+	}
+
+	assert.GreaterOrEqual(t, len(menus), 9, "至少应有 9 个菜单")
+	t.Logf("✅ 菜单数据: %d 个", len(menus))
 }
 
 // setupSeedDB 连接测试数据库。

@@ -1,6 +1,7 @@
--- OpsMind 最小测试数据集（角色 + 用户 + 菜单）
+-- OpsMind 必要种子数据集（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
 --
--- 仅加载系统运行所需的最少数据，适用于本地开发和 CI 环境。
+-- 仅加载系统运行所需的最少静态数据。动态数据（知识库、知识文章、
+-- 申告工单、处理记录、站内消息）在运行时通过 API/UI 人工创建。
 -- 可重复执行：先 DELETE 再 INSERT。
 --
 -- 手动加载方式：
@@ -9,13 +10,27 @@
 BEGIN;
 
 -- 清理已有数据（按外键依赖逆序）
+DELETE FROM messages;
+DELETE FROM audit_logs;
+DELETE FROM chat_messages;
+DELETE FROM chat_sessions;
+DELETE FROM ticket_records;
+DELETE FROM tickets;
+DELETE FROM knowledge_chunks;
+DELETE FROM knowledge_articles;
+DELETE FROM knowledge_bases;
+DELETE FROM llm_configs;
 DELETE FROM role_menus;
 DELETE FROM user_roles;
 DELETE FROM menus;
 DELETE FROM users;
 DELETE FROM roles;
+DELETE FROM system_configs;
 
--- 角色
+-- =============================================================================
+-- 角色与权限
+-- =============================================================================
+
 INSERT INTO roles (id, name, description, permissions, created_at, updated_at) VALUES
 (1, '系统管理员', '系统全局管理', '["user:manage","ticket:read","ticket:write","ticket:manage","knowledge:read","knowledge:write","knowledge:create","knowledge:manage","knowledge:review","dashboard:read","audit:read","system:config"]', NOW(), NOW()),
 (2, '运维人员',     '处理申告和回访', '["ticket:read","ticket:write","knowledge:read","knowledge:write"]', NOW(), NOW()),
@@ -24,7 +39,10 @@ INSERT INTO roles (id, name, description, permissions, created_at, updated_at) V
 
 SELECT setval('roles_id_seq', (SELECT MAX(id) FROM roles));
 
+-- =============================================================================
 -- 菜单
+-- =============================================================================
+
 INSERT INTO menus (id, name, path, icon, parent_id, sort_order, type) VALUES
 (1, '仪表盘',     '/admin/dashboard',     'dashboard',  0, 1, 'menu'),
 (2, '申告管理',   '/admin/tickets',       'ticket',     0, 2, 'menu'),
@@ -42,7 +60,10 @@ SELECT setval('menus_id_seq', (SELECT MAX(id) FROM menus));
 INSERT INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m;
 
+-- =============================================================================
 -- 用户（密码 bcrypt cost=10）
+-- =============================================================================
+
 INSERT INTO users (id, username, password_hash, real_name, phone, email, status, first_login, created_at, updated_at) VALUES
 (1, 'admin',     '$2a$10$G5FBz7I3ne4Avj7j.kyhz.uo9TCY7/OADw3RLL/15AKl97kl7AS2.', '系统管理员', '13800000001', 'admin@opsmind.local',      1, true,  NOW(), NOW()),
 (2, 'operator1', '$2a$10$BuBFnBkWINTypuEztzlYi.AazINGfwz9HQuzcV/yXsZAgw5B5OW.C', '张运维',     '13800000002', 'zhangyunwei@opsmind.local', 1, true,  NOW(), NOW()),
@@ -56,5 +77,22 @@ SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 -- 用户-角色关联
 INSERT INTO user_roles (user_id, role_id) VALUES
 (1, 1), (2, 2), (3, 2), (4, 3), (5, 4), (6, 4);
+
+-- =============================================================================
+-- 系统配置
+-- =============================================================================
+
+INSERT INTO system_configs (key, value, description, updated_by, updated_at) VALUES
+('app_name', '"OpsMind"', '应用名称，显示在页面标题和系统通知中', 1, NOW());
+
+-- =============================================================================
+-- LLM 配置
+-- =============================================================================
+
+INSERT INTO llm_configs (id, name, provider_type, base_url, embedding_base_url, api_key, llm_model, embedding_model, system_prompt, max_tokens, vector_dimension, is_default, created_at, updated_at) VALUES
+(1, '本地 llama.cpp',     1, 'http://llama-cpp:8081/v1',  'http://llama-cpp-emb:8082/v1', '',             'Qwen3-4B-Q4_K_M',            'Qwen3-Embedding-0.6B-Q8_0', NULL, 8192,  1024, true,  NOW(), NOW()),
+(2, 'OpenAI GPT-4o-mini', 2, 'https://api.openai.com/v1', '',                              'sk-your-openai-api-key',  'gpt-4o-mini',           'text-embedding-3-small',      NULL, 16384, 1536, false, NOW(), NOW());
+
+SELECT setval('llm_configs_id_seq', (SELECT MAX(id) FROM llm_configs));
 
 COMMIT;

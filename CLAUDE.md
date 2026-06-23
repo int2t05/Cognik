@@ -151,8 +151,7 @@ make test
 
 # 数据库初始化（手动执行）
 make db-init    # DDL 增强（HNSW 索引、列注释）
-make db-seed    # 最小测试数据（角色 + 用户）
-make db-demo    # 完整演示数据
+make db-seed    # 必要数据（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
 ```
 
 ---

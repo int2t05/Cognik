@@ -332,7 +332,7 @@ func TestSchema_Idempotent(t *testing.T) {
 	}()
 }
 
-// TestSchema_SeedExecutes 验证 seed_demo.sql 中的演示数据可执行。
+// TestSchema_SeedExecutes 验证 seed_essential.sql 中的必要数据可执行。
 func TestSchema_SeedExecutes(t *testing.T) {
 	db, err := dbConn()
 	if err != nil {
@@ -346,10 +346,10 @@ func TestSchema_SeedExecutes(t *testing.T) {
 		return
 	}
 
-	// 执行初始化脚本（包含 DDL + 演示数据）
-	initData, err := os.ReadFile("../../migrations/seed_demo.sql")
+	// 执行必要种子数据脚本（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
+	initData, err := os.ReadFile("../../migrations/seed_essential.sql")
 	if err != nil {
-		t.Skipf("跳过：无法读取 seed_demo.sql (%v)", err)
+		t.Skipf("跳过：无法读取 seed_essential.sql (%v)", err)
 		return
 	}
 	if _, err := db.Exec(string(initData)); err != nil {
