@@ -512,18 +512,14 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 
 		now := time.Now()
 		for _, id := range ids {
-			record := &model.TicketRecord{
-				TicketID:   id,
-				OperatorID: 0, // 0 表示系统自动操作
-				Action:     "auto_close",
-				Content:    "系统自动关闭：申告超过 7 天未处理",
-				CreatedAt:  now,
+			if err := tx.Create(&model.TicketRecord{
+				TicketID: id, OperatorID: 0, Action: "auto_close",
+				Content: "系统自动关闭：申告超过 7 天未处理", CreatedAt: now,
+			}).Error; err != nil {
+				slog.Warn("auto_close 创建记录失败，跳过该工单", "ticket_id", id, "error", err)
+				continue
 			}
-			if err := tx.Create(record).Error; err != nil {
-				return err
-			}
-			txAuditRepo := repository.NewAuditRepo(tx)
-			txAuditRepo.Create(ctx, &model.AuditLog{
+			repository.NewAuditRepo(tx).Create(ctx, &model.AuditLog{
 				OperatorID: 0, Action: "ticket.auto_close",
 				TargetType: "ticket", TargetID: id,
 			})

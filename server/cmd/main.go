@@ -302,7 +302,7 @@ func wireApp() (*app, error) {
 		MultiRoute:   cfg.AI.RAGMultiRoute,
 		Hybrid:       cfg.AI.RAGHybrid,
 		Rerank:       cfg.AI.RAGRerank,
-	})
+	}, configService)
 	slog.Info("ChatService 已初始化")
 
 	auditService := service.NewAuditService(auditRepo)

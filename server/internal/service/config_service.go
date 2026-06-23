@@ -35,9 +35,14 @@ type configKeyMeta struct {
 // 自由 key-value 允许调用方写入任意键名，拼写错误导致静默创建无用配置项，
 // 且前端无法区分「配置不存在」和「配置类型不符」。
 var validConfigKeys = map[string]configKeyMeta{
-	"app_name":    {ValueType: "string", Description: "应用名称，显示在页面标题和系统通知中"},
-	"ai.top_k":    {ValueType: "number", Description: "RAG 默认检索 Top K"},
-	"ai.threshold": {ValueType: "number", Description: "AI 置信度阈值"},
+	"app_name":              {ValueType: "string", Description: "应用名称，显示在页面标题和系统通知中"},
+	"ai.top_k":              {ValueType: "number", Description: "RAG 默认检索 Top K"},
+	"ai.threshold":          {ValueType: "number", Description: "AI 置信度阈值，低于此值引导提交申告"},
+	"ai.max_history_messages": {ValueType: "number", Description: "多轮对话历史消息数上限"},
+	"ai.rag_query_rewrite":  {ValueType: "bool", Description: "RAG 查询改写开关"},
+	"ai.rag_multi_route":    {ValueType: "bool", Description: "RAG 多路检索开关"},
+	"ai.rag_hybrid":         {ValueType: "bool", Description: "RAG BM25 混合检索开关"},
+	"ai.rag_rerank":         {ValueType: "bool", Description: "RAG 重排序开关"},
 }
 
 // ConfigService 系统配置管理服务。
@@ -49,6 +54,45 @@ type ConfigService struct {
 // NewConfigService 创建 ConfigService 实例。
 func NewConfigService(repo *repository.ConfigRepo, auditRepo *repository.AuditRepo) *ConfigService {
 	return &ConfigService{repo: repo, auditRepo: auditRepo}
+}
+
+// GetInt 读取整数配置，不存在或类型不匹配返回 (0, false)。
+func (s *ConfigService) GetInt(ctx context.Context, key string) (int, bool) {
+	v, err := s.GetConfig(ctx, key)
+	if err != nil || v == nil {
+		return 0, false
+	}
+	switch n := v.(type) {
+	case float64:
+		return int(n), true
+	case int:
+		return n, true
+	}
+	return 0, false
+}
+
+// GetFloat 读取浮点配置，不存在或类型不匹配返回 (0, false)。
+func (s *ConfigService) GetFloat(ctx context.Context, key string) (float64, bool) {
+	v, err := s.GetConfig(ctx, key)
+	if err != nil || v == nil {
+		return 0, false
+	}
+	if n, ok := v.(float64); ok {
+		return n, true
+	}
+	return 0, false
+}
+
+// GetBool 读取布尔配置，不存在或类型不匹配返回 (false, false)。
+func (s *ConfigService) GetBool(ctx context.Context, key string) (bool, bool) {
+	v, err := s.GetConfig(ctx, key)
+	if err != nil || v == nil {
+		return false, false
+	}
+	if b, ok := v.(bool); ok {
+		return b, true
+	}
+	return false, false
 }
 
 // GetConfig 获取指定 key 的配置值。

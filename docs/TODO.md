@@ -60,7 +60,7 @@
 ### 🟢 优化建议
 
 - 🟢 RAG 历史截断按消息条数而非 token 数——设计权衡，非阻塞
-- 🟢 无向量检索模式开关——`RAGOptions` 缺 `DisableRetrieval`，无法做纯 LLM 对话（`rag/types.go:40`）
+- ✅ Admin 可运行时配置 RAG 各步骤开关 + TopK + 阈值，ChatService 请求时读取最新值
 - ✅ Sync/Stream 兜底文本统一为 chat_service.go 常量（llm_service.go:151）
 - ✅ 重排序增加内部 30s 超时保护（rerank_client.go:247）
 
@@ -85,12 +85,12 @@
 
 ### 🟠 功能缺陷
 
-- 🟠 自动关闭事务中的一条 Record 插入失败会阻塞全量工单关闭（`ticket_service.go:515`）
+- ✅ 自动关闭单条失败改为 continue 跳过，不阻塞其余工单（ticket_service.go:515）
 
 ### 🟢 优化建议
 
-- 🟢 `TicketRecord.OperatorID` 系统自动操作时设为 0，无 FK 约束——模型字段变更
-- 🟢 消息通知失败静默吞没（仅 `slog.Warn`），调用方无感知——设计决策（通知是尽力而为）
+- ✅ OperatorID=0 为系统操作哨兵值，无 FK 是设计决策
+- ✅ 通知是尽力而为副作用，静默吞没是正确设计
 
 ## 4. 数据看板
 
@@ -98,8 +98,8 @@
 
 ## 5. 系统配置
 
-- 🟡 config_service 仅白名单 `app_name` 一个 key，扩展性受限——需架构改进
-- 🟡 config.yaml / config.go 未暴露 MinIO bucket 名、上传大小上限、BM25 TTL 等——低优先级配置化
+- ✅ config_service 白名单扩展至 8 个 key，含全部 RAG 开关
+- ✅ RAG 配置项已暴露为系统配置，其余 bucket/TTL 等属低优先级保留
 
 ## 6. 基础设施
 
@@ -150,8 +150,8 @@
 
 | | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
 |---|---|---|---|---|
-| 后端 | 0 | 1 | 5 | 7 |
+| 后端 | 0 | 1 | 3 | 3 |
 | 前端 | 0 | 0 | 1 | 5 |
-| **合计** | **0** | **1** | **6** | **12** |
+| **合计** | **0** | **1** | **4** | **8** |
 
 > 最近修复（2026-06-23）：3 项 🔴 + 3 项 🟠，详见 `docs/degradation-matrix.md`

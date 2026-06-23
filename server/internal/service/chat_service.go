@@ -55,21 +55,24 @@ type RAGDefaults struct {
 	Rerank       bool
 }
 
+// ragConfigReader ChatService 需要的运行时配置读取能力。
+type ragConfigReader interface {
+	GetInt(ctx context.Context, key string) (int, bool)
+	GetFloat(ctx context.Context, key string) (float64, bool)
+	GetBool(ctx context.Context, key string) (bool, bool)
+}
+
 // ChatService 智能问答服务。
-//
-// knowledgeRepo/chatRepo 使用接口类型，便于测试 mock。
-// llmService 统一管理 RAG+LLM 调用编排（含 Pipeline）。
 type ChatService struct {
 	ragDefaults   RAGDefaults
+	configReader  ragConfigReader // 运行时读取 DB 配置覆盖 env 默认值
 	knowledgeRepo chatKnowledgeRepo
 	chatRepo      chatSessionRepo
 	llmService    *LLMService
 }
 
 // NewChatService 创建 ChatService 实例。
-//
-// llmService 可以为 nil（测试或降级场景）。
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults) *ChatService {
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader) *ChatService {
 	if ragDefaults.TopK <= 0 {
 		ragDefaults.TopK = 5
 	}
@@ -78,6 +81,7 @@ func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, l
 		chatRepo:      chatRepo,
 		llmService:    llmService,
 		ragDefaults:   ragDefaults,
+		configReader:  configReader,
 	}
 }
 
@@ -162,17 +166,8 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 		}
 	}
 
-	// RAG 管道选项：从 env 配置读取默认值，请求级参数覆盖
-	opts := rag.RAGOptions{
-		TopK:         s.ragDefaults.TopK,
-		QueryRewrite: s.ragDefaults.QueryRewrite,
-		MultiRoute:   s.ragDefaults.MultiRoute,
-		Hybrid:       s.ragDefaults.Hybrid,
-		Rerank:       s.ragDefaults.Rerank,
-		RouteCount:   routeCount,
-		RerankCount:  rerankCount,
-		History:      ragHistory,
-	}
+	// RAG 管道选项：env 默认值 → DB 配置覆盖 → 请求级参数
+	opts := s.buildRAGOptions(routeCount, rerankCount, ragHistory)
 
 	llmEvents, err := s.llmService.StreamChat(ctx, question, session.KBID, opts, history)
 	if err != nil {
@@ -372,6 +367,41 @@ func (s *ChatService) DeleteSession(ctx context.Context, sessionID, userID int64
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权删除该会话"}
 	}
 	return s.chatRepo.DeleteSession(ctx, sessionID, userID)
+}
+
+// buildRAGOptions 合并多层配置：env 默认 → DB 运行时配置 → 请求参数。
+func (s *ChatService) buildRAGOptions(routeCount, rerankCount int, history []map[string]string) rag.RAGOptions {
+	opts := rag.RAGOptions{
+		TopK:         s.readInt("ai.top_k", s.ragDefaults.TopK),
+		QueryRewrite: s.readBool("ai.rag_query_rewrite", s.ragDefaults.QueryRewrite),
+		MultiRoute:   s.readBool("ai.rag_multi_route", s.ragDefaults.MultiRoute),
+		Hybrid:       s.readBool("ai.rag_hybrid", s.ragDefaults.Hybrid),
+		Rerank:       s.readBool("ai.rag_rerank", s.ragDefaults.Rerank),
+		RouteCount:   routeCount,
+		RerankCount:  rerankCount,
+		History:      history,
+	}
+	return opts
+}
+
+func (s *ChatService) readInt(key string, fallback int) int {
+	if s.configReader == nil {
+		return fallback
+	}
+	if v, ok := s.configReader.GetInt(context.Background(), key); ok {
+		return v
+	}
+	return fallback
+}
+
+func (s *ChatService) readBool(key string, fallback bool) bool {
+	if s.configReader == nil {
+		return fallback
+	}
+	if v, ok := s.configReader.GetBool(context.Background(), key); ok {
+		return v
+	}
+	return fallback
 }
 
 // truncateText 截断文本到 maxRunes 个字符，超出加 "..."
