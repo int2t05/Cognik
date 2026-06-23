@@ -30,13 +30,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   cpu: <Cpu size={18} />,
 };
 
-// FRONTEND_ROUTES 将后端路径映射到实际的前端 Next.js 路由。
-// 数据库种子数据可能使用不同路径，此处统一转换。
+// FRONTEND_ROUTES 将后端菜单路径映射到实际前端路由。
 const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/audit-logs': '/admin/audit',
-  '/admin/model-config': '/admin/config/llm',
-  '/admin/llm-config': '/admin/config/llm',
-  '/admin/system-config': '/admin/config/system',
 };
 
 const SIDEBAR_COLLAPSED_WIDTH = 64;

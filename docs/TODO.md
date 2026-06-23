@@ -99,7 +99,7 @@
 ## 5. 系统配置
 
 - ✅ config_service 白名单扩展至 8 个 key，含全部 RAG 开关
-- ✅ RAG 配置项已暴露为系统配置，其余 bucket/TTL 等属低优先级保留
+- ✅ 菜单去冗余：「LLM 配置」已合并入「模型配置」，路径对齐前端路由 (`/admin/config/llm`, `/admin/config/system`)，8 项菜单
 
 ## 6. 基础设施
 

@@ -470,9 +470,6 @@ ICON_MAP (后端 icon 字段 → Lucide React 图标):
 
 FRONTEND_ROUTES (后端路径 → 前端路由):
   '/admin/audit-logs'     → '/admin/audit'
-  '/admin/model-config'   → '/admin/config/llm'
-  '/admin/llm-config'     → '/admin/config/llm'
-  '/admin/system-config'  → '/admin/config/system'
 ```
 
 ### 4.3 PortalLayout 详解 (`components/layout/PortalLayout.tsx`)

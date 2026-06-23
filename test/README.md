@@ -85,7 +85,7 @@ curl http://localhost:8080/api/v1/auth/login \
 | 3 | 知识库管理员 | `knowledge:read/write/create/manage/review` |
 | 4 | 报障人 | 无后台权限 |
 
-### 2.2 菜单（9 个）
+### 2.2 菜单（8 个）
 
 | ID | 名称 | 路径 |
 |----|------|------|
@@ -95,13 +95,12 @@ curl http://localhost:8080/api/v1/auth/login \
 | 4 | 用户管理 | `/admin/users` |
 | 5 | 角色管理 | `/admin/roles` |
 | 6 | 审计日志 | `/admin/audit-logs` |
-| 7 | 模型配置 | `/admin/model-config` |
-| 8 | LLM 配置 | `/admin/llm-config` |
-| 9 | 系统配置 | `/admin/system-config` |
+| 7 | 模型配置 | `/admin/config/llm` |
+| 8 | 系统配置 | `/admin/config/system` |
 
 > 所有角色关联全部菜单（菜单可见性由前端结合权限码控制）。
 
-### 2.3 LLM 配置（2 条）
+### 2.3 模型配置（2 条）
 
 | ID | 名称 | 类型 | LLM 模型 | Embedding 模型 | 默认 |
 |----|------|------|----------|---------------|------|
@@ -180,7 +179,7 @@ Content-Type: application/json
 - [ ] `user.real_name` = "系统管理员"
 - [ ] `roles` 包含 "系统管理员"
 - [ ] `permissions` 包含 `user:manage`、`ticket:manage`、`knowledge:manage` 等
-- [ ] `menus` 返回 9 个菜单项
+- [ ] `menus` 返回 8 个菜单项
 
 **异常测试：**
 
@@ -1426,7 +1425,7 @@ test/
 - [ ] RBAC 权限控制生效（报障人不能访问后台接口）
 - [ ] 密码策略校验生效
 
-### 16.2 LLM 配置（场景 B）
+### 16.2 模型配置（场景 B）
 - [ ] 预置 2 条配置可见
 - [ ] 连接测试返回正确结果
 - [ ] 热替换即时生效（设为默认后无需重启）
