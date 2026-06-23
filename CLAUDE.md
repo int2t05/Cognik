@@ -149,11 +149,10 @@ make build
 # 运行全部测试
 make test
 
-# 运行数据库迁移
-make migrate
-
-# 加载演示数据
-make seed
+# 数据库初始化（手动执行）
+make db-init    # DDL 增强（HNSW 索引、列注释）
+make db-seed    # 最小测试数据（角色 + 用户）
+make db-demo    # 完整演示数据
 ```
 
 ---

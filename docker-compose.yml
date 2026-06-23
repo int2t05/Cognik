@@ -1,8 +1,11 @@
 # OpsMind v2 — 运维数字员工系统
 #
 # 必须服务：opsmind-server, opsmind-web, postgres(pgvector), minio
-# 可选服务：llama-cpp + llama-cpp-emb + model-downloader（profile: ai-local）
+# 可选服务：llama-cpp + llama-cpp-emb（profile: ai-local）
 # 16GB 内存配置：模型 ~3.2GB，容器限额 ~7.5GB，余量充足
+#
+# 使用本地模型前，需先手动下载 GGUF 文件到 ./models/：
+#   make model-download
 #
 # 启动：
 #   docker compose up -d --build                    # 4 个必须服务
@@ -122,51 +125,12 @@ services:
     networks:
       - opsmind
 
-  # 模型自动下载（已有则跳过）。国内默认走 ModelScope 阿里 CDN
-  model-downloader:
-    image: curlimages/curl:latest
-    container_name: opsmind-model-downloader
-    volumes:
-      - ${LLAMA_MODELS_DIR:-./models}:/models
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        BASE="${MODEL_DOWNLOAD_BASE:-https://modelscope.cn/models}"
-        echo "=== 检查模型文件 ==="
-
-        if [ -f /models/Qwen3-4B-Q4_K_M.gguf ]; then
-          echo "[OK] Qwen3-4B-Q4_K_M.gguf 已存在"
-        else
-          echo "[DL] Qwen3-4B-Q4_K_M.gguf (~2.5GB)..."
-          curl -fSL --retry 3 -o /models/Qwen3-4B-Q4_K_M.gguf \
-            "${BASE}/Qwen/Qwen3-4B-GGUF/resolve/master/Qwen3-4B-Q4_K_M.gguf"
-          echo "[OK] 下载完成"
-        fi
-
-        if [ -f /models/Qwen3-Embedding-0.6B-Q8_0.gguf ]; then
-          echo "[OK] Qwen3-Embedding-0.6B-Q8_0.gguf 已存在"
-        else
-          echo "[DL] Qwen3-Embedding-0.6B-Q8_0.gguf (~639MB)..."
-          curl -fSL --retry 3 -o /models/Qwen3-Embedding-0.6B-Q8_0.gguf \
-            "${BASE}/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/master/Qwen3-Embedding-0.6B-Q8_0.gguf"
-          echo "[OK] 下载完成"
-        fi
-
-        echo "=== 模型检查完毕 ==="
-    networks:
-      - opsmind
-    profiles:
-      - ai-local
-
   # LLM 推理（Qwen3-4B Q4_K_M, ~2.5GB, CPU-only, ctx=8192）
+  # 需先手动下载模型：make model-download
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp
     restart: unless-stopped
-    depends_on:
-      model-downloader:
-        condition: service_completed_successfully
     ports:
       - "8081:8080"
     volumes:
@@ -193,12 +157,10 @@ services:
       - ai-local
 
   # Embedding 向量化（Qwen3-Embedding-0.6B Q8_0, ~639MB, CPU-only）
+  # 需先手动下载模型：make model-download
   llama-cpp-emb:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp-emb
-    depends_on:
-      model-downloader:
-        condition: service_completed_successfully
     restart: unless-stopped
     ports:
       - "8082:8080"

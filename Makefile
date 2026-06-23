@@ -13,15 +13,14 @@
 #   make ps           查看服务运行状态（别名）
 #   make test         运行全部非集成测试
 #   make test-integration 运行集成测试（需 PostgreSQL opsmind_test 库）
-#   make seed         加载演示数据（含清空旧数据）
-#   make db-reset     清空所有数据（保留表结构）
-#   make db-init      清空并重新加载演示数据
-#   make db-drop      仅清空数据
+#   make db-init      执行 DDL 增强脚本（HNSW 索引、列注释）
+#   make db-seed      加载最小测试数据（角色 + 用户）
+#   make db-demo      加载完整演示数据（LLM 配置 + 知识库 + 工单）
 #   make shell-db     进入 PostgreSQL 交互终端
 #   make model-download 下载 llama.cpp GGUF 模型文件
 #   make clean        清理构建产物和运行时数据
 
-.PHONY: help dev build up up-ai down down-v restart logs status ps test test-integration seed db-reset db-init db-drop shell-db model-download clean
+.PHONY: help dev build up up-ai down down-v restart logs status ps test test-integration db-init db-seed db-demo shell-db model-download clean
 
 # 默认目标
 help:
@@ -43,10 +42,9 @@ help:
 	@echo "    make shell-db        进入 PostgreSQL 交互终端"
 	@echo ""
 	@echo "  数据库："
-	@echo "    make seed            加载演示数据（幂等：DELETE + INSERT）"
-	@echo "    make db-reset        清空所有数据（保留表结构）"
-	@echo "    make db-init         先清空再加载演示数据"
-	@echo "    make db-drop         仅清空数据"
+	@echo "    make db-init          执行 DDL 增强脚本"
+	@echo "    make db-seed          加载角色和用户"
+	@echo "    make db-demo          加载完整演示数据"
 	@echo ""
 	@echo "  测试："
 	@echo "    make test            运行全部非集成测试"
@@ -158,26 +156,17 @@ test-integration:
 
 # ===== 数据库 =====
 
-# 加载演示数据。
-#
-# 使用 scripts/seed-db.sh --reset 确保幂等：
-# 先 TRUNCATE 清空所有表，再 INSERT 种子数据。
-# 这样避免重复执行时的主键冲突。
-seed:
-	@bash scripts/seed-db.sh --reset
-
-# 清空所有数据（保留表结构）
-db-reset:
-	docker compose exec -T postgres psql -U opsmind -d opsmind < scripts/reset-db.sql
-	@echo "数据库已清空"
-
-# 清空并重新加载演示数据（一键初始化数据库）
+# 执行 DDL 增强脚本（pgvector 扩展 + HNSW 索引 + 列注释）
 db-init:
-	@bash scripts/seed-db.sh --reset
+	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql
 
-# 仅清空数据
-db-drop:
-	@bash scripts/seed-db.sh --drop
+# 加载最小测试数据（角色 + 用户 + 菜单，不含 LLM 配置和知识库）
+db-seed:
+	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
+
+# 加载完整演示数据（LLM 配置 + 知识库 + 工单 + 消息）
+db-demo:
+	docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_demo.sql
 
 # ===== 模型下载 =====
 

@@ -132,6 +132,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+首次启动时，`opsmind-server` 会通过 **GORM AutoMigrate** 自动创建所有业务表结构。
+
 启动后访问：
 
 | 服务 | 地址 |
@@ -140,17 +142,67 @@ docker compose up -d --build
 | 后端 API | http://localhost:8080 |
 | MinIO 控制台 | http://localhost:9001 |
 
-### 使用本地 AI 模型
+> 生产环境：设置 `OPSMIND_DB_SKIP_MIGRATE=true` 跳过自动迁移，由 DBA 管理 schema。
+
+### 数据库初始化（手动）
+
+GORM AutoMigrate 无法覆盖 pgvector 特有的 HNSW 索引和列注释，需手动执行 DDL 增强脚本：
 
 ```bash
-# 启动含 llama.cpp 的完整环境（需提前放置 GGUF 模型文件）
+make db-init
+```
+
+加载测试数据（二选一）：
+
+```bash
+make db-seed     # 最小数据集：角色 + 用户（6 个预置账号）
+make db-demo     # 完整演示集：LLM 配置 + 知识库 + 工单 + 消息
+```
+
+预置账号（`db-seed` 和 `db-demo` 均包含）：
+
+| 账号 | 密码 | 角色 |
+|------|------|------|
+| `admin` | `Admin@123` | 系统管理员 |
+| `operator1` | `Operator@123` | 运维人员 |
+| `knowledge` | `Knowledge@123` | 知识库管理员 |
+| `reporter1` | `Reporter@123` | 报障人 |
+
+### 使用本地 AI 模型
+
+启动 llama.cpp 前，需先手动下载 GGUF 模型文件到 `./models/` 目录：
+
+```bash
+# 一键下载（推荐）
+make model-download
+
+# 或手动下载
+mkdir -p models
+curl -L -o models/Qwen3-4B-Q4_K_M.gguf \
+  "https://modelscope.cn/models/Qwen/Qwen3-4B-GGUF/resolve/master/Qwen3-4B-Q4_K_M.gguf"
+curl -L -o models/Qwen3-Embedding-0.6B-Q8_0.gguf \
+  "https://modelscope.cn/models/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/master/Qwen3-Embedding-0.6B-Q8_0.gguf"
+```
+
+模型就绪后启动完整环境：
+
+```bash
 docker compose --profile ai-local up -d --build
 ```
+
+默认使用的模型：
+
+| 模型 | 用途 | 大小 |
+|------|------|------|
+| Qwen3-4B-Q4_K_M.gguf | 对话生成（LLM） | ~2.4 GB |
+| Qwen3-Embedding-0.6B-Q8_0.gguf | 向量嵌入（Embedding） | ~0.6 GB |
+
+> 可通过 `.env` 中的 `OPSMIND_LLM_MODEL` / `OPSMIND_EMBEDDING_MODEL` 切换模型。
 
 ### 加载演示数据
 
 ```bash
-docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/001_init.sql
+make db-demo
 ```
 
 预置账号：

@@ -1,18 +1,17 @@
 //go:build integration
 
-// Package integration_test 验证 001_init.sql 演示数据的正确性。
+// Package integration_test 验证 seed_demo.sql 演示数据的正确性。
 //
-// 测试覆盖 PLAN.md Task38 定义的演示数据场景：
+// 测试覆盖演示数据场景：
 //   - 预设角色数据完整性
 //   - 预设用户账号和密码可用性
 //   - 知识库和文章数据完整性
 //   - 申告工单状态正确性
 //
-// 本测试需要先执行 001_init.sql（通过 psql 加载）。
-// 运行方式：
+// 运行前需先加载演示数据：
 //
-//	make seed  # 先加载数据
-//	go test -tags=integration -run TestSeedData ./tests/integration/ -v
+//   make db-demo
+//   go test -tags=integration -run TestSeedData ./tests/integration/ -v
 package integration_test
 
 import (
@@ -37,7 +36,7 @@ func TestSeedData_Roles(t *testing.T) {
 	// 种子数据检测：通过特定角色名判断是否已加载
 	var seedRole model.Role
 	if db.Where("name = ?", "系统管理员").First(&seedRole).Error != nil {
-		t.Skip("本测试需要先加载种子数据: make seed")
+		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
 	}
 
 	require.GreaterOrEqual(t, len(roles), 4, "至少应有 4 个预设角色")
@@ -61,7 +60,7 @@ func TestSeedData_Users(t *testing.T) {
 	db.Order("id ASC").Find(&users)
 	var seedUser model.User
 	if db.Where("username = ?", "admin").First(&seedUser).Error != nil {
-		t.Skip("本测试需要先加载种子数据: make seed")
+		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
 	}
 
 	require.GreaterOrEqual(t, len(users), 6, "至少应有 6 个预设用户")
@@ -100,7 +99,7 @@ func TestSeedData_UserRoles(t *testing.T) {
 	var count int64
 	db.Table("user_roles").Count(&count)
 	if count == 0 {
-		t.Skip("本测试需要先加载种子数据: make seed")
+		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
 	}
 
 	assert.GreaterOrEqual(t, len(userRoles), 6, "至少应有 6 条用户-角色关联")
@@ -121,7 +120,7 @@ func TestSeedData_KnowledgeBase(t *testing.T) {
 	db.Find(&kbs)
 	var seedKB model.KnowledgeBase
 	if db.Where("name = ?", "IT 运维 FAQ").First(&seedKB).Error != nil {
-		t.Skip("本测试需要先加载种子数据: make seed")
+		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
 	}
 	require.GreaterOrEqual(t, len(kbs), 1, "至少应有 1 个知识库")
 	assert.Equal(t, "IT 运维 FAQ", kbs[0].Name)
@@ -159,7 +158,7 @@ func TestSeedData_Tickets(t *testing.T) {
 	db.Order("id ASC").Find(&tickets)
 	var seedTicket model.Ticket
 	if db.Where("ticket_no LIKE ?", "TK-DEMO%").First(&seedTicket).Error != nil {
-		t.Skip("本测试需要先加载种子数据: make seed")
+		t.Skip("本测试依赖种子数据，请先执行 make db-demo")
 	}
 	require.GreaterOrEqual(t, len(tickets), 4, "至少应有 4 个申告工单")
 

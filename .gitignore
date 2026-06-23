@@ -74,6 +74,9 @@ web/playwright-report/
 *.cache
 *.exe
 
+# === 接口设计 ===
+.interface-design/
+
 # === Playwright MCP（测试辅助） ===
 .playwright-mcp
 

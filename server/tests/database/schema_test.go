@@ -2,7 +2,7 @@
 
 // Package database_test 验证数据库迁移 schema。
 //
-// 本测试在真实 pgvector 实例上执行 001_init.sql 迁移，
+// 本测试在真实 pgvector 实例上执行 init.sql 迁移，
 // 验证表结构、字段类型、索引是否与模型定义一致。
 //
 // 运行方式（需 Docker pgvector 运行中）：
@@ -47,7 +47,7 @@ func dbConn() (*sql.DB, error) {
 // runMigration 执行单文件迁移 SQL。
 func runMigration(t *testing.T, db *sql.DB) {
 	t.Helper()
-	path := "../../migrations/001_init.sql"
+	path := "../../migrations/init.sql"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Skipf("跳过迁移测试：无法读取迁移文件 (%v)", err)
@@ -332,7 +332,7 @@ func TestSchema_Idempotent(t *testing.T) {
 	}()
 }
 
-// TestSchema_SeedExecutes 验证 001_init.sql 中的演示数据部分可执行。
+// TestSchema_SeedExecutes 验证 seed_demo.sql 中的演示数据可执行。
 func TestSchema_SeedExecutes(t *testing.T) {
 	db, err := dbConn()
 	if err != nil {
@@ -347,9 +347,9 @@ func TestSchema_SeedExecutes(t *testing.T) {
 	}
 
 	// 执行初始化脚本（包含 DDL + 演示数据）
-	initData, err := os.ReadFile("../../migrations/001_init.sql")
+	initData, err := os.ReadFile("../../migrations/seed_demo.sql")
 	if err != nil {
-		t.Skipf("跳过：无法读取 001_init.sql (%v)", err)
+		t.Skipf("跳过：无法读取 seed_demo.sql (%v)", err)
 		return
 	}
 	if _, err := db.Exec(string(initData)); err != nil {
