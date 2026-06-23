@@ -2,5 +2,5 @@
 import type { ReactNode } from 'react';
 
 export function PageTitle({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <h1 className={`text-hero font-semibold text-[var(--color-ink)] mb-5 ${className}`}>{children}</h1>;
+  return <h1 className={`text-display font-semibold text-[var(--color-ink)] mb-5 ${className}`}>{children}</h1>;
 }

@@ -43,12 +43,21 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </span>
           <nav className="flex gap-2">
             {NAV_ITEMS.map((item) => {
-              const active = pathname === item.path || pathname.startsWith(item.path + '/');
+              // 严格匹配：/portal/tickets 匹配自身和 /portal/tickets/123，但不匹配 /portal/tickets/new
+              const active = (() => {
+                if (pathname === item.path) return true;
+                if (!pathname.startsWith(item.path + '/')) return false;
+                // 如果存在另一个导航项精确匹配当前路径，则当前项不应激活
+                const exactMatch = NAV_ITEMS.some(
+                  (other) => other.path !== item.path && other.path === pathname,
+                );
+                return !exactMatch;
+              })();
               return (
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-2 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-sm)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
@@ -67,16 +76,16 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </button>
           {mounted && isAdmin && (
             <AppleButton variant="utility" className="p-3.5" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
-              <Shield size={15} />
+              <Shield size={16} />
             </AppleButton>
           )}
           <span className="text-caption text-[var(--color-text-muted-48)] mr-1" suppressHydrationWarning>{user?.real_name}</span>
           <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-2 hover:text-[var(--color-ink)] transition">
-            <LogOut size={15} />
+            <LogOut size={16} />
           </button>
         </div>
       </header>
-      <main className="w-full max-w-wide mx-auto p-5">{children}</main>
+      <main className="w-full max-w-wide mx-auto p-6">{children}</main>
     </div>
   );
 }

@@ -57,7 +57,7 @@ function ConfigRow({ label, configKey, value, onSaved }: { label: string; config
       <span className="text-caption font-medium text-[var(--color-ink)] w-[120px] shrink-0">{label}</span>
       {editing ? (
         <>
-          <input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" />
+          <input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" />
           <AppleButton variant="ghost" onClick={handleSave} loading={saving}>保存</AppleButton>
         </>
       ) : (

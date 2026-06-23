@@ -29,7 +29,7 @@ export function ApplePagination({
 
       <div className="flex items-center gap-0.5">
         <PageBtn disabled={page <= 1} onClick={() => onChange(page - 1, pageSize)} aria-label="上一页">
-          <ChevronLeft size={15} />
+          <ChevronLeft size={16} />
         </PageBtn>
 
         {pages.map((p, i) =>
@@ -43,13 +43,13 @@ export function ApplePagination({
         )}
 
         <PageBtn disabled={page >= totalPages} onClick={() => onChange(page + 1, pageSize)} aria-label="下一页">
-          <ChevronRight size={15} />
+          <ChevronRight size={16} />
         </PageBtn>
       </div>
 
       <select
         aria-label="每页条数"
-        className="px-2 py-1 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+        className="px-2 py-1 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
         value={pageSize}
         onChange={(e) => onChange(1, Number(e.target.value))}
       >

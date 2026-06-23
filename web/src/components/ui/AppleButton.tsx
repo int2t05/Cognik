@@ -12,10 +12,10 @@ interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  pill: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] text-caption rounded-[var(--radius-pill)] px-4 py-1.5',
-  ghost: 'bg-transparent text-[var(--color-accent)] text-caption rounded-[var(--radius-pill)] px-2.5 py-1',
-  utility: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-caption rounded-[var(--radius-md)] px-2.5 py-1 border border-[var(--color-divider-soft)]',
-  pearl: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-caption rounded-[var(--radius-md)] px-2.5 py-1',
+  pill: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] text-fine rounded-[var(--radius-pill)] px-4 py-1.5',
+  ghost: 'bg-transparent text-[var(--color-accent)] text-fine rounded-[var(--radius-pill)] px-2.5 py-1',
+  utility: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-fine rounded-[var(--radius-pill)] px-2.5 py-1 border border-[var(--color-divider-soft)]',
+  pearl: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] text-fine rounded-[var(--radius-pill)] px-2.5 py-1',
 };
 
 export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(

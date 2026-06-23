@@ -95,7 +95,7 @@ export default function LoginPage() {
           />
           <div className="mt-8">
             <AppleButton type="submit" loading={loading} className="w-full">
-              <LogIn size={15} /> 登录
+              <LogIn size={17} /> 登录
             </AppleButton>
           </div>
         </form>

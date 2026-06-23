@@ -202,7 +202,7 @@ export default function LLMConfigPage() {
             id={providerSelectId}
             value={Number(form.provider_type)}
             onChange={(e) => setForm({ ...form, provider_type: Number(e.target.value) })}
-            className="w-full rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
+            className="w-full rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
           >
             <option value={1}>llama.cpp</option>
             <option value={2}>OpenAI-compatible</option>
@@ -254,7 +254,7 @@ export default function LLMConfigPage() {
           <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-medium text-[var(--color-ink)]">System Prompt</label>
           <textarea
             id={systemPromptId}
-            className="min-h-[80px] w-full resize-y rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+            className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             placeholder="自定义系统提示词，可选"
             value={String(form.system_prompt || '')}
             onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}

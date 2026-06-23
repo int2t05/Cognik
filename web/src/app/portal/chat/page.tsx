@@ -202,7 +202,7 @@ export default function ChatPage() {
                     <button
                       key={s.id}
                       onClick={() => handleSelectSession(s.id)}
-                      className={`w-full text-left px-2 py-2.5 rounded-[var(--radius-md)] text-caption transition-colors group ${
+                      className={`w-full text-left px-2 py-2.5 rounded-[var(--radius-pill)] text-caption transition-colors group ${
                         isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-divider-soft)]'
                       }`}
                     >
@@ -215,7 +215,7 @@ export default function ChatPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }}
                           aria-label="删除会话"
-                          className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--color-error)]/10 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition border-0 bg-transparent cursor-pointer"
+                          className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-[var(--radius-pill)] hover:bg-[var(--color-error)]/10 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition border-0 bg-transparent cursor-pointer"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -234,7 +234,7 @@ export default function ChatPage() {
         {/* 顶栏：移动端菜单 + 知识库选择 */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
           <button onClick={() => setMobileOpen(true)} aria-label="打开菜单"
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
             <Menu size={18} />
           </button>
           <select
@@ -254,7 +254,7 @@ export default function ChatPage() {
         </div>
 
         {/* 对话区域 */}
-        <div ref={listRef} className="flex-1 overflow-y-auto">
+        <div ref={listRef} className="flex-1 overflow-y-auto" role="log" aria-live="polite" aria-label="对话消息">
           {!hasMessages ? (
             /* 欢迎页 — 豆包风格品牌区 + 建议卡片 */
             <div className="flex flex-col items-center justify-center h-full px-4">
@@ -276,7 +276,7 @@ export default function ChatPage() {
                     <button
                       key={i}
                       onClick={() => handleSend(s.text)}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-md)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 transition cursor-pointer"
+                      className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-pill)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 transition cursor-pointer"
                     >
                       <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
                       {s.text}

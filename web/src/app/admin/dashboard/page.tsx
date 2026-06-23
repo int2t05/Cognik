@@ -15,13 +15,13 @@ function daysAgoStr(days: number): string { return new Date(Date.now() - days * 
 
 /** 7 张统计卡片定义 */
 const STAT_CARDS = [
-  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={15} />, trendKey: 'ticket' as const },
-  { key: 'pending_tickets', label: '待处理', icon: <AlertTriangle size={15} /> },
-  { key: 'processing_tickets', label: '处理中', icon: <Clock size={15} /> },
-  { key: 'resolved_tickets', label: '已解决', icon: <CheckCircle size={15} /> },
-  { key: 'today_chats', label: '今日问答', icon: <MessageSquare size={15} />, trendKey: 'chat' as const },
-  { key: 'avg_confidence', label: '平均置信度', icon: <TrendingUp size={15} /> },
-  { key: 'knowledge_count', label: '知识条目', icon: <BookOpen size={15} /> },
+  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={16} />, trendKey: 'ticket' as const },
+  { key: 'pending_tickets', label: '待处理', icon: <AlertTriangle size={16} /> },
+  { key: 'processing_tickets', label: '处理中', icon: <Clock size={16} /> },
+  { key: 'resolved_tickets', label: '已解决', icon: <CheckCircle size={16} /> },
+  { key: 'today_chats', label: '今日问答', icon: <MessageSquare size={16} />, trendKey: 'chat' as const },
+  { key: 'avg_confidence', label: '平均置信度', icon: <TrendingUp size={16} /> },
+  { key: 'knowledge_count', label: '知识条目', icon: <BookOpen size={16} /> },
 ] as const;
 
 /** 从趋势数据计算环比变化 */

@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { AppleButton } from '@/components/ui/AppleButton';
 import { Calendar } from 'lucide-react';
 
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
@@ -66,7 +67,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
   };
 
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h3 className="text-title font-semibold text-[var(--color-ink)]">趋势图</h3>
         <div className="flex items-center gap-2 flex-wrap">
@@ -89,7 +90,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             type="date"
             value={customStart}
             onChange={(e) => { setCustomStart(e.target.value); setRangeError(''); }}
-            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+            className="h-8 px-2 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="开始日期"
           />
           <span className="text-caption text-[var(--color-text-muted-48)]">—</span>
@@ -97,15 +98,10 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             type="date"
             value={customEnd}
             onChange={(e) => { setCustomEnd(e.target.value); setRangeError(''); }}
-            className="h-8 px-2 text-caption rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+            className="h-8 px-2 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
-          <button
-            onClick={applyCustom}
-            className="px-3 py-1 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-accent)] cursor-pointer transition hover:bg-[var(--color-divider-soft)] focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
-          >
-            查询
-          </button>
+          <AppleButton variant="ghost" onClick={applyCustom}>查询</AppleButton>
         </div>
       </div>
       {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}

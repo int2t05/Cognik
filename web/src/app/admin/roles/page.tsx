@@ -126,7 +126,7 @@ export default function RoleManagePage() {
         {menus && menus.length > 0 && (
           <div className="mt-2">
             <label className="block text-caption font-medium text-[var(--color-ink)] mb-2">菜单权限</label>
-            <div className="border border-[var(--color-hairline)] rounded-[var(--radius-sm)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
+            <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
               {topMenus.map((parent) => (
                 <div key={parent.id}>
                   <label className="flex items-center gap-2 cursor-pointer py-1 text-caption text-[var(--color-ink)]">

@@ -1,18 +1,15 @@
-/** AppleCard — 白底 + hairline 边框 + 18px 圆角，支持键盘可访问的点击交互。 */
+/** AppleCard — 白底 + hairline 边框 + 18px 圆角 + 24px 内边距，支持键盘可访问的点击交互。 */
 import { type ReactNode, type HTMLAttributes, type KeyboardEvent } from 'react';
 
 interface AppleCardProps extends HTMLAttributes<HTMLDivElement> {
-  padding?: string;
   children: ReactNode;
 }
 
 export function AppleCard({
-  padding = '20px',
   children,
   className = '',
   onClick,
   onKeyDown,
-  style,
   ...rest
 }: AppleCardProps) {
   const isInteractive = !!onClick;
@@ -26,8 +23,8 @@ export function AppleCard({
   };
 
   const classNames = [
-    'bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]',
-    isInteractive ? 'cursor-pointer hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-shadow focus-visible:shadow-[var(--focus-ring)]' : '',
+    'bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6',
+    isInteractive ? 'cursor-pointer hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-px transition-all focus-visible:shadow-[var(--focus-ring)]' : '',
     className,
   ]
     .filter(Boolean)
@@ -40,7 +37,6 @@ export function AppleCard({
       onKeyDown={isInteractive ? handleKeyDown : onKeyDown}
       tabIndex={isInteractive ? 0 : undefined}
       role={isInteractive ? 'button' : undefined}
-      style={{ padding, ...style }}
       {...rest}
     >
       {children}

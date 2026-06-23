@@ -41,7 +41,7 @@ export default function ArticleEditPage() {
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
-          <h1 className="text-hero font-semibold text-[var(--color-ink)]">{article.title}</h1>
+          <h1 className="text-display font-semibold text-[var(--color-ink)]">{article.title}</h1>
           <div className="flex gap-2 mt-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
@@ -49,11 +49,11 @@ export default function ArticleEditPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}><Send size={16} /> 提交审核</AppleButton>}
-          {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}><CheckCircle size={16} /> 通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}><XCircle size={16} /> 驳回</AppleButton></>}
-          {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={16} /> 发布</AppleButton>}
-          {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={16} /> 停用</AppleButton>}
-          {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={16} /> 启用</AppleButton>}
+          {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}><Send size={17} /> 提交审核</AppleButton>}
+          {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}><CheckCircle size={17} /> 通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}><XCircle size={17} /> 驳回</AppleButton></>}
+          {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={17} /> 发布</AppleButton>}
+          {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={17} /> 停用</AppleButton>}
+          {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={17} /> 启用</AppleButton>}
           {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={startEdit}><Pencil size={16} /></AppleButton>}
         </div>
       </div>
@@ -64,12 +64,12 @@ export default function ArticleEditPage() {
         <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}><CheckCircle size={16} /> 保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}><XCircle size={16} /> 取消</AppleButton></div>
+          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}><CheckCircle size={17} /> 保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}><XCircle size={17} /> 取消</AppleButton></div>
         </AppleCard>
       ) : (
         <AppleCard className="mb-4">
           <h2 className="text-headline font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
-          <div className="text-title leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
+          <div className="text-body leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <span key={t} className="px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
         </AppleCard>
       )}

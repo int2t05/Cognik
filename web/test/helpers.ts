@@ -1,7 +1,7 @@
 /**
  * E2E 测试共享辅助函数。
  *
- * AuthProvider 从 localStorage 读取 auth state。middleware.ts 从 cookie 读取 JWT。
+ * AuthProvider 从 localStorage 读取 auth state。proxy.ts 从 cookie 读取 JWT。
  * 两者需同时设置：cookie 供 middleware RBAC + localStorage 供 AuthProvider。
  */
 import { expect, type Page } from '@playwright/test';
@@ -13,7 +13,7 @@ const CREDS = { username: 'admin', password: 'Admin@123' };
  * 以管理员身份登录并导航到目标页面。
  *
  * 1. 通过 API 获取 JWT token
- * 2. 设置 cookie（供 middleware.ts 校验 RBAC）
+ * 2. 设置 cookie（供 proxy.ts 校验 RBAC）
  * 3. 预写 localStorage（供 AuthProvider 初始化）
  * 4. 导航到目标页并验证中间件未拦截
  */
@@ -29,7 +29,7 @@ export async function loginAsAdmin(page: Page, targetPath = '/portal/chat') {
   const token: string = data.access_token;
   const refreshToken: string = data.refresh_token;
 
-  // 1. Cookie — 供 middleware.ts JWT 校验（已重命名 proxy.ts → middleware.ts）
+  // 1. Cookie — 供 proxy.ts JWT 校验
   await page.context().addCookies([
     { name: 'access_token', value: token, path: '/', domain: '127.0.0.1' },
     { name: 'refresh_token', value: refreshToken, path: '/', domain: '127.0.0.1' },

@@ -14,12 +14,12 @@ import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
 const TICKET_FILTERS: FilterOption<number>[] = [
-  { value: -1, label: '全部', icon: <ListFilter size={15} /> },
-  { value: 1, label: '待处理', icon: <AlertCircle size={15} /> },
-  { value: 2, label: '处理中', icon: <Clock size={15} /> },
-  { value: 3, label: '需补充', icon: <MessageSquare size={15} /> },
-  { value: 4, label: '已解决', icon: <CheckCircle size={15} /> },
-  { value: 5, label: '已关闭', icon: <XCircle size={15} /> },
+  { value: -1, label: '全部', icon: <ListFilter size={16} /> },
+  { value: 1, label: '待处理', icon: <AlertCircle size={16} /> },
+  { value: 2, label: '处理中', icon: <Clock size={16} /> },
+  { value: 3, label: '需补充', icon: <MessageSquare size={16} /> },
+  { value: 4, label: '已解决', icon: <CheckCircle size={16} /> },
+  { value: 5, label: '已关闭', icon: <XCircle size={16} /> },
 ];
 
 export default function AdminTicketListPage() {

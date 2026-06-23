@@ -69,7 +69,7 @@ export default function TicketSubmitPage() {
           <div className="flex gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">紧急程度</label>
-              <select value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="w-full h-10 px-3 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
+              <select value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="w-full h-10 px-3 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
                 <option value={1}>低 — 一般咨询</option>
                 <option value={2}>中 — 影响工作</option>
                 <option value={3}>高 — 紧急处理</option>
@@ -77,7 +77,7 @@ export default function TicketSubmitPage() {
             </div>
             <div className="flex-1">
               <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">影响范围</label>
-              <select value={impactScope} onChange={(e) => setImpactScope(Number(e.target.value))} className="w-full h-10 px-3 text-body rounded-[var(--radius-sm)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
+              <select value={impactScope} onChange={(e) => setImpactScope(Number(e.target.value))} className="w-full h-10 px-3 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
                 {IMPACT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>

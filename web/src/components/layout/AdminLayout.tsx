@@ -40,7 +40,7 @@ const FRONTEND_ROUTES: Record<string, string> = {
 };
 
 const SIDEBAR_COLLAPSED_WIDTH = 64;
-const SIDEBAR_EXPANDED_WIDTH = 220;
+const SIDEBAR_EXPANDED_WIDTH = 240;
 
 interface MenuItem { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; children?: MenuItem[]; }
 
@@ -51,11 +51,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [collapsedReady, setCollapsedReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<number>>(new Set());
   const { unreadCount } = useUnreadCount();
 
-  // 客户端初始化时从 localStorage 读取侧栏状态，避免 SSR hydration 不匹配
+  // 客户端挂载后才能安全读取 localStorage 和 useAuth 返回的菜单数据，
+  // 避免 SSR 与客户端 hydration 不一致（服务端 menus=[]，客户端有实际数据）
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem('sidebar-collapsed') === 'true';
     setCollapsed(saved);
     setCollapsedReady(true);
@@ -85,7 +88,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-sm)] transition active:scale-[0.98] hover:bg-[var(--color-divider-soft)]',
+      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-pill)] transition active:scale-95 hover:bg-[var(--color-divider-soft)]',
       collapsed ? 'justify-center px-0 py-3' : '',
       active ? 'bg-[var(--color-divider-soft)] text-[var(--color-ink)] font-semibold shadow-[inset_4px_0_0_var(--color-accent)]' : '',
       depthPadding(depth),
@@ -97,11 +100,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           onClick={() => { if (hasChildren) toggleSubmenu(m.id); else router.push(targetPath); }}
           title={collapsed ? m.name : undefined}
           className={btnClass}
+          aria-current={active ? 'page' : undefined}
         >
           {ICON_MAP[m.icon] || <Settings size={18} />}
           {!collapsed && <span className="flex-1">{m.name}</span>}
           {!collapsed && hasChildren && (
-            <ChevronDown size={14} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
           )}
         </button>
         {!collapsed && hasChildren && expanded && m.children!.map((c) => renderMenuItem(c, depth + 1))}
@@ -145,14 +149,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 py-2 overflow-y-auto">
-          {menuTree.map((m) => renderMenuItem(m))}
+          {mounted ? menuTree.map((m) => renderMenuItem(m)) : (
+            <div className="flex justify-center py-6">
+              <div className="w-5 h-5 border-2 border-[var(--color-divider-soft)] border-t-[var(--color-accent)] rounded-full animate-spin" />
+            </div>
+          )}
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
-          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
+          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-sm)] transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>
@@ -165,13 +173,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
           <div className="flex items-center gap-4">
-            <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>
+            <span className="text-caption text-[var(--color-text-muted-48)]" suppressHydrationWarning>{user?.real_name || user?.username}</span>
             <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition">
-              <LogOut size={14} /> 登出
+              <LogOut size={17} /> 登出
             </button>
           </div>
         </header>
-        <main className="flex-1 p-5 max-w-wide w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
+        <main className="flex-1 p-6 max-w-wide w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
       </div>
     </div>
   );

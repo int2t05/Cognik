@@ -16,7 +16,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
     const errorId = `${inputId}-error`;
 
     const inputClass = [
-      'w-full h-11 px-4 text-body rounded-[var(--radius-sm)] border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
+      'w-full h-11 px-4 text-body rounded-[var(--radius-lg)] border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
       pill ? 'rounded-[var(--radius-pill)]' : '',
       className,
@@ -57,7 +57,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
     const errorId = `${textareaId}-error`;
 
     const textareaClass = [
-      'w-full px-4 py-3 text-body leading-relaxed rounded-[var(--radius-sm)] border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
+      'w-full px-4 py-3 text-body leading-relaxed rounded-[var(--radius-lg)] border bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none resize-y font-sans transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]',
       error ? 'border-[var(--color-error)]' : 'border-[var(--color-hairline)]',
       className,
     ]

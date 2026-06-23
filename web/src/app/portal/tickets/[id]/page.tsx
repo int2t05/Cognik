@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getTicketDetail, supplementTicket } from '@/lib/api/ticket';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleTextarea } from '@/components/ui/AppleInput';
+import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
@@ -42,20 +43,20 @@ export default function TicketDetailPage() {
       <div className="flex items-center gap-3 mb-5">
         <AppleButton variant="ghost" className="p-3.5" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={16} /></AppleButton>
       </div>
-      <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+      <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-5 items-center flex-wrap">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
         <span className="text-caption text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
       </div>
 
-      <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5 mb-5">
+      <AppleCard className="mb-5">
         <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
         <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
-      </div>
+      </AppleCard>
 
       {ticket.records && ticket.records.length > 0 && (
-        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5 mb-5">
+        <AppleCard className="mb-5">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
           {ticket.records.map((r) => (
             <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
@@ -66,15 +67,15 @@ export default function TicketDetailPage() {
               <p className="text-caption text-[var(--color-ink)]">{r.content}</p>
             </div>
           ))}
-        </div>
+        </AppleCard>
       )}
 
       {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
-        <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
+        <AppleCard>
           <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
           <AppleButton onClick={handleSupplement} loading={sending} className="p-3.5" aria-label="提交补充"><Send size={16} /></AppleButton>
-        </div>
+        </AppleCard>
       )}
     </div>
   );

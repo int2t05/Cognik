@@ -38,8 +38,8 @@ export function ChatMessage({
       {/* 消息气泡 */}
       <div className={`max-w-[75%] px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
         isUser
-          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] rounded-tr-sm'
-          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] rounded-tl-sm border border-[var(--color-hairline)]'
+          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)]'
+          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       }`}>
         {content || (isStreaming ? <AppleSpinner size={16} /> : '')}
 
