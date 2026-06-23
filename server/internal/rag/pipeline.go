@@ -76,6 +76,12 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 	// 入口规范化：零值字段使用默认值，保证后续步骤无需单独处理零值
 	opts.Normalize()
 
+	// DisableRetrieval：跳过全部检索管道，仅返回空结果。
+	// 用于纯 LLM 对话模式（管理员配置 ai.rag_enabled=false 时生效）。
+	if opts.DisableRetrieval {
+		return &RAGResult{Chunks: nil, Metrics: PipelineMetrics{TotalDurationMS: 0}}, nil
+	}
+
 	start := time.Now()
 	metrics := PipelineMetrics{}
 	var steps []StepMetric

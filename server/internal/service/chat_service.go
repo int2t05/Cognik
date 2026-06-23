@@ -371,17 +371,18 @@ func (s *ChatService) DeleteSession(ctx context.Context, sessionID, userID int64
 
 // buildRAGOptions 合并多层配置：env 默认 → DB 运行时配置 → 请求参数。
 func (s *ChatService) buildRAGOptions(routeCount, rerankCount int, history []map[string]string) rag.RAGOptions {
-	opts := rag.RAGOptions{
-		TopK:         s.readInt("ai.top_k", s.ragDefaults.TopK),
-		QueryRewrite: s.readBool("ai.rag_query_rewrite", s.ragDefaults.QueryRewrite),
-		MultiRoute:   s.readBool("ai.rag_multi_route", s.ragDefaults.MultiRoute),
-		Hybrid:       s.readBool("ai.rag_hybrid", s.ragDefaults.Hybrid),
-		Rerank:       s.readBool("ai.rag_rerank", s.ragDefaults.Rerank),
-		RouteCount:   routeCount,
-		RerankCount:  rerankCount,
-		History:      history,
+	ragEnabled := s.readBool("ai.rag_enabled", true)
+	return rag.RAGOptions{
+		TopK:             s.readInt("ai.top_k", s.ragDefaults.TopK),
+		QueryRewrite:     s.readBool("ai.rag_query_rewrite", s.ragDefaults.QueryRewrite),
+		MultiRoute:       s.readBool("ai.rag_multi_route", s.ragDefaults.MultiRoute),
+		Hybrid:           s.readBool("ai.rag_hybrid", s.ragDefaults.Hybrid),
+		Rerank:           s.readBool("ai.rag_rerank", s.ragDefaults.Rerank),
+		DisableRetrieval: !ragEnabled,
+		RouteCount:       routeCount,
+		RerankCount:      rerankCount,
+		History:          history,
 	}
-	return opts
 }
 
 func (s *ChatService) readInt(key string, fallback int) int {

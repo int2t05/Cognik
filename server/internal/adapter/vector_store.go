@@ -239,7 +239,8 @@ func (s *PgvectorStore) DeleteByKB(ctx context.Context, kbID int64) error {
 	return nil
 }
 
-// ReplaceVectors 原子替换文章向量：事务内写入新向量后删除旧向量。
+// ReplaceVectors 原子替换文章向量：事务内先删旧向量，再写新向量。
+// 先删后写：删除成功但写入失败时事务回滚，旧向量完整恢复。
 func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -247,7 +248,11 @@ func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chu
 	}
 	defer tx.Rollback()
 
-	// 写入新向量（复用 BatchInsert 的 SQL 构建逻辑，此处操作 tx 而非 db）
+	if _, err := tx.ExecContext(ctx,
+		"DELETE FROM knowledge_chunks WHERE article_id = $1", articleID); err != nil {
+		return fmt.Errorf("ReplaceVectors 删除旧向量失败: %w", err)
+	}
+
 	query := "INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, created_at) VALUES "
 	var placeholders []string
 	var args []interface{}
@@ -262,10 +267,6 @@ func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chu
 	query += strings.Join(placeholders, ", ")
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("ReplaceVectors 写入新向量失败 (count=%d): %w", len(chunks), err)
-	}
-	if _, err := tx.ExecContext(ctx,
-		"DELETE FROM knowledge_chunks WHERE article_id = $1", articleID); err != nil {
-		return fmt.Errorf("ReplaceVectors 删除旧向量失败: %w", err)
 	}
 
 	return tx.Commit()
