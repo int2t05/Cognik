@@ -1,11 +1,12 @@
 /**
  * 数据看板 & 审计日志 & LLM 配置 API 集成测试。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
   uniqueName,
@@ -21,7 +22,7 @@ test.describe('数据看板 API', () => {
 
   test('获取统计数据', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/dashboard/stats`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(json.data).toHaveProperty('today_tickets');
@@ -33,7 +34,7 @@ test.describe('数据看板 API', () => {
     const startDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
     const res = await request.get(
       `${API_URL}/api/v1/admin/dashboard/trends?start_date=${startDate}&end_date=${today}`,
-      { headers: authHeaders(token) },
+      { headers: getAuthHeaders(token) },
     );
     const json = await assertSuccess(res);
     expect(json.data).toHaveProperty('data_points');
@@ -57,18 +58,28 @@ test.describe('审计日志 API', () => {
   test('获取审计日志列表', async ({ request }) => {
     const res = await request.get(
       `${API_URL}/api/v1/admin/audit-logs?page=1&page_size=10`,
-      { headers: authHeaders(token) },
+      { headers: getAuthHeaders(token) },
     );
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
     expect(json).toHaveProperty('total');
   });
 
+  test('审计日志分页', async ({ request }) => {
+    const res = await request.get(`${API_URL}/api/v1/admin/audit-logs?page=1&page_size=5`, {
+      headers: getAuthHeaders(token),
+    });
+    const body = await assertSuccess(res);
+    expect(body.data.total).toBeGreaterThanOrEqual(0);
+    expect(body.data.page).toBe(1);
+    expect(body.data.page_size).toBe(5);
+  });
+
   test('按日期筛选', async ({ request }) => {
     const today = new Date().toISOString().slice(0, 10);
     const res = await request.get(
       `${API_URL}/api/v1/admin/audit-logs?page=1&page_size=10&date_from=${today}&date_to=${today}`,
-      { headers: authHeaders(token) },
+      { headers: getAuthHeaders(token) },
     );
     await assertSuccess(res);
   });
@@ -90,7 +101,7 @@ test.describe('LLM 配置 API', () => {
 
   test('获取 LLM 配置列表', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/llm-configs`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
@@ -117,7 +128,7 @@ test.describe('LLM 配置 API', () => {
   test('LLM 配置详情', async ({ request }) => {
     if (!configId) test.skip();
     const res = await request.get(`${API_URL}/api/v1/admin/llm-configs/${configId}`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     await assertSuccess(res);
   });
@@ -141,13 +152,32 @@ test.describe('LLM 配置 API', () => {
   test('删除 LLM 配置', async ({ request }) => {
     if (!configId) test.skip();
     const res = await request.delete(`${API_URL}/api/v1/admin/llm-configs/${configId}`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     await assertSuccess(res);
 
     const detail = await request.get(`${API_URL}/api/v1/admin/llm-configs/${configId}`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     await assertError(detail, 10004, 404);
+  });
+
+  // 清理测试创建的 LLM 配置
+  test.afterAll(async ({ request }) => {
+    const auth = await loginAsAdmin(request);
+    const t = auth.accessToken;
+    const res = await request.get(`${API_URL}/api/v1/admin/llm-configs`, {
+      headers: getAuthHeaders(t),
+    });
+    const body = await res.json();
+    if (Array.isArray(body.data)) {
+      for (const cfg of body.data) {
+        if (cfg.name && (cfg.name.startsWith('llm-test') || cfg.name.startsWith('llm-updated'))) {
+          await request.delete(`${API_URL}/api/v1/admin/llm-configs/${cfg.id}`, {
+            headers: getAuthHeaders(t),
+          });
+        }
+      }
+    }
   });
 });

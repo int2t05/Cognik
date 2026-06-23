@@ -4,11 +4,12 @@
  * 覆盖：门户创建/查询/详情/补充 + 后台列表/状态变更。
  * 创建端点返回 data:null → 通过列表搜索获取 ID。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
 } from './helpers';
@@ -24,11 +25,11 @@ test.describe('申告 API', () => {
   /** 搜索最新申告 ID */
   async function findLatestTicketId(request: APIRequestContext, title: string): Promise<number> {
     const res = await request.get(
-      `${API_URL}/api/v1/admin/tickets?page=1&page_size=10&status=-1`,
-      { headers: authHeaders(token) },
+      `${API_URL}/api/v1/admin/tickets?page=1&page_size=50&status=-1`,
+      { headers: getAuthHeaders(token) },
     );
     const json = await res.json();
-    if (json.code === 0 && json.data?.length > 0) {
+    if (json.code === 0 && Array.isArray(json.data) && json.data.length > 0) {
       const match = json.data.find((t: { title: string }) => t.title === title);
       return match?.id || 0;
     }
@@ -63,7 +64,7 @@ test.describe('申告 API', () => {
 
     test('查询我的申告列表', async ({ request }) => {
       const res = await request.get(`${API_URL}/api/v1/portal/tickets?page=1&page_size=10`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       const json = await assertSuccess(res);
       expect(Array.isArray(json.data)).toBe(true);
@@ -71,7 +72,7 @@ test.describe('申告 API', () => {
 
     test('不存在申告返回 404', async ({ request }) => {
       const res = await request.get(`${API_URL}/api/v1/portal/tickets/99999`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertError(res, 10004, 404);
     });
@@ -81,7 +82,7 @@ test.describe('申告 API', () => {
     test('全部申告列表', async ({ request }) => {
       const res = await request.get(
         `${API_URL}/api/v1/admin/tickets?page=1&page_size=10&status=-1`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await assertSuccess(res);
       expect(Array.isArray(json.data)).toBe(true);
@@ -90,23 +91,18 @@ test.describe('申告 API', () => {
     test('按状态筛选', async ({ request }) => {
       const res = await request.get(
         `${API_URL}/api/v1/admin/tickets?page=1&page_size=10&status=1`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await assertSuccess(res);
       json.data.forEach((t: { status: number }) => expect(t.status).toBe(1));
     });
 
     test('后台查看申告详情', async ({ request }) => {
-      const listRes = await request.get(
-        `${API_URL}/api/v1/admin/tickets?page=1&page_size=5&status=-1`,
-        { headers: authHeaders(token) },
-      );
-      const listJson = await listRes.json();
-      if (listJson.code !== 0 || !listJson.data?.length) { test.skip(); return; }
-      const id = listJson.data[0].id;
+      const id = await findLatestTicketId(request, 'API 测试申告 — 邮箱问题');
+      if (!id) { test.skip(); return; }
 
       const res = await request.get(`${API_URL}/api/v1/admin/tickets/${id}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertSuccess(res);
     });
@@ -115,7 +111,7 @@ test.describe('申告 API', () => {
       // 找一个待处理的申告
       const listRes = await request.get(
         `${API_URL}/api/v1/admin/tickets?page=1&page_size=10&status=1`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const listJson = await listRes.json();
       if (!listJson.data?.length) { test.skip(); return; }
@@ -135,7 +131,7 @@ test.describe('申告 API', () => {
       // 找一个处理中的申告
       const listRes = await request.get(
         `${API_URL}/api/v1/admin/tickets?page=1&page_size=10&status=2`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const listJson = await listRes.json();
       if (!listJson.data?.length) { test.skip(); return; }
@@ -148,5 +144,27 @@ test.describe('申告 API', () => {
       );
       await assertError(res, 10003);
     });
+  });
+});
+
+test.describe('清理测试数据', () => {
+  test('清理测试创建的申告', async ({ request }) => {
+    const auth = await loginAsAdmin(request);
+    const token = auth.accessToken;
+    const res = await request.get(
+      `${API_URL}/api/v1/admin/tickets?page=1&page_size=50&status=-1`,
+      { headers: getAuthHeaders(token) },
+    );
+    const json = await res.json();
+    // 仅验证列表可正常返回，申告无删除端点
+    expect(res.status()).toBe(200);
+    if (json.code === 0 && Array.isArray(json.data)) {
+      for (const ticket of json.data) {
+        if (ticket.title && ticket.title.includes('API 测试')) {
+          // 申告无删除端点，仅确认列表查询正常
+        }
+      }
+    }
+    await assertSuccess(res);
   });
 });

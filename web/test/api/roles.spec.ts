@@ -4,11 +4,12 @@
  * 覆盖：列表/创建/详情/更新/删除 + 菜单列表。
  * 注意：创建角色返回 data:null → 通过列表搜索获取 ID。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
   uniqueName,
@@ -24,7 +25,7 @@ test.describe('角色管理 API', () => {
 
   test('获取角色列表', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/roles?page=1&page_size=10`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
@@ -34,14 +35,14 @@ test.describe('角色管理 API', () => {
   test('角色详情', async ({ request }) => {
     // 从列表获取第一个角色 ID，避免硬编码种子数据依赖
     const listRes = await request.get(`${API_URL}/api/v1/admin/roles?page=1&page_size=1`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const listJson = await assertSuccess(listRes);
     expect(listJson.data.length).toBeGreaterThanOrEqual(1);
     const firstRoleId = listJson.data[0].id;
 
     const res = await request.get(`${API_URL}/api/v1/admin/roles/${firstRoleId}`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(json.data).toHaveProperty('name');
@@ -50,7 +51,7 @@ test.describe('角色管理 API', () => {
 
   test('不存在角色返回 404', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/roles/99999`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     await assertError(res, 10004, 404);
   });
@@ -63,7 +64,7 @@ test.describe('角色管理 API', () => {
     async function findRoleId(request: APIRequestContext, name: string): Promise<number> {
       const res = await request.get(
         `${API_URL}/api/v1/admin/roles?page=1&page_size=100&keyword=${encodeURIComponent(name)}`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await res.json();
       if (json.code === 0 && json.data?.length > 0) {
@@ -103,7 +104,7 @@ test.describe('角色管理 API', () => {
       await assertSuccess(res);
 
       const detail = await request.get(`${API_URL}/api/v1/admin/roles/${roleId}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       const json = await assertSuccess(detail);
       expect(json.data.name).toBe(newName);
@@ -122,19 +123,19 @@ test.describe('角色管理 API', () => {
       if (!deleteId) { test.skip(); return; }
 
       const res = await request.delete(`${API_URL}/api/v1/admin/roles/${deleteId}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertSuccess(res);
 
       const detail = await request.get(`${API_URL}/api/v1/admin/roles/${deleteId}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertError(detail, 10004, 404);
     });
 
     test('删除内置角色返回 409', async ({ request }) => {
       const res = await request.delete(`${API_URL}/api/v1/admin/roles/1`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertError(res, 10005, 409);
     });
@@ -142,7 +143,7 @@ test.describe('角色管理 API', () => {
 
   test('获取菜单列表', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/menus`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
@@ -153,7 +154,7 @@ test.describe('角色管理 API', () => {
   test('角色-菜单绑定', async ({ request }) => {
     // 获取第一个角色
     const rolesRes = await request.get(`${API_URL}/api/v1/admin/roles?page=1&page_size=1`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const rolesJson = await assertSuccess(rolesRes);
     if (!rolesJson.data?.length) { test.skip(); return; }
@@ -161,7 +162,7 @@ test.describe('角色管理 API', () => {
 
     // 获取菜单列表
     const menusRes = await request.get(`${API_URL}/api/v1/admin/menus`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const menusJson = await assertSuccess(menusRes);
     const menuIds = (menusJson.data || []).map((m: { id: number }) => m.id);
@@ -173,5 +174,41 @@ test.describe('角色管理 API', () => {
     });
     // 成功绑定或内置角色拒绝操作均可
     expect([200, 409]).toContain(res.status());
+  });
+
+  test('创建角色 - 名称过长应返回 400', async ({ request }) => {
+    const res = await request.post(`${API_URL}/api/v1/admin/roles`, {
+      headers: authHeaders(token),
+      data: { name: 'a'.repeat(101), description: 'too long', permissions: [] },
+    });
+    await assertError(res, 10003);
+  });
+
+  test('更新角色权限 - 分配无效权限应返回错误', async ({ request }) => {
+    const res = await request.put(`${API_URL}/api/v1/admin/roles/99999`, {
+      headers: authHeaders(token),
+      data: { name: 'test', permissions: ['invalid:perm'] },
+    });
+    // 不存在的角色应返回 404
+    await assertError(res, 10004, 404);
+  });
+
+  // 清理测试创建的角色
+  test.afterAll(async ({ request }) => {
+    const res = await request.get(`${API_URL}/api/v1/admin/roles?page=1&page_size=100`, {
+      headers: getAuthHeaders(token),
+    });
+    const body = await res.json();
+    const items: { id: number; name: string }[] = Array.isArray(body.data) ? body.data : [];
+    for (const role of items) {
+      if (role.name.startsWith('e2e_') || role.name.startsWith('test_')) {
+        const delRes = await request.delete(`${API_URL}/api/v1/admin/roles/${role.id}`, {
+          headers: getAuthHeaders(token),
+        });
+        if (!delRes.ok()) {
+          console.log(`Could not delete role ${role.id} (${role.name})`);
+        }
+      }
+    }
   });
 });

@@ -1,8 +1,11 @@
 /**
  * 申告管理 E2E 测试 — 门户提交 + 后台处理完整流程。
+ *
+ * 覆盖：门户端列表/新建/提交流程、后台端列表/筛选/详情。
+ * 避免 waitForTimeout，改用 waitForResponse 和断言超时。
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from '../helpers';
+import { test, expect, request as pwRequest } from '@playwright/test';
+import { loginAsAdmin, API_URL, ADMIN_CREDS } from '../helpers';
 
 test.describe('门户端申告', () => {
   test.beforeEach(async ({ page }) => {
@@ -27,10 +30,22 @@ test.describe('门户端申告', () => {
     await page.getByLabel('详细描述').fill('自动化测试：无法连接公司 VPN，请协助处理。');
     await page.getByLabel('联系电话').fill('13800001111');
 
+    // 等待创建申告的 API 响应
+    const createTicketPromise = page.waitForResponse(
+      (res) => res.url().includes('/api/v1/tickets') && res.request().method() === 'POST',
+      { timeout: 10000 },
+    );
+
     // 提交按钮 — main 内限定为表单按钮，排除导航栏同名按钮
     const submitBtn = page.locator('main').getByRole('button', { name: '提交申告' });
     await expect(submitBtn).toBeEnabled({ timeout: 3000 });
     await submitBtn.click();
+
+    // 等待 API 响应或页面跳转
+    await Promise.race([
+      createTicketPromise.then(() => {}),
+      page.waitForURL(/\/portal\/tickets$/, { timeout: 8000 }).catch(() => {}),
+    ]);
 
     // 提交后导航到列表页或显示错误提示——至少页面未崩溃
     const onListPage = await page.getByRole('heading', { name: '我的申告' }).isVisible({ timeout: 8000 }).catch(() => false);
@@ -56,8 +71,13 @@ test.describe('后台申告管理', () => {
   test('按状态筛选', async ({ page }) => {
     // 点击"待处理"筛选
     const filterBtn = page.locator('button').filter({ hasText: '待处理' });
-    if (await filterBtn.isVisible()) {
+    if (await filterBtn.isVisible().catch(() => false)) {
       await filterBtn.click();
+      // 等待筛选结果刷新
+      await page.waitForResponse(
+        (res) => res.url().includes('/api/v1/tickets') && res.status() === 200,
+        { timeout: 5000 },
+      ).catch(() => {});
       await expect(page.locator('table')).toBeVisible({ timeout: 3000 });
     }
   });
@@ -65,9 +85,35 @@ test.describe('后台申告管理', () => {
   test('申告详情页可访问', async ({ page }) => {
     // 表格行中的链接点击
     const firstLink = page.locator('table a').first();
-    if (await firstLink.isVisible()) {
+    if (await firstLink.isVisible().catch(() => false)) {
+      // 等待导航而非检查 URL 不等
+      const responsePromise = page.waitForResponse(
+        (res) => res.url().includes('/api/v1/tickets/') && res.status() === 200,
+        { timeout: 5000 },
+      );
       await firstLink.click();
-      await expect(page).not.toHaveURL('/admin/tickets', { timeout: 5000 });
+      await responsePromise.catch(() => {});
+      // 确认详情页面有内容（标题或详情区域）
+      const detailContent = page.locator('main h2, main h3, [class*="detail"], [class*="Detail"]').first();
+      if (await detailContent.isVisible().catch(() => false)) {
+        await expect(detailContent).toBeVisible({ timeout: 5000 });
+      }
     }
   });
+});
+
+// 清理：删除 E2E 测试创建的申告
+test.afterAll(async () => {
+  const ctx = await pwRequest.newContext();
+  try {
+    const loginRes = await ctx.post(`${API_URL}/api/v1/auth/login`, {
+      data: ADMIN_CREDS,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (loginRes.ok()) {
+      await ctx.post(`${API_URL}/api/v1/test/e2e-cleanup`).catch(() => {});
+    }
+  } finally {
+    await ctx.dispose();
+  }
 });

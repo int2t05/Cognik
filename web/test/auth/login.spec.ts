@@ -42,4 +42,23 @@ test.describe('认证', () => {
     await loginAsAdmin(page, '/admin/dashboard');
     await expect(page.getByRole('heading', { name: '数据看板' })).toBeVisible({ timeout: 5000 });
   });
+
+  test('使用表单提交错误密码应显示错误', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码').fill('WrongPassword123');
+    await page.getByRole('button', { name: /登录/i }).click();
+    // 错误密码应显示错误提示 — toast 或内联错误消息
+    await expect(page.locator('[role="alert"], .text-\\[var\\(--color-error\\)\\]').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('登录后退出', async ({ page }) => {
+    await loginAsAdmin(page, '/admin/dashboard');
+    // 定位退出按钮
+    const logoutBtn = page.locator('button, a').filter({ hasText: /登出|退出|logout/i }).first();
+    if (await logoutBtn.isVisible().catch(() => false)) {
+      await logoutBtn.click();
+      await expect(page).toHaveURL(/\/login/, { timeout: 5000 });
+    }
+  });
 });

@@ -3,12 +3,13 @@
  *
  * 覆盖：登录/刷新/登出/改密 — 正常流程与错误场景。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
   refreshToken,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
   uniqueName,
@@ -211,5 +212,25 @@ test.describe('认证 API', () => {
       });
       await assertError(res, 10001, 401);
     });
+  });
+
+  // 清理改密测试创建的用户
+  test.afterAll(async ({ request }) => {
+    const auth = await loginAsAdmin(request);
+    const t = auth.accessToken;
+    const res = await request.get(
+      `${API_URL}/api/v1/admin/users?page=1&page_size=100&keyword=pwtest`,
+      { headers: getAuthHeaders(t) },
+    );
+    const json = await res.json();
+    if (json.code === 0 && Array.isArray(json.data)) {
+      for (const user of json.data) {
+        if (user.username && user.username.startsWith('pwtest')) {
+          await request.patch(`${API_URL}/api/v1/admin/users/${user.id}/freeze`, {
+            headers: authHeaders(t),
+          });
+        }
+      }
+    }
   });
 });

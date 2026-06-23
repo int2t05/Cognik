@@ -9,6 +9,7 @@ import {
   API_URL,
   loginAsAdmin,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
   uniqueName,
@@ -25,7 +26,7 @@ test.describe('知识库 API', () => {
   /** 从列表中按名称查找 KB ID */
   async function findKbId(request: APIRequestContext, name: string): Promise<number> {
     const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await res.json();
     if (json.code === 0 && Array.isArray(json.data)) {
@@ -38,7 +39,7 @@ test.describe('知识库 API', () => {
   /** 获取任意存在的 KB ID */
   async function getAnyKbId(request: APIRequestContext): Promise<number> {
     const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await res.json();
     if (json.code === 0 && Array.isArray(json.data) && json.data.length > 0) {
@@ -62,7 +63,7 @@ test.describe('知识库 API', () => {
 
   test('获取知识库列表', async ({ request }) => {
     const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
@@ -72,7 +73,7 @@ test.describe('知识库 API', () => {
     // GET /knowledge-bases/:id 端点不存在于当前路由中，
     // 通过列表确认创建的知识库可被检索
     const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const json = await assertSuccess(res);
     expect(Array.isArray(json.data)).toBe(true);
@@ -106,7 +107,7 @@ test.describe('知识库 API', () => {
       if (!articleKbId) return 0;
       const res = await request.get(
         `${API_URL}/api/v1/admin/knowledge-bases/${articleKbId}/articles?page=1&page_size=10`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await res.json();
       if (json.code === 0 && Array.isArray(json.data)) {
@@ -135,7 +136,7 @@ test.describe('知识库 API', () => {
       if (!articleId) { test.skip(); return; }
       // 文章端点路径为 /articles/:id（不在 knowledge-bases 下）
       const res = await request.get(`${API_URL}/api/v1/admin/articles/${articleId}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertSuccess(res);
     });
@@ -167,6 +168,31 @@ test.describe('知识库 API', () => {
     expect(res.status()).toBe(400);
   });
 
+  test('删除知识库', async ({ request }) => {
+    // 创建临时 KB
+    const createRes = await request.post(`${API_URL}/api/v1/admin/knowledge-bases`, {
+      headers: authHeaders(token),
+      data: {
+        name: uniqueName('kb_delete_test'),
+        description: 'to be deleted',
+        embedding_model: 'bge-m3',
+        vector_dimension: 1024,
+      },
+    });
+    const kb = (await createRes.json()).data;
+    if (!kb?.id) { test.skip(); return; }
+    // 删除
+    const delRes = await request.delete(`${API_URL}/api/v1/admin/knowledge-bases/${kb.id}`, {
+      headers: getAuthHeaders(token),
+    });
+    await assertSuccess(delRes);
+    // 验证已删除
+    const getRes = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
+      headers: getAuthHeaders(token),
+    });
+    expect(getRes.status()).toBe(200);
+  });
+
   test('文章完整生命周期 → 提交审核', async ({ request }) => {
     const kbId = await getAnyKbId(request);
     if (!kbId) { test.skip(); return; }
@@ -178,7 +204,7 @@ test.describe('知识库 API', () => {
     await assertSuccess(createRes);
     // 查找文章 ID
     const listRes = await request.get(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles?page=1&page_size=10`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const listJson = await listRes.json();
     const article = listJson.data?.find((a: { title: string }) => a.title?.startsWith('生命周期测试'));
@@ -203,7 +229,7 @@ test.describe('知识库 API', () => {
     });
     // 查找文章
     const listRes = await request.get(`${API_URL}/api/v1/admin/knowledge-bases/${kbId}/articles?page=1&page_size=20`, {
-      headers: authHeaders(token),
+      headers: getAuthHeaders(token),
     });
     const listJson = await listRes.json();
     const article = listJson.data?.find((a: { title: string }) => a.title === title);
@@ -237,4 +263,22 @@ test.describe('知识库 API', () => {
       }
     }
   });
+});
+
+// 清理测试创建的知识库
+test.afterAll(async ({ request }) => {
+  const auth = await loginAsAdmin(request);
+  const t = auth.accessToken;
+  const res = await request.get(`${API_URL}/api/v1/admin/knowledge-bases`, {
+    headers: getAuthHeaders(t),
+  });
+  const body = await res.json();
+  const items: { id: number; name: string }[] = Array.isArray(body.data) ? body.data : [];
+  for (const kb of items) {
+    if (kb.name && (kb.name.startsWith('e2e_') || kb.name.startsWith('test_') || kb.name.includes('E2E') || kb.name.includes('kb_delete'))) {
+      await request.delete(`${API_URL}/api/v1/admin/knowledge-bases/${kb.id}`, {
+        headers: getAuthHeaders(t),
+      });
+    }
+  }
 });

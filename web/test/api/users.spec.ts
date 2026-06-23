@@ -4,11 +4,12 @@
  * 覆盖：列表/创建/详情/更新/冻结/恢复 + 参数校验。
  * 用户创建返回 data:null → 通过搜索获取 ID。
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   API_URL,
   loginAsAdmin,
   authHeaders,
+  getAuthHeaders,
   assertSuccess,
   assertError,
   uniqueName,
@@ -29,7 +30,7 @@ test.describe('用户管理 API', () => {
     for (const uname of createdUsernames) {
       const list = await request.get(
         `${API_URL}/api/v1/admin/users?page=1&page_size=100&keyword=${uname}`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await list.json();
       if (json.code === 0 && json.data?.length > 0) {
@@ -59,7 +60,7 @@ test.describe('用户管理 API', () => {
     // 通过搜索获取创建的用户
     const list = await request.get(
       `${API_URL}/api/v1/admin/users?page=1&page_size=10&keyword=${payload.username}`,
-      { headers: authHeaders(token) },
+      { headers: getAuthHeaders(token) },
     );
     const listJson = await assertSuccess(list);
     expect(listJson.data.length).toBe(1);
@@ -69,7 +70,7 @@ test.describe('用户管理 API', () => {
   test.describe('列表', () => {
     test('获取用户列表（默认分页）', async ({ request }) => {
       const res = await request.get(`${API_URL}/api/v1/admin/users?page=1&page_size=10`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       const json = await assertSuccess(res);
       expect(Array.isArray(json.data)).toBe(true);
@@ -79,7 +80,7 @@ test.describe('用户管理 API', () => {
     test('按关键词搜索', async ({ request }) => {
       const res = await request.get(
         `${API_URL}/api/v1/admin/users?page=1&page_size=10&keyword=admin`,
-        { headers: authHeaders(token) },
+        { headers: getAuthHeaders(token) },
       );
       const json = await assertSuccess(res);
       expect(json.data.length).toBeGreaterThan(0);
@@ -138,7 +139,7 @@ test.describe('用户管理 API', () => {
   test.describe('详情', () => {
     test('获取用户详情成功', async ({ request }) => {
       const res = await request.get(`${API_URL}/api/v1/admin/users/1`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       const json = await assertSuccess(res);
       expect(json.data.username).toBe('admin');
@@ -147,7 +148,7 @@ test.describe('用户管理 API', () => {
 
     test('不存在用户返回 404', async ({ request }) => {
       const res = await request.get(`${API_URL}/api/v1/admin/users/99999`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       await assertError(res, 10004, 404);
     });
@@ -175,7 +176,7 @@ test.describe('用户管理 API', () => {
       await assertSuccess(res);
 
       const detail = await request.get(`${API_URL}/api/v1/admin/users/${testUser!.id}`, {
-        headers: authHeaders(token),
+        headers: getAuthHeaders(token),
       });
       const json = await assertSuccess(detail);
       expect(json.data.real_name).toBe('更新后');
