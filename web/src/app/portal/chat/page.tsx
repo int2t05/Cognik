@@ -174,7 +174,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
       {/* 移动端遮罩 */}
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[var(--z-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-[var(--z-overlay)] lg:hidden" style={{ backgroundColor: 'var(--color-overlay)' }} onClick={() => setMobileOpen(false)} />
       )}
 
       {/* 侧边栏 — 桌面端固定 240px，移动端 overlay */}
@@ -185,8 +185,8 @@ export default function ChatPage() {
         `}
       >
         <div className="flex flex-col h-full p-3">
-          <AppleButton variant="pill" onClick={handleNewChat} className="w-full p-2.5 mb-3" aria-label="新对话">
-            <Plus size={18} />
+          <AppleButton variant="pill" icon={<Plus />} onClick={handleNewChat} className="w-full py-2.5" aria-label="新对话">
+            新对话
           </AppleButton>
 
           <div className="flex-1 overflow-y-auto">
@@ -209,7 +209,7 @@ export default function ChatPage() {
                       <div className="flex items-start gap-2">
                         <MessageSquare size={14} className={`mt-0.5 shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
                         <div className="flex-1 min-w-0">
-                          <div className="truncate text-caption leading-tight font-medium">{s.question}</div>
+                          <div className="truncate text-caption leading-tight">{s.question}</div>
                           <div className="text-fine text-[var(--color-text-muted-48)] mt-1">{formatDate(s.updated_at)}</div>
                         </div>
                         <button
@@ -234,22 +234,20 @@ export default function ChatPage() {
         {/* 顶栏：移动端菜单 + 知识库选择 */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
           <button onClick={() => setMobileOpen(true)} aria-label="打开菜单"
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
             <Menu size={18} />
           </button>
           <select
             value={selectedKB}
             onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
             aria-label="选择知识库"
-            className="h-9 px-4 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[180px] cursor-pointer outline-none"
+            className="h-9 px-4 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] min-w-[180px] cursor-pointer outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
           >
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
           </select>
           {sessionId && (
-            <AppleButton variant="utility" className="p-3.5" aria-label="新对话" onClick={handleNewChat}>
-              <Plus size={15} />
-            </AppleButton>
+            <AppleButton variant="utility" icon={<Plus />} aria-label="新对话" onClick={handleNewChat} />
           )}
         </div>
 

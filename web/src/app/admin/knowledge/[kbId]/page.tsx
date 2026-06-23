@@ -31,10 +31,10 @@ export default function ArticleListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} className="p-3.5" aria-label="返回"><ArrowLeft size={16} /></AppleButton>
+          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} aria-label="返回" icon={<ArrowLeft />} />
           <PageTitle>知识文章</PageTitle>
         </div>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} className="p-3.5" aria-label="新建文章"><FilePlus size={16} /></AppleButton>
+        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章" icon={<FilePlus />} />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />

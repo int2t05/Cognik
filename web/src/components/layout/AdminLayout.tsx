@@ -84,7 +84,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      'flex items-center gap-3 w-full px-5 py-2.5 border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-pill)] transition active:scale-95 hover:bg-[var(--color-divider-soft)]',
+      'flex items-center gap-3 w-full px-5 py-2.5 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-pill)] transition active:scale-95 hover:bg-[var(--color-divider-soft)]',
       collapsed ? 'justify-center px-0 py-3' : '',
       active ? 'bg-[var(--color-divider-soft)] text-[var(--color-ink)] font-semibold shadow-[inset_4px_0_0_var(--color-accent)]' : '',
       depthPadding(depth),
@@ -153,10 +153,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
-          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
+          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>
@@ -165,12 +165,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
-          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] transition hover:opacity-70">
+          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] transition hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-[var(--spacing-md-plus)]">
             <span className="text-caption text-[var(--color-text-muted-48)]" suppressHydrationWarning>{user?.real_name || user?.username}</span>
-            <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition">
+            <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
               <LogOut size={17} /> 登出
             </button>
           </div>

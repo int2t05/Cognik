@@ -1,4 +1,4 @@
-/** AppleDialog — Radix Dialog 封装，Apple 样式 */
+/** AppleDialog — Radix Dialog 封装，Apple 风格动画。 */
 'use client';
 
 import * as Dialog from '@radix-ui/react-dialog';
@@ -26,10 +26,21 @@ export function AppleDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 z-[var(--z-dialog)] backdrop-blur-sm" />
+        {/* 遮罩：淡入/淡出 */}
+        <Dialog.Overlay
+          className="fixed inset-0 z-[var(--z-dialog)]"
+          style={{
+            backgroundColor: 'var(--color-overlay)',
+            animation: `${open ? 'overlay-in' : 'overlay-out'} 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+          }}
+        />
+        {/* 内容：缩放+淡入组合 */}
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)]"
-          style={{ width } as React.CSSProperties}
+          className="fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)]"
+          style={{
+            width,
+            animation: `${open ? 'dialog-in' : 'dialog-out'} 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+          } as React.CSSProperties}
         >
           <Dialog.Title className="px-6 pt-5 pb-2 text-title font-semibold text-[var(--color-ink)]">
             {title}

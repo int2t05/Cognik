@@ -47,7 +47,7 @@ export default function MessagesPage() {
               { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? '' : 'font-semibold'}>{r.title}</span> },
               { key: 'content', title: '内容' },
               { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
-              { key: 'actions', title: '操作', render: (r) => !r.is_read ? <AppleButton variant="ghost" className="p-3.5" aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)}><ArrowRight size={16} /></AppleButton> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
+              { key: 'actions', title: '操作', render: (r) => !r.is_read ? <AppleButton variant="ghost" icon={<ArrowRight />} aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)} /> : <span className="text-[var(--color-text-muted-48)] text-caption">已读</span> },
             ]}
             data={messages}
             loading={!data && !error}

@@ -57,7 +57,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-2 border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold shadow-[inset_0_-2px_0_var(--color-accent)]' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (
@@ -71,7 +71,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-2 text-[var(--color-ink)] flex transition hover:opacity-70">
+          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] flex transition hover:opacity-70 min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           {mounted && isAdmin && (
@@ -80,7 +80,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             </AppleButton>
           )}
           <span className="text-caption text-[var(--color-text-muted-48)] mr-1" suppressHydrationWarning>{user?.real_name}</span>
-          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-2 hover:text-[var(--color-ink)] transition">
+          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-3 hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
             <LogOut size={16} />
           </button>
         </div>

@@ -7,10 +7,12 @@ interface AppleInputProps extends InputHTMLAttributes<HTMLInputElement> {
   pill?: boolean;
   label?: string;
   error?: string;
+  /** 是否为必填字段 — 追加 aria-required，并在 label 后显示红色星号 */
+  required?: boolean;
 }
 
 export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
-  ({ pill, label, error, className = '', id, ...rest }, ref) => {
+  ({ pill, label, error, required, className = '', id, ...rest }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
     const errorId = `${inputId}-error`;
@@ -27,7 +29,10 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
     return (
       <div className={label || error ? 'mb-4' : ''}>
         {label && (
-          <label htmlFor={inputId} className="block text-caption font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={inputId} className="block text-caption font-semibold mb-1.5 text-[var(--color-ink)]">
+            {label}
+            {required && <span className="text-[var(--color-error)] ml-0.5" aria-hidden="true">*</span>}
+          </label>
         )}
         <input
           ref={ref}
@@ -35,6 +40,7 @@ export const AppleInput = forwardRef<HTMLInputElement, AppleInputProps>(
           className={inputClass}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
+          aria-required={required ? true : undefined}
           {...rest}
         />
         {error && <p id={errorId} className="text-fine text-[var(--color-error)] mt-1" role="alert">{error}</p>}
@@ -67,7 +73,7 @@ export const AppleTextarea = forwardRef<HTMLTextAreaElement, AppleTextareaProps>
     return (
       <div className="mb-4">
         {label && (
-          <label htmlFor={textareaId} className="block text-caption font-medium mb-1.5 text-[var(--color-ink)]">{label}</label>
+          <label htmlFor={textareaId} className="block text-caption font-semibold mb-1.5 text-[var(--color-ink)]">{label}</label>
         )}
         <textarea
           ref={ref}

@@ -42,11 +42,11 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
 
   return (
     <div className="flex items-center gap-3 mb-3">
-      <span className="text-caption font-medium text-[var(--color-ink)] w-[140px] shrink-0">{label}</span>
+      <span className="text-caption font-semibold text-[var(--color-ink)] w-[140px] shrink-0">{label}</span>
       {editing ? (
         <>
           {type === 'bool' ? (
-            <select value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)]">
+            <select value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
               <option value="true">开启</option>
               <option value="false">关闭</option>
             </select>
@@ -58,7 +58,7 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{displayVal}</span>
-          <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={startEdit}><Pencil size={16} /></AppleButton>
+          <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />
         </>
       )}
     </div>

@@ -35,9 +35,9 @@ export default function ArticleEditPage() {
   if (!article) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
 
   return (
-    <div className="max-w-content">
+    <div className="max-w-form">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} className="p-3.5" aria-label="返回"><ArrowLeft size={16} /></AppleButton>
+        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回" icon={<ArrowLeft />} />
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
@@ -54,7 +54,7 @@ export default function ArticleEditPage() {
           {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={17} /> 发布</AppleButton>}
           {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={17} /> 停用</AppleButton>}
           {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={17} /> 启用</AppleButton>}
-          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={startEdit}><Pencil size={16} /></AppleButton>}
+          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" aria-label="编辑" onClick={startEdit} icon={<Pencil />} />}
         </div>
       </div>
 

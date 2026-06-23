@@ -9,9 +9,10 @@ import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
-import { BookPlus, Pencil, Trash2 } from 'lucide-react';
+import { BookPlus, Pencil, Trash2, BookOpen } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -55,16 +56,14 @@ export default function KnowledgeListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>知识库管理</PageTitle>
-        <AppleButton onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} className="p-3.5" aria-label="新建知识库"><BookPlus size={16} /></AppleButton>
+        <AppleButton icon={<BookPlus />} aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); }} />
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       <div className="grid gap-3">
         {error ? null : !kbs ? <AppleSpinner /> : kbs.length === 0 ? (
-          <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">
-            暂无知识库，点击右上角"新建知识库"开始
-          </div>
+          <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
           <AppleCard
             key={kb.id}
@@ -80,8 +79,8 @@ export default function KnowledgeListPage() {
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil size={16} /></AppleButton>
-              <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 size={16} /></AppleButton>
+              <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(kb)} />
+              <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(kb.id)} />
             </div>
           </AppleCard>
         ))}

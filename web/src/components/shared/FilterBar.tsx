@@ -21,7 +21,7 @@ export function FilterBar<V extends string | number>({ options, value, onChange 
           key={String(o.value)}
           onClick={() => onChange(o.value)}
           aria-label={o.label}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-caption font-medium rounded-[var(--radius-pill)] border cursor-pointer transition active:scale-95 ${
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-caption font-normal rounded-[var(--radius-pill)] border cursor-pointer transition active:scale-95 ${
             value === o.value
               ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm'
               : 'bg-[var(--color-canvas)] border-[var(--color-hairline)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-pearl)] hover:border-[var(--color-divider-soft)]'

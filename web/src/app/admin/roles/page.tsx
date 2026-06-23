@@ -92,7 +92,7 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>角色管理</PageTitle>
-        <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建角色"><ShieldPlus size={16} /></AppleButton>
+        <AppleButton onClick={openCreate} icon={<ShieldPlus />} aria-label="新建角色" />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <AppleTable
@@ -100,8 +100,8 @@ export default function RoleManagePage() {
           { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
           { key: 'permissions', title: '权限', render: (r) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(r.permissions as string[]).join(', ') || '—'}</span> },
           { key: 'actions', title: '操作', render: (r) => <div className="flex gap-2">
-            <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })}><Pencil size={16} /></AppleButton>
-            <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteId(r.id as number)}><Trash2 size={16} /></AppleButton>
+            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })} />
+            <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteId(r.id as number)} />
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"
@@ -113,10 +113,12 @@ export default function RoleManagePage() {
         <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
         <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
         <div className="mt-2">
-          <label className="block text-caption font-medium text-[var(--color-ink)] mb-2">权限</label>
+          <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
           <div className="flex flex-wrap gap-1.5">
             {knownPermissions.map((p) => (
-              <button key={p} onClick={() => togglePerm(p)}
+              <button key={p} role="checkbox" aria-checked={perms.includes(p)}
+                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); togglePerm(p); } }}
+                onClick={() => togglePerm(p)}
                 className={`px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition ${perms.includes(p) ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]' : ''}`}>
                 {p}
               </button>
@@ -125,7 +127,7 @@ export default function RoleManagePage() {
         </div>
         {menus && menus.length > 0 && (
           <div className="mt-2">
-            <label className="block text-caption font-medium text-[var(--color-ink)] mb-2">菜单权限</label>
+            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">菜单权限</label>
             <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
               {topMenus.map((parent) => (
                 <div key={parent.id}>

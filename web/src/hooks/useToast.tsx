@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         className="fixed top-4 right-4 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
           <div key={t.id} role="alert"
-            className="px-5 py-3 text-caption font-medium rounded-[var(--radius-lg)] bg-[var(--color-parchment)] text-[var(--color-ink)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.25s_ease-out]">
+            className="px-5 py-3 text-caption font-normal rounded-[var(--radius-lg)] bg-[var(--color-parchment)] text-[var(--color-ink)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.25s_ease-out]">
             {t.message}
           </div>
         ))}

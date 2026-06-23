@@ -82,7 +82,7 @@ export default function UserListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>用户管理</PageTitle>
-        <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建用户"><UserPlus size={16} /></AppleButton>
+        <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
@@ -92,9 +92,9 @@ export default function UserListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
           { key: 'actions', title: '操作', render: (r) => <div className="flex gap-2">
-            <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(r)}><Pencil size={16} /></AppleButton>
-            {r.status === 1 ? <AppleButton variant="utility" className="p-3.5" aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })}><Lock size={16} /></AppleButton>
-              : <AppleButton variant="utility" className="p-3.5" aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })}><Unlock size={16} /></AppleButton>}
+            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(r)} />
+            {r.status === 1 ? <AppleButton variant="utility" icon={<Lock />} aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })} />
+              : <AppleButton variant="utility" icon={<Unlock />} aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })} />}
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error} rowKey="id"
@@ -109,13 +109,16 @@ export default function UserListPage() {
         <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <div className="mt-4">
-          <label className="block text-caption font-medium text-[var(--color-ink)] mb-1.5">角色</label>
+          <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
           <div className="flex flex-wrap gap-2">
             {roles.map(role => (
               <button
                 key={role.id}
                 type="button"
+                role="checkbox"
+                aria-checked={form.role_ids.includes(role.id)}
                 onClick={() => toggleRole(role.id)}
+                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}
                 className={
                   form.role_ids.includes(role.id)
                     ? 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)] cursor-pointer transition'

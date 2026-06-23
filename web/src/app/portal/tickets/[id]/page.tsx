@@ -41,7 +41,7 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" className="p-3.5" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ArrowLeft size={16} /></AppleButton>
+        <AppleButton variant="ghost" icon={<ArrowLeft />} aria-label="返回" onClick={() => router.push('/portal/tickets')} />
       </div>
       <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
       <div className="flex gap-3 mb-5 items-center flex-wrap">
@@ -74,7 +74,7 @@ export default function TicketDetailPage() {
         <AppleCard>
           <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
           <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-          <AppleButton onClick={handleSupplement} loading={sending} className="p-3.5" aria-label="提交补充"><Send size={16} /></AppleButton>
+          <AppleButton variant="pill" icon={<Send />} aria-label="提交补充" onClick={handleSupplement} loading={sending} />
         </AppleCard>
       )}
     </div>

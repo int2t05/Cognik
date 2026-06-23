@@ -22,10 +22,10 @@ describe('AppleButton', () => {
     expect(btn.className).toContain('utility');
   });
 
-  it('渲染 pearl 变体', () => {
-    render(<AppleButton variant="pearl">查看详情</AppleButton>);
+  it('渲染 danger 变体', () => {
+    render(<AppleButton variant="danger">删除</AppleButton>);
     const btn = screen.getByRole('button');
-    expect(btn.className).toContain('pearl');
+    expect(btn.className).toContain('danger');
   });
 
   it('disabled 属性阻止点击', () => {

@@ -71,17 +71,17 @@ export default function NewArticlePage() {
   };
 
   return (
-    <div className="max-w-content">
+    <div className="max-w-form">
       <PageTitle>新建文章</PageTitle>
 
       {/* 文档上传 */}
       <AppleCard className="mb-4">
-        <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">文档上传</h2>
+        <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">文档上传</h2>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
         <div className="flex gap-3 items-center">
           <input ref={fileRef} type="file" accept=".pdf,.docx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
             aria-label="选择文档文件"
-            className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-medium file:border-0 file:bg-[var(--color-accent)] file:text-[var(--color-on-accent)] file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
+            className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-semibold file:border-0 file:bg-[var(--color-accent)] file:text-[var(--color-on-accent)] file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
         </div>
       </AppleCard>
 
@@ -95,8 +95,8 @@ export default function NewArticlePage() {
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={saving} className="p-3.5" aria-label="创建"><FilePlus size={16} /></AppleButton>
-          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} className="p-3.5" aria-label="取消"><X size={16} /></AppleButton>
+          <AppleButton type="submit" loading={saving} aria-label="创建" icon={<FilePlus />} />
+          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消" icon={<X />} />
         </div>
       </form>
     </div>

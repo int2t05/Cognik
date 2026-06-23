@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { listAllTickets } from '@/lib/api/ticket';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { URGENCY_LABELS } from '@/lib/format';
@@ -43,7 +43,7 @@ export default function AdminTicketListPage() {
       <PageTitle>申告管理</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4 flex gap-3 items-center flex-wrap">
-        <AppleInput pill placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
+        <SearchInput placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
       </div>
       <AppleTable

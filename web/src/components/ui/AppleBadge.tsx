@@ -30,7 +30,7 @@ export function AppleBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-fine font-medium rounded-[var(--radius-pill)] ${className}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-fine font-semibold rounded-[var(--radius-pill)] ${className}`}
       style={badgeStyle(variant)}
     >
       {BADGE_ICONS[variant]}

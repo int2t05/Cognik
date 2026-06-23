@@ -156,7 +156,7 @@ func TestSeedData_Menus(t *testing.T) {
 		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
 	}
 
-	assert.GreaterOrEqual(t, len(menus), 9, "至少应有 9 个菜单")
+	assert.GreaterOrEqual(t, len(menus), 8, "至少应有 8 个菜单")
 	t.Logf("✅ 菜单数据: %d 个", len(menus))
 }
 

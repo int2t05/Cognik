@@ -16,6 +16,7 @@ import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2 } from 'lucide-react';
@@ -138,14 +139,14 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <PageTitle>LLM 配置</PageTitle>
-        <AppleButton onClick={openCreate} className="p-3.5" aria-label="新建 LLM 配置"><Cpu size={16} /></AppleButton>
+        <AppleButton icon={<Cpu />} aria-label="新建 LLM 配置" onClick={openCreate} />
       </div>
 
       <div className="grid gap-3">
         {!configs ? (
           <AppleSpinner />
         ) : configs.length === 0 ? (
-          <div className="text-center py-10 text-caption text-[var(--color-text-muted-48)]">暂无 LLM 配置，点击右上角新建</div>
+          <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
         ) : (
           configs.map((config) => (
             <AppleCard key={config.id}>
@@ -163,8 +164,8 @@ export default function LLMConfigPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <AppleButton variant="ghost" className="p-3.5" aria-label="编辑" onClick={() => openEdit(config)}><Pencil size={16} /></AppleButton>
-                  <AppleButton variant="utility" className="p-3.5" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 size={16} /></AppleButton>
+                  <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(config)} />
+                  <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(config.id)} />
                 </div>
               </div>
             </AppleCard>
@@ -197,12 +198,12 @@ export default function LLMConfigPage() {
         <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
         <div className="mb-4">
-          <label htmlFor={providerSelectId} className="mb-1.5 block text-caption font-medium text-[var(--color-ink)]">提供商类型</label>
+          <label htmlFor={providerSelectId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">提供商类型</label>
           <select
             id={providerSelectId}
             value={Number(form.provider_type)}
             onChange={(e) => setForm({ ...form, provider_type: Number(e.target.value) })}
-            className="w-full rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
+            className="w-full rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
           >
             <option value={1}>llama.cpp</option>
             <option value={2}>OpenAI-compatible</option>
@@ -251,7 +252,7 @@ export default function LLMConfigPage() {
         />
 
         <div className="mb-4">
-          <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-medium text-[var(--color-ink)]">System Prompt</label>
+          <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
           <textarea
             id={systemPromptId}
             className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"

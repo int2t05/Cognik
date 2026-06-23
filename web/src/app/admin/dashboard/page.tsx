@@ -68,13 +68,11 @@ export default function DashboardPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>数据看板</PageTitle>
-        <AppleButton variant="ghost" onClick={handleRefresh} className="p-3.5" aria-label="刷新">
-          <RotateCw size={16} />
-        </AppleButton>
+        <AppleButton variant="ghost" icon={<RotateCw />} aria-label="刷新" onClick={handleRefresh} />
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-[var(--spacing-md-plus)] mb-6">
         {STAT_CARDS.map((c) => (
           <StatCard
             key={c.key}

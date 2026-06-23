@@ -7,6 +7,8 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { formatDate } from '@/lib/date';
 import { useDebounce } from '@/hooks/useDebounce';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ScrollText } from 'lucide-react';
 
 export default function AuditLogPage() {
   const [params, setParams] = useState<Record<string, string | number>>({ page: 1, page_size: 10 });
@@ -43,17 +45,23 @@ export default function AuditLogPage() {
         </div>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <AppleTable
-        columns={[
-          { key: 'operator_name', title: '操作人' },
-          { key: 'action', title: '操作', render: (r) => <span className="text-caption">{r.action}</span> },
-          { key: 'target_type', title: '对象类型' },
-          { key: 'ip_address', title: 'IP' },
-          { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
-        ]}
-        data={data?.items || []} loading={!data && !error} rowKey="id"
-      />
-      {data && <ApplePagination page={Number(params.page)} pageSize={10} total={data.total} onChange={changePage} />}
+      {!error && data?.items?.length === 0 ? (
+        <EmptyState icon={<ScrollText size={40} />} title="暂无审计日志" description="系统操作记录将显示在这里" />
+      ) : (
+        <>
+          <AppleTable
+            columns={[
+              { key: 'operator_name', title: '操作人' },
+              { key: 'action', title: '操作', render: (r) => <span className="text-caption">{r.action}</span> },
+              { key: 'target_type', title: '对象类型' },
+              { key: 'ip_address', title: 'IP' },
+              { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
+            ]}
+            data={data?.items || []} loading={!data && !error} rowKey="id"
+          />
+          {data && <ApplePagination page={Number(params.page)} pageSize={10} total={data.total} onChange={changePage} />}
+        </>
+      )}
     </div>
   );
 }

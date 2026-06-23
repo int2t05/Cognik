@@ -36,7 +36,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               placeholder={placeholder}
               disabled={disabled}
               aria-label="输入消息"
-              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
+              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
               Enter ↵
@@ -46,7 +46,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             <button
               onClick={onStop}
               aria-label="停止生成"
-              className="flex items-center justify-center w-11 h-11 rounded-[var(--radius-pill)] bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95"
+              className="flex items-center justify-center w-11 h-11 rounded-[var(--radius-pill)] bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]"
             >
               <Square size={16} fill="currentColor" />
             </button>
