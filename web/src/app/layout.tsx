@@ -10,7 +10,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'OpsMind — 运维数字员工',
   description: 'AI 驱动的企业运维智能助手',
-  icons: { icon: '/icon-64.png', apple: '/icon-180.png' },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
