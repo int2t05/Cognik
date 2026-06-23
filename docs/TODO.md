@@ -105,18 +105,18 @@
 
 ### 🟠 功能缺陷
 
-- 🟠 `autoClose` 调度器退出时不等待进行中的任务完成——`ctx.Done()` 直接退出 goroutine（`scheduler.go:61`）
+- ✅ `autoClose` 调度器退出时不等待进行中的任务完成 — 添加 WaitGroup + Stop 等待进行中任务（`scheduler.go:61`）
 
 ### 🟡 架构债务
 
-- 🟡 `database/migrate.go` 每次启动重建全部索引（含 `IF NOT EXISTS`）——风险较高，需慎重评估
-- 🟡 Router 中 ~150 行 handler nil-check 样板代码——需大规模重构
-- 🟡 `ListSessions` 泄露原始 DB 错误——未包装为 AppError，可能暴露 SQL/连接信息（`chat_service.go:322`）
+- ✅ `database/migrate.go` 每次启动重建全部索引 — 改用 `CREATE INDEX IF NOT EXISTS`，去 DROP（`migrate.go`）
+- ✅ Router 中 ~150 行 handler nil-check 样板代码 — safeHandler 辅助函数消除 if/else（`helpers.go` + `portal.go` + `admin.go`）
+- ✅ `ListSessions` 泄露原始 DB 错误 — 包装为 `fmt.Errorf("查询会话列表失败: %w", err)`（`chat_service.go:327`）
 
 ### 🟢 优化建议
 
-- 🟢 无 DB / LLM / Embedding 健康检查端点或熔断器——下游依赖故障时无快速失败机制
-- 🟢 默认 LLM 配置缺失时静默降级为硬编码 fallback，无日志警告（`llm_service.go:336`）
+- ✅ 无 DB 健康检查端点 — `/readyz` 增加 DB Ping 探测（`router.go` + `main.go`）
+- ✅ 默认 LLM 配置缺失时静默降级 — `getModelConfig` 增加 `slog.Warn` 降级日志（`llm_service.go:404`）
 
 ---
 
@@ -150,8 +150,8 @@
 
 | | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
 |---|---|---|---|---|
-| 后端 | 0 | 1 | 3 | 3 |
-| 前端 | 0 | 0 | 1 | 5 |
-| **合计** | **0** | **1** | **4** | **8** |
+| 后端 | 0 | 0 | 6 | 3 |
+| 前端 | 0 | 0 | 1 | 6 |
+| **合计** | **0** | **0** | **7** | **9** |
 
-> 最近修复（2026-06-23）：3 项 🔴 + 3 项 🟠，详见 `docs/degradation-matrix.md`
+> 最近修复（2026-06-23）：6 项（1 🟠 + 3 🟡 + 2 🟢），详见 `docs/degradation-matrix.md`

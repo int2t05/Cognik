@@ -327,7 +327,13 @@ func wireApp() (*app, error) {
 	slog.Info("后台调度器已创建")
 
 	// 8. HTTP Server
-	r := router.Setup(cfg, userCache, handlers)
+	r := router.Setup(cfg, userCache, handlers, func() error {
+			sqlDB, err := db.DB()
+			if err != nil {
+				return err
+			}
+			return sqlDB.Ping()
+		})
 
 	readTimeout := cfg.Server.ReadTimeout
 	if readTimeout <= 0 {

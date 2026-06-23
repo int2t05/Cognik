@@ -34,7 +34,8 @@ type Handlers struct {
 }
 
 // Setup 初始化 Gin 引擎并注册所有路由。
-func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers) *gin.Engine {
+// dbPing 用于 /readyz 健康检查探测 DB 连通性，nil 时跳过。
+func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers, dbPing func() error) *gin.Engine {
 	gin.SetMode(cfg.Server.Mode)
 
 	// 生产模式下，nil Handler 应立即失败而非返回运行时 501
@@ -49,12 +50,19 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers)
 	r.Use(middleware.CORS(parseCORSOrigins(cfg.CORS.AllowOrigins), cfg.Server.Mode))
 	r.Use(middleware.Logger())
 
-	// /health — 存活探针（K8s liveness）
+	// /health — 存活探针（K8s liveness），仅检查进程存活
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
-	// /readyz — 就绪探针（K8s readiness）
+
+	// /readyz — 就绪探针（K8s readiness），检查 DB 连通性
 	r.GET("/readyz", func(c *gin.Context) {
+		if dbPing != nil {
+			if err := dbPing(); err != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": err.Error()})
+				return
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 

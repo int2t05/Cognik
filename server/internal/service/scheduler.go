@@ -21,6 +21,7 @@ type Scheduler struct {
 	ticketSvc ticketAutoCloseService
 	once      sync.Once
 	cancel    context.CancelFunc
+	wg        sync.WaitGroup
 }
 
 // NewScheduler 创建 Scheduler 实例。
@@ -40,10 +41,11 @@ func (s *Scheduler) Start(ctx context.Context) {
 	})
 }
 
-// Stop 停止调度器，取消所有 ticker goroutine。
+// Stop 停止调度器，等待进行中的任务完成后退出。
 func (s *Scheduler) Stop() {
 	if s.cancel != nil {
 		s.cancel()
+		s.wg.Wait()
 		slog.Info("后台调度器已停止")
 	}
 }
@@ -67,6 +69,8 @@ func (s *Scheduler) runAutoCloseLoop(ctx context.Context) {
 }
 
 func (s *Scheduler) doAutoClose() {
+	s.wg.Add(1)
+	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	closed, err := s.ticketSvc.AutoClose(ctx, time.Now().Add(-7*24*time.Hour))

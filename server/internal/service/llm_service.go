@@ -7,6 +7,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -386,7 +387,7 @@ func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string
 // getModelConfig 从 LLMConfigManager 读取当前模型和 maxTokens。
 //
 // 优先级：DB 热配置 > config.yaml 默认值。configMgr 为 nil 或 DB 无配置时回退到 defaultModel。
-// defaultModel 来自 config.yaml OPSMIND_LLM_MODEL，运行时不依赖硬编码字符串。
+// 首次启动时 DB 可能尚未 seed，使用默认值并记录 Warn 提示管理员配置。
 func (s *LLMService) getModelConfig() (model string, maxTokens int) {
 	model = s.defaultModel
 	maxTokens = 2048
@@ -398,8 +399,10 @@ func (s *LLMService) getModelConfig() (model string, maxTokens int) {
 			if cfg.MaxTokens > 0 {
 				maxTokens = cfg.MaxTokens
 			}
+			return
 		}
 	}
+	slog.Warn("LLM 配置缺失，使用 config.yaml 默认值——请通过后台管理页面配置 LLM", "model", model)
 	return
 }
 

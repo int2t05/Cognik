@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -325,7 +326,7 @@ func (s *ChatService) ListSessions(ctx context.Context, userID int64, page, page
 	}
 	sessions, total, err := s.chatRepo.ListByUser(ctx, userID, page, pageSize)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("查询会话列表失败: %w", err)
 	}
 
 	// 批量获取消息数量，避免 N+1 查询
