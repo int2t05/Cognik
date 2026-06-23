@@ -52,14 +52,12 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             </button>
           ) : (
             <AppleButton
+              icon={<Send />}
               onClick={onSend}
               loading={loading}
               disabled={!value.trim() || disabled}
-              className="p-3.5"
               aria-label="发送"
-            >
-              <Send size={16} />
-            </AppleButton>
+            />
           )}
         </div>
       </div>

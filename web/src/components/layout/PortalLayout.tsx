@@ -75,9 +75,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           {mounted && isAdmin && (
-            <AppleButton variant="utility" className="p-3.5" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
-              <Shield size={16} />
-            </AppleButton>
+            <AppleButton variant="utility" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
           )}
           <span className="text-caption text-[var(--color-text-muted-48)] mr-1" suppressHydrationWarning>{user?.real_name}</span>
           <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-3 hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
