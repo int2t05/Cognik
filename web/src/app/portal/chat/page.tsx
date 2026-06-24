@@ -8,7 +8,7 @@ import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, MessageSquare, Trash2, Menu, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
-import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback } from '@/lib/api/chat';
+import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, submitFeedback, createSession } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
@@ -98,12 +98,18 @@ export default function ChatPage() {
 
     setInput('');
     const wasNew = !sessionId;
-    const sid = await store.send(sessionId, selectedKB, question, token || '', (m) => toast.error(m));
-    if (sid) {
+    // 新会话先建 session 并立即设置 sid——否则流式 token 到来时
+    // 组件还在用 null 读 store，token 全丢，等 done 才一次性出现。
+    let sid = sessionId;
+    if (!sid) {
+      const r = await createSession(selectedKB, question.slice(0, 50));
+      sid = r.session_id;
       setSessionId(sid);
       setFeedbackMap({});
-      if (wasNew) mutateSessions();
     }
+    // store.send 只是启动流式消费；组件已持有正确 sid，可实时渲染 token。
+    await store.send(sid, selectedKB, question, token || '', (m) => toast.error(m));
+    if (wasNew) mutateSessions();
   };
 
   const handleNewChat = () => {
