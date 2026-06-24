@@ -66,8 +66,11 @@ async function safeResJson(res: Response): Promise<unknown> {
  * apiFetch 和 apiFetchPage 共享此底层调用，消除重复的请求构造逻辑。
  */
 async function rawApiRequest(url: string, options?: RequestInit): Promise<Record<string, unknown>> {
+  // 当 body 为 FormData 时，交由浏览器自动设置 Content-Type 为 multipart/form-data（含 boundary），
+  // 否则固定设置为 application/json（覆盖默认值或其他类型）。
+  const isFormData = options?.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(!isFormData && { 'Content-Type': 'application/json' }),
     ...(options?.headers as Record<string, string>),
   };
   const token = _tokenGetter();
