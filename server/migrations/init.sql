@@ -24,6 +24,7 @@ ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS llm_config_id bigint NOT NU
 -- knowledge_articles：升级旧 schema → 统一文章模型
 ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS question;
 ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS rag_document_location;
+ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS content_hash;
 
 DO $$
 BEGIN

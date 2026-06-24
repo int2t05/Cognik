@@ -704,7 +704,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
 	}
 
 	if !allowedDocumentTypes[fileType] {
