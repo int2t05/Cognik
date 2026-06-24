@@ -97,19 +97,18 @@ export default function ChatPage() {
     if (isTokenExpired(token)) { toast.error('登录已过期，请刷新页面'); return; }
 
     setInput('');
-    const wasNew = !sessionId;
-    // 新会话先建 session 并立即设置 sid——否则流式 token 到来时
-    // 组件还在用 null 读 store，token 全丢，等 done 才一次性出现。
+    // 新会话：先建 session、立即设 sid 并刷新侧栏——
+    // 保证流式中切走/刷新后还能在侧栏找到这个会话。
     let sid = sessionId;
     if (!sid) {
       const r = await createSession(selectedKB, question.slice(0, 50));
       sid = r.session_id;
       setSessionId(sid);
       setFeedbackMap({});
+      mutateSessions();
     }
-    // store.send 只是启动流式消费；组件已持有正确 sid，可实时渲染 token。
+    // store.send 启动流式消费；组件已持有正确 sid，token 实时渲染。
     await store.send(sid, selectedKB, question, token || '', (m) => toast.error(m));
-    if (wasNew) mutateSessions();
   };
 
   const handleNewChat = () => {
