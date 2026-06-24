@@ -91,6 +91,7 @@ func ragMustVectorStore(t *testing.T) adapter.VectorStore {
 			chunk_index INTEGER NOT NULL DEFAULT 0,
 			embedding_model VARCHAR(128) NOT NULL DEFAULT '',
 			vector_dimension INTEGER NOT NULL DEFAULT 0,
+			chunk_hash VARCHAR(64) NOT NULL DEFAULT '',
 			embedding halfvec(1024),
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`)

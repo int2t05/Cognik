@@ -44,15 +44,19 @@ func init() {
 
 func setupKnowledgeService(t *testing.T) *service.KnowledgeService {
 	t.Helper()
-	repo := repository.NewKnowledgeRepo(knowledgeSvcDB)
-	svc := service.NewKnowledgeService(repo)
 
-	// 清理测试数据
+	// 确保测试表存在（init 只连接，不建表）
+	if err := database.AutoMigrate(knowledgeSvcDB); err != nil {
+		t.Fatalf("AutoMigrate 失败: %v", err)
+	}
+
+	// 清理测试数据（按 FK 逆序）
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_chunks")
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_articles")
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_bases")
 
-	return svc
+	repo := repository.NewKnowledgeRepo(knowledgeSvcDB)
+	return service.NewKnowledgeService(repo)
 }
 
 // createTestKB 创建测试用知识库。
@@ -338,18 +342,23 @@ func TestKnowledgeService_Review_RejectNoComment(t *testing.T) {
 	}
 }
 
-// TestKnowledgeService_Review_SameAsCreator 审核人=创建人时拒绝。
+// TestKnowledgeService_Review_SameAsCreator MVP 阶段允许创建人自审核（admin 全流程）。
 func TestKnowledgeService_Review_SameAsCreator(t *testing.T) {
 	svc := setupKnowledgeService(t)
 	kb := createTestKB(t, svc, "同人审核测试")
 	article := createTestArticle(t, svc, kb.ID, 2) // 待审核，CreatedBy=1
 
-	// reviewerID=1，与创建人相同
 	err := svc.Review(bgCtx, article.ID, 1, request.ReviewRequest{
 		Approved: true,
 	})
-	if err == nil {
-		t.Fatal("期望错误, got nil")
+	if err != nil {
+		t.Fatalf("MVP 阶段创建人可自审核, 不应返回错误: %v", err)
+	}
+
+	var updated model.KnowledgeArticle
+	knowledgeSvcDB.First(&updated, article.ID)
+	if updated.Status != 3 {
+		t.Errorf("期望 status=3(已通过), got %d", updated.Status)
 	}
 }
 
