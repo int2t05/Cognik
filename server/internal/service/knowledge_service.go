@@ -335,9 +335,8 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 	if article.Status != model.ArticleStatusReviewing {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅待审核状态可审核"}
 	}
-	if article.CreatedBy == reviewerID {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "审核人不能是创建人"}
-	}
+	// MVP 阶段允许创建人自审核（admin 用户可走全流程：提交→审核→发布），
+	// 后续如需强制分离，可通过 RBAC 权限或配置开关控制。
 	if req.Approved {
 		article.Status = model.ArticleStatusApproved
 		article.ReviewedBy = &reviewerID

@@ -23,7 +23,7 @@ import (
 type LlmConfig struct {
 	ID               int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name             string    `gorm:"type:varchar(128);not null" json:"name"`
-	LLMBaseURL       string    `gorm:"type:varchar(512);not null;column:llm_base_url" json:"llm_base_url"`
+	LLMBaseURL       string    `gorm:"type:varchar(512);default:'';column:llm_base_url" json:"llm_base_url"`
 	LLMAPIKey        string    `gorm:"type:varchar(512);column:llm_api_key" json:"llm_api_key"`
 	EmbeddingBaseURL string    `gorm:"type:varchar(512);column:embedding_base_url" json:"embedding_base_url"`
 	EmbeddingAPIKey  string    `gorm:"type:varchar(512);column:embedding_api_key" json:"embedding_api_key"`

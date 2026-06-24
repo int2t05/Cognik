@@ -130,8 +130,8 @@ func TestSeedData_LLMConfig(t *testing.T) {
 	for _, c := range configs {
 		if c.IsDefault {
 			hasDefault = true
-			t.Logf("✅ 默认配置: name=%s, llm=%s, embedding=%s, provider_type=%d",
-				c.Name, c.LLMModel, c.EmbeddingModel, c.ProviderType)
+			t.Logf("✅ 默认配置: name=%s, llm=%s, embedding=%s",
+				c.Name, c.LLMModel, c.EmbeddingModel)
 			break
 		}
 	}
