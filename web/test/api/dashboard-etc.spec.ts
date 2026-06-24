@@ -70,9 +70,10 @@ test.describe('审计日志 API', () => {
       headers: getAuthHeaders(token),
     });
     const body = await assertSuccess(res);
-    expect(body.data.total).toBeGreaterThanOrEqual(0);
-    expect(body.data.page).toBe(1);
-    expect(body.data.page_size).toBe(5);
+    // 审计日志 API 将分页信息放在顶层（total/page/page_size），data 为数组
+    expect(body.total).toBeGreaterThanOrEqual(0);
+    expect(body.page).toBe(1);
+    expect(body.page_size).toBe(5);
   });
 
   test('按日期筛选', async ({ request }) => {
