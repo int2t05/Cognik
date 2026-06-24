@@ -142,3 +142,24 @@ func TestHub_ConcurrentRace(t *testing.T) {
 	wg.Wait()
 	h.Finish(6)
 }
+
+// 生成已 Finish 后(宽限期内)Subscribe 应成功：全量回放 + 通道已关闭、无实时事件。
+func TestHub_SubscribeAfterFinish(t *testing.T) {
+	h := service.NewGenerationHub()
+	_ = h.Start(7, 700, func() {})
+	h.Publish(7, service.StreamEvent{Type: "token", Content: "a"})
+	h.Publish(7, service.StreamEvent{Type: "done"})
+	h.Finish(7)
+
+	replay, ch, unsub, ok := h.Subscribe(7, 0)
+	if !ok {
+		t.Fatal("宽限期内对已结束生成 Subscribe 应返回 ok=true")
+	}
+	defer unsub()
+	if len(replay) != 2 {
+		t.Fatalf("应回放 2 个事件，得到 %d", len(replay))
+	}
+	if _, open := <-ch; open {
+		t.Fatal("已结束生成返回的通道应为已关闭状态")
+	}
+}
