@@ -97,8 +97,9 @@ INSERT INTO system_configs (key, value, description, updated_by, updated_at) VAL
 -- =============================================================================
 
 INSERT INTO llm_configs (id, name, provider_type, base_url, embedding_base_url, api_key, llm_model, embedding_model, system_prompt, max_tokens, vector_dimension, is_default, created_at, updated_at) VALUES
-(1, '本地 llama.cpp',     1, 'http://llama-cpp:8081/v1',  'http://llama-cpp-emb:8082/v1', '',             'Qwen3-4B-Q4_K_M',            'Qwen3-Embedding-0.6B-Q8_0', NULL, 8192,  1024, true,  NOW(), NOW()),
-(2, 'OpenAI GPT-4o-mini', 2, 'https://api.openai.com/v1', '',                              'sk-your-openai-api-key',  'gpt-4o-mini',           'text-embedding-3-small',      NULL, 16384, 1536, false, NOW(), NOW());
+(1, '本地 llama.cpp',        1, 'http://llama-cpp:8081/v1',    'http://llama-cpp-emb:8082/v1', '',                    'Qwen3-4B-Q4_K_M',            'Qwen3-Embedding-0.6B-Q8_0', NULL, 8192,  1024, true,  NOW(), NOW()),
+(2, 'OpenAI GPT-4o-mini',    2, 'https://api.openai.com/v1',   '',                              'sk-your-openai-api-key', 'gpt-4o-mini',           'text-embedding-3-small',      NULL, 16384, 1536, false, NOW(), NOW()),
+(3, '本地 llama.cpp (宿主机)', 1, 'http://localhost:8081/v1',    'http://localhost:8082/v1',       '',                    'Qwen3-4B-Q4_K_M',            'Qwen3-Embedding-0.6B-Q8_0', NULL, 8192,  1024, false, NOW(), NOW());
 
 SELECT setval('llm_configs_id_seq', (SELECT MAX(id) FROM llm_configs));
 
