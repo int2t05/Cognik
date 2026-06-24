@@ -135,6 +135,16 @@ func (r *KnowledgeRepo) UpdateArticleStatus(ctx context.Context, id int64, statu
 	return nil
 }
 
+// UpdateArticleStatusCAS 原子状态转换（Compare-And-Swap）。
+// 仅当前状态为 expectedOld 时才更新为 newStatus，返回受影响行数。
+// 0 行表示并发冲突——其他请求已修改了状态。
+func (r *KnowledgeRepo) UpdateArticleStatusCAS(ctx context.Context, id int64, expectedOld, newStatus int) (int64, error) {
+	res := r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).
+		Where("id = ? AND status = ?", id, expectedOld).
+		Update("status", newStatus)
+	return res.RowsAffected, res.Error
+}
+
 func (r *KnowledgeRepo) UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error {
 	updates := map[string]interface{}{
 		"process_status": processStatus,
@@ -164,6 +174,10 @@ func (r *KnowledgeRepo) DeleteArticle(ctx context.Context, id int64) error {
 
 func (r *KnowledgeRepo) DeleteKB(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 先删 chunks（FK 到 articles），再删 articles，最后删 kb
+		if err := tx.Where("kb_id = ?", id).Delete(&model.KnowledgeChunk{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("kb_id = ?", id).Delete(&model.KnowledgeArticle{}).Error; err != nil {
 			return err
 		}

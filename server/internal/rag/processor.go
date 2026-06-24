@@ -14,6 +14,7 @@ package rag
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -236,38 +237,101 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 		task.OnMetrics(articleID, len([]rune(content)), len(chunks))
 	}
 
-	// 阶段 3: Embedding
-	if ctx.Err() != nil {
-		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
-		return
-	}
-	p.updateStatus(task, "embedding", "")
-	vectors, _, err := p.embedder.Embed(ctx, chunks)
-	if err != nil {
-		p.updateStatus(task, "failed", fmt.Sprintf("embedding 失败: %v", err))
-		return
-	}
-	if len(vectors) != len(chunks) {
-		p.updateStatus(task, "failed", fmt.Sprintf("embedding 数量不匹配: 期望 %d, 实际 %d", len(chunks), len(vectors)))
-		return
-	}
-
-	// 阶段 4: 写入 pgvector
-	p.updateStatus(task, "indexing", "")
-	vc := make([]adapter.VectorChunk, len(chunks))
-	for i, chunk := range chunks {
-		vc[i] = adapter.VectorChunk{
-			ArticleID:       articleID,
-			KBID:            task.KBID,
-			Content:         chunk,
-			ChunkIndex:      i,
-			Embedding:       vectors[i],
-			EmbeddingModel:  task.EmbeddingModel,
-			VectorDimension: len(vectors[i]),
+	// 增量比对：查询旧分块 snapshot，构建 hash→embedding 映射以复用未变 chunk 的向量。
+	oldEmbeddings := map[string][]float32{}
+	if snapshots, err := p.store.GetChunkSnapshots(ctx, articleID); err != nil {
+		slog.Warn("查询旧分块快照失败，回退到全量 embedding", "article_id", articleID, "error", err)
+	} else {
+		for _, ss := range snapshots {
+			if ss.ChunkHash == "" || ss.EmbeddingText == "" {
+				continue
+			}
+			emb, err := adapter.ParsePgVectorText(ss.EmbeddingText)
+			if err != nil {
+				slog.Warn("解析旧 embedding 文本失败，跳过该分块", "article_id", articleID, "chunk_hash", ss.ChunkHash, "error", err)
+				continue
+			}
+			oldEmbeddings[ss.ChunkHash] = emb
 		}
 	}
 
-	if err := p.store.BatchInsert(ctx, vc); err != nil {
+	// 阶段 3: 计算新分块 hash 并分离变更/未变更
+	type chunkWithHash struct {
+		text string
+		hash string
+	}
+	allChunks := make([]chunkWithHash, len(chunks))
+	for i, chunk := range chunks {
+		allChunks[i] = chunkWithHash{text: chunk, hash: fmt.Sprintf("%x", sha256.Sum256([]byte(chunk)))}
+	}
+
+	// 分离需 embedding 的新/变更分块 vs 可复用的未变更分块
+	var changedIndices []int
+	var changedTexts []string
+	for i, ch := range allChunks {
+		if _, ok := oldEmbeddings[ch.hash]; ok {
+			continue // 未变更，复用旧 embedding
+		}
+		changedIndices = append(changedIndices, i)
+		changedTexts = append(changedTexts, ch.text)
+	}
+
+	// 阶段 4: Embedding（仅变更的分块）
+	var newVectors [][]float32
+	if len(changedTexts) > 0 {
+		if ctx.Err() != nil {
+			p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
+			return
+		}
+		p.updateStatus(task, "embedding", "")
+		var err error
+		newVectors, _, err = p.embedder.Embed(ctx, changedTexts)
+		if err != nil {
+			p.updateStatus(task, "failed", fmt.Sprintf("embedding 失败: %v", err))
+			return
+		}
+		if len(newVectors) != len(changedTexts) {
+			p.updateStatus(task, "failed", fmt.Sprintf("embedding 数量不匹配: 期望 %d, 实际 %d", len(changedTexts), len(newVectors)))
+			return
+		}
+		slog.Debug("增量 embedding", "article_id", articleID, "total", len(chunks), "changed", len(changedTexts), "reused", len(chunks)-len(changedTexts))
+	} else {
+		slog.Debug("全部 chunk 未变更，跳过 embedding", "article_id", articleID, "total", len(chunks))
+	}
+
+	// 构建变更索引→新向量的映射
+	changedVecMap := make(map[int][]float32, len(changedIndices))
+	for j, idx := range changedIndices {
+		changedVecMap[idx] = newVectors[j]
+	}
+
+	// 阶段 5: 写入 pgvector（ReplaceVectors 原子替换，避免重复 chunk 累积）
+	p.updateStatus(task, "indexing", "")
+	vc := make([]adapter.VectorChunk, len(chunks))
+	for i, ch := range allChunks {
+		var emb []float32
+		if v, ok := changedVecMap[i]; ok {
+			emb = v // 新 embedding
+		} else if v, ok := oldEmbeddings[ch.hash]; ok {
+			emb = v // 复用旧 embedding
+		} else {
+			// 理论不应到达：hash 不在 oldEmbeddings 也不在 changedVecMap
+			p.updateStatus(task, "failed", fmt.Sprintf("chunk %d (%s) 无可用 embedding", i, ch.hash[:16]))
+			return
+		}
+		vc[i] = adapter.VectorChunk{
+			ArticleID:       articleID,
+			KBID:            task.KBID,
+			Content:         ch.text,
+			ChunkIndex:      i,
+			Embedding:       emb,
+			EmbeddingModel:  task.EmbeddingModel,
+			VectorDimension: len(emb),
+			ChunkHash:       ch.hash,
+		}
+	}
+
+	if err := p.store.ReplaceVectors(ctx, articleID, vc); err != nil {
 		p.updateStatus(task, "failed", fmt.Sprintf("写入向量失败: %v", err))
 		return
 	}

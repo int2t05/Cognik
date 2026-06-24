@@ -137,21 +137,14 @@ docker compose down
 docker compose down -v
 ```
 
-### Makefile
+### 数据库初始化（手动执行）
 
 ```bash
-# 本地开发启动
-make dev
+# DDL 增强（HNSW 索引、列注释）
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql
 
-# 构建全部镜像
-make build
-
-# 运行全部测试
-make test
-
-# 数据库初始化（手动执行）
-make db-init    # DDL 增强（HNSW 索引、列注释）
-make db-seed    # 必要数据（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
+# 必要数据（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
 ```
 
 ---

@@ -46,6 +46,13 @@ type VectorStore interface {
 
 	// GetChunksByArticle 获取指定文章的所有分块内容（不含向量）。
 	GetChunksByArticle(ctx context.Context, articleID int64) ([]ChunkContent, error)
+
+	// GetChunkSnapshots 获取指定文章的所有分块快照（含 chunk_hash 和 embedding 文本表示）。
+	//
+	// 为什么需要 embedding 文本表示：增量发布时需要复用旧 chunk 的 embedding，
+	// halfvec 列通过 ::text 强制转换为 pgvector 数组字面量字符串（如 [0.1,0.2,...]），
+	// 可被 float32ToPgVector 的逆向解析还原为 []float32。
+	GetChunkSnapshots(ctx context.Context, articleID int64) ([]ChunkSnapshot, error)
 }
 
 // =============================================================================
@@ -61,6 +68,7 @@ type VectorChunk struct {
 	Embedding       []float32 `json:"embedding"`
 	EmbeddingModel  string    `json:"embedding_model"`
 	VectorDimension int       `json:"vector_dimension"`
+	ChunkHash       string    `json:"chunk_hash"` // SHA256 增量比对
 }
 
 // SearchResult 向量检索结果。
@@ -77,6 +85,15 @@ type ChunkContent struct {
 	ID         int64  `json:"id"`
 	Content    string `json:"content"`
 	ChunkIndex int    `json:"chunk_index"`
+}
+
+// ChunkSnapshot 分块快照（含 chunk_hash 和 embedding 文本表示，用于增量发布比对）。
+//
+// EmbeddingText 是 pgvector halfvec 列的 ::text 形式（如 [0.123,0.456,...]），
+// 由 parsePgVectorText 还原为 []float32。
+type ChunkSnapshot struct {
+	ChunkHash     string `json:"chunk_hash"`
+	EmbeddingText string `json:"embedding_text"`
 }
 
 // =============================================================================
@@ -140,20 +157,20 @@ func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) e
 		}
 	}
 
-	// 构建批量 INSERT
+	// 构建批量 INSERT（含 chunk_hash 用于增量比对）
 	query := `INSERT INTO knowledge_chunks
-		(article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, created_at)
+		(article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, chunk_hash, created_at)
 		VALUES `
 
 	var placeholders []string
 	var args []interface{}
 	for i, c := range chunks {
-		base := i * 7
+		base := i * 8
 		placeholders = append(placeholders,
-			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d::halfvec, $%d, $%d, NOW())",
-				base+1, base+2, base+3, base+4, base+5, base+6, base+7))
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d::halfvec, $%d, $%d, $%d, NOW())",
+				base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8))
 		args = append(args, c.ArticleID, c.KBID, c.Content, c.ChunkIndex,
-			float32ToPgVector(c.Embedding), c.EmbeddingModel, c.VectorDimension)
+			float32ToPgVector(c.Embedding), c.EmbeddingModel, c.VectorDimension, c.ChunkHash)
 	}
 
 	query += strings.Join(placeholders, ", ")
@@ -253,16 +270,16 @@ func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chu
 		return fmt.Errorf("ReplaceVectors 删除旧向量失败: %w", err)
 	}
 
-	query := "INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, created_at) VALUES "
+	query := "INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, chunk_hash, created_at) VALUES "
 	var placeholders []string
 	var args []interface{}
 	for i, ch := range chunks {
-		base := i * 7
+		base := i * 8
 		placeholders = append(placeholders,
-			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d::halfvec, $%d, $%d, NOW())",
-				base+1, base+2, base+3, base+4, base+5, base+6, base+7))
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d::halfvec, $%d, $%d, $%d, NOW())",
+				base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8))
 		args = append(args, ch.ArticleID, ch.KBID, ch.Content, ch.ChunkIndex,
-			float32ToPgVector(ch.Embedding), ch.EmbeddingModel, ch.VectorDimension)
+			float32ToPgVector(ch.Embedding), ch.EmbeddingModel, ch.VectorDimension, ch.ChunkHash)
 	}
 	query += strings.Join(placeholders, ", ")
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
@@ -304,9 +321,63 @@ func (s *PgvectorStore) GetChunksByArticle(ctx context.Context, articleID int64)
 	return chunks, rows.Err()
 }
 
+// GetChunkSnapshots 获取指定文章的所有分块快照（含 chunk_hash 和 embedding 文本表示）。
+//
+// embedding 列通过 ::text 强制转换为 pgvector 数组字面量字符串，
+// 由 parsePgVectorText 还原为 []float32 供增量发布复用。
+func (s *PgvectorStore) GetChunkSnapshots(ctx context.Context, articleID int64) ([]ChunkSnapshot, error) {
+	rows, err := s.db.QueryContext(ctx,
+		"SELECT chunk_hash, embedding::text FROM knowledge_chunks WHERE article_id = $1 ORDER BY chunk_index",
+		articleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询分块快照失败 (article_id=%d): %w", articleID, err)
+	}
+	defer rows.Close()
+
+	var snapshots []ChunkSnapshot
+	for rows.Next() {
+		var ss ChunkSnapshot
+		if err := rows.Scan(&ss.ChunkHash, &ss.EmbeddingText); err != nil {
+			return nil, fmt.Errorf("扫描分块快照失败: %w", err)
+		}
+		snapshots = append(snapshots, ss)
+	}
+	return snapshots, rows.Err()
+}
+
 // =============================================================================
 // 辅助函数
 // =============================================================================
+
+// ParsePgVectorText 将 pgvector ::text 输出（如 "[0.123,0.456,...]"）还原为 []float32。
+//
+// 为什么需要此函数：增量发布时需要复用旧 chunk 的 embedding，
+// halfvec 列通过 ::text 输出为 pgvector 数组字面量字符串，
+// 解析后可直接用于 VectorChunk.Embedding。
+func ParsePgVectorText(text string) ([]float32, error) {
+	text = strings.TrimSpace(text)
+	if len(text) < 2 || text[0] != '[' || text[len(text)-1] != ']' {
+		return nil, fmt.Errorf("非法的 pgvector text 格式: %s", text)
+	}
+	inner := text[1 : len(text)-1]
+	if inner == "" {
+		return []float32{}, nil
+	}
+	parts := strings.Split(inner, ",")
+	result := make([]float32, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		var f float64
+		if _, err := fmt.Sscanf(p, "%f", &f); err != nil {
+			return nil, fmt.Errorf("解析 pgvector 数值失败: %q: %w", p, err)
+		}
+		result = append(result, float32(f))
+	}
+	return result, nil
+}
 
 // float32ToPgVector 将 []float32 转换为 pgvector 兼容的数组字面量字符串。
 //

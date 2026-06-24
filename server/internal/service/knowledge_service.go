@@ -32,6 +32,21 @@ const MaxDocumentSize = 50 * 1024 * 1024
 // allowedDocumentTypes 支持上传的文档格式白名单。
 var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
 
+// MinIO 两桶模型：
+//   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
+//   - opsmind-published：已发布桶（正文已嵌入 pgvector，RAG 可检索）
+//
+// 状态由 DB knowledge_articles.status 管理，MinIO 不按状态分桶。
+const (
+	minioBucketDocs      = "opsmind-documents"
+	minioBucketPublished = "opsmind-published"
+)
+
+// articleContentKey 返回文章正文在 MinIO 中的 key（{标题}.txt）。
+func articleContentKey(title string) string {
+	return title + ".txt"
+}
+
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
 // 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
 type knowledgeChunker interface {
@@ -53,6 +68,7 @@ type knowledgeRepo interface {
 	CreateArticle(ctx context.Context, article *model.KnowledgeArticle) error
 	UpdateArticle(ctx context.Context, article *model.KnowledgeArticle) error
 	UpdateArticleStatus(ctx context.Context, id int64, status int) error
+	UpdateArticleStatusCAS(ctx context.Context, id int64, expectedOld, newStatus int) (int64, error)
 	UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error
 	UpdateArticleMetrics(ctx context.Context, id int64, wordCount, chunkCount int) error
 	CreateKB(ctx context.Context, kb *model.KnowledgeBase) error
@@ -181,7 +197,7 @@ func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.U
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
 	}
 	kb.Name = req.Name
 	kb.Description = req.Description
@@ -191,7 +207,10 @@ func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.U
 	if req.VectorDimension > 0 {
 		kb.VectorDimension = req.VectorDimension
 	}
-	return s.repo.UpdateKB(ctx, kb)
+	if err := s.repo.UpdateKB(ctx, kb); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新知识库失败: " + err.Error()}
+	}
+	return nil
 }
 
 // DeleteKB 删除知识库及其下所有内容。
@@ -207,7 +226,7 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
 	}
 
 	// 2. 删除 pgvector 中该知识库的所有向量分块
@@ -226,7 +245,7 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 func (s *KnowledgeService) ListKBs(ctx context.Context) ([]response.KBResponse, error) {
 	kbs, err := s.repo.ListKBs(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库列表失败: " + err.Error()}
 	}
 
 	// 批量获取文章数量，避免 N+1 查询
@@ -268,7 +287,7 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
 	}
 
 	tagsJSON := marshalTags(req.Tags)
@@ -288,8 +307,15 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		WordCount:  len([]rune(req.Content)),
 	}
 	if err := s.repo.CreateArticle(ctx, article); err != nil {
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
+
+	// 异步上传正文到 MinIO 临时桶
+	key := articleContentKey(article.Title)
+	article.MinioPath = minioBucketDocs + "/" + key
+	_ = s.repo.UpdateArticle(ctx, article)
+	s.uploadMinioAsync(minioBucketDocs, key, req.Content)
+
 	return article, nil
 }
 
@@ -300,16 +326,37 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusDraft && article.Status != model.ArticleStatusRejected {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿和驳回状态可编辑"}
 	}
+
+	oldTitle := article.Title
 	article.Title = req.Title
 	article.Content = req.Content
 	article.Category = req.Category
 	article.Tags = marshalTags(req.Tags)
-	return s.repo.UpdateArticle(ctx, article)
+	if err := s.repo.UpdateArticle(ctx, article); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
+	}
+
+	// MinIO：标题变更时同步更新 key，旧文件成为垃圾（异步清理成本高于留存）
+	if article.MinioPath != "" {
+		bucket, key := splitMinioPath(article.MinioPath)
+		if key == articleContentKey(oldTitle) {
+			// 手动创建的文章，key 跟随标题
+			newKey := articleContentKey(req.Title)
+			article.MinioPath = bucket + "/" + newKey
+			_ = s.repo.UpdateArticle(ctx, article)
+			s.uploadMinioAsync(bucket, newKey, req.Content)
+		} else {
+			// 文档上传等非标准路径，原地覆盖
+			s.uploadMinioAsync(bucket, key, req.Content)
+		}
+	}
+
+	return nil
 }
 
 // SubmitReview 提交审核（草稿→待审核）。
@@ -319,11 +366,12 @@ func (s *KnowledgeService) SubmitReview(ctx context.Context, id int64, userID in
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusDraft {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿状态可提交审核"}
 	}
+
 	return s.repo.UpdateArticleStatus(ctx, id, int(model.ArticleStatusReviewing))
 }
 
@@ -334,7 +382,7 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusReviewing {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅待审核状态可审核"}
@@ -363,10 +411,8 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 //
 // ctx 由调用方传入（Handler 传 c.Request.Context()），确保发布过程可被取消/超时。
 //
-// 流程：
-//  1. 校验管道组件非空（否则返回 ErrRAGUnavailable）
-//  2. 校验状态（仅审核通过 status=3 可发布）
-//  3. 调用 republishFromApproved 执行分块→embedding→pgvector 写入
+// 使用 CAS（Compare-And-Swap）防止并发重复发布：
+// 仅当 status == Approved(3) 时才更新为 Published(4)，否则返回冲突。
 func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID int64) error {
 	if s.chunker == nil || s.embedder == nil || s.store == nil {
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 管道未初始化（chunker/embedder/store 为空）"}
@@ -382,76 +428,65 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 	if article.Status != model.ArticleStatusApproved {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已审核通过的文章可发布"}
 	}
+
+	// 原子抢占：CAS 更新成功才继续，防止并发重复发布
+	rows, err := s.repo.UpdateArticleStatusCAS(ctx, id, int(model.ArticleStatusApproved), int(model.ArticleStatusPublished))
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
+	}
+	if rows == 0 {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "文章状态已变更，请刷新后重试"}
+	}
+
+	article.Status = model.ArticleStatusPublished
 	return s.republishFromApproved(ctx, article, publisherID)
 }
 
-// republishFromApproved 从已审核通过状态执行发布管道——分块→embedding→pgvector。
+// republishFromApproved 将文章正文保存到 MinIO，入队异步处理（分块→embedding→pgvector）。
 //
-// 流程：
-//  1. Chunker.Split → 文本分块
-//  2. Embedder.Embed → 生成向量
-//  3. VectorStore.DeleteByArticle → 清除旧向量
-//  4. VectorStore.BatchInsert → 写入新向量（失败时设置 process_status=failed）
-//  5. 更新文章状态为已发布 status=4
+// 为什么改为异步：同步 embedding 阻塞 HTTP 请求长达数秒甚至数十秒，
+// 改为 MinIO→队列→Worker 模式后，发布接口立即返回，Worker 后台消费。
 //
-// 为什么先删旧向量再写新向量：
-// ReplaceVectors 在事务内原子替换向量：写入新向量 → 删除旧向量。
 // 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
-	// RAG 依赖未注入时不可执行发布管道，返回明确错误而非 panic
-	// 注意：chunker 也需校验——Enable 路径不经过 Publish 的前置校验
 	if s.chunker == nil || s.embedder == nil || s.store == nil {
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 服务未初始化（缺少 Chunker/Embedding/VectorStore）"}
 	}
+	if s.processor == nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "异步处理器未初始化"}
+	}
 
 	id := article.ID
-
-	// Step 1: 分块
 	content := article.Content
-	chunks := s.chunker.Split(content)
-	if len(chunks) == 0 {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "文章内容为空，无法分块发布"}
-	}
-	article.WordCount = len([]rune(content))
-	article.ChunkCount = len(chunks)
-
-	// Step 2: Embedding
-	vectors, dimension, err := s.embedder.Embed(ctx, chunks)
-	if err != nil {
-		s.recordPublishFailure(ctx, article, "生成向量失败: "+err.Error())
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "生成向量失败: " + err.Error()}
-	}
-	if len(vectors) != len(chunks) {
-		s.recordPublishFailure(ctx, article, fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks)))
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: fmt.Sprintf("向量数与分块数不匹配: %d vs %d", len(vectors), len(chunks))}
+	if strings.TrimSpace(content) == "" {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "文章内容为空，无法发布"}
 	}
 
-	// Step 3-4: 事务内写入新向量 + 删除旧向量
-	vc := make([]adapter.VectorChunk, len(chunks))
-	for i, chunk := range chunks {
-		vc[i] = adapter.VectorChunk{
-			ArticleID:       id,
-			KBID:            article.KBID,
-			Content:         chunk,
-			ChunkIndex:      i,
-			Embedding:       vectors[i],
-			EmbeddingModel:  article.KnowledgeBase.EmbeddingModel,
-			VectorDimension: dimension,
-		}
-	}
-	if err := s.store.ReplaceVectors(ctx, id, vc); err != nil {
-		s.recordPublishFailure(ctx, article, "替换向量失败: "+err.Error())
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "替换向量失败: " + err.Error()}
-	}
+	// 从临时桶拷贝原始文件到已发布桶（保持原名，不转换格式）
+	pubKey := s.copyToPublished(article)
+	article.MinioPath = minioBucketPublished + "/" + pubKey
 
-	// Step 5: 更新状态 + 清除失败残留
+	// 更新文章状态 + 清除失败残留
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
+	article.ProcessStatus = "processing"
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
-	// 发布成功后清除 process_status/process_error，避免前次失败残留误导用户
-	_ = s.repo.UpdateArticleProcessStatus(ctx, article.ID, "completed", "")
+
+	// 提交异步处理任务
+	task := rag.ProcessTask{
+		ArticleID:      id,
+		KBID:           article.KBID,
+		Content:        content,
+		EmbeddingModel: article.KnowledgeBase.EmbeddingModel,
+		OnStatusChange: func(aID int64, status, errMsg string) { s.onPublishComplete(ctx, aID, status, errMsg) },
+		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
+	}
+	if err := s.processor.Submit(task); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
+	}
+
 	// 审计：发布文章
 	if s.auditRepo != nil {
 		s.auditRepo.Create(ctx, &model.AuditLog{
@@ -460,17 +495,6 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		})
 	}
 	return nil
-}
-
-// recordPublishFailure 持久化发布失败状态和原因，供前端展示和重试。
-//
-// 为什么 publish 失败要写 process_status：
-// 文章停留在"审核通过"状态时，用户无法区分"还没发布"和"发布失败"。
-// process_status=failed + process_error 让前端可展示失败原因并提供重试按钮。
-func (s *KnowledgeService) recordPublishFailure(ctx context.Context, article *model.KnowledgeArticle, errMsg string) {
-	if err := s.repo.UpdateArticleProcessStatus(ctx, article.ID, "failed", errMsg); err != nil {
-		slog.Warn("记录发布失败状态时出错", "article_id", article.ID, "error", err)
-	}
 }
 
 // Disable 停用文章——从 pgvector 删除向量并更新状态。
@@ -494,6 +518,15 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 			return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "删除向量失败: " + err.Error()}
 		}
 	}
+
+	// 异步清理已发布桶中的文件
+	go func() {
+		s.deleteMinioFile(context.Background(), minioBucketPublished, articleContentKey(article.Title))
+		if article.MinioPath != "" {
+			b, k := splitMinioPath(article.MinioPath)
+			s.deleteMinioFile(context.Background(), b, k)
+		}
+	}()
 
 	article.Status = model.ArticleStatusDisabled
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
@@ -530,11 +563,7 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 	return s.republishFromApproved(ctx, article, publisherID)
 }
 
-// DeleteArticle 删除文章（仅草稿/驳回状态可删除，同时清理关联向量）。
-//
-// 为什么允许删除驳回文章：
-// 驳回文章已确认不适合发布，直接删除可保持知识库整洁。
-// 已发布文章不可直接删除——需先停用（流程审计要求保留操作记录）。
+// DeleteArticle 删除文章（任意状态均可删除，同时清理关联向量和 MinIO 文件）。
 func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
 	article, err := s.repo.FindArticleByID(ctx, id)
 	if err != nil {
@@ -543,9 +572,10 @@ func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
 		}
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
-	if article.Status != model.ArticleStatusDraft && article.Status != model.ArticleStatusRejected {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿或已驳回状态的文章可删除"}
-	}
+
+	// MinIO 清理异步执行，不阻塞 DB 删除和 HTTP 响应
+	go s.cleanupArticleFiles(article)
+
 	return s.repo.DeleteArticle(ctx, id)
 }
 // =============================================================================
@@ -556,7 +586,7 @@ func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
 func (s *KnowledgeService) ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, page, pageSize int) (*response.ArticleListResponse, error) {
 	articles, total, err := s.repo.ListArticles(ctx, kbID, status, sourceType, processStatus, page, pageSize)
 	if err != nil {
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章列表失败: " + err.Error()}
 	}
 
 	// 批量获取用户名，避免 N+1
@@ -606,12 +636,12 @@ func (s *KnowledgeService) GetArticleDetail(ctx context.Context, id int64) (*res
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 
 	chunks, err := s.repo.FindChunksByArticleID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询切片失败: " + err.Error()}
 	}
 
 	userNames := s.resolveUserNames(ctx, []model.KnowledgeArticle{*article})
@@ -665,12 +695,14 @@ func (s *KnowledgeService) GetArticleDetail(ctx context.Context, id int64) (*res
 // 文档上传与处理
 // =============================================================================
 
-// UploadDocuments 上传文档到知识库（解析→创建文章→入队异步处理）。
+// UploadDocuments 上传文档到知识库（解析→创建文章）。
 //
-// fileSize 用于大小上限校验（最大 50MB），fileType 用于格式白名单校验。
+// 文件名去掉后缀作为文章标题，正文由后端同步解析后返回前端。
+// 分块→embedding→pgvector 不在此阶段执行——
+// 统一推迟到 Publish（发布）环节，避免草稿文章向量污染检索结果和重复 embed。
 func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, userID int64, filename string, fileType string, fileSize int64, content io.Reader) (*model.KnowledgeArticle, error) {
-	// 校验知识库存在——防止孤儿文章
-	if _, err := s.repo.FindKBByID(ctx, kbID); err != nil {
+	_, err := s.repo.FindKBByID(ctx, kbID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
@@ -685,17 +717,13 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件大小超过限制（最大 50MB）"}
 	}
 
-	article := &model.KnowledgeArticle{
-		KBID:      kbID,
-		Title:     filename,
-		Content:   "",
-		Category:  "文档上传",
-		FileType:  fileType,
-		Status:    1,
-		CreatedBy: userID,
+	// 解析标题：文件名去掉扩展名
+	title := strings.TrimSuffix(filename, "."+fileType)
+	if title == "" {
+		title = filename
 	}
 
-	// 读取文件内容到内存（MinIO 上传和降级解析都需要）
+	// 读取文件内容到内存
 	data, err := io.ReadAll(io.LimitReader(content, MaxDocumentSize))
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "读取上传文件失败: " + err.Error()}
@@ -704,61 +732,45 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件内容为空"}
 	}
 
-	var task rag.ProcessTask
-	if s.storage != nil {
-		// 写入 MinIO 对象存储，processor 异步下载解析
-		bucket := "opsmind-documents"
-		key := fmt.Sprintf("documents/%d_%s", time.Now().UnixNano(), filename)
-		if _, err := s.storage.Upload(ctx, bucket, key, bytes.NewReader(data), int64(len(data)), ""); err != nil {
-			slog.Error("上传文件到 MinIO 失败", "bucket", bucket, "key", key, "error", err)
-			return nil, errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文件到对象存储失败"}
-		}
-		article.MinioPath = fmt.Sprintf("%s/%s", bucket, key)
-		task = rag.ProcessTask{
-			ArticleID:      article.ID,
-			KBID:           kbID,
-			Bucket:         bucket,
-			Key:            key,
-			FileType:       fileType,
-			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
-			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
-		}
-	} else {
-		// 无 StorageClient 时降级：同步解析文本，processor 直接分块
-		if s.docParser == nil {
-			return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "文档解析器未初始化"}
-		}
-		text, err := s.docParser.Parse(bytes.NewReader(data), fileType)
-		if err != nil {
-			return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档解析失败: " + err.Error()}
-		}
-		if strings.TrimSpace(text) == "" {
-			return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档内容为空"}
-		}
-		article.Content = text
-		task = rag.ProcessTask{
-			ArticleID:      article.ID,
-			KBID:           kbID,
-			Content:        text,
-			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
-			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
-		}
+	// 同步解析文档正文
+	if s.docParser == nil {
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "文档解析器未初始化"}
+	}
+	text, err := s.docParser.Parse(bytes.NewReader(data), fileType)
+	if err != nil {
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档解析失败: " + err.Error()}
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档内容为空"}
+	}
+
+	article := &model.KnowledgeArticle{
+		KBID:      kbID,
+		Title:     title,
+		Content:   text,
+		Category:  "文档上传",
+		FileType:  fileType,
+		WordCount: len([]rune(text)),
+		Status:    1,
+		CreatedBy: userID,
 	}
 
 	if err := s.repo.CreateArticle(ctx, article); err != nil {
-		if s.storage != nil && article.MinioPath != "" {
-			b, k := splitMinioPath(article.MinioPath)
-			if delErr := s.storage.Delete(ctx, b, k); delErr != nil {
-				slog.Warn("清理 MinIO 孤立文件失败", "path", article.MinioPath, "error", delErr)
-			}
-		}
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	if s.processor != nil {
-		if err := s.processor.Submit(task); err != nil {
-			return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
-		}
+	// 原始文件异步写入 MinIO（解析后正文在 DB，不额外存一份）
+	if s.storage != nil {
+		rawKey := fmt.Sprintf("documents/%d_%s", time.Now().UnixNano(), filename)
+		article.MinioPath = minioBucketDocs + "/" + rawKey
+		_ = s.repo.UpdateArticle(ctx, article)
+		rawData := make([]byte, len(data))
+		copy(rawData, data)
+		go func() {
+			if _, err := s.storage.Upload(context.Background(), minioBucketDocs, rawKey, bytes.NewReader(rawData), int64(len(rawData)), ""); err != nil {
+				slog.Warn("原始文件上传 MinIO 失败", "key", rawKey, "error", err)
+			}
+		}()
 	}
 
 	return article, nil
@@ -807,26 +819,13 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 	if err := s.repo.UpdateArticleProcessStatus(ctx, articleID, "pending", ""); err != nil {
 		slog.Warn("重置处理状态失败，不阻断主流程", "article_id", articleID, "error", err)
 	}
-	var task rag.ProcessTask
-	if article.MinioPath != "" {
-		bucket, key := splitMinioPath(article.MinioPath)
-		task = rag.ProcessTask{
-			ArticleID:      articleID,
-			KBID:           article.KBID,
-			Bucket:         bucket,
-			Key:            key,
-			FileType:       article.FileType,
-			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
-			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
-		}
-	} else {
-		task = rag.ProcessTask{
-			ArticleID:      articleID,
-			KBID:           article.KBID,
-			Content:        article.Content,
-			OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
-			OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
-		}
+	task := rag.ProcessTask{
+		ArticleID:      articleID,
+		KBID:           article.KBID,
+		Content:        article.Content,
+		EmbeddingModel: article.KnowledgeBase.EmbeddingModel,
+		OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
+		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -839,12 +838,18 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 // =============================================================================
 
 // onProcessStatusChange 更新文档处理状态，失败时记录日志但不阻塞流程。
-//
-// 作为 Processor 回调使用——Processor 在异步 goroutine 中运行，
-// 状态更新失败不应 panic，仅记录日志供排查。
 func (s *KnowledgeService) onProcessStatusChange(ctx context.Context, aID int64, status, errMsg string) {
 	if err := s.repo.UpdateArticleProcessStatus(ctx, aID, status, errMsg); err != nil {
 		slog.Warn("更新文档处理状态失败", "article_id", aID, "status", status, "error", err)
+	}
+}
+
+// onPublishComplete 发布异步处理完成回调——成功时清除 processing 状态，失败时记录原因。
+func (s *KnowledgeService) onPublishComplete(ctx context.Context, aID int64, status, errMsg string) {
+	if status == "completed" {
+		_ = s.repo.UpdateArticleProcessStatus(ctx, aID, "completed", "")
+	} else {
+		_ = s.repo.UpdateArticleProcessStatus(ctx, aID, "failed", errMsg)
 	}
 }
 
@@ -955,4 +960,83 @@ func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 		return article.ProcessStatus
 	}
 	return "pending"
+}
+
+// cleanupArticleFiles 异步清理文章的 MinIO 文件。
+func (s *KnowledgeService) cleanupArticleFiles(article *model.KnowledgeArticle) {
+	if s.storage == nil {
+		return
+	}
+	bg := context.Background()
+
+	// 标准路径 + 实际 MinioPath（幂等删除，重复调用无害）
+	s.deleteMinioFile(bg, minioBucketDocs, articleContentKey(article.Title))
+	s.deleteMinioFile(bg, minioBucketPublished, articleContentKey(article.Title))
+	if article.MinioPath != "" {
+		b, k := splitMinioPath(article.MinioPath)
+		s.deleteMinioFile(bg, b, k)
+	}
+}
+
+// uploadMinioAsync 异步上传内容到 MinIO，不阻塞主流程。
+func (s *KnowledgeService) uploadMinioAsync(bucket, key, content string) {
+	if s.storage == nil {
+		return
+	}
+	go func() {
+		if _, err := s.storage.Upload(context.Background(), bucket, key, strings.NewReader(content), int64(len(content)), "text/plain; charset=utf-8"); err != nil {
+			slog.Warn("异步上传 MinIO 失败", "bucket", bucket, "key", key, "error", err)
+		}
+	}()
+}
+
+// copyToPublished 从临时桶拷贝文件到已发布桶（异步，保持原名和格式）。
+//
+// 优先从 article.MinioPath 定位源文件；MinioPath 为空或下载失败时回退到
+// article.Content 写入 {标题}.txt。
+func (s *KnowledgeService) copyToPublished(article *model.KnowledgeArticle) string {
+	if s.storage == nil {
+		return articleContentKey(article.Title)
+	}
+
+	// 确定源 key：从 MinioPath 提取，空则回退到 {标题}.txt
+	var srcKey string
+	if article.MinioPath != "" {
+		_, srcKey = splitMinioPath(article.MinioPath)
+	}
+	if srcKey == "" {
+		srcKey = articleContentKey(article.Title)
+	}
+
+	content := article.Content
+	bg := context.Background()
+
+	// 尝试从 docs 桶下载原始文件
+	if reader, err := s.storage.Download(bg, minioBucketDocs, srcKey); err == nil {
+		defer reader.Close()
+		data, _ := io.ReadAll(reader)
+		if len(data) > 0 {
+			go func() {
+				if _, err := s.storage.Upload(bg, minioBucketPublished, srcKey, bytes.NewReader(data), int64(len(data)), ""); err != nil {
+					slog.Warn("拷贝文件到已发布桶失败", "key", srcKey, "error", err)
+				}
+			}()
+			return srcKey
+		}
+	}
+
+	// 回退：用 DB 中的正文写入 {标题}.txt
+	fallbackKey := articleContentKey(article.Title)
+	s.uploadMinioAsync(minioBucketPublished, fallbackKey, content)
+	return fallbackKey
+}
+
+// deleteMinioFile 安全删除 MinIO 文件（bucket/key 为空或 storage 为 nil 时静默跳过）。
+func (s *KnowledgeService) deleteMinioFile(ctx context.Context, bucket, key string) {
+	if s.storage == nil || bucket == "" || key == "" {
+		return
+	}
+	if err := s.storage.Delete(ctx, bucket, key); err != nil {
+		slog.Warn("删除 MinIO 文件失败", "bucket", bucket, "key", key, "error", err)
+	}
 }

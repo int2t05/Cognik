@@ -18,7 +18,6 @@ const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899a
 // setupLLMConfigService 使用真实 DB 创建 LLMConfigService 实例。
 func setupLLMConfigService(t *testing.T) *service.LLMConfigService {
 	t.Helper()
-	// 清空旧数据，避免默认配置唯一索引冲突
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
 	repo := repository.NewLlmConfigRepo(knowledgeSvcDB)
 	svc, err := service.NewLLMConfigService(repo, knowledgeSvcDB, nil)
@@ -32,7 +31,7 @@ func setupLLMConfigService(t *testing.T) *service.LLMConfigService {
 func TestLLMConfigService_CreateDefault(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, err := svc.CreateConfig(bgCtx, "llama.cpp 本地", 1, "http://llama-cpp:8080/v1", "", "", "qwen3-4b", "bge-m3", "", 8192, 1024, true)
+	_, err := svc.CreateConfig(bgCtx, "llama.cpp 本地", "http://llama-cpp:8080/v1", "", "", "", "qwen3-4b", "bge-m3", "", 8192, 1024, true)
 	if err != nil {
 		t.Fatalf("CreateConfig 失败: %v", err)
 	}
@@ -42,8 +41,8 @@ func TestLLMConfigService_CreateDefault(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("GetConfig 应返回默认配置, 实际 nil")
 	}
-	if cfg.BaseURL != "http://llama-cpp:8080/v1" {
-		t.Errorf("BaseURL = %q, 期望 http://llama-cpp:8080/v1", cfg.BaseURL)
+	if cfg.LLMBaseURL != "http://llama-cpp:8080/v1" {
+		t.Errorf("BaseURL = %q, 期望 http://llama-cpp:8080/v1", cfg.LLMBaseURL)
 	}
 }
 
@@ -51,8 +50,8 @@ func TestLLMConfigService_CreateDefault(t *testing.T) {
 func TestLLMConfigService_DefaultUnique(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "默认1", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, true)
-	_, err := svc.CreateConfig(bgCtx, "默认2", 2, "http://b:8080/v1", "", "key", "m2", "e2", "", 4096, 1536, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认1", "http://a:8080/v1", "", "", "", "m1", "e1", "", 8192, 1024, true)
+	_, err := svc.CreateConfig(bgCtx, "默认2", "http://b:8080/v1", "key", "", "key", "m2", "e2", "", 4096, 1536, true)
 	if err != nil {
 		t.Fatalf("CreateConfig 失败: %v", err)
 	}
@@ -63,7 +62,6 @@ func TestLLMConfigService_DefaultUnique(t *testing.T) {
 		t.Errorf("新默认应为 m2, 实际 %s", cfg.LLMModel)
 	}
 
-	// 验证唯一性
 	configs, _ := svc.ListConfigs(bgCtx)
 	defaults := 0
 	for _, c := range configs {
@@ -80,7 +78,7 @@ func TestLLMConfigService_DefaultUnique(t *testing.T) {
 func TestLLMConfigService_DeleteDefault(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://x:8080/v1", "", "", "m", "e", "", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", "http://x:8080/v1", "", "", "", "m", "e", "", 8192, 1024, true)
 
 	configs, _ := svc.ListConfigs(bgCtx)
 	err := svc.DeleteConfig(bgCtx, configs[0].ID)
@@ -93,14 +91,14 @@ func TestLLMConfigService_DeleteDefault(t *testing.T) {
 func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", "http://a:8080/v1", "", "", "", "m1", "e1", "", 8192, 1024, true)
 
 	configs, _ := svc.ListConfigs(bgCtx)
 	id := configs[0].ID
 
 	updated := &model.LlmConfig{
-		ID: id, Name: "默认更新", ProviderType: 2,
-		BaseURL: "https://api.openai.com/v1", APIKey: "sk-key",
+		ID: id, Name: "默认更新",
+		LLMBaseURL: "https://api.openai.com/v1", LLMAPIKey: "sk-key",
 		LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small",
 		MaxTokens: 4096, VectorDimension: 1536, IsDefault: true,
 	}
@@ -110,8 +108,8 @@ func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 
 	mgr := svc.GetManager()
 	cfg := mgr.GetConfig()
-	if cfg.BaseURL != "https://api.openai.com/v1" {
-		t.Errorf("热替换后 BaseURL = %q, 期望 https://api.openai.com/v1", cfg.BaseURL)
+	if cfg.LLMBaseURL != "https://api.openai.com/v1" {
+		t.Errorf("热替换后 BaseURL = %q, 期望 https://api.openai.com/v1", cfg.LLMBaseURL)
 	}
 }
 
@@ -119,8 +117,8 @@ func TestLLMConfigService_UpdateHotReload(t *testing.T) {
 func TestLLMConfigService_ListConfigs(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "cfg1", 1, "http://a:8080/v1", "", "", "m1", "e1", "", 8192, 1024, false)
-	_, _ = svc.CreateConfig(bgCtx, "cfg2", 2, "http://b:8080/v1", "", "k", "m2", "e2", "", 4096, 1536, false)
+	_, _ = svc.CreateConfig(bgCtx, "cfg1", "http://a:8080/v1", "", "", "", "m1", "e1", "", 8192, 1024, false)
+	_, _ = svc.CreateConfig(bgCtx, "cfg2", "http://b:8080/v1", "k", "", "k", "m2", "e2", "", 4096, 1536, false)
 
 	configs, err := svc.ListConfigs(bgCtx)
 	if err != nil {
@@ -146,7 +144,7 @@ func TestLLMConfigService_NoDefaultFallback(t *testing.T) {
 func TestLLMConfigManager_ZeroLockReads(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "默认", 1, "http://x:8080/v1", "", "", "m", "e", "", 8192, 1024, true)
+	_, _ = svc.CreateConfig(bgCtx, "默认", "http://x:8080/v1", "", "", "", "m", "e", "", 8192, 1024, true)
 
 	mgr := svc.GetManager()
 	done := make(chan bool)
@@ -168,14 +166,14 @@ func TestLLMConfigManager_ZeroLockReads(t *testing.T) {
 func TestLLMConfigService_APIKeyMasked(t *testing.T) {
 	svc := setupLLMConfigService(t)
 
-	_, _ = svc.CreateConfig(bgCtx, "openai", 2, "https://api.openai.com/v1", "", "sk-1234567890abcdef", "gpt-4o", "text-3-small", "", 4096, 1536, false)
+	_, _ = svc.CreateConfig(bgCtx, "openai", "https://api.openai.com/v1", "sk-1234567890abcdef", "", "sk-1234567890abcdef", "gpt-4o", "text-3-small", "", 4096, 1536, false)
 
 	configs, _ := svc.ListConfigs(bgCtx)
 	if len(configs) == 0 {
 		t.Fatal("应有配置")
 	}
 
-	apiKey := configs[0].APIKey
+	apiKey := configs[0].LLMAPIKey
 	if apiKey == "sk-1234567890abcdef" {
 		t.Error("列表中 API Key 应脱敏显示, 不能返回完整值")
 	}
@@ -194,12 +192,12 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 
 	svc := setupLLMConfigService(t)
 
-	created, err := svc.CreateConfig(bgCtx, "openai", 2, "https://api.openai.com/v1", "", "sk-original", "gpt-4o", "text-3-small", "", 4096, 1536, true)
+	created, err := svc.CreateConfig(bgCtx, "openai", "https://api.openai.com/v1", "sk-original", "", "sk-original", "gpt-4o", "text-3-small", "", 4096, 1536, true)
 	if err != nil {
 		t.Fatalf("CreateConfig failed: %v", err)
 	}
-	if created.APIKey != "sk-original" {
-		t.Fatalf("created APIKey = %q, want sk-original", created.APIKey)
+	if created.LLMAPIKey != "sk-original" {
+		t.Fatalf("created APIKey = %q, want sk-original", created.LLMAPIKey)
 	}
 
 	var rawBefore string
@@ -213,9 +211,8 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 	updated := &model.LlmConfig{
 		ID:              created.ID,
 		Name:            "openai updated",
-		ProviderType:    2,
-		BaseURL:         "https://api.openai.com/v1",
-		APIKey:          "",
+		LLMBaseURL:      "https://api.openai.com/v1",
+		LLMAPIKey:       "",
 		LLMModel:        "gpt-4o-mini",
 		EmbeddingModel:  "text-3-small",
 		MaxTokens:       2048,
@@ -238,22 +235,20 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if cfg.APIKey != "sk-original" {
-		t.Fatalf("APIKey after non-secret update = %q, want sk-original", cfg.APIKey)
+	if cfg.LLMAPIKey != "sk-original" {
+		t.Fatalf("APIKey after non-secret update = %q, want sk-original", cfg.LLMAPIKey)
 	}
-	if mgrCfg := svc.GetManager().GetConfig(); mgrCfg == nil || mgrCfg.APIKey != "sk-original" {
+	if mgrCfg := svc.GetManager().GetConfig(); mgrCfg == nil || mgrCfg.LLMAPIKey != "sk-original" {
 		t.Fatalf("manager APIKey = %#v, want sk-original", mgrCfg)
 	}
 }
 
 // TestLLMConfigResponse_MarshalJSON_MasksAPIKey 验证 MarshalJSON 自动脱敏。
-//
-// 纯单元测试——无需数据库。
 func TestLLMConfigResponse_MarshalJSON_MasksAPIKey(t *testing.T) {
 	resp := service.LlmConfigResponse{
 		ID:       1,
 		Name:     "openai",
-		APIKey:   "sk-1234567890abcdefghij",
+		LLMAPIKey: "sk-1234567890abcdefghij",
 		LLMModel: "gpt-4o",
 	}
 
@@ -265,7 +260,7 @@ func TestLLMConfigResponse_MarshalJSON_MasksAPIKey(t *testing.T) {
 	var result map[string]interface{}
 	json.Unmarshal(data, &result)
 
-	apiKey, ok := result["api_key"].(string)
+	apiKey, ok := result["llm_api_key"].(string)
 	if !ok {
 		t.Fatal("api_key 字段缺失")
 	}

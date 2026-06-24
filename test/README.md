@@ -35,7 +35,7 @@
 # 方式一：仅启动必须服务（不含 llama.cpp，使用 OpenAI API 作为 LLM 后端）
 docker compose up -d --build
 
-# 方式二：含本地 llama.cpp（需先下载模型：make model-download）
+# 方式二：含本地 llama.cpp（需先下载 GGUF 模型到 ./models/ 目录）
 docker compose --profile ai-local up -d --build
 ```
 
@@ -43,13 +43,13 @@ docker compose --profile ai-local up -d --build
 
 ```bash
 # 步骤 1：执行 DDL 增强脚本（pgvector 扩展 + HNSW 索引 + 列注释）
-make db-init
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql
 
 # 步骤 2：加载必要种子数据（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
-make db-seed
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
 ```
 
-> **注意：** `make db-seed` 加载的是 `seed_essential.sql`，仅包含静态必要数据。知识库、知识文章、申告工单、站内消息等动态数据需要在测试过程中通过 API/UI 人工创建。
+> **注意：** `seed_essential.sql` 仅包含静态必要数据。知识库、知识文章、申告工单、站内消息等动态数据需要在测试过程中通过 API/UI 人工创建。
 
 ### 1.3 服务验证
 
@@ -126,7 +126,7 @@ curl http://localhost:8080/api/v1/auth/login \
 
 ### 2.5 未预置的动态数据（需人工创建）
 
-以下数据 **不包含在 `seed_essential.sql` 中**，但提供了可直接执行的 SQL INSERT 模板。执行 `make db-seed` 后，连接 PostgreSQL 按需执行对应的 INSERT 语句即可快速搭建测试数据：
+以下数据 **不包含在 `seed_essential.sql` 中**，但提供了可直接执行的 SQL INSERT 模板。执行 seed 脚本后，连接 PostgreSQL 按需执行对应的 INSERT 语句即可快速搭建测试数据：
 
 ```bash
 # 进入 PostgreSQL 容器执行 SQL
@@ -1791,4 +1791,4 @@ test/
 
 ---
 
-> **测试完成后：** 建议执行 `docker compose down -v` 清理数据卷，然后重新 `make db-init && make db-seed` 恢复到初始状态，以便下次测试。
+> **测试完成后：** 建议执行 `docker compose down -v` 清理数据卷，然后重新执行 init + seed 脚本恢复到初始状态，以便下次测试。

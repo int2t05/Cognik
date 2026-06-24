@@ -9,7 +9,7 @@ git clone https://github.com/int2t05/OpsMind.git
 cd OpsMind
 
 # 启动依赖服务
-make dev
+docker compose up -d postgres minio
 
 # 后端
 cd server

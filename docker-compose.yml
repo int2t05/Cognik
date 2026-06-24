@@ -2,10 +2,6 @@
 #
 # 必须服务：opsmind-server, opsmind-web, postgres(pgvector), minio
 # 可选服务：llama-cpp + llama-cpp-emb（profile: ai-local）
-# 16GB 内存配置：模型 ~3.2GB，容器限额 ~7.5GB，余量充足
-#
-# 使用本地模型前，需先手动下载 GGUF 文件到 ./models/：
-#   make model-download
 #
 # 启动：
 #   docker compose up -d --build                    # 4 个必须服务
@@ -44,7 +40,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    mem_limit: 384m
     networks:
       - opsmind
 
@@ -65,7 +60,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-    mem_limit: 128m
     networks:
       - opsmind
 
@@ -82,15 +76,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsmind_dev}
       PGDATA: /var/lib/postgresql/data/pgdata
       TZ: Asia/Shanghai
-    command: >
-      -c shared_buffers=1GB
-      -c effective_cache_size=4GB
-      -c work_mem=64MB
-      -c maintenance_work_mem=256MB
-      -c max_wal_size=2GB
-      -c max_connections=200
-      -c timezone=Asia/Shanghai
-      -c log_timezone=Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -121,7 +106,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    mem_limit: 256m
     networks:
       - opsmind
 
@@ -150,7 +134,6 @@ services:
       - "on"
       - "--parallel"
       - "2"
-    mem_limit: 4800m
     networks:
       - opsmind
     profiles:
@@ -180,7 +163,6 @@ services:
       - "--embeddings"
       - "--parallel"
       - "2"
-    mem_limit: 896m
     networks:
       - opsmind
     profiles:

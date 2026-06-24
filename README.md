@@ -109,8 +109,8 @@ docker compose up -d --build
 初始化数据库并加载种子数据：
 
 ```bash
-make db-init   # DDL 增强（HNSW 索引）
-make db-seed   # 角色 + 用户 + LLM 配置
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql     # DDL 增强（HNSW 索引）
+docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql  # 角色 + 用户 + LLM 配置
 ```
 
 预置账号：
@@ -125,7 +125,10 @@ make db-seed   # 角色 + 用户 + LLM 配置
 ### 本地 AI（可选）
 
 ```bash
-make model-download                         # 下载 GGUF 模型 (~3 GB)
+# 下载 GGUF 模型到 ./models/ 目录 (~3 GB)
+pip install huggingface_hub
+huggingface-cli download bartowski/Qwen3-4B-Instruct-2507-GGUF --include "*Q4_K_M*" --local-dir ./models/
+huggingface-cli download bartowski/Qwen3-Embedding-0.6B-GGUF --include "*Q8_0*" --local-dir ./models/
 docker compose --profile ai-local up -d --build
 ```
 
@@ -173,8 +176,7 @@ OpsMind/
 │       └── lib/api/         # API 客户端
 ├── docs/                    # PRD / TECH / API 文档
 ├── test/                    # 验收测试文档与数据
-├── docker-compose.yml
-└── Makefile
+└── docker-compose.yml
 ```
 
 ## 文档

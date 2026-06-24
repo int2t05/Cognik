@@ -114,10 +114,11 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 	}
 
 	cfg, err := llmConfigSvc.CreateConfig(bgCtx,
-		"llama.cpp 本地", 1,
-		"http://localhost:8081/v1",  // LLM
-		"http://localhost:8082/v1",  // Embedding
-		"",                           // APIKey
+		"llama.cpp 本地",
+		"http://localhost:8081/v1",  // llmBaseURL
+		"",                           // llmAPIKey
+		"http://localhost:8082/v1",  // embeddingBaseURL
+		"",                           // embeddingAPIKey
 		"qwen3-4b",                   // LLM Model
 		"qwen3-emb",                  // Embedding Model
 		"",                           // SystemPrompt
@@ -137,8 +138,8 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 	if activeCfg.LLMModel != "qwen3-4b" {
 		t.Errorf("模型不匹配: %s", activeCfg.LLMModel)
 	}
-	if activeCfg.BaseURL != "http://localhost:8081/v1" {
-		t.Errorf("BaseURL 不匹配: %s", activeCfg.BaseURL)
+	if activeCfg.LLMBaseURL != "http://localhost:8081/v1" {
+		t.Errorf("BaseURL 不匹配: %s", activeCfg.LLMBaseURL)
 	}
 
 	// 验证 API Key 加密存储（llama.cpp 无 API Key，应加密为空或原始值）
@@ -147,13 +148,15 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 		t.Fatal("应有至少 1 条配置")
 	}
 	t.Logf("配置列表: %d 条", len(configs))
-	t.Logf("API Key 脱敏: %s", configs[0].APIKey)
+	t.Logf("API Key 脱敏: %s", configs[0].LLMAPIKey)
 
 	// 验证唯一默认约束
 	_, err = llmConfigSvc.CreateConfig(bgCtx,
-		"OpenAI 远程", 2,
-		"https://api.openai.com/v1", "",
-		"sk-test-key",
+		"OpenAI 远程",
+		"https://api.openai.com/v1",  // llmBaseURL
+		"sk-test-key",                // llmAPIKey
+		"",                           // embeddingBaseURL
+		"sk-test-key",                // embeddingAPIKey
 		"gpt-4o", "text-embedding-3-small",
 		"", 4096, 1536, true,
 	)

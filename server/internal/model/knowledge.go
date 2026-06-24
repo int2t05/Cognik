@@ -39,6 +39,7 @@ type KnowledgeArticle struct {
 	MinioPath       string         `gorm:"type:varchar(512);column:minio_path" json:"minio_path"`
 	ProcessStatus   string         `gorm:"type:varchar(16);not null;default:pending;column:process_status;index:idx_articles_process_status" json:"process_status"`
 	ProcessError    string         `gorm:"type:text;column:process_error" json:"process_error"`
+	ContentHash     string         `gorm:"type:varchar(64);column:content_hash" json:"content_hash"` // SHA256，增量更新比对
 	CreatedBy       int64          `gorm:"column:created_by" json:"created_by"`
 	ReviewedBy      *int64         `gorm:"column:reviewed_by" json:"reviewed_by"`
 	PublishedBy     *int64         `gorm:"column:published_by" json:"published_by"`
@@ -60,6 +61,7 @@ type KnowledgeChunk struct {
 	ChunkIndex      int       `gorm:"not null;default:0;column:chunk_index" json:"chunk_index"`
 	EmbeddingModel  string    `gorm:"type:varchar(128);not null;column:embedding_model" json:"embedding_model"`
 	VectorDimension int       `gorm:"not null;column:vector_dimension" json:"vector_dimension"`
+	ChunkHash       string    `gorm:"type:varchar(64);column:chunk_hash" json:"chunk_hash"` // SHA256，与正文增量比对
 	CreatedAt       time.Time `gorm:"not null" json:"created_at"`
 	// embedding halfvec(1024) — 由 VectorStore 适配器通过 SQL 直接管理，不走 GORM
 }
