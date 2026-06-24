@@ -83,11 +83,12 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
       TZ: Asia/Shanghai
     command: >
-      -c shared_buffers=256MB
-      -c effective_cache_size=512MB
-      -c work_mem=8MB
-      -c maintenance_work_mem=64MB
-      -c max_wal_size=1GB
+      -c shared_buffers=1GB
+      -c effective_cache_size=4GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=256MB
+      -c max_wal_size=2GB
+      -c max_connections=200
       -c timezone=Asia/Shanghai
       -c log_timezone=Asia/Shanghai
     volumes:
@@ -97,7 +98,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    mem_limit: 512m
     networks:
       - opsmind
 
