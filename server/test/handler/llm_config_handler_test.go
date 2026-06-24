@@ -49,8 +49,8 @@ func TestLLMConfigHandler_ListConfigs(t *testing.T) {
 	r := setupLLMTestRouter(h)
 
 	// 预创建 2 个配置
-	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "llama.cpp", ProviderType: 1, LLMModel: "qwen3-4b", EmbeddingModel: "bge-m3", IsDefault: true})
-	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "OpenAI", ProviderType: 2, LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small"})
+	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "llama.cpp", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "qwen3-4b", EmbeddingModel: "bge-m3", IsDefault: true})
+	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "OpenAI", LLMBaseURL: "https://api.openai.com/v1", LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small"})
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/admin/llm-configs", nil)
@@ -73,8 +73,8 @@ func TestLLMConfigHandler_ListConfigs(t *testing.T) {
 	}
 	// 验证默认配置脱敏
 	for _, c := range resp.Data {
-		if c.IsDefault && c.APIKey != "" && len(c.APIKey) > 10 {
-			t.Errorf("默认配置 APIKey 应脱敏, got '%s'", c.APIKey)
+		if c.IsDefault && c.LLMAPIKey != "" && len(c.LLMAPIKey) > 10 {
+			t.Errorf("默认配置 APIKey 应脱敏, got '%s'", c.LLMAPIKey)
 		}
 	}
 }
@@ -86,9 +86,8 @@ func TestLLMConfigHandler_CreateConfig(t *testing.T) {
 
 	body := map[string]interface{}{
 		"name":             "DeepSeek",
-		"provider_type":    2,
-		"base_url":         "https://api.deepseek.com/v1",
-		"api_key":          "sk-test1234567890abcdef",
+		"llm_base_url":     "https://api.deepseek.com/v1",
+		"llm_api_key":      "sk-test1234567890abcdef",
 		"llm_model":        "deepseek-chat",
 		"embedding_model":  "text-embedding-v2",
 		"max_tokens":       4096,
@@ -121,7 +120,7 @@ func TestLLMConfigHandler_GetConfig(t *testing.T) {
 	h := setupLLMConfigHandler(t)
 	r := setupLLMTestRouter(h)
 
-	cfg := &model.LlmConfig{Name: "详情测试", ProviderType: 1, LLMModel: "test-model", EmbeddingModel: "emb-model"}
+	cfg := &model.LlmConfig{Name: "详情测试", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "test-model", EmbeddingModel: "emb-model"}
 	knowledgeHandlerDB.Create(cfg)
 
 	w := httptest.NewRecorder()
@@ -139,7 +138,7 @@ func TestLLMConfigHandler_DeleteConfig(t *testing.T) {
 	r := setupLLMTestRouter(h)
 
 	// 非默认配置可以删除
-	cfg := &model.LlmConfig{Name: "待删除", ProviderType: 1, LLMModel: "x", EmbeddingModel: "y", IsDefault: false}
+	cfg := &model.LlmConfig{Name: "待删除", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "x", EmbeddingModel: "y", IsDefault: false}
 	knowledgeHandlerDB.Create(cfg)
 
 	w := httptest.NewRecorder()
@@ -165,7 +164,7 @@ func TestLLMConfigHandler_TestConnection(t *testing.T) {
 	h := setupLLMConfigHandler(t)
 	r := setupLLMTestRouter(h)
 
-	cfg := &model.LlmConfig{Name: "测试连接", ProviderType: 1, LLMModel: "test", EmbeddingModel: "e", BaseURL: "http://localhost:9999/v1", IsDefault: false}
+	cfg := &model.LlmConfig{Name: "测试连接", LLMBaseURL: "http://localhost:9999/v1", LLMModel: "test", EmbeddingModel: "e", IsDefault: false}
 	knowledgeHandlerDB.Create(cfg)
 
 	w := httptest.NewRecorder()
