@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from './useAuth';
 
 const STORAGE_KEY = 'opsmind-accounts';
@@ -43,6 +43,8 @@ function saveAccounts(accounts: SavedAccount[]) {
 /** 保存当前登录会话到历史列表（去重、7 天过期自动清除）。 */
 export function useAccountSwitcher() {
   const { user, token, refreshToken, roles, permissions, menus, login, logout } = useAuth();
+  const [version, setVersion] = useState(0);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
 
   const accounts = useMemo(() => {
     const all = loadAccounts();
@@ -51,7 +53,8 @@ export function useAccountSwitcher() {
     const valid = all.filter((a) => now - a.savedAt < EXPIRE_MS).sort((a, b) => b.savedAt - a.savedAt);
     if (valid.length !== all.length) saveAccounts(valid);
     return valid;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   const saveCurrent = useCallback(() => {
     if (!user || !token) return;
@@ -93,11 +96,12 @@ export function useAccountSwitcher() {
     [login, logout],
   );
 
-  /** 删除单条记录。 */
+  /** 删除单条记录并立即刷新列表。 */
   const removeAccount = useCallback((username: string) => {
     const all = loadAccounts().filter((a) => a.username !== username);
     saveAccounts(all);
-  }, []);
+    bump();
+  }, [bump]);
 
   return { accounts, saveCurrent, switchTo, removeAccount, logout };
 }

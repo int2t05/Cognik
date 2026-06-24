@@ -274,22 +274,20 @@ func wireApp() (*app, error) {
 		if newCfg == nil {
 			return
 		}
-		newLLM, err := adapter.NewOpenAIClient(newCfg.BaseURL, newCfg.APIKey, llmTimeout)
+		newLLM, err := adapter.NewOpenAIClient(newCfg.LLMBaseURL, newCfg.LLMAPIKey, llmTimeout)
 		if err != nil {
 			slog.Error("LLM 配置变更后重建客户端失败", "error", err)
 			return
 		}
 		llmService.SetLLMClient(newLLM)
 
-		embedBase := newCfg.EmbeddingBaseURL
-		if embedBase == "" {
-			embedBase = newCfg.BaseURL
-		}
-		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, newCfg.APIKey, newCfg.EmbeddingModel, embedTimeout)
+		embedBase := newCfg.GetEmbeddingBaseURL()
+		embedKey := newCfg.GetEmbeddingAPIKey()
+		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
 		embedder.SetClient(newEmbed)
 
 		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
-			"base_url", newCfg.BaseURL,
+			"llm_base_url", newCfg.LLMBaseURL,
 			"embedding_base_url", embedBase,
 			"llm_model", newCfg.LLMModel,
 			"embedding_model", newCfg.EmbeddingModel,

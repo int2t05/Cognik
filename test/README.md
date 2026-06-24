@@ -102,11 +102,13 @@ curl http://localhost:8080/api/v1/auth/login \
 
 ### 2.3 模型配置（3 条）
 
-| ID | 名称 | 类型 | LLM 模型 | Embedding 模型 | 默认 |
-|----|------|------|----------|---------------|------|
-| 1 | 本地 llama.cpp | llama.cpp | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | ✓ |
-| 2 | OpenAI GPT-4o-mini | OpenAI-compatible | gpt-4o-mini | text-embedding-3-small | |
-| 3 | 本地 llama.cpp (宿主机) | llama.cpp | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | |
+> 统一使用 OpenAI-compatible v1 协议（llama.cpp server 也兼容此协议），LLM 与 Embedding 各自独立配置 Base URL 和 API Key。
+
+| ID | 名称 | LLM Base URL | Embedding Base URL | LLM 模型 | Embedding 模型 | 默认 |
+|----|------|-------------|-------------------|----------|---------------|------|
+| 1 | 本地 llama.cpp | `http://llama-cpp:8081/v1` | `http://llama-cpp-emb:8082/v1` | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | ✓ |
+| 2 | OpenAI GPT-4o-mini | `https://api.openai.com/v1` | —（回退 LLM） | gpt-4o-mini | text-embedding-3-small | |
+| 3 | 本地 llama.cpp (宿主机) | `http://localhost:8081/v1` | `http://localhost:8082/v1` | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | |
 
 ### 2.4 系统配置（9 条）
 

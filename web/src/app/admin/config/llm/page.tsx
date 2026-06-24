@@ -25,10 +25,10 @@ type LLMConfigForm = Record<string, string | number | boolean>;
 
 const defaultForm: LLMConfigForm = {
   name: '',
-  provider_type: 1,
-  base_url: '',
+  llm_base_url: '',
+  llm_api_key: '',
   embedding_base_url: '',
-  api_key: '',
+  embedding_api_key: '',
   llm_model: '',
   embedding_model: '',
   system_prompt: '',
@@ -47,7 +47,6 @@ export default function LLMConfigPage() {
   const [testing, setTesting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const providerSelectId = useId();
   const systemPromptId = useId();
   const toast = useToast();
 
@@ -63,10 +62,10 @@ export default function LLMConfigPage() {
     setTestResult(null);
     setForm({
       name: config.name,
-      provider_type: config.provider_type,
-      base_url: config.base_url,
+      llm_base_url: config.llm_base_url,
+      llm_api_key: '',
       embedding_base_url: config.embedding_base_url || '',
-      api_key: '',
+      embedding_api_key: '',
       llm_model: config.llm_model,
       embedding_model: config.embedding_model,
       system_prompt: config.system_prompt || '',
@@ -81,10 +80,9 @@ export default function LLMConfigPage() {
     setSaving(true);
     try {
       const data = { ...form };
-      if (editId && !data.api_key) {
-        delete data.api_key;
-      }
       if (editId) {
+        if (!data.llm_api_key) delete data.llm_api_key;
+        if (!data.embedding_api_key) delete data.embedding_api_key;
         await updateLLMConfig(editId, data);
       } else {
         await createLLMConfig(data);
@@ -131,17 +129,16 @@ export default function LLMConfigPage() {
     }
   };
 
-  /** 快速设置默认：发送完整配置（后端 Update 要求全字段），仅将 is_default 置为 true */
   const handleSetDefault = async (id: number) => {
     const cfg = configs?.find((c) => c.id === id);
     if (!cfg) { toast.error('配置未找到'); return; }
     try {
       await updateLLMConfig(id, {
         name: cfg.name,
-        provider_type: cfg.provider_type,
-        base_url: cfg.base_url,
+        llm_base_url: cfg.llm_base_url,
+        llm_api_key: '',
         embedding_base_url: cfg.embedding_base_url || '',
-        api_key: '', // 留空保留原值
+        embedding_api_key: '',
         llm_model: cfg.llm_model,
         embedding_model: cfg.embedding_model,
         system_prompt: cfg.system_prompt || '',
@@ -184,8 +181,7 @@ export default function LLMConfigPage() {
                     )}
                   </h2>
                   <p className="mt-1 text-caption text-[var(--color-text-muted-48)]">
-                    {config.provider_type === 1 ? 'llama.cpp' : 'OpenAI-compatible'} / {config.llm_model} /{' '}
-                    {config.embedding_model}
+                    {config.llm_model} / {config.embedding_model}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -225,23 +221,17 @@ export default function LLMConfigPage() {
       >
         <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
-        <div className="mb-4">
-          <label htmlFor={providerSelectId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">提供商类型</label>
-          <select
-            id={providerSelectId}
-            value={Number(form.provider_type)}
-            onChange={(e) => setForm({ ...form, provider_type: Number(e.target.value) })}
-            className="w-full rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-3 py-2 text-body text-[var(--color-ink)]"
-          >
-            <option value={1}>llama.cpp</option>
-            <option value={2}>OpenAI-compatible</option>
-          </select>
-        </div>
-
         <AppleInput
           label="LLM Base URL"
-          value={String(form.base_url || '')}
-          onChange={(e) => setForm({ ...form, base_url: e.target.value })}
+          value={String(form.llm_base_url || '')}
+          onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
+        />
+        <AppleInput
+          label="LLM API Key"
+          type="password"
+          value={String(form.llm_api_key || '')}
+          onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
+          placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
         />
         <AppleInput
           label="Embedding Base URL"
@@ -250,11 +240,11 @@ export default function LLMConfigPage() {
           onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
         />
         <AppleInput
-          label="API Key"
+          label="Embedding API Key"
           type="password"
-          value={String(form.api_key || '')}
-          onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-          placeholder={editId ? '留空则不修改已保存的 API Key' : '输入 API Key'}
+          value={String(form.embedding_api_key || '')}
+          onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
+          placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
         />
         <AppleInput
           label="LLM 模型"

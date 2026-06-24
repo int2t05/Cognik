@@ -75,10 +75,6 @@ type LLMConfigService struct {
 }
 
 // NewLLMConfigService 创建 LLMConfigService 实例。
-//
-// repo 为数据访问接口（具体实现或测试 mock）。db 和 auditRepo 仅在完整服务构造时传入，
-// 测试可传 nil——此时不注册事务工厂和审计日志。
-// 返回 error 而非 panic，便于 main 统一处理装配错误。
 func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditRepo *repository.AuditRepo) (*LLMConfigService, error) {
 	svc := &LLMConfigService{
 		repo:      repo,
@@ -100,15 +96,18 @@ func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditRepo *repository.
 func (s *LLMConfigService) GetManager() *LLMConfigManager { return s.manager }
 
 // CreateConfig 创建 LLM 配置。is_default=true 时先清空其他默认（事务保证原子性）。
-func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
+func (s *LLMConfigService) CreateConfig(ctx context.Context, name, llmBaseURL, llmAPIKey, embeddingBaseURL, embeddingAPIKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, AppError{Code: errcode.ErrParam, Message: "名称不能为空"}
 	}
-	if providerType != 1 && providerType != 2 {
-		return nil, AppError{Code: errcode.ErrParam, Message: "提供商类型无效（1=llama.cpp, 2=OpenAI-compatible）"}
+	if strings.TrimSpace(llmBaseURL) == "" {
+		return nil, AppError{Code: errcode.ErrParam, Message: "LLM BaseURL 不能为空"}
 	}
-	if strings.TrimSpace(baseURL) == "" {
-		return nil, AppError{Code: errcode.ErrParam, Message: "BaseURL 不能为空"}
+	if strings.TrimSpace(llmModel) == "" {
+		return nil, AppError{Code: errcode.ErrParam, Message: "LLM 模型不能为空"}
+	}
+	if strings.TrimSpace(embeddingModel) == "" {
+		return nil, AppError{Code: errcode.ErrParam, Message: "Embedding 模型不能为空"}
 	}
 	if maxTokens <= 0 {
 		maxTokens = 8192
@@ -118,8 +117,8 @@ func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, provid
 	}
 
 	cfg := &model.LlmConfig{
-		Name: name, ProviderType: providerType, BaseURL: baseURL,
-		EmbeddingBaseURL: embeddingBaseURL, APIKey: apiKey,
+		Name: name, LLMBaseURL: llmBaseURL, LLMAPIKey: llmAPIKey,
+		EmbeddingBaseURL: embeddingBaseURL, EmbeddingAPIKey: embeddingAPIKey,
 		LLMModel: llmModel, EmbeddingModel: embeddingModel, SystemPrompt: systemPrompt,
 		MaxTokens: maxTokens, VectorDimension: vectorDimension, IsDefault: isDefault,
 	}
@@ -157,15 +156,18 @@ func (s *LLMConfigService) CreateConfig(ctx context.Context, name string, provid
 	return cfg, nil
 }
 
-// UpdateConfig 更新 LLM 配置。api_key 为空时保留原值。
+// UpdateConfig 更新 LLM 配置。llm_api_key / embedding_api_key 为空时保留数据库原值。
 func (s *LLMConfigService) UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error {
-	// api_key 为空时保留数据库中原值
-	if cfg.APIKey == "" {
-		existing, err := s.repo.FindByID(ctx, cfg.ID)
-		if err != nil {
-			return AppError{Code: errcode.ErrNotFound, Message: "LLM 配置不存在"}
-		}
-		cfg.APIKey = existing.APIKey
+	existing, err := s.repo.FindByID(ctx, cfg.ID)
+	if err != nil {
+		return AppError{Code: errcode.ErrNotFound, Message: "LLM 配置不存在"}
+	}
+	// API Key 为空时保留原值
+	if cfg.LLMAPIKey == "" {
+		cfg.LLMAPIKey = existing.LLMAPIKey
+	}
+	if cfg.EmbeddingAPIKey == "" {
+		cfg.EmbeddingAPIKey = existing.EmbeddingAPIKey
 	}
 
 	if s.db != nil && cfg.IsDefault {
@@ -198,7 +200,6 @@ func (s *LLMConfigService) UpdateConfig(ctx context.Context, cfg *model.LlmConfi
 		cfg = fresh
 		s.manager.store(cfg)
 	}
-	// 审计：更新 LLM 配置
 	if s.auditRepo != nil {
 		s.auditRepo.Create(ctx, &model.AuditLog{
 			OperatorID: 0, Action: "llm_config.update",
@@ -216,11 +217,12 @@ func (s *LLMConfigService) ListConfigs(ctx context.Context) ([]LlmConfigResponse
 	result := make([]LlmConfigResponse, len(configs))
 	for i, c := range configs {
 		result[i] = LlmConfigResponse{
-			ID: c.ID, Name: c.Name, ProviderType: c.ProviderType,
-			BaseURL: c.BaseURL, EmbeddingBaseURL: c.EmbeddingBaseURL,
-			APIKey: maskAPIKey(c.APIKey), LLMModel: c.LLMModel,
-			EmbeddingModel: c.EmbeddingModel, SystemPrompt: c.SystemPrompt,
-			MaxTokens: c.MaxTokens, VectorDimension: c.VectorDimension, IsDefault: c.IsDefault,
+			ID: c.ID, Name: c.Name,
+			LLMBaseURL: c.LLMBaseURL, LLMAPIKey: maskAPIKey(c.LLMAPIKey),
+			EmbeddingBaseURL: c.EmbeddingBaseURL, EmbeddingAPIKey: maskAPIKey(c.EmbeddingAPIKey),
+			LLMModel: c.LLMModel, EmbeddingModel: c.EmbeddingModel,
+			SystemPrompt: c.SystemPrompt, MaxTokens: c.MaxTokens,
+			VectorDimension: c.VectorDimension, IsDefault: c.IsDefault,
 		}
 	}
 	return result, nil
@@ -242,7 +244,6 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 	if cfg.IsDefault {
 		return AppError{Code: errcode.ErrParam, Message: "不能删除默认配置，请先设置其他配置为默认"}
 	}
-	// 检查知识库引用
 	if r, ok := s.repo.(*repository.LlmConfigRepo); ok {
 		count, err := r.CountReferencingKBs(ctx, id)
 		if err != nil {
@@ -256,16 +257,16 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 }
 
 // =============================================================================
-// LlmConfigResponse — 列表响应（API Key 脱敏）
+// LlmConfigResponse — 列表响应（API Key 脱敏 + MarshalJSON 二次脱敏）
 // =============================================================================
 
 type LlmConfigResponse struct {
 	ID               int64  `json:"id"`
 	Name             string `json:"name"`
-	ProviderType     int16  `json:"provider_type"`
-	BaseURL          string `json:"base_url"`
+	LLMBaseURL       string `json:"llm_base_url"`
+	LLMAPIKey        string `json:"llm_api_key"`
 	EmbeddingBaseURL string `json:"embedding_base_url"`
-	APIKey           string `json:"api_key"`
+	EmbeddingAPIKey  string `json:"embedding_api_key"`
 	LLMModel         string `json:"llm_model"`
 	EmbeddingModel   string `json:"embedding_model"`
 	SystemPrompt     string `json:"system_prompt"`
@@ -280,20 +281,23 @@ func (r LlmConfigResponse) MarshalJSON() ([]byte, error) {
 	type Alias LlmConfigResponse
 	return json.Marshal(&struct {
 		*Alias
-		APIKey string `json:"api_key"`
+		LLMAPIKey       string `json:"llm_api_key"`
+		EmbeddingAPIKey string `json:"embedding_api_key"`
 	}{
-		Alias:  (*Alias)(&r),
-		APIKey: maskAPIKey(r.APIKey),
+		Alias:           (*Alias)(&r),
+		LLMAPIKey:       maskAPIKey(r.LLMAPIKey),
+		EmbeddingAPIKey: maskAPIKey(r.EmbeddingAPIKey),
 	})
 }
 
 func NewLlmConfigResponse(cfg *model.LlmConfig) LlmConfigResponse {
 	return LlmConfigResponse{
-		ID: cfg.ID, Name: cfg.Name, ProviderType: cfg.ProviderType,
-		BaseURL: cfg.BaseURL, EmbeddingBaseURL: cfg.EmbeddingBaseURL,
-		APIKey: cfg.APIKey, LLMModel: cfg.LLMModel,
-		EmbeddingModel: cfg.EmbeddingModel, MaxTokens: cfg.MaxTokens,
-		VectorDimension: cfg.VectorDimension, IsDefault: cfg.IsDefault,
+		ID: cfg.ID, Name: cfg.Name,
+		LLMBaseURL: cfg.LLMBaseURL, LLMAPIKey: cfg.LLMAPIKey,
+		EmbeddingBaseURL: cfg.EmbeddingBaseURL, EmbeddingAPIKey: cfg.EmbeddingAPIKey,
+		LLMModel: cfg.LLMModel, EmbeddingModel: cfg.EmbeddingModel,
+		MaxTokens: cfg.MaxTokens, VectorDimension: cfg.VectorDimension,
+		IsDefault: cfg.IsDefault,
 		CreatedAt: cfg.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt: cfg.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}

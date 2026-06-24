@@ -29,7 +29,7 @@ type LLMConfigHandler struct {
 
 // llmConfigService 定义 Handler 需要的 Service 方法（消费者定义接口）。
 type llmConfigService interface {
-	CreateConfig(ctx context.Context, name string, providerType int16, baseURL, embeddingBaseURL, apiKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
+	CreateConfig(ctx context.Context, name, llmBaseURL, llmAPIKey, embeddingBaseURL, embeddingAPIKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
 	ListConfigs(ctx context.Context) ([]service.LlmConfigResponse, error)
 	GetConfig(ctx context.Context, id int64) (*model.LlmConfig, error)
 	UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error
@@ -68,7 +68,7 @@ func (h *LLMConfigHandler) CreateConfig(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.svc.CreateConfig(c.Request.Context(), req.Name, req.ProviderType, req.BaseURL, req.EmbeddingBaseURL, req.APIKey,
+	cfg, err := h.svc.CreateConfig(c.Request.Context(), req.Name, req.LLMBaseURL, req.LLMAPIKey, req.EmbeddingBaseURL, req.EmbeddingAPIKey,
 		req.LLMModel, req.EmbeddingModel, req.SystemPrompt, req.MaxTokens, req.VectorDimension, req.IsDefault)
 	if err != nil {
 		handleServiceError(c, err)
@@ -115,10 +115,10 @@ func (h *LLMConfigHandler) UpdateConfig(c *gin.Context) {
 	cfg := &model.LlmConfig{
 		ID:               id,
 		Name:             req.Name,
-		ProviderType:     req.ProviderType,
-		BaseURL:          req.BaseURL,
+		LLMBaseURL:       req.LLMBaseURL,
+		LLMAPIKey:        req.LLMAPIKey,
 		EmbeddingBaseURL: req.EmbeddingBaseURL,
-		APIKey:           req.APIKey,
+		EmbeddingAPIKey:  req.EmbeddingAPIKey,
 		LLMModel:         req.LLMModel,
 		EmbeddingModel:   req.EmbeddingModel,
 		SystemPrompt:     req.SystemPrompt,
@@ -168,7 +168,7 @@ func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 	}
 
 	// 基于被测配置创建临时客户端，而非使用注入的全局默认客户端
-	testClient, err := adapter.NewOpenAIClient(cfg.BaseURL, cfg.APIKey, 10*time.Second)
+	testClient, err := adapter.NewOpenAIClient(cfg.LLMBaseURL, cfg.LLMAPIKey, 10*time.Second)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "配置的 BaseURL 无效: "+err.Error())
 		return

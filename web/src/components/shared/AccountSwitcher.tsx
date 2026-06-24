@@ -90,16 +90,19 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                         {a.username}{expired ? ' · 已过期' : ''}
                       </span>
                     </span>
-                    <button
+                    <span
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         removeAccount(a.username);
                       }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); removeAccount(a.username); } }}
                       aria-label={`移除 ${a.username}`}
                       className="p-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </span>
                   </button>
                 );
               })
