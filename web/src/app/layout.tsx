@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { Providers } from '@/components/Providers';
+import { DynamicTitle } from '@/components/layout/DynamicTitle';
 import { getAppName } from '@/lib/config/defaults';
 import './globals.css';
 
@@ -29,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers><DynamicTitle />{children}</Providers>
       </body>
     </html>
   );

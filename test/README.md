@@ -100,32 +100,272 @@ curl http://localhost:8080/api/v1/auth/login \
 
 > 所有角色关联全部菜单（菜单可见性由前端结合权限码控制）。
 
-### 2.3 模型配置（2 条）
+### 2.3 模型配置（3 条）
 
 | ID | 名称 | 类型 | LLM 模型 | Embedding 模型 | 默认 |
 |----|------|------|----------|---------------|------|
 | 1 | 本地 llama.cpp | llama.cpp | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | ✓ |
 | 2 | OpenAI GPT-4o-mini | OpenAI-compatible | gpt-4o-mini | text-embedding-3-small | |
+| 3 | 本地 llama.cpp (宿主机) | llama.cpp | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | |
 
-### 2.4 系统配置（1 条）
+### 2.4 系统配置（9 条）
 
 | Key | Value |
 |-----|-------|
 | `app_name` | `OpsMind` |
+| `ai.rag_enabled` | `true` |
+| `ai.top_k` | `5` |
+| `ai.threshold` | `0.6` |
+| `ai.max_history_messages` | `10` |
+| `ai.rag_query_rewrite` | `true` |
+| `ai.rag_multi_route` | `true` |
+| `ai.rag_hybrid` | `true` |
+| `ai.rag_rerank` | `true` |
 
 ### 2.5 未预置的动态数据（需人工创建）
 
-以下数据 **不包含在 `seed_essential.sql` 中**，需要在测试过程中通过 API/UI 人工创建：
+以下数据 **不包含在 `seed_essential.sql` 中**，但提供了可直接执行的 SQL INSERT 模板。执行 `make db-seed` 后，连接 PostgreSQL 按需执行对应的 INSERT 语句即可快速搭建测试数据：
 
-- 知识库（KnowledgeBase）
-- 知识文章（KnowledgeArticle）— 手动输入 + 文档上传
-- 知识切片向量（KnowledgeChunk）— 发布文章时自动生成
-- 申告工单（Ticket）
-- 申告处理记录（TicketRecord）
-- 聊天会话（ChatSession）
-- 聊天消息（ChatMessage）
-- 站内消息（Message）
-- 审计日志（AuditLog）— 操作时自动生成
+```bash
+# 进入 PostgreSQL 容器执行 SQL
+docker compose exec -T postgres psql -U opsmind -d opsmind
+```
+
+#### 2.5.1 知识库（KnowledgeBase）— 对应场景 C
+
+```sql
+INSERT INTO knowledge_bases (id, name, description, rag_workspace_slug, embedding_model, vector_dimension, llm_config_id, created_by, created_at, updated_at) VALUES
+(1, 'IT 运维知识库', 'IT 运维常见问题和解决方案，涵盖网络、VPN、打印机、邮箱等',   'it-ops',         'Qwen3-Embedding-0.6B-Q8_0', 1024, 1, 1, NOW(), NOW()),
+(2, '信息安全规范库', '信息安全管理制度、合规要求、安全操作规范',                     'info-sec',       'Qwen3-Embedding-0.6B-Q8_0', 1024, 1, 1, NOW(), NOW());
+
+SELECT setval('knowledge_bases_id_seq', (SELECT MAX(id) FROM knowledge_bases));
+```
+
+#### 2.5.2 知识文章 — 手动创建（KnowledgeArticle）— 对应场景 D
+
+```sql
+-- source_type: 1=手动输入; status: 1=草稿 2=待审核 3=已通过 4=已发布 0=已停用
+INSERT INTO knowledge_articles (id, kb_id, title, content, category, tags, status, source_type, word_count, created_by, created_at, updated_at) VALUES
+(1, 1,
+ 'VPN 连接超时怎么办？',
+ '## 问题描述
+
+VPN 客户端连接时长时间无响应，最终提示「连接超时」。
+
+## 解决方案
+
+1. 检查当前网络是否能正常访问外网（打开百度测试）
+2. 确认 VPN 服务器地址为 vpn.company.com:443
+3. 尝试切换 VPN 协议：设置 → 首选项 → 协议 → L2TP/IPSec
+4. 清除 VPN 客户端缓存：关闭客户端 → 删除 %LocalAppData%\AnyConnect 目录 → 重新连接
+5. 尝试备用服务器 vpn2.company.com
+
+## 如仍无法解决
+
+请提交申告并提供当前 IP 地址（打开 https://ip.company.com 查看），以便网络组排查。',
+ '网络与VPN',
+ '["VPN", "连接", "超时"]',
+ 4, 1, 240, 1, NOW(), NOW()),
+
+(2, 1,
+ 'Outlook 邮箱无法收发邮件排查步骤',
+ '## 问题现象
+
+- Outlook 客户端显示「已断开」或「正在连接...」
+- 发送邮件卡在发件箱
+- 无法接收新邮件
+
+## 排查步骤
+
+### 第一步：检查网络连接
+确认当前网络能正常访问外网。公司内网用户确认连接的是 Corp-WiFi 或有线网络。
+
+### 第二步：检查 Outlook 状态
+1. 查看 Outlook 右下角状态栏
+2. 如显示「需要密码」，点击输入域账号密码
+
+### 第三步：尝试网页版
+访问 https://mail.company.com 用相同账号登录。
+- 网页版正常 → 问题在客户端
+
+### 第四步：重建 Outlook 配置文件
+1. 关闭 Outlook
+2. 控制面板 → 邮件 (Microsoft Outlook) → 显示配置文件
+3. 删除当前配置文件 → 添加新配置文件
+4. 按提示输入姓名、邮箱、密码
+
+## 备注
+邮箱服务器为 Exchange Online（Office 365），配置文件中服务器地址应为 outlook.office365.com。',
+ '邮箱与办公',
+ '["Outlook", "邮箱", "邮件", "Exchange"]',
+ 4, 1, 350, 1, NOW(), NOW()),
+
+(3, 1,
+ '打印机卡纸处理指南',
+ '## 适用机型
+
+HP LaserJet M404 / M507 系列黑白激光打印机。
+
+## 卡纸常见位置及处理
+
+### 1. 进纸盒卡纸（最常见）
+- 拉出进纸盒
+- 轻轻取出卡住的纸张（注意纸张方向，勿撕裂）
+- 检查纸张是否受潮或褶皱，如有则更换新纸
+
+### 2. 硒鼓区域卡纸
+- 打开前盖
+- 取出硒鼓
+- 检查并取出卡纸
+
+### 3. 出纸口卡纸
+- 从出纸口轻轻拉出纸张
+
+## 预防措施
+- 使用 70-80g 标准 A4 复印纸
+- 装纸前将纸张抖松，防止静电粘连
+- 纸盒内纸张不超过 MAX 标记线
+
+## 如问题持续
+打印机面板显示错误代码时，记录代码后提交申告。常见代码：
+- 13.XX.XX = 卡纸
+- 11.XX = 纸盒问题
+- 50.X = 定影器错误',
+ '办公设备',
+ '["打印机", "卡纸", "HP"]',
+ 1, 1, 280, 1, NOW(), NOW());
+
+SELECT setval('knowledge_articles_id_seq', (SELECT MAX(id) FROM knowledge_articles));
+```
+
+> **注意：** 以上 SQL 直接插入已发布（status=4）的文章，跳过了草稿→审核→发布流程，适合快速验证 RAG 检索。若需测试完整状态机（场景 D 8.5-8.10），请通过 API 逐步骤操作，或先插入 status=1 的文章再走审核流程。
+
+#### 2.5.3 申告工单（Ticket）— 对应场景 G
+
+```sql
+-- status: 1=待处理 2=处理中 3=需补充信息 4=已解决 5=已关闭
+-- urgency: 1=一般 2=紧急 3=非常紧急
+-- impact_scope: 0=未指定 1=个人 2=部门/团队 3=全员
+INSERT INTO tickets (id, ticket_no, user_id, title, description, urgency, impact_scope, affected_systems, contact_phone, contact_email, status, supplement_count, source, created_at, updated_at) VALUES
+(1, 'TK-20260624-000001', 5,
+ '3 楼东侧打印机频繁卡纸',
+ '今天上午开始，3 楼东侧公共打印机（HP LaserJet M404）频繁卡纸，已发生 5 次以上。每次需要手动取出卡纸，严重影响部门日常工作。尝试过重启打印机但问题依旧。',
+ 2, 2,
+ '["打印机", "打印服务"]',
+ '13800000005', 'zhaoyonghu@opsmind.local',
+ 4, 0, 1, NOW(), NOW()),
+
+(2, 'TK-20260624-000002', 5,
+ 'VPN 连接每隔 10 分钟自动断开',
+ '远程办公时 VPN 每隔 10-20 分钟就自动断开，需要手动重连，影响远程工作效率。已检查家庭网络正常，重启过电脑和路由器。',
+ 3, 1,
+ '["VPN"]',
+ '13800000005', 'zhaoyonghu@opsmind.local',
+ 5, 1, 1, NOW(), NOW());
+
+SELECT setval('tickets_id_seq', (SELECT MAX(id) FROM tickets));
+```
+
+#### 2.5.4 申告处理记录（TicketRecord）— 对应场景 G
+
+```sql
+-- 申告 1 的处理记录：待处理 → 处理中 → 已解决
+INSERT INTO ticket_records (ticket_id, operator_id, action, content, created_at) VALUES
+(1, 2, 'start',   '已接单，正在排查 3 楼打印机。',                                   '2026-06-24 09:15:00'),
+(1, 2, 'note',    '已到达 3 楼现场。检查发现硒鼓废粉盒已满，已更换。测试打印 10 张无卡纸。', '2026-06-24 10:00:00'),
+(1, 2, 'resolve', '打印机关机更换废粉盒后恢复正常。已测试正常打印。',                       '2026-06-24 10:30:00'),
+
+-- 申告 2 的处理记录：待处理 → 处理中 → 需补充信息 → 补充 → 处理中 → 已关闭
+(2, 2, 'start',        '已接单。',                                                         '2026-06-24 09:20:00'),
+(2, 2, 'request_info', '请提供：1) 宽带运营商和套餐带宽；2) 是否同时有 Teams 通话或大文件下载；3) VPN 客户端日志。', '2026-06-24 10:00:00'),
+(2, 5, 'supplement',   '补充：1) 宽带为中国电信 300M；2) VPN 断开时没有 Teams 通话或下载；3) 日志已发送至 IT 邮箱。', '2026-06-24 11:00:00'),
+(2, 2, 'close',        '用户超过 7 天未响应，且问题无法复现，关闭此申告。',                       '2026-06-24 18:00:00');
+```
+
+#### 2.5.5 问答会话（ChatSession）— 对应场景 F
+
+```sql
+-- kb_id 关联知识库 1，user_id 关联 reporter1
+INSERT INTO chat_sessions (id, user_id, kb_id, question, answer, sources, confidence, feedback, duration_ms, created_at) VALUES
+(1, 5, 1,
+ '如何解决 VPN 连接超时的问题？',
+ 'VPN 连接超时的问题可以通过以下步骤排查：
+
+1. 检查当前网络是否能正常访问外网
+2. 确认 VPN 服务器地址为 vpn.company.com:443
+3. 尝试切换 VPN 协议为 L2TP/IPSec
+4. 清除 VPN 客户端缓存
+5. 尝试备用服务器 vpn2.company.com
+
+如仍无法解决，建议提交申告并提供当前 IP 地址。',
+ '[{"doc_name":"VPN 连接超时怎么办？","chunk_content":"VPN 客户端连接时长时间无响应...","confidence":0.92}]',
+ 0.92, 1, 3200, NOW()),
+
+(2, 5, 1,
+ '如何配置思科路由器 BGP 协议？',
+ '很抱歉，当前知识库暂未收录关于思科路由器 BGP 协议配置的详细内容。建议您通过申告系统提交具体需求，相关运维同事会尽快处理。',
+ '[]',
+ 0.23, 0, 1500, NOW());
+
+SELECT setval('chat_sessions_id_seq', (SELECT MAX(id) FROM chat_sessions));
+```
+
+#### 2.5.6 对话消息（ChatMessage）— 对应场景 F
+
+```sql
+-- 会话 1 的两轮对话（user → assistant → user → assistant）
+INSERT INTO chat_messages (session_id, role, content, sources, confidence, pipeline_metrics, created_at) VALUES
+-- 第一轮
+(1, 'user',      '如何解决 VPN 连接超时的问题？',
+ NULL, NULL, NULL,
+ '2026-06-24 14:00:00'),
+(1, 'assistant', 'VPN 连接超时的问题可以通过以下步骤排查...',
+ '[{"doc_name":"VPN 连接超时怎么办？","confidence":0.92}]', 0.92,
+ '{"query_rewrite":{"duration_ms":120},"vector_retrieve":{"duration_ms":220,"count":5},"bm25_retrieve":{"duration_ms":80,"count":3},"hybrid_fuse":{"duration_ms":15},"rerank":{"duration_ms":180},"llm_generate":{"duration_ms":2500,"tokens":128}}',
+ '2026-06-24 14:00:03'),
+-- 第二轮（多轮追问，指代消解）
+(1, 'user',      '它的备用服务器地址是什么？',
+ NULL, NULL, NULL,
+ '2026-06-24 14:01:00'),
+(1, 'assistant', 'VPN 的备用服务器地址是 vpn2.company.com。当主服务器 vpn.company.com:443 不可用时，可尝试连接备用服务器。',
+ '[{"doc_name":"VPN 连接超时怎么办？","confidence":0.88}]', 0.88,
+ '{"query_rewrite":{"rewritten":"VPN 备用服务器地址","duration_ms":110},"vector_retrieve":{"duration_ms":190,"count":5},"bm25_retrieve":{"duration_ms":75,"count":3},"hybrid_fuse":{"duration_ms":12},"rerank":{"duration_ms":165},"llm_generate":{"duration_ms":1800,"tokens":56}}',
+ '2026-06-24 14:01:04');
+```
+
+#### 2.5.7 站内消息（Message）— 对应场景 G+I
+
+```sql
+-- 申告处理过程中的站内通知
+INSERT INTO messages (user_id, title, content, type, related_type, related_id, is_read, created_at) VALUES
+(5, '申告处理通知',
+ '您的申告「3 楼东侧打印机频繁卡纸」(TK-20260624-000001) 已被 张运维 接单处理，当前状态：处理中。',
+ 'ticket_update', 'ticket', 1, false, '2026-06-24 09:15:00'),
+
+(5, '申告已解决',
+ '您的申告「3 楼东侧打印机频繁卡纸」(TK-20260624-000001) 已解决。处理结果：打印机关机更换废粉盒后恢复正常。如有疑问请回复本条消息。',
+ 'ticket_resolved', 'ticket', 1, false, '2026-06-24 10:30:00'),
+
+(5, '申告需补充信息',
+ '您的申告「VPN 连接每隔 10 分钟自动断开」(TK-20260624-000002) 需要补充信息。请登录门户查看详情。',
+ 'ticket_supplement', 'ticket', 2, false, '2026-06-24 10:00:00'),
+
+(5, '申告已关闭',
+ '您的申告「VPN 连接每隔 10 分钟自动断开」(TK-20260624-000002) 已关闭。如有疑问请重新提交申告。',
+ 'ticket_closed', 'ticket', 2, false, '2026-06-24 18:00:00');
+```
+
+#### 2.5.8 审计日志（AuditLog）— 操作时自动生成
+
+审计日志由 Service 层在关键操作时自动写入，无需手动 INSERT。触发操作包括：
+
+- 用户管理：创建/编辑/冻结/恢复用户
+- 知识管理：创建/审核/发布/停用文章
+- 申告管理：状态变更（start/resolve/close 等）
+- 系统配置：修改系统配置项
+- LLM 配置：创建/更新/删除 LLM 配置
+
+若需验证审计日志列表（场景 I 13.2），先执行上述 2.5.1-2.5.7 的数据导入（触发 Service 层的审计写入），再查询 `audit_logs` 表即可看到自动生成的记录。
 
 ---
 
@@ -276,7 +516,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
-- [ ] 返回 2 条预置配置
+- [ ] 返回 3 条预置配置
 - [ ] ID=1 的配置 `is_default=true`，`provider_type=1`（llama.cpp）
 - [ ] ID=2 的配置 `is_default=false`，`provider_type=2`（OpenAI）
 

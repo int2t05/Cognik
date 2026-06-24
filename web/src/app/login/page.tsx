@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/useToast';
 import { getAppName } from '@/lib/config/defaults';
 import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
-import { isAdminRole } from '@/lib/roles';
+import { hasAdminAccess } from '@/lib/roles';
+import { saveLoginAccount } from '@/lib/account-store';
 import { LogIn } from 'lucide-react';
 
 interface LoginResponse {
@@ -55,8 +56,19 @@ export default function LoginPage() {
 
       login(data.access_token, data.refresh_token, data.user, data.roles, data.permissions, data.menus);
 
+      // 保存登录会话到历史列表（7 天有效）
+      saveLoginAccount({
+        username: data.user.username,
+        realName: data.user.real_name,
+        token: data.access_token,
+        refreshToken: data.refresh_token,
+        roles: data.roles,
+        permissions: data.permissions,
+        menus: data.menus,
+      });
+
       // 根据角色跳转
-      const isAdmin = isAdminRole(data.roles);
+      const isAdmin = hasAdminAccess(data.permissions);
       router.push(isAdmin ? '/admin/dashboard' : '/portal/chat');
     } catch (err: unknown) {
       // 直接提取后端 message

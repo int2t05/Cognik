@@ -8,8 +8,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { useConfigValue } from '@/hooks/useAppConfig';
+import { hasAdminAccess } from '@/lib/roles';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { MessageSquare, TicketPlus, ListTodo, Bot, Sun, Moon, Shield, LogOut } from 'lucide-react';
+import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
+import { MessageSquare, TicketPlus, ListTodo, Bot, Sun, Moon, Shield } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/portal/chat', label: '智能问答', icon: <Bot size={16} /> },
@@ -19,13 +21,13 @@ const NAV_ITEMS = [
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout, menus } = useAuth();
+  const { user, permissions } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
   const router = useRouter();
   const { unreadCount } = useUnreadCount();
-  const isAdmin = menus.length > 0;
+  const isAdmin = hasAdminAccess(permissions);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -79,10 +81,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           {mounted && isAdmin && (
             <AppleButton variant="utility" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
           )}
-          <span className="text-caption text-[var(--color-text-muted-48)] mr-1" suppressHydrationWarning>{user?.real_name}</span>
-          <button onClick={async () => { await logout(); router.push('/login'); }} aria-label="登出" className="flex items-center border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] p-3 hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-            <LogOut size={16} />
-          </button>
+          {mounted && <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name}</span>}
+          {mounted && <AccountSwitcher />}
         </div>
       </header>
       <main className="w-full max-w-wide mx-auto p-6">{children}</main>

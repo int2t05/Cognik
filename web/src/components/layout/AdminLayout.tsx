@@ -4,13 +4,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { useConfigValue } from '@/hooks/useAppConfig';
 import { isActivePath } from '@/lib/menu';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
-import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown, Cpu, FileText, User } from 'lucide-react';
+import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
+import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, ChevronDown, Cpu, FileText, User, Bot } from 'lucide-react';
 
 // ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
 // 同时兼容旧值（如 knowledge → BookOpen），确保后端数据变动时不挂。
@@ -42,7 +44,7 @@ const SIDEBAR_EXPANDED_WIDTH = 240;
 interface MenuItem { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; children?: MenuItem[]; }
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, menus, logout } = useAuth();
+  const { user, menus } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
@@ -65,8 +67,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (collapsedReady) localStorage.setItem('sidebar-collapsed', String(collapsed));
   }, [collapsed, collapsedReady]);
-
-  const handleLogout = async () => { await logout(); router.push('/login'); };
 
   const toggleSubmenu = (id: number) => {
     setExpandedMenus((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -142,8 +142,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
-        <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-semibold text-[var(--color-ink)]'}`}>
-          {collapsed ? (appName?.[0] || 'O') : (appName || 'OpsMind')}
+        <div className={`flex items-center gap-3 px-4 py-4 border-b border-[var(--color-divider-soft)] overflow-hidden ${collapsed ? 'justify-center' : ''}`}>
+          <Image src="/icon.svg" alt="" width={28} height={28} className="shrink-0" />
+          {!collapsed && <span className="text-headline font-semibold text-[var(--color-ink)] truncate">{appName || 'OpsMind'}</span>}
         </div>
 
         <nav className="flex-1 py-2 overflow-y-auto">
@@ -155,6 +156,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
+          <button onClick={() => router.push('/portal/chat')} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label="门户首页">
+            <Bot size={16} /> {!collapsed && <span>门户</span>}
+          </button>
           <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
@@ -171,10 +175,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
           <div className="flex items-center gap-[var(--spacing-md-plus)]">
-            <span className="text-caption text-[var(--color-text-muted-48)]" suppressHydrationWarning>{user?.real_name || user?.username}</span>
-            <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-              <LogOut size={16} /> 登出
-            </button>
+            {mounted && <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>}
+            {mounted && <AccountSwitcher />}
           </div>
         </header>
         <main className="flex-1 p-6 max-w-wide w-full mx-auto"><SectionErrorBoundary>{children}</SectionErrorBoundary></main>
