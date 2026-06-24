@@ -12,6 +12,7 @@ import { getSessionList, getChatDetail, deleteSession, submitFeedback } from '@/
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { useConfigValue } from '@/hooks/useAppConfig';
 import { useChatStream, type ChatMessage as ChatMsg } from '@/hooks/useChatStream';
 import { isTokenExpired } from '@/lib/auth';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -22,9 +23,9 @@ import { formatDate } from '@/lib/date';
 
 /** 建议问题卡片 */
 const SUGGESTIONS = [
-  { icon: <Search size={18} />, text: '如何重置 VPN 密码？' },
-  { icon: <Lightbulb size={18} />, text: 'Outlook 无法收发邮件怎么办？' },
-  { icon: <FileQuestion size={18} />, text: '公司无线网络怎么连接？' },
+  { icon: <Search size={16} />, text: '如何重置 VPN 密码？' },
+  { icon: <Lightbulb size={16} />, text: 'Outlook 无法收发邮件怎么办？' },
+  { icon: <FileQuestion size={16} />, text: '公司无线网络怎么连接？' },
 ];
 
 interface ApiChatMessage {
@@ -54,6 +55,7 @@ export default function ChatPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { value: appName } = useConfigValue('app_name');
 
   const {
     messages,
@@ -207,7 +209,7 @@ export default function ChatPage() {
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <MessageSquare size={14} className={`mt-0.5 shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
+                        <MessageSquare size={12} className={`mt-0.5 shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
                         <div className="flex-1 min-w-0">
                           <div className="truncate text-caption leading-tight">{s.question}</div>
                           <div className="text-fine text-[var(--color-text-muted-48)] mt-1">{formatDate(s.updated_at)}</div>
@@ -217,7 +219,7 @@ export default function ChatPage() {
                           aria-label="删除会话"
                           className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-[var(--radius-pill)] hover:bg-[var(--color-error)]/10 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition border-0 bg-transparent cursor-pointer"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </button>
@@ -235,7 +237,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
           <button onClick={() => setMobileOpen(true)} aria-label="打开菜单"
             className="lg:hidden flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-            <Menu size={18} />
+            <Menu size={16} />
           </button>
           <select
             value={selectedKB}
@@ -261,7 +263,7 @@ export default function ChatPage() {
                   <Bot size={32} className="text-[var(--color-accent)]" />
                 </div>
                 <h1 className="text-headline font-semibold text-[var(--color-ink)] mb-2">
-                  {selectedKB ? '有什么可以帮助你？' : 'OpsMind 智能问答'}
+                  {selectedKB ? '有什么可以帮助你？' : `${appName || 'OpsMind'} 智能问答`}
                 </h1>
                 <p className="text-caption text-[var(--color-text-muted-48)]">
                   {selectedKB ? '基于知识库内容，为你提供精准解答' : '请先选择一个知识库开始对话'}
@@ -284,7 +286,7 @@ export default function ChatPage() {
               ) : (
                 <div className="text-center">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-divider-soft)] flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare size={18} className="text-[var(--color-text-muted-48)]" />
+                    <MessageSquare size={16} className="text-[var(--color-text-muted-48)]" />
                   </div>
                   <p className="text-caption text-[var(--color-text-muted-48)]">从上方下拉框选择知识库以开始</p>
                 </div>

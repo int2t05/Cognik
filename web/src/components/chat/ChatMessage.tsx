@@ -31,7 +31,7 @@ export function ChatMessage({
       {/* AI 头像 */}
       {isAi && (
         <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/10 flex items-center justify-center shrink-0">
-          <Bot size={18} className="text-[var(--color-accent)]" />
+          <Bot size={16} className="text-[var(--color-accent)]" />
         </div>
       )}
 
@@ -48,7 +48,7 @@ export function ChatMessage({
           <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
             {sources.map((s, i) => (
               <div key={i} className={`flex items-center gap-1 text-fine mb-1 ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'}`}>
-                <FileText size={14} />
+                <FileText size={12} />
                 {s.doc_name} ({Number.isFinite(s.confidence) ? (s.confidence * 100).toFixed(0) : '—'}%)
               </div>
             ))}
@@ -60,7 +60,7 @@ export function ChatMessage({
           <div className={`flex items-center gap-1.5 mt-2 text-fine ${
             confidence < 0.6 ? 'text-[var(--badge-warning-text)]' : 'text-[var(--color-text-muted-48)]'
           }`}>
-            {confidence < 0.6 ? <AlertTriangle size={14} /> : <Circle size={14} fill="currentColor" />}
+            {confidence < 0.6 ? <AlertTriangle size={12} /> : <Circle size={12} fill="currentColor" />}
             置信度 {Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : '—'}%
             {confidence < 0.6 && ' — 建议提交申告由人工处理'}
           </div>
@@ -79,7 +79,7 @@ export function ChatMessage({
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsUp size={14} />
+              <ThumbsUp size={12} />
             </button>
             <button
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
@@ -91,7 +91,7 @@ export function ChatMessage({
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsDown size={14} />
+              <ThumbsDown size={12} />
             </button>
           </div>
         )}
@@ -100,7 +100,7 @@ export function ChatMessage({
       {/* 用户头像 */}
       {isUser && (
         <div className="w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center shrink-0">
-          <User size={18} className="text-[var(--color-on-accent)]" />
+          <User size={16} className="text-[var(--color-on-accent)]" />
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
     <div>
       {currentStep && (
         <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-pearl)] rounded-[var(--radius-pill)] text-caption text-[var(--color-text-muted-80)]">
-          <AppleSpinner size={14} /> {currentStep}
+          <AppleSpinner size={12} /> {currentStep}
         </div>
       )}
       {steps.length > 0 && (

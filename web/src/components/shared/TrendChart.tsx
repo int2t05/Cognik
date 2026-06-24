@@ -85,7 +85,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             </button>
           ))}
           <span className="text-[var(--color-hairline)]">|</span>
-          <Calendar size={14} className="text-[var(--color-text-muted-48)] shrink-0" />
+          <Calendar size={12} className="text-[var(--color-text-muted-48)] shrink-0" />
           <input
             type="date"
             value={customStart}

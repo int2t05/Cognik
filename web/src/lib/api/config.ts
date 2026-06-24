@@ -1,5 +1,8 @@
 import { apiFetch } from './client';
 
+/** 公开配置（无需认证），仅限白名单内的 key（如 app_name）。 */
+export function getPublicConfig(key: string) { return apiFetch<unknown>(`/api/v1/public/configs/${key}`); }
+
 export function getConfig(key: string) { return apiFetch<unknown>(`/api/v1/admin/configs/${key}`); }
 export function setConfig(key: string, value: unknown) { return apiFetch<null>(`/api/v1/admin/configs/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); }
 

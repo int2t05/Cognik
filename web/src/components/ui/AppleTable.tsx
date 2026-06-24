@@ -55,10 +55,10 @@ export function AppleTable<T extends Record<string, any>>({
             // 骨架屏：N 行 × M 列，避免 Spinner 导致的布局跳动
             Array.from({ length: skeletonRows }).map((_, ri) => (
               <tr key={`skeleton-${ri}`}>
-                {columns.map((col) => (
+                {columns.map((col, ci) => (
                   <td key={col.key} className="px-4 py-3 border-b border-[var(--color-divider-soft)]">
                     <div className="h-4 rounded-[var(--radius-sm)] bg-[var(--color-divider-soft)] animate-pulse"
-                      style={{ width: `${60 + Math.random() * 30}%` }} />
+                      style={{ width: `${60 + ((ri * 3 + ci * 7) % 30)}%` }} />
                   </td>
                 ))}
               </tr>

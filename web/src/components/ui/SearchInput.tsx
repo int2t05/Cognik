@@ -44,7 +44,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       >
         {/* 搜索图标 — 14px 灰色，对齐 Apple search-input */}
         <Search
-          size={14}
+          size={12}
           className="absolute left-4 text-[var(--color-text-muted-48)] pointer-events-none shrink-0"
         />
         <input
@@ -66,7 +66,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             aria-label="清除搜索"
             className="absolute right-2 p-1 rounded-full text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)] transition active:scale-90 cursor-pointer border-0 bg-transparent"
           >
-            <X size={14} />
+            <X size={12} />
           </button>
         )}
       </div>

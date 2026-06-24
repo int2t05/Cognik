@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
+import { useConfigValue } from '@/hooks/useAppConfig';
 import { isActivePath } from '@/lib/menu';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, LogOut, ChevronDown, Cpu, FileText, User } from 'lucide-react';
@@ -14,20 +15,20 @@ import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText,
 // ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
 // 同时兼容旧值（如 knowledge → BookOpen），确保后端数据变动时不挂。
 const ICON_MAP: Record<string, React.ReactNode> = {
-  dashboard: <LayoutDashboard size={18} />,
-  ticket: <Ticket size={18} />,
-  knowledge: <BookOpen size={18} />,
-  book: <BookOpen size={18} />,
-  users: <Users size={18} />,
-  user: <User size={18} />,
-  role: <Shield size={18} />,
-  shield: <Shield size={18} />,
-  config: <Settings size={18} />,
-  settings: <Settings size={18} />,
-  audit: <ScrollText size={18} />,
-  'file-text': <FileText size={18} />,
-  message: <MessageSquare size={18} />,
-  cpu: <Cpu size={18} />,
+  dashboard: <LayoutDashboard size={16} />,
+  ticket: <Ticket size={16} />,
+  knowledge: <BookOpen size={16} />,
+  book: <BookOpen size={16} />,
+  users: <Users size={16} />,
+  user: <User size={16} />,
+  role: <Shield size={16} />,
+  shield: <Shield size={16} />,
+  config: <Settings size={16} />,
+  settings: <Settings size={16} />,
+  audit: <ScrollText size={16} />,
+  'file-text': <FileText size={16} />,
+  message: <MessageSquare size={16} />,
+  cpu: <Cpu size={16} />,
 };
 
 // FRONTEND_ROUTES 将后端菜单路径映射到实际前端路由。
@@ -43,6 +44,7 @@ interface MenuItem { id: number; name: string; path: string; icon: string; paren
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, menus, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -98,7 +100,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           className={btnClass}
           aria-current={active ? 'page' : undefined}
         >
-          {ICON_MAP[m.icon] || <Settings size={18} />}
+          {ICON_MAP[m.icon] || <Settings size={16} />}
           {!collapsed && <span className="flex-1">{m.name}</span>}
           {!collapsed && hasChildren && (
             <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
@@ -141,7 +143,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         style={{ width: sidebarWidth }}
       >
         <div className={`px-4 py-5 border-b border-[var(--color-divider-soft)] whitespace-nowrap overflow-hidden ${collapsed ? 'text-body' : 'text-headline font-semibold text-[var(--color-ink)]'}`}>
-          {collapsed ? 'OM' : 'OpsMind'}
+          {collapsed ? (appName?.[0] || 'O') : (appName || 'OpsMind')}
         </div>
 
         <nav className="flex-1 py-2 overflow-y-auto">
@@ -171,7 +173,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-[var(--spacing-md-plus)]">
             <span className="text-caption text-[var(--color-text-muted-48)]" suppressHydrationWarning>{user?.real_name || user?.username}</span>
             <button onClick={handleLogout} className="flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-              <LogOut size={17} /> 登出
+              <LogOut size={16} /> 登出
             </button>
           </div>
         </header>

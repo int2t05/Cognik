@@ -49,11 +49,11 @@ export default function ArticleEditPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}><Send size={17} /> 提交审核</AppleButton>}
-          {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}><CheckCircle size={17} /> 通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}><XCircle size={17} /> 驳回</AppleButton></>}
-          {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={17} /> 发布</AppleButton>}
-          {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={17} /> 停用</AppleButton>}
-          {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={17} /> 启用</AppleButton>}
+          {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}><Send size={16} /> 提交审核</AppleButton>}
+          {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}><CheckCircle size={16} /> 通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}><XCircle size={16} /> 驳回</AppleButton></>}
+          {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={16} /> 发布</AppleButton>}
+          {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={16} /> 停用</AppleButton>}
+          {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={16} /> 启用</AppleButton>}
           {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" aria-label="编辑" onClick={startEdit} icon={<Pencil />} />}
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function ArticleEditPage() {
         <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}><CheckCircle size={17} /> 保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}><XCircle size={17} /> 取消</AppleButton></div>
+          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}><CheckCircle size={16} /> 保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}><XCircle size={16} /> 取消</AppleButton></div>
         </AppleCard>
       ) : (
         <AppleCard className="mb-4">

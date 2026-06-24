@@ -42,7 +42,7 @@ export default function ChangePasswordPage() {
           <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} />
           <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} />
           <div className="mt-6">
-            <AppleButton type="submit" loading={loading} className="w-full"><Key size={17} /> 修改密码</AppleButton>
+            <AppleButton type="submit" loading={loading} className="w-full"><Key size={16} /> 修改密码</AppleButton>
           </div>
         </form>
       </div>

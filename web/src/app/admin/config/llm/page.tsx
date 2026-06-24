@@ -19,7 +19,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Cpu, Pencil, Trash2 } from 'lucide-react';
+import { Cpu, Pencil, Trash2, Star } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
 
@@ -131,6 +131,31 @@ export default function LLMConfigPage() {
     }
   };
 
+  /** 快速设置默认：发送完整配置（后端 Update 要求全字段），仅将 is_default 置为 true */
+  const handleSetDefault = async (id: number) => {
+    const cfg = configs?.find((c) => c.id === id);
+    if (!cfg) { toast.error('配置未找到'); return; }
+    try {
+      await updateLLMConfig(id, {
+        name: cfg.name,
+        provider_type: cfg.provider_type,
+        base_url: cfg.base_url,
+        embedding_base_url: cfg.embedding_base_url || '',
+        api_key: '', // 留空保留原值
+        llm_model: cfg.llm_model,
+        embedding_model: cfg.embedding_model,
+        system_prompt: cfg.system_prompt || '',
+        max_tokens: cfg.max_tokens,
+        vector_dimension: cfg.vector_dimension,
+        is_default: true,
+      });
+      toast.success('已设为默认');
+      mutate();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : '设置失败');
+    }
+  };
+
   if (error) {
     return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   }
@@ -148,7 +173,7 @@ export default function LLMConfigPage() {
         ) : configs.length === 0 ? (
           <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
         ) : (
-          configs.map((config) => (
+          [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((config) => (
             <AppleCard key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
@@ -164,6 +189,9 @@ export default function LLMConfigPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  {!config.is_default && (
+                    <AppleButton variant="ghost" icon={<Star />} aria-label="设为默认" onClick={() => handleSetDefault(config.id)} />
+                  )}
                   <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(config)} />
                   <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(config.id)} />
                 </div>

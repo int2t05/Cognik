@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
+import { useConfigValue } from '@/hooks/useAppConfig';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { MessageSquare, TicketPlus, ListTodo, Bot, Sun, Moon, Shield, LogOut } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
 export function PortalLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, menus } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
   const router = useRouter();
   const { unreadCount } = useUnreadCount();
@@ -39,7 +41,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/portal/chat'); } }}
             className="text-headline font-semibold text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
           >
-            OpsMind
+            {appName || 'OpsMind'}
           </span>
           <nav className="flex gap-2">
             {NAV_ITEMS.map((item) => {
@@ -72,7 +74,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center gap-3">
           <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] flex transition hover:opacity-70 min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           {mounted && isAdmin && (
             <AppleButton variant="utility" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />

@@ -8,11 +8,13 @@ import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
 import { Pencil } from 'lucide-react';
 
+/** 与后端 validConfigKeys 9 个键对齐 */
 const CONFIG_KEYS = [
   'app_name',
+  'ai.rag_enabled',
   'ai.top_k',
   'ai.threshold',
-  'ai.rag_enabled',
+  'ai.max_history_messages',
   'ai.rag_query_rewrite',
   'ai.rag_multi_route',
   'ai.rag_hybrid',
@@ -92,6 +94,7 @@ export default function SystemConfigPage() {
         <ConfigRow label="启用 RAG" configKey="ai.rag_enabled" value={v('ai.rag_enabled')} type="bool" onSaved={mutate} />
         <ConfigRow label="默认 Top K" configKey="ai.top_k" value={v('ai.top_k')} onSaved={mutate} />
         <ConfigRow label="置信度阈值" configKey="ai.threshold" value={v('ai.threshold')} onSaved={mutate} />
+        <ConfigRow label="多轮对话上限" configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
         <ConfigRow label="查询改写" configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
         <ConfigRow label="多路检索" configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
         <ConfigRow label="BM25 混合检索" configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />

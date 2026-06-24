@@ -26,6 +26,7 @@ interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** 左侧图标，传入 Lucide 组件即可（无需手动设 size） */
   icon?: ReactNode;
   loading?: boolean;
+  spanClassName?: string;
 }
 
 // ── 变体样式映射 ──────────────────────────────────────────────
@@ -59,7 +60,7 @@ const variantMeta: Record<ButtonVariant, {
 };
 
 export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
-  ({ variant = 'pill', icon, loading = false, disabled, className = '', children, ...rest }, ref) => {
+  ({ variant = 'pill', icon, loading = false, disabled, className = '', children, spanClassName, ...rest }, ref) => {
     const meta = variantMeta[variant];
     const hasChildren = Children.count(children) > 0;
     const isIconOnly = icon && !hasChildren;
@@ -97,7 +98,7 @@ export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
         {/* 非 loading 态：显示 icon（如有） */}
         {!loading && sizedIcon}
         {/* 文字内容：loading 时降低透明度给出视觉反馈 */}
-        {hasChildren && <span className={loading ? 'opacity-70' : ''}>{children}</span>}
+        {hasChildren && <span className={loading ? 'opacity-70' : '' + spanClassName}>{children}</span>}
       </button>
     );
   },

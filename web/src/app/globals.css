@@ -37,6 +37,9 @@
   --max-w-wide: 1600px;
   --max-w-content: 800px;
   --max-w-form: 640px;
+
+  /* 语义色 — 对齐 shadcn/ui 配色方案 */
+  --color-foreground: var(--color-canvas);
 }
 
 /* ===== OpsMind Apple Design Tokens ===== */

@@ -5,10 +5,11 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { Providers } from '@/components/Providers';
+import { getAppName } from '@/lib/config/defaults';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OpsMind — 运维数字员工',
+  title: `${getAppName()} — 运维数字员工`,
   description: 'AI 驱动的企业运维智能助手',
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };

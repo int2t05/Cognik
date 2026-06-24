@@ -96,22 +96,22 @@ export default function AdminTicketDetailPage() {
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
           <AppleButton onClick={() => handleAction('start')} loading={processing}>
-            <Play size={17} /> 开始处理
+            <Play size={16} /> 开始处理
           </AppleButton>
         )}
         {ticket.status === 2 && (
           <>
             <AppleButton onClick={() => handleAction('resolve')} loading={processing}>
-              <CheckCircle size={17} /> 标记解决
+              <CheckCircle size={16} /> 标记解决
             </AppleButton>
             <AppleButton variant="ghost" onClick={() => handleAction('request_info')} loading={processing}>
-              <MessageSquare size={17} /> 索要补充
+              <MessageSquare size={16} /> 索要补充
             </AppleButton>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
           <AppleButton variant="utility" onClick={() => handleAction('close')} loading={processing}>
-            <XCircle size={17} /> 关闭申告
+            <XCircle size={16} /> 关闭申告
           </AppleButton>
         )}
       </div>
@@ -145,7 +145,7 @@ export default function AdminTicketDetailPage() {
             ))}
           </select>
           <AppleButton variant="ghost" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}>
-            <Sparkles size={17} /> 生成
+            <Sparkles size={16} /> 生成
           </AppleButton>
         </div>
       </AppleCard>

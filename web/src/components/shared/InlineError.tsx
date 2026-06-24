@@ -9,7 +9,7 @@ interface InlineErrorProps {
 export function InlineError({ message = '加载失败，请刷新重试', onRetry }: InlineErrorProps) {
   return (
     <div className="flex items-center gap-2 text-caption text-[var(--color-error)] mb-4">
-      <AlertTriangle size={14} />
+      <AlertTriangle size={12} />
       <span>{message}</span>
       {onRetry && (
         <button

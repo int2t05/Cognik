@@ -5,10 +5,13 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import useSWR from 'swr';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { getAppName } from '@/lib/config/defaults';
+import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
 import { isAdminRole } from '@/lib/roles';
 import { LogIn } from 'lucide-react';
@@ -23,6 +26,12 @@ interface LoginResponse {
 }
 
 export default function LoginPage() {
+  const { data: appName } = useSWR('public-app-name', () => getPublicConfig('app_name'), {
+    revalidateOnFocus: true,
+    dedupingInterval: 0, // 每次页面聚焦都重新获取，确保刷新即可更新
+  });
+  const displayName = (typeof appName === 'string' ? appName : undefined) || getAppName();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -64,10 +73,10 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] p-8 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-8">
           <div className="mb-5">
-            <Image src="/icon.svg" alt="OpsMind" width={56} height={56} className="mx-auto" priority />
+            <Image src="/icon.svg" alt={displayName} width={56} height={56} className="mx-auto" priority />
           </div>
           <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">
-            OpsMind
+            {displayName}
           </h1>
           <p className="text-title text-[var(--color-text-muted-48)]">
             运维数字员工系统
@@ -94,8 +103,8 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
           <div className="mt-8">
-            <AppleButton type="submit" loading={loading} className="w-full">
-              <LogIn size={17} /> 登录
+            <AppleButton type="submit" loading={loading} className="w-full" spanClassName="flex items-center gap-1">
+              <LogIn size={16} /> 登录
             </AppleButton>
           </div>
         </form>

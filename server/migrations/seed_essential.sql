@@ -82,7 +82,15 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 -- =============================================================================
 
 INSERT INTO system_configs (key, value, description, updated_by, updated_at) VALUES
-('app_name', '"OpsMind"', '应用名称，显示在页面标题和系统通知中', 1, NOW());
+('app_name',                '"OpsMind"', '应用名称，显示在页面标题和系统通知中', 1, NOW()),
+('ai.rag_enabled',          'true',      '全局 RAG 检索开关',                  1, NOW()),
+('ai.top_k',                '5',         'RAG 默认检索 Top K',                 1, NOW()),
+('ai.threshold',            '0.6',       'AI 置信度阈值',                      1, NOW()),
+('ai.max_history_messages', '10',        '多轮对话历史消息数上限',               1, NOW()),
+('ai.rag_query_rewrite',    'true',      'RAG 查询改写开关',                    1, NOW()),
+('ai.rag_multi_route',      'true',      'RAG 多路检索开关',                    1, NOW()),
+('ai.rag_hybrid',           'true',      'RAG BM25 混合检索开关',               1, NOW()),
+('ai.rag_rerank',           'true',      'RAG 重排序开关',                      1, NOW());
 
 -- =============================================================================
 -- LLM 配置

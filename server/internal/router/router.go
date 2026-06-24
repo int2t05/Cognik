@@ -66,6 +66,13 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// 公开系统配置（无需认证），直接注册在根引擎上避免 group 路由冲突
+	if h != nil && h.Config != nil {
+		r.GET("/api/v1/public/configs/:key", h.Config.GetPublic)
+	} else {
+		r.GET("/api/v1/public/configs/:key", placeholder())
+	}
+
 	public := r.Group("/api/v1/auth")
 	registerPublicRoutes(public, h)
 
