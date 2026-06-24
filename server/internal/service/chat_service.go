@@ -415,7 +415,8 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 				Content:    m.Content,
 				Sources:    msgSources,
 				Confidence: m.Confidence,
-				Feedback:   m.Feedback,
+t				Feedback:   m.Feedback,
+					Status:     m.Status,
 				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}

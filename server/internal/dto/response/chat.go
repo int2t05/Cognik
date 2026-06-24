@@ -34,6 +34,7 @@ type MessageItem struct {
 	Sources    []SourceItem `json:"sources,omitempty"`
 	Confidence float64      `json:"confidence"`
 	Feedback   int16        `json:"feedback"` // 0=未反馈, 1=有帮助, 2=无帮助
+	Status     string       `json:"status"`   // generating|completed|failed
 	CreatedAt  string       `json:"created_at"`
 }
 
