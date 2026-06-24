@@ -78,6 +78,7 @@ type ChatService struct {
 	chatRepo      chatSessionRepo
 	llmService    *LLMService
 	auditRepo     auditLogWriter // 审计日志写入接口（反馈事件记录）
+	hub           *GenerationHub
 }
 
 
@@ -87,7 +88,7 @@ type auditLogWriter interface {
 }
 
 // NewChatService 创建 ChatService 实例。
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter) *ChatService {
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter, hub *GenerationHub) *ChatService {
 	if ragDefaults.TopK <= 0 {
 		ragDefaults.TopK = 5
 	}
@@ -97,7 +98,8 @@ func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, l
 		llmService:    llmService,
 		ragDefaults:   ragDefaults,
 		configReader:  configReader,
-		auditRepo:     auditRepo,
+t		auditRepo:     auditRepo,
+			hub:           hub,
 	}
 }
 
@@ -138,30 +140,31 @@ func (s *ChatService) CreateSession(ctx context.Context, req request.CreateSessi
 // StreamChat — 流式对话（在已有会话中）
 // =============================================================================
 
-// StreamChat 在已有会话中发送消息并流式返回 AI 答案。
-// done 事件时自动持久化 user+assistant 消息并更新会话摘要。
+// StreamChat 发起一次新生成：立即落库用户消息、建 generating 的 assistant 消息，
+// 在 context.Background() 跑生成（脱离请求 ctx，客户端断开不影响），
+// 返回 Hub 订阅（replay+实时）。完成时由后台 goroutine 落库 assistant 终稿。
 // routeCount/rerankCount 为 0 时使用 RAG 管道默认值。
-func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question string, userID int64, routeCount, rerankCount int) (<-chan StreamEvent, error) {
+func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question string, userID int64, routeCount, rerankCount int) ([]StreamEvent, <-chan StreamEvent, func(), error) {
 	if strings.TrimSpace(question) == "" {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "问题不能为空"}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: "问题不能为空"}
 	}
 	if s.llmService == nil {
-		return nil, errcode.AppError{Code: errcode.ErrAIUnavailable, Message: fallbackAIUnavailable}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrAIUnavailable, Message: fallbackAIUnavailable}
 	}
 	if s.chatRepo == nil {
-		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
 
 	// 加载会话并校验归属
 	session, err := s.chatRepo.FindByID(ctx, sessionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+			return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 		}
-		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
 	}
 	if session.UserID != userID {
-		return nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
 	}
 
 	// 加载历史消息（用于 LLM 上下文 + RAG 查询改写消歧）
@@ -185,63 +188,126 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	// RAG 管道选项：env 默认值 → DB 配置覆盖 → 请求级参数
 	opts := s.buildRAGOptions(routeCount, rerankCount, ragHistory)
 
-	llmEvents, err := s.llmService.StreamChat(ctx, question, session.KBID, opts, history)
-	if err != nil {
-		return nil, errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: err.Error()}
+	// 立即落库用户消息（解决导航/刷新后用户消息丢失）
+	if err := s.chatRepo.CreateMessage(ctx, &model.ChatMessage{
+		SessionID: sessionID, Role: "user", Content: question, Status: model.MessageStatusCompleted,
+	}); err != nil {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "保存用户消息失败"}
 	}
 
-	// 代理事件通道，done 时持久化消息
-	outCh := make(chan StreamEvent, 100)
-	go func() {
-		defer close(outCh)
-		for evt := range llmEvents {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-			if evt.Type == "done" && evt.Metadata != nil && s.chatRepo != nil {
-				srcJSON, _ := json.Marshal(evt.Metadata.Sources)
-				pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
+	// 建 generating 的 assistant 占位消息，拿到 msgID
+	assistant := &model.ChatMessage{SessionID: sessionID, Role: "assistant", Content: "", Status: model.MessageStatusGenerating}
+	if err := s.chatRepo.CreateMessage(ctx, assistant); err != nil {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建回复占位失败"}
+	}
 
-				// 更新会话摘要
-				if err := s.chatRepo.UpdateSession(ctx, &model.ChatSession{
-					ID:         sessionID,
-					Answer:     evt.Metadata.Answer,
-					Sources:    srcJSON,
-					Confidence: evt.Metadata.Confidence,
-					DurationMs: evt.Metadata.DurationMS,
-				}); err != nil {
-					slog.Error("StreamChat 更新会话失败", "session_id", sessionID, "err", err)
-				}
+	// 脱离请求 ctx：用 background + 独立超时
+	gctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	if err := s.hub.Start(sessionID, assistant.ID, cancel); err != nil {
+		cancel()
+		// 标记占位失败，避免残留 generating
+		assistant.Status = model.MessageStatusFailed
+		_ = s.chatRepo.UpdateMessage(context.Background(), assistant)
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: err.Error()}
+	}
 
-				// 持久化消息（user + assistant），GORM Create 会回填 ID
-				msgs := []model.ChatMessage{
-					{Role: "user", Content: question, SessionID: sessionID},
-					{Role: "assistant", Content: evt.Metadata.Answer, SessionID: sessionID,
-						Sources: srcJSON, Confidence: evt.Metadata.Confidence, PipelineMetrics: pipelineJSON},
-				}
-				if err := s.chatRepo.CreateBatch(ctx, msgs); err != nil {
-					slog.Error("StreamChat 持久化消息失败", "session_id", sessionID, "err", err)
-				}
+	go s.runGeneration(gctx, sessionID, assistant.ID, question, session.KBID, opts, history)
 
-				evt.Metadata.SessionID = sessionID
-				evt.Metadata.Question = question
-				evt.Metadata.Feedback = 0
-				evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
-				// 回传消息 DB ID 给前端，用于点赞/倒赞 API
-				if len(msgs) >= 2 {
-					evt.Metadata.UserMessageID = msgs[0].ID
-					evt.Metadata.AssistantMessageID = msgs[1].ID
-				}
-			}
-			if ok := sendOrCancel(ctx, outCh, evt); !ok {
-				return
-			}
+	replay, ch, unsub, ok := s.hub.Subscribe(sessionID, 0)
+	if !ok {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "订阅生成失败"}
+	}
+	return replay, ch, unsub, nil
+}
+
+// runGeneration 在后台跑 RAG 管道，逐事件 Publish 到 Hub；完成/失败时落库并 Finish。
+func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) {
+	defer s.hub.Finish(sessionID)
+
+	llmEvents, err := s.llmService.StreamChat(gctx, question, kbID, opts, history)
+	if err != nil {
+		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: err.Error()})
+		s.failAssistant(msgID)
+		return
+	}
+
+	var answer string
+	for evt := range llmEvents {
+		if evt.Type == "token" {
+			answer += evt.Content
+>>>>>>> a861755 (feat: StreamChat 脱离请求生命周期并支持续传/取消)
 		}
-	}()
+		if evt.Type == "done" && evt.Metadata != nil {
+			srcJSON, _ := json.Marshal(evt.Metadata.Sources)
+			pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
+			_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
+				ID: sessionID, Answer: evt.Metadata.Answer, Sources: srcJSON,
+				Confidence: evt.Metadata.Confidence, DurationMs: evt.Metadata.DurationMS,
+			})
+			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
+				ID: msgID, Content: evt.Metadata.Answer, Sources: srcJSON,
+				PipelineMetrics: pipelineJSON, Confidence: evt.Metadata.Confidence,
+				Status: model.MessageStatusCompleted,
+			})
+			evt.Metadata.SessionID = sessionID
+			evt.Metadata.Question = question
+			evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+		}
+		if evt.Type == "error" {
+			s.failAssistant(msgID)
+		}
+		s.hub.Publish(sessionID, evt)
+	}
 
-	return outCh, nil
+	// gctx 被取消（用户停止/超时）：落库当前已生成内容为 failed
+	if gctx.Err() != nil {
+		_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
+			ID: msgID, Content: answer, Status: model.MessageStatusFailed,
+		})
+		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: "生成已停止"})
+	}
+}
+
+// failAssistant 将 assistant 消息标记为 failed，用于生成失败时清理占位状态。
+func (s *ChatService) failAssistant(msgID int64) {
+	_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{ID: msgID, Status: model.MessageStatusFailed})
+}
+
+// ResumeStream 续传：校验会话归属后从 since 订阅 Hub。无活跃生成则返回 ErrNotFound。
+func (s *ChatService) ResumeStream(ctx context.Context, sessionID, userID int64, since int) ([]StreamEvent, <-chan StreamEvent, func(), error) {
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
+	if err != nil {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+	}
+	if session.UserID != userID {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
+	}
+	replay, ch, unsub, ok := s.hub.Subscribe(sessionID, since)
+	if !ok {
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "无进行中的生成"}
+	}
+	return replay, ch, unsub, nil
+}
+
+// CancelGeneration 校验归属后真正取消后端生成。
+func (s *ChatService) CancelGeneration(ctx context.Context, sessionID, userID int64) error {
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+	}
+	if session.UserID != userID {
+		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
+	}
+	if !s.hub.Cancel(sessionID) {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "无进行中的生成"}
+	}
+	return nil
+}
+
+// CleanupStaleGenerating 启动时把残留 generating 标记 failed。
+func (s *ChatService) CleanupStaleGenerating(ctx context.Context) error {
+	_, err := s.chatRepo.MarkGeneratingFailed(ctx)
+	return err
 }
 
 // =============================================================================
