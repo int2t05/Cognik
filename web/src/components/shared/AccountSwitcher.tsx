@@ -55,7 +55,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
       <button
         onClick={() => setOpen(!open)}
         aria-label="切换账号"
-        className={className || 'flex items-center gap-1.5 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]'}
+        className={className || 'flex items-center gap-2 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]'}
       >
         <UserPlus size={16} />
         {!iconOnly && <span>切换账号</span>}
@@ -112,7 +112,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
           <div className="border-t border-[var(--color-divider-soft)]">
             <button
               onClick={handleNewLogin}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption text-[var(--color-accent)] font-semibold"
+              className="w-full flex items-center gap-2 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption text-[var(--color-accent)] font-semibold"
             >
               <LogIn size={16} />
               其他账号登录

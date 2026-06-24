@@ -2,7 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle } from '@/lib/api/knowledge';
+import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { ArrowLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw } from 'lucide-react';
+import { ArrowLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -24,6 +24,8 @@ export default function ArticleEditPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [processing, setProcessing] = useState(false);
   const [disableConfirm, setDisableConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [editSaving, setEditSaving] = useState(false);
 
@@ -54,7 +56,7 @@ export default function ArticleEditPage() {
           {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
           {article.status === 4 && <AppleButton variant="utility" icon={<Pause />} onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
           {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(() => enableArticle(Number(articleId)), '已启用')} loading={processing}>启用</AppleButton>}
-          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
+          {(article.status === 1 || article.status === 5) && <><AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} /><AppleButton variant="danger" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(true)} /></>}
         </div>
       </div>
 
@@ -96,6 +98,16 @@ export default function ArticleEditPage() {
         message="确定要停用此文章吗？停用后文章将不可见。"
         confirmLabel="停用"
         onConfirm={() => { setDisableConfirm(false); handleAction(() => disableArticle(Number(articleId))); }}
+        danger
+      />
+      <ConfirmDialog
+        open={deleteTarget}
+        onOpenChange={setDeleteTarget}
+        title="删除文章"
+        message="确定要删除此文章吗？此操作不可撤销。"
+        confirmLabel="删除"
+        onConfirm={() => { setDeleteTarget(false); handleAction(() => deleteArticle(Number(articleId)), '已删除'); router.push(`/admin/knowledge/${kbId}`); }}
+        loading={deleting}
         danger
       />
     </div>

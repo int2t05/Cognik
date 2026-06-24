@@ -26,6 +26,7 @@ export function reviewArticle(id: number, approved: boolean, review_comment?: st
 export function publishArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}/publish`, { method: 'POST' }); }
 export function disableArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}/disable`, { method: 'POST' }); }
 export function enableArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}/enable`, { method: 'POST' }); }
+export function deleteArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}`, { method: 'DELETE' }); }
 
 // 文档
 export function uploadDocuments(kbId: number, files: FileList) {

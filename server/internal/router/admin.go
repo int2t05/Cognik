@@ -35,6 +35,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.POST("/articles/:id/publish", middleware.RequirePermission(PermKnowledgeReview), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.Publish }))
 	rg.POST("/articles/:id/disable", middleware.RequirePermission(PermKnowledgeReview), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.Disable }))
 	rg.POST("/articles/:id/enable", middleware.RequirePermission(PermKnowledgeReview), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.Enable }))
+	rg.DELETE("/articles/:id", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.DeleteArticle }))
 	rg.POST("/knowledge-bases/:kb_id/documents/upload", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.UploadDocuments }))
 	rg.GET("/knowledge-bases/:kb_id/documents/:id/status", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.GetDocumentStatus }))
 	rg.POST("/knowledge-bases/:kb_id/documents/:id/retry", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.RetryDocument }))

@@ -24,23 +24,23 @@ export default function AuditLogPage() {
       <PageTitle>审计日志</PageTitle>
       <div className="flex gap-3 mb-4 flex-wrap items-end">
         <div>
-          <label htmlFor={idOp} className="block text-caption text-[var(--color-text-muted-48)] mb-1">操作人 ID</label>
+          <label htmlFor={idOp} className="block text-caption text-[var(--color-text-muted-48)] mb-1 pl-3">操作人 ID</label>
           <input id={idOp} placeholder="操作人 ID" type="number" className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('operator_id', e.target.value)} />
         </div>
         <div>
-          <label htmlFor={idAct} className="block text-caption text-[var(--color-text-muted-48)] mb-1">操作类型</label>
+          <label htmlFor={idAct} className="block text-caption text-[var(--color-text-muted-48)] mb-1 pl-3">操作类型</label>
           <input id={idAct} placeholder="操作类型" className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('action', e.target.value)} />
         </div>
         <div>
-          <label htmlFor={idType} className="block text-caption text-[var(--color-text-muted-48)] mb-1">对象类型</label>
+          <label htmlFor={idType} className="block text-caption text-[var(--color-text-muted-48)] mb-1 pl-3">对象类型</label>
           <input id={idType} placeholder="对象类型" className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('target_type', e.target.value)} />
         </div>
         <div>
-          <label htmlFor={idFrom} className="block text-caption text-[var(--color-text-muted-48)] mb-1">开始日期</label>
+          <label htmlFor={idFrom} className="block text-caption text-[var(--color-text-muted-48)] mb-1 pl-3">开始日期</label>
           <input id={idFrom} type="date" className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('date_from', e.target.value)} />
         </div>
         <div>
-          <label htmlFor={idTo} className="block text-caption text-[var(--color-text-muted-48)] mb-1">结束日期</label>
+          <label htmlFor={idTo} className="block text-caption text-[var(--color-text-muted-48)] mb-1 pl-3">结束日期</label>
           <input id={idTo} type="date" className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-40 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('date_to', e.target.value)} />
         </div>
       </div>

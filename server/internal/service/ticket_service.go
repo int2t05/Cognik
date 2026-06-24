@@ -33,7 +33,7 @@ import (
 // TicketService 仅需从申告创建知识候选文章，不需要完整的 KnowledgeService。
 // 消费者接口模式消除了两阶段构造（New + Setter）的循环依赖 workaround。
 type KnowledgeCandidateSaver interface {
-	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) error
+	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error)
 }
 
 // TicketService 申告管理服务。
@@ -556,7 +556,7 @@ func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, 
 	if s.knowledgeCandidate == nil {
 		return AppError{Code: errcode.ErrUnknown, Message: "知识库服务未初始化"}
 	}
-	if err := s.knowledgeCandidate.CreateArticle(ctx, articleReq, userID); err != nil {
+	if _, err := s.knowledgeCandidate.CreateArticle(ctx, articleReq, userID); err != nil {
 		return err
 	}
 

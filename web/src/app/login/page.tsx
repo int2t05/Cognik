@@ -115,8 +115,8 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
           <div className="mt-8">
-            <AppleButton type="submit" loading={loading} className="w-full" spanClassName="flex items-center gap-1">
-              <LogIn size={16} /> 登录
+            <AppleButton type="submit" loading={loading} className="w-full" icon={<LogIn />}>
+              登录
             </AppleButton>
           </div>
         </form>

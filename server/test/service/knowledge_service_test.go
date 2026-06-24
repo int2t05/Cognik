@@ -171,7 +171,7 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 	svc := setupKnowledgeService(t)
 	kb := createTestKB(t, svc, "文章测试库")
 
-	err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
+	article, err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
 		KBID:     kb.ID,
 		Title: "如何重置密码？",
 		Content:   "请访问设置页面。",
@@ -183,8 +183,6 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 	}
 
 	// 验证状态为草稿
-	var article model.KnowledgeArticle
-	knowledgeSvcDB.First(&article)
 	if article.Status != 1 {
 		t.Errorf("期望 status=1(草稿), got %d", article.Status)
 	}
@@ -197,7 +195,7 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 func TestKnowledgeService_CreateArticle_KBNotFound(t *testing.T) {
 	svc := setupKnowledgeService(t)
 
-	err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
+	_, err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
 		KBID:     99999,
 		Title: "问题",
 		Content:   "答案",

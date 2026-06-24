@@ -34,8 +34,13 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 // FRONTEND_ROUTES 将后端菜单路径映射到实际前端路由。
+// 同时兼容旧版本种子数据中的错误路径，避免升级后菜单 404。
 const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/audit-logs': '/admin/audit',
+  // 旧版菜单路径兼容（commit 16bd0ab 及更早的 seed 数据）
+  '/admin/model-config': '/admin/config/llm',
+  '/admin/llm-config': '/admin/config/llm',
+  '/admin/system-config': '/admin/config/system',
 };
 
 const SIDEBAR_COLLAPSED_WIDTH = 64;
@@ -156,13 +161,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
-          <button onClick={() => router.push('/portal/chat')} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label="门户首页">
+          <button onClick={() => router.push('/portal/chat')} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label="门户首页">
             <Bot size={16} /> {!collapsed && <span>门户</span>}
           </button>
-          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
+          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
             <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
           </button>
-          <button onClick={toggleTheme} className="flex items-center gap-2.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+          <button onClick={toggleTheme} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
           </button>

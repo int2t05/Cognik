@@ -78,25 +78,25 @@ curl http://localhost:8080/api/v1/auth/login \
 
 ### 2.1 角色（4 个）
 
-| ID | 角色名 | 权限码 |
-|----|--------|--------|
-| 1 | 系统管理员 | `user:manage`, `ticket:read/write/manage`, `knowledge:read/write/create/manage/review`, `dashboard:read`, `audit:read`, `system:config` |
-| 2 | 运维人员 | `ticket:read`, `ticket:write`, `knowledge:read`, `knowledge:write` |
-| 3 | 知识库管理员 | `knowledge:read/write/create/manage/review` |
-| 4 | 报障人 | 无后台权限 |
+| ID  | 角色名    | 权限码                                                                                                                                     |
+| --- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 系统管理员  | `user:manage`, `ticket:read/write/manage`, `knowledge:read/write/create/manage/review`, `dashboard:read`, `audit:read`, `system:config` |
+| 2   | 运维人员   | `ticket:read`, `ticket:write`, `knowledge:read`, `knowledge:write`                                                                      |
+| 3   | 知识库管理员 | `knowledge:read/write/create/manage/review`                                                                                             |
+| 4   | 报障人    | 无后台权限                                                                                                                                   |
 
 ### 2.2 菜单（8 个）
 
-| ID | 名称 | 路径 |
-|----|------|------|
-| 1 | 仪表盘 | `/admin/dashboard` |
-| 2 | 申告管理 | `/admin/tickets` |
-| 3 | 知识库 | `/admin/knowledge` |
-| 4 | 用户管理 | `/admin/users` |
-| 5 | 角色管理 | `/admin/roles` |
-| 6 | 审计日志 | `/admin/audit-logs` |
-| 7 | 模型配置 | `/admin/config/llm` |
-| 8 | 系统配置 | `/admin/config/system` |
+| ID  | 名称   | 路径                     |
+| --- | ---- | ---------------------- |
+| 1   | 仪表盘  | `/admin/dashboard`     |
+| 2   | 申告管理 | `/admin/tickets`       |
+| 3   | 知识库  | `/admin/knowledge`     |
+| 4   | 用户管理 | `/admin/users`         |
+| 5   | 角色管理 | `/admin/roles`         |
+| 6   | 审计日志 | `/admin/audit-logs`    |
+| 7   | 模型配置 | `/admin/config/llm`    |
+| 8   | 系统配置 | `/admin/config/system` |
 
 > 所有角色关联全部菜单（菜单可见性由前端结合权限码控制）。
 
@@ -104,25 +104,25 @@ curl http://localhost:8080/api/v1/auth/login \
 
 > 统一使用 OpenAI-compatible v1 协议（llama.cpp server 也兼容此协议），LLM 与 Embedding 各自独立配置 Base URL 和 API Key。
 
-| ID | 名称 | LLM Base URL | Embedding Base URL | LLM 模型 | Embedding 模型 | 默认 |
-|----|------|-------------|-------------------|----------|---------------|------|
-| 1 | 本地 llama.cpp | `http://llama-cpp:8081/v1` | `http://llama-cpp-emb:8082/v1` | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | ✓ |
-| 2 | OpenAI GPT-4o-mini | `https://api.openai.com/v1` | —（回退 LLM） | gpt-4o-mini | text-embedding-3-small | |
-| 3 | 本地 llama.cpp (宿主机) | `http://localhost:8081/v1` | `http://localhost:8082/v1` | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | |
+| ID  | 名称                 | LLM Base URL                | Embedding Base URL             | LLM 模型          | Embedding 模型              | 默认  |
+| --- | ------------------ | --------------------------- | ------------------------------ | --------------- | ------------------------- | --- |
+| 1   | 本地 llama.cpp       | `http://llama-cpp:8081/v1`  | `http://llama-cpp-emb:8082/v1` | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 | ✓   |
+| 2   | OpenAI GPT-4o-mini | `https://api.openai.com/v1` | —（回退 LLM）                      | gpt-4o-mini     | text-embedding-3-small    |     |
+| 3   | 本地 llama.cpp (宿主机) | `http://localhost:8081/v1`  | `http://localhost:8082/v1`     | Qwen3-4B-Q4_K_M | Qwen3-Embedding-0.6B-Q8_0 |     |
 
 ### 2.4 系统配置（9 条）
 
-| Key | Value |
-|-----|-------|
-| `app_name` | `OpsMind` |
-| `ai.rag_enabled` | `true` |
-| `ai.top_k` | `5` |
-| `ai.threshold` | `0.6` |
-| `ai.max_history_messages` | `10` |
-| `ai.rag_query_rewrite` | `true` |
-| `ai.rag_multi_route` | `true` |
-| `ai.rag_hybrid` | `true` |
-| `ai.rag_rerank` | `true` |
+| Key                       | Value     |
+| ------------------------- | --------- |
+| `app_name`                | `OpsMind` |
+| `ai.rag_enabled`          | `true`    |
+| `ai.top_k`                | `5`       |
+| `ai.threshold`            | `0.6`     |
+| `ai.max_history_messages` | `10`      |
+| `ai.rag_query_rewrite`    | `true`    |
+| `ai.rag_multi_route`      | `true`    |
+| `ai.rag_hybrid`           | `true`    |
+| `ai.rag_rerank`           | `true`    |
 
 ### 2.5 未预置的动态数据（需人工创建）
 
@@ -373,14 +373,14 @@ INSERT INTO messages (user_id, title, content, type, related_type, related_id, i
 
 ## 3. 测试账号
 
-| 用户名 | 密码 | 角色 | 说明 |
-|--------|------|------|------|
-| `admin` | `Admin@123` | 系统管理员 | 全部权限，可访问所有后台功能 |
-| `operator1` | `OpsMind@123` | 运维人员 | 处理申告，查看知识库 |
-| `operator2` | `OpsMind@123` | 运维人员 | 同上（用于测试审核人≠创建人规则） |
-| `knowledge` | `Knowledge@123` | 知识库管理员 | 维护知识库，审核文章 |
-| `reporter1` | `Reporter@123` | 报障人 | 门户端：问答、申告提交、进度查询 |
-| `reporter2` | `Reporter@123` | 报障人（首次登录） | 同上，`first_login=true`，需修改密码 |
+| 用户名         | 密码              | 角色        | 说明                          |
+| ----------- | --------------- | --------- | --------------------------- |
+| `admin`     | `Admin@123`     | 系统管理员     | 全部权限，可访问所有后台功能              |
+| `operator1` | `OpsMind@123`   | 运维人员      | 处理申告，查看知识库                  |
+| `operator2` | `OpsMind@123`   | 运维人员      | 同上（用于测试审核人≠创建人规则）           |
+| `knowledge` | `Knowledge@123` | 知识库管理员    | 维护知识库，审核文章                  |
+| `reporter1` | `Reporter@123`  | 报障人       | 门户端：问答、申告提交、进度查询            |
+| `reporter2` | `Reporter@123`  | 报障人（首次登录） | 同上，`first_login=true`，需修改密码 |
 
 ---
 
@@ -417,6 +417,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`，`access_token` 和 `refresh_token` 非空
 - [ ] `user.real_name` = "系统管理员"
 - [ ] `roles` 包含 "系统管理员"
@@ -425,12 +426,12 @@ Content-Type: application/json
 
 **异常测试：**
 
-| 测试项 | 输入 | 预期 code | 预期 message |
-|--------|------|-----------|-------------|
-| 用户名不存在 | `{"username":"nobody","password":"xxx"}` | 10003 | 用户名或密码错误 |
-| 密码错误 | `{"username":"admin","password":"wrong"}` | 10003 | 用户名或密码错误 |
-| 账号已冻结 | `{"username":"frozen_user","password":"xxx"}` | 10002 | 账号已被冻结 |
-| 缺少字段 | `{"username":"admin"}` | 10003 | 参数校验失败 |
+| 测试项    | 输入                                            | 预期 code | 预期 message |
+| ------ | --------------------------------------------- | ------- | ---------- |
+| 用户名不存在 | `{"username":"nobody","password":"xxx"}`      | 10003   | 用户名或密码错误   |
+| 密码错误   | `{"username":"admin","password":"wrong"}`     | 10003   | 用户名或密码错误   |
+| 账号已冻结  | `{"username":"frozen_user","password":"xxx"}` | 10002   | 账号已被冻结     |
+| 缺少字段   | `{"username":"admin"}`                        | 10003   | 参数校验失败     |
 
 ### 5.2 Token 刷新
 
@@ -444,6 +445,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回新的 `access_token` 和 `refresh_token`
 - [ ] 旧 `refresh_token` 失效（再次使用返回 10001）
 
@@ -461,6 +463,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 使用旧密码登录返回 10003
 - [ ] 使用新密码登录成功
@@ -469,12 +472,12 @@ Content-Type: application/json
 
 **密码策略异常测试：**
 
-| 测试项 | 新密码 | 预期 code |
-|--------|--------|-----------|
-| 过短 | `Ab1` | 10003 |
-| 缺大写 | `admin@123` | 10003 |
-| 缺小写 | `ADMIN@123` | 10003 |
-| 缺数字 | `Admin@xxx` | 10003 |
+| 测试项 | 新密码         | 预期 code |
+| --- | ----------- | ------- |
+| 过短  | `Ab1`       | 10003   |
+| 缺大写 | `admin@123` | 10003   |
+| 缺小写 | `ADMIN@123` | 10003   |
+| 缺数字 | `Admin@xxx` | 10003   |
 
 ### 5.4 登出
 
@@ -489,6 +492,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 登出后 refresh_token 被拉黑，刷新返回 10001
 
@@ -502,6 +506,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=10002`（无权限）
 
 ---
@@ -518,6 +523,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 3 条预置配置
 - [ ] ID=1 的配置 `is_default=true`，`provider_type=1`（llama.cpp）
 - [ ] ID=2 的配置 `is_default=false`，`provider_type=2`（OpenAI）
@@ -530,6 +536,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] `api_key` 掩码显示（空字符串或 `****`）
 
 ### 6.3 测试连接
@@ -540,6 +547,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 若 LLM 服务可用：`code=0`，`success=true`，含 `latency_ms` 和 `model`
 - [ ] 若 LLM 服务不可用：`code=20001`，message 包含错误原因
 
@@ -564,6 +572,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`，含新配置 ID
 - [ ] 列表中可见新配置（3 条）
 
@@ -588,6 +597,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 重新查看列表，ID=3 的 `is_default=true`，ID=1 的 `is_default=false`
 
@@ -601,10 +611,12 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 列表中恢复为 2 条
 
 **异常测试：** 尝试删除默认配置（ID=1）
+
 - [ ] 返回 `code=10003`，message 包含「不能删除默认配置」
 
 ### 6.7 更新配置
@@ -628,6 +640,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 详情中 `name` 已更新，`api_key` 保留原值（不传 `api_key` 不清空）
 
@@ -674,10 +687,12 @@ Content-Type: application/json
 将返回的 ID 记为 **`kb_id_2`**（预期为 2）。
 
 **验证点：**
+
 - [ ] 两次创建均返回 `code=0`
 - [ ] 返回的 `data.id` 递增
 
 **异常测试：** 重复创建同名知识库
+
 - [ ] 返回 `code=10005`（资源冲突）
 
 ### 7.2 查看知识库列表
@@ -688,6 +703,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 2 条记录
 - [ ] 包含 `name`、`description`、`embedding_model`、`vector_dimension`、`article_count`（当前为 0）
 
@@ -701,6 +717,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回知识库基本信息（仅 `id`、`name`、`description`）
 - [ ] 不包含 `embedding_model`、`llm_config_id` 等管理字段
 
@@ -718,6 +735,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`，名称和描述已更新
 
 ---
@@ -785,6 +803,7 @@ Content-Type: application/json
 将返回 ID 记为 **`article_id_3`**。
 
 **验证点（每篇文章）：**
+
 - [ ] 返回 `code=0`
 - [ ] `status=1`（草稿）
 - [ ] `word_count` 自动计算
@@ -797,6 +816,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 3 篇文章，状态均为「草稿」
 - [ ] 分页信息正确（`total=3`）
 
@@ -808,6 +828,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回完整文章内容、标签、分类
 - [ ] `chunks` 数组为空（未发布时无分块）
 - [ ] `status_text` = "草稿"
@@ -829,6 +850,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 仅编辑草稿状态文章成功
 
 ### 8.5 提交审核
@@ -841,6 +863,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 文章状态变为「待审核(2)」
 
@@ -860,10 +883,12 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 文章状态变为「已通过(3)」
 
 **异常测试 — 审核人=创建人：** 用 `admin` 审核自己创建的文章 2
+
 - [ ] 返回 `code=10003`（审核人不能是创建人）
 
 用 `knowledge` 账号审核文章 2：
@@ -880,6 +905,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 文章 2 状态变为「已驳回(5)」
 - [ ] `review_comment` 已记录
 
@@ -917,6 +943,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 文章 2 状态变为「已通过(3)」
 
 ### 8.8 发布文章
@@ -934,6 +961,7 @@ Authorization: Bearer <knowledge_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 文章状态变为「已发布(4)」
 - [ ] `chunk_count` > 0（已生成分块和向量）
@@ -950,6 +978,7 @@ Authorization: Bearer <knowledge_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 文章状态变为「已停用(0)」
 - [ ] 文章详情中 `chunks` 为空（向量已清除）
@@ -960,22 +989,23 @@ Authorization: Bearer <knowledge_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 文章状态恢复为「已发布(4)」
 - [ ] `chunks` 重新生成（向量已重建）
 
 ### 8.10 完整状态机校验
 
-| 当前状态 | 操作 | 预期结果 |
-|----------|------|----------|
-| 草稿(1) | 提交审核 | ✓ 变为待审核(2) |
-| 草稿(1) | 直接发布 | ✗ code=10003 |
-| 待审核(2) | 通过 | ✓ 变为已通过(3) |
-| 待审核(2) | 驳回 | ✓ 变为已驳回(5) |
-| 待审核(2) | 发布 | ✗ code=10003 |
-| 已通过(3) | 发布 | ✓ 变为已发布(4) |
-| 已发布(4) | 停用 | ✓ 变为已停用(0) |
-| 已停用(0) | 启用 | ✓ 变为已发布(4) |
+| 当前状态   | 操作   | 预期结果         |
+| ------ | ---- | ------------ |
+| 草稿(1)  | 提交审核 | ✓ 变为待审核(2)   |
+| 草稿(1)  | 直接发布 | ✗ code=10003 |
+| 待审核(2) | 通过   | ✓ 变为已通过(3)   |
+| 待审核(2) | 驳回   | ✓ 变为已驳回(5)   |
+| 待审核(2) | 发布   | ✗ code=10003 |
+| 已通过(3) | 发布   | ✓ 变为已发布(4)   |
+| 已发布(4) | 停用   | ✓ 变为已停用(0)   |
+| 已停用(0) | 启用   | ✓ 变为已发布(4)   |
 | 已发布(4) | 提交审核 | ✗ code=10003 |
 
 ---
@@ -983,7 +1013,7 @@ Authorization: Bearer <knowledge_token>
 ## 9. 场景 E：知识文章 — 文档上传与处理
 
 > **前置条件：** 知识库 `kb_id_1` 已创建，Embedding 服务可用。使用 `admin` 或 `knowledge` 账号。
->
+> 
 > **测试文件位置：** `test/files/` 目录，包含 md/txt/docx/pdf 四种格式。
 
 ### 9.1 上传 Markdown 文件
@@ -995,6 +1025,7 @@ curl -X POST http://localhost:8080/api/v1/admin/knowledge-bases/1/documents/uplo
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] `documents[0].article_id` 返回新文章 ID（记为 `doc_article_md`）
 - [ ] `documents[0].file_name` = "网络故障排查指南.md"
@@ -1021,6 +1052,7 @@ curl -X POST http://localhost:8080/api/v1/admin/knowledge-bases/2/documents/uplo
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] `documents` 数组包含 4 个元素，各有独立的 `article_id`
 - [ ] 4 个文件上传到知识库 2
@@ -1035,6 +1067,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 初始状态为 `pending`
 - [ ] 随后状态按 `pending → parsing → chunking → embedding → indexing → completed` 流转
 - [ ] 最终状态为 `completed`
@@ -1049,6 +1082,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] `process_status` = "completed"
 - [ ] `source_type` = 2（文档上传）
 - [ ] `content` 包含文档解析后的文本
@@ -1058,17 +1092,18 @@ Authorization: Bearer <admin_token>
 
 ### 9.6 异常文件上传测试
 
-| 测试项 | 操作 | 预期 code | 预期 message |
-|--------|------|-----------|-------------|
-| 不支持格式 | 上传 `.exe` 文件 | 10003 | 不支持的文件格式 |
-| 文件过大 | 上传 >50MB 文件 | 10003 | 文件过大 |
-| KB 不存在 | 上传到 KB 999 | 10004 | 知识库不存在 |
+| 测试项    | 操作           | 预期 code | 预期 message |
+| ------ | ------------ | ------- | ---------- |
+| 不支持格式  | 上传 `.exe` 文件 | 10003   | 不支持的文件格式   |
+| 文件过大   | 上传 >50MB 文件  | 10003   | 文件过大       |
+| KB 不存在 | 上传到 KB 999   | 10004   | 知识库不存在     |
 
 ---
 
 ## 10. 场景 F：智能问答（RAG 管道）
 
 > **前置条件：**
+> 
 > - 知识库 `kb_id_1` 中至少已有 2 篇已发布文章（场景 D 的 article 1+2）和 1 份处理完成的文档（场景 E 的 md）
 > - LLM 默认配置可用（场景 B 验证通过）
 > - 使用 `reporter1` 或 `reporter2` 账号（门户端）
@@ -1087,6 +1122,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] `data.session_id` 返回会话 ID（记为 `session_id`）
 - [ ] `data.kb_id` = 1
@@ -1094,6 +1130,7 @@ Content-Type: application/json
 ### 10.2 发送消息（SSE 流式）
 
 > **重要：** SSE 流式响应无法通过普通 curl 测试，推荐使用以下方式之一：
+> 
 > - 前端 UI：http://localhost:3000/portal/chat
 > - 浏览器 DevTools Network 面板观察 EventStream
 > - 或使用 `curl -N` 观察原始 SSE 事件
@@ -1121,6 +1158,7 @@ data: {"type":"done","metadata":{...}}
 ```
 
 **验证点：**
+
 - [ ] 收到全部 7 个 `step` 事件（顺序如上）
 - [ ] 收到多个 `token` 事件，内容逐步拼接成完整答案
 - [ ] 收到 `done` 事件
@@ -1137,6 +1175,7 @@ data: {"type":"done","metadata":{...}}
 ```
 
 **验证点：**
+
 - [ ] 查询改写步骤将指代词「它」解析为「VPN」
 - [ ] 答案引用知识库中关于 VPN 备用服务器（vpn2.company.com）的内容
 
@@ -1147,6 +1186,7 @@ data: {"type":"done","metadata":{...}}
 ```
 
 **验证点：**
+
 - [ ] `metadata.confidence` 应 < 0.6（知识库中无此内容）
 - [ ] `metadata.can_submit_ticket` = true
 - [ ] 答案中包含兜底提示（建议提交申告）
@@ -1159,6 +1199,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回已创建的会话列表
 
 ### 10.4 查看会话详情（含多轮对话历史）
@@ -1169,6 +1210,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] `messages` 包含多轮 Q&A 历史
 - [ ] `messages[0].role` = "user"（第一轮用户问题）
 - [ ] `messages[1].role` = "assistant"（第一轮 AI 回答）
@@ -1189,6 +1231,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] `feedback=1`（已解决）成功
 - [ ] `feedback=2`（未解决）成功
 - [ ] `feedback=0` 返回 10003（不允许）
@@ -1202,6 +1245,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 再次查看返回 404
 
@@ -1233,6 +1277,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 自动生成 `ticket_no`（格式：`TK-YYYYMMDD-XXXXXX`）
 
@@ -1265,6 +1310,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 2 条申告
 - [ ] 状态均为「待处理(1)」
 - [ ] 只能看到自己的申告
@@ -1277,6 +1323,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回完整申告信息
 - [ ] `records` 数组当前为空（暂无处理记录）
 - [ ] `supplement_count` = 0
@@ -1291,6 +1338,7 @@ Authorization: Bearer <operator1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 2 条待处理的申告
 - [ ] 可看到所有用户的申告（非仅自己）
 
@@ -1308,6 +1356,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 申告状态变为「处理中(2)」
 - [ ] 申告详情中 `records` 包含这条操作记录
@@ -1337,6 +1386,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 状态变为「需补充信息(3)」
 - [ ] `supplement_count` = 1
 - [ ] `reporter1` 的站内消息收到补充信息通知
@@ -1356,6 +1406,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 状态恢复为「处理中(2)」
 - [ ] `supplement_count` = 1
@@ -1387,6 +1438,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 状态变为「已解决(4)」
 - [ ] `reporter1` 站内消息收到已解决通知
 
@@ -1404,6 +1456,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 状态变为「已关闭(5)」
 
 ### 11.11 后台 — 从申告生成知识候选
@@ -1421,6 +1474,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 在知识库 1 的文章列表中出现一篇新文章
 - [ ] 标题为「申告经验 - 3 楼东侧打印机频繁卡纸」（自动生成）
@@ -1428,18 +1482,18 @@ Content-Type: application/json
 
 ### 11.12 状态机校验
 
-| 当前状态 | 操作 | 预期结果 |
-|----------|------|----------|
-| 待处理(1) | start | ✓ 变为处理中(2) |
-| 待处理(1) | request_info | ✗ code=10003 |
-| 处理中(2) | request_info | ✓ 变为需补充(3) |
-| 需补充(3) | supplement（门户） | ✓ 变为处理中(2) |
-| 处理中(2) | resolve | ✓ 变为已解决(4) |
-| 处理中(2) | close | ✓ 变为已关闭(5) |
-| 需补充(3) | close | ✓ 变为已关闭(5) |
-| 已解决(4) | close | ✗ code=10003 |
-| 已关闭(5) | 任何操作 | ✗ code=10003 |
-| 同一申告 request_info 第 4 次 | — | ✗ code=10003（最多 3 次） |
+| 当前状态                    | 操作             | 预期结果                 |
+| ----------------------- | -------------- | -------------------- |
+| 待处理(1)                  | start          | ✓ 变为处理中(2)           |
+| 待处理(1)                  | request_info   | ✗ code=10003         |
+| 处理中(2)                  | request_info   | ✓ 变为需补充(3)           |
+| 需补充(3)                  | supplement（门户） | ✓ 变为处理中(2)           |
+| 处理中(2)                  | resolve        | ✓ 变为已解决(4)           |
+| 处理中(2)                  | close          | ✓ 变为已关闭(5)           |
+| 需补充(3)                  | close          | ✓ 变为已关闭(5)           |
+| 已解决(4)                  | close          | ✗ code=10003         |
+| 已关闭(5)                  | 任何操作           | ✗ code=10003         |
+| 同一申告 request_info 第 4 次 | —              | ✗ code=10003（最多 3 次） |
 
 ---
 
@@ -1455,6 +1509,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 6 个预置用户
 - [ ] 含角色信息和状态
 
@@ -1476,17 +1531,18 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 新用户 `status=1`（正常）
 - [ ] 新用户角色为「报障人」
 
 **异常测试：**
 
-| 测试项 | 输入 | 预期 code |
-|--------|------|-----------|
-| 重名 | 再次创建 `testuser` | 10005 |
-| 弱密码 | `password: "123"` | 10003 |
-| 缺角色 | 不传 `role_ids` | 10003 |
+| 测试项 | 输入                | 预期 code |
+| --- | ----------------- | ------- |
+| 重名  | 再次创建 `testuser`   | 10005   |
+| 弱密码 | `password: "123"` | 10003   |
+| 缺角色 | 不传 `role_ids`     | 10003   |
 
 ### 12.3 编辑用户
 
@@ -1505,6 +1561,7 @@ Content-Type: application/json
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`
 - [ ] 用户信息已更新，角色变为「报障人 + 运维人员」
 
@@ -1516,6 +1573,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`，状态变为「冻结」
 - [ ] 该用户无法登录（返回 10002）
 
@@ -1527,10 +1585,12 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 `code=0`，状态恢复为「正常」
 - [ ] 该用户可正常登录
 
 **异常测试：** 冻结已冻结的用户 / 恢复已正常的用户
+
 - [ ] 分别返回 `code=10006` / `code=10007`
 
 ### 12.6 角色列表
@@ -1541,6 +1601,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回 4 个预置角色，含权限列表
 
 ---
@@ -1557,6 +1618,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回统计卡片数据（今日申告、待处理、处理中、已解决、今日问答、知识条目数等）
 - [ ] 数值与实际操作产生的数据一致
 
@@ -1568,6 +1630,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **验证点：**
+
 - [ ] 返回操作日志列表
 - [ ] 包含知识文章创建/发布、申告处理、用户管理等操作记录
 - [ ] 每条记录包含操作人、操作类型、目标资源、时间
@@ -1582,6 +1645,7 @@ Authorization: Bearer <reporter1_token>
 ```
 
 **验证点：**
+
 - [ ] 返回申告处理过程中的站内通知（已解决通知等）
 - [ ] `is_read` 字段正确
 
@@ -1593,44 +1657,44 @@ Authorization: Bearer <reporter1_token>
 
 ### 14.1 知识库
 
-| 序号 | 名称 | 说明 | 创建者 |
-|------|------|------|--------|
-| 1 | IT 运维知识库 | 场景 C 创建，含 VPN、打印机、邮箱等 | admin |
-| 2 | 信息安全规范库 | 场景 C 创建，含安全制度 | admin |
+| 序号  | 名称       | 说明                    | 创建者   |
+| --- | -------- | --------------------- | ----- |
+| 1   | IT 运维知识库 | 场景 C 创建，含 VPN、打印机、邮箱等 | admin |
+| 2   | 信息安全规范库  | 场景 C 创建，含安全制度         | admin |
 
 ### 14.2 知识文章 — 手动创建
 
-| 序号 | KB | 标题 | 状态路径 | 创建者 |
-|------|-----|------|----------|--------|
-| 1 | 1 | VPN 连接超时问题处理 | 草稿→待审核→通过→发布→停用→启用 | admin |
-| 2 | 1 | Outlook 邮箱无法收发邮件排查步骤 | 草稿→待审核→驳回→编辑→重提→通过→发布 | admin |
-| 3 | 1 | 打印机卡纸处理指南 | 草稿（保持，用于后续测试） | admin |
+| 序号  | KB  | 标题                   | 状态路径                  | 创建者   |
+| --- | --- | -------------------- | --------------------- | ----- |
+| 1   | 1   | VPN 连接超时问题处理         | 草稿→待审核→通过→发布→停用→启用    | admin |
+| 2   | 1   | Outlook 邮箱无法收发邮件排查步骤 | 草稿→待审核→驳回→编辑→重提→通过→发布 | admin |
+| 3   | 1   | 打印机卡纸处理指南            | 草稿（保持，用于后续测试）         | admin |
 
 ### 14.3 知识文章 — 文档上传
 
-| 序号 | KB | 文件 | 格式 | 预期处理结果 |
-|------|-----|------|------|-------------|
-| 1 | 1 | 网络故障排查指南.md | MD | completed |
-| 2 | 1 | VPN使用常见问题.txt | TXT | completed |
-| 3 | 2 | 新员工IT入职指南.md | MD | completed |
-| 4 | 2 | 会议室设备操作说明.txt | TXT | completed |
-| 5 | 2 | 邮件系统使用规范.docx | DOCX | completed |
-| 6 | 2 | 信息安全管理制度.pdf | PDF | completed |
+| 序号  | KB  | 文件            | 格式   | 预期处理结果    |
+| --- | --- | ------------- | ---- | --------- |
+| 1   | 1   | 网络故障排查指南.md   | MD   | completed |
+| 2   | 1   | VPN使用常见问题.txt | TXT  | completed |
+| 3   | 2   | 新员工IT入职指南.md  | MD   | completed |
+| 4   | 2   | 会议室设备操作说明.txt | TXT  | completed |
+| 5   | 2   | 邮件系统使用规范.docx | DOCX | completed |
+| 6   | 2   | 信息安全管理制度.pdf  | PDF  | completed |
 
 ### 14.4 问答会话
 
-| 序号 | KB | 问题 | 预期置信度 |
-|------|-----|------|-----------|
-| 1 | 1 | 如何解决 VPN 连接超时的问题？ | > 0.6 |
-| 2 | 1 | 它的备用服务器地址是什么？（多轮追问） | > 0.6 |
-| 3 | 1 | 如何配置思科路由器 BGP 协议？ | < 0.6 |
+| 序号  | KB  | 问题                  | 预期置信度 |
+| --- | --- | ------------------- | ----- |
+| 1   | 1   | 如何解决 VPN 连接超时的问题？   | > 0.6 |
+| 2   | 1   | 它的备用服务器地址是什么？（多轮追问） | > 0.6 |
+| 3   | 1   | 如何配置思科路由器 BGP 协议？   | < 0.6 |
 
 ### 14.5 申告工单
 
-| 序号 | 提交者 | 标题 | 状态流转 |
-|------|--------|------|----------|
-| 1 | reporter1 | 3 楼东侧打印机频繁卡纸 | 待处理→处理中→已解决 |
-| 2 | reporter1 | VPN 连接每隔 10 分钟自动断开 | 待处理→处理中→需补充→补充→处理中→已关闭 |
+| 序号  | 提交者       | 标题                 | 状态流转                   |
+| --- | --------- | ------------------ | ---------------------- |
+| 1   | reporter1 | 3 楼东侧打印机频繁卡纸       | 待处理→处理中→已解决            |
+| 2   | reporter1 | VPN 连接每隔 10 分钟自动断开 | 待处理→处理中→需补充→补充→处理中→已关闭 |
 
 ---
 
@@ -1662,22 +1726,26 @@ test/
 ## 16. 验收通过标准
 
 ### 16.1 认证与授权（场景 A）
+
 - [ ] 6 个预置账号均可正常登录
 - [ ] Token 刷新和登出逻辑正确
 - [ ] RBAC 权限控制生效（报障人不能访问后台接口）
 - [ ] 密码策略校验生效
 
 ### 16.2 模型配置（场景 B）
+
 - [ ] 预置 2 条配置可见
 - [ ] 连接测试返回正确结果
 - [ ] 热替换即时生效（设为默认后无需重启）
 - [ ] 不允许删除默认配置
 
 ### 16.3 知识库管理（场景 C）
+
 - [ ] 创建/编辑/列表/详情功能正常
 - [ ] 门户端列表不暴露管理字段
 
 ### 16.4 知识文章（场景 D+E）
+
 - [ ] 文章审核状态机完整流转（草稿→待审核→通过/驳回→发布→停用/启用）
 - [ ] 审核人≠创建人校验生效
 - [ ] 驳回后编辑重提全链路通畅
@@ -1689,6 +1757,7 @@ test/
 - [ ] 处理完成后 content 为非空文本
 
 ### 16.5 智能问答（场景 F）
+
 - [ ] SSE 流式输出 7 个步骤事件齐全
 - [ ] 多轮对话指代消解生效
 - [ ] 高置信度问题正确引用知识库
@@ -1696,6 +1765,7 @@ test/
 - [ ] 反馈功能正常
 
 ### 16.6 申告工单（场景 G）
+
 - [ ] 状态机完整流转（5 种状态，5 种操作）
 - [ ] 补充信息上限（3 次）生效
 - [ ] 已解决/已关闭状态不可再操作
@@ -1703,14 +1773,17 @@ test/
 - [ ] 知识候选生成功能正常
 
 ### 16.7 用户与角色（场景 H）
+
 - [ ] 用户 CRUD + 冻结/恢复全链路正常
 - [ ] 角色与权限正确关联
 
 ### 16.8 数据看板与审计（场景 I）
+
 - [ ] 看板统计数据与实际操作一致
 - [ ] 审计日志完整记录关键操作
 
 ### 16.9 异常处理
+
 - [ ] AI 服务不可用时返回 `code=20001`（非 crash）
 - [ ] RAG 检索失败时返回 `code=20002`
 - [ ] 非法状态转换返回 `code=10003`

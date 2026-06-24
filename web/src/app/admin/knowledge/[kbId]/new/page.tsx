@@ -90,7 +90,7 @@ export default function NewArticlePage() {
         <AppleCard className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">手动创建</h2>
           <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
-          <AppleTextarea label="正文内容 (Markdown)" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="支持 Markdown 格式..." />
+          <AppleTextarea label="正文内容" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="输入文章正文..." />
           <AppleInput label="分类" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="如：网络与VPN" />
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>

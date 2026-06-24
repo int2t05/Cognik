@@ -1,6 +1,9 @@
+// Package database 负责初始化 PostgreSQL 数据库连接和 GORM 自动迁移。
 package database
 
 import (
+	"fmt"
+
 	"opsmind/internal/model"
 
 	"gorm.io/gorm"
@@ -8,8 +11,10 @@ import (
 
 // AutoMigrate 自动迁移所有数据模型和必要索引。
 //
+// 同时处理 GORM 无法覆盖的 pgvector 列：
+// knowledge_chunks.embedding (halfvec) — VectorStore 通过原始 SQL 直接写入，Go model 无对应字段。
+//
 // 索引使用 IF NOT EXISTS：首次部署创建，后续启动跳过。
-// 旧版 ASC 索引已在历史部署中通过 DROP+CREATE 修复，无需再次处理。
 func AutoMigrate(db *gorm.DB) error {
 	// 启用 pgvector 扩展（幂等——已存在不报错）
 	db.Exec("CREATE EXTENSION IF NOT EXISTS vector")
@@ -46,6 +51,21 @@ func AutoMigrate(db *gorm.DB) error {
 		if err := db.Exec(sql).Error; err != nil {
 			return err
 		}
+	}
+
+	// 确保 knowledge_chunks.embedding (halfvec) 列存在。
+	// GORM AutoMigrate 无法管理该列（Go model 无对应字段），VectorStore 通过原始 SQL 直接写入。
+	if err := db.Exec(`
+		DO $$ BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'knowledge_chunks' AND column_name = 'embedding'
+			) THEN
+				ALTER TABLE knowledge_chunks ADD COLUMN embedding halfvec(1024);
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return fmt.Errorf("添加 knowledge_chunks.embedding 列失败: %w", err)
 	}
 
 	return nil

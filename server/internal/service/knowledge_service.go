@@ -58,6 +58,7 @@ type knowledgeRepo interface {
 	CreateKB(ctx context.Context, kb *model.KnowledgeBase) error
 	UpdateKB(ctx context.Context, kb *model.KnowledgeBase) error
 	DeleteKB(ctx context.Context, id int64) error
+	DeleteArticle(ctx context.Context, id int64) error
 	ListKBs(ctx context.Context) ([]model.KnowledgeBase, error)
 	CountArticlesByKB(ctx context.Context) (map[int64]int, error)
 	ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
@@ -260,14 +261,14 @@ func (s *KnowledgeService) ListKBs(ctx context.Context) ([]response.KBResponse, 
 // KnowledgeArticle CRUD
 // =============================================================================
 
-// CreateArticle 创建知识文章（草稿状态）。
-func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) error {
+// CreateArticle 创建知识文章（草稿状态），返回创建后的文章（含自动生成的 ID）。
+func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error) {
 	_, err := s.repo.FindKBByID(ctx, req.KBID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
+			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
-		return err
+		return nil, err
 	}
 
 	tagsJSON := marshalTags(req.Tags)
@@ -286,7 +287,10 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		CreatedBy:  userID,
 		WordCount:  len([]rune(req.Content)),
 	}
-	return s.repo.CreateArticle(ctx, article)
+	if err := s.repo.CreateArticle(ctx, article); err != nil {
+		return nil, err
+	}
+	return article, nil
 }
 
 // UpdateArticle 更新文章（仅草稿/驳回状态可编辑）。
@@ -373,7 +377,7 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusApproved {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已审核通过的文章可发布"}
@@ -395,8 +399,9 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 // 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
 	// RAG 依赖未注入时不可执行发布管道，返回明确错误而非 panic
-	if s.embedder == nil || s.store == nil {
-		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 服务未初始化（缺少 Embedding/VectorStore）"}
+	// 注意：chunker 也需校验——Enable 路径不经过 Publish 的前置校验
+	if s.chunker == nil || s.embedder == nil || s.store == nil {
+		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 服务未初始化（缺少 Chunker/Embedding/VectorStore）"}
 	}
 
 	id := article.ID
@@ -405,7 +410,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	content := article.Content
 	chunks := s.chunker.Split(content)
 	if len(chunks) == 0 {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "分块结果为空"}
+		return errcode.AppError{Code: errcode.ErrParam, Message: "文章内容为空，无法分块发布"}
 	}
 	article.WordCount = len([]rune(content))
 	article.ChunkCount = len(chunks)
@@ -443,7 +448,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
 	// 发布成功后清除 process_status/process_error，避免前次失败残留误导用户
 	_ = s.repo.UpdateArticleProcessStatus(ctx, article.ID, "completed", "")
@@ -478,7 +483,7 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusPublished {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已发布状态可停用"}
@@ -492,7 +497,7 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 
 	article.Status = model.ArticleStatusDisabled
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
 	// 审计：停用文章
 	if s.auditRepo != nil {
@@ -515,7 +520,7 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
 		}
-		return err
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
 	if article.Status != model.ArticleStatusDisabled {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已停用状态的文章可启用"}
@@ -525,6 +530,24 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 	return s.republishFromApproved(ctx, article, publisherID)
 }
 
+// DeleteArticle 删除文章（仅草稿/驳回状态可删除，同时清理关联向量）。
+//
+// 为什么允许删除驳回文章：
+// 驳回文章已确认不适合发布，直接删除可保持知识库整洁。
+// 已发布文章不可直接删除——需先停用（流程审计要求保留操作记录）。
+func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
+	article, err := s.repo.FindArticleByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errcode.AppError{Code: errcode.ErrNotFound, Message: "文章不存在"}
+		}
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
+	}
+	if article.Status != model.ArticleStatusDraft && article.Status != model.ArticleStatusRejected {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿或已驳回状态的文章可删除"}
+	}
+	return s.repo.DeleteArticle(ctx, id)
+}
 // =============================================================================
 // List / Detail
 // =============================================================================

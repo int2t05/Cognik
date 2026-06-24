@@ -61,7 +61,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 <button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold shadow-[inset_0_-2px_0_var(--color-accent)]' : ''}`}
+                  className={`flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold shadow-[inset_0_-2px_0_var(--color-accent)]' : ''}`}
                 >
                   {item.icon} {item.label}
                   {item.label === '消息' && unreadCount > 0 && (

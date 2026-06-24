@@ -151,12 +151,13 @@ func (h *KnowledgeHandler) CreateArticle(c *gin.Context) {
 	req.KBID = kbID
 
 	userID, _ := getCurrentUserID(c)
-	if svcErr := h.svc.CreateArticle(c.Request.Context(), req, userID); svcErr != nil {
+	article, svcErr := h.svc.CreateArticle(c.Request.Context(), req, userID)
+	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
 	}
 
-	response.Success(c, nil)
+	response.Success(c, article)
 }
 
 // UpdateArticle 更新知识文章。
@@ -278,6 +279,22 @@ func (h *KnowledgeHandler) Enable(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+	// DeleteArticle 删除文章（仅草稿/驳回状态可删除）。
+	//
+	// DELETE /api/v1/admin/articles/:id
+	func (h *KnowledgeHandler) DeleteArticle(c *gin.Context) {
+		id, ok := parseID(c, "id")
+		if !ok {
+			return
+		}
+
+		if svcErr := h.svc.DeleteArticle(c.Request.Context(), id); svcErr != nil {
+			handleServiceError(c, svcErr)
+			return
+		}
+
+		response.Success(c, nil)
+	}
 // ListArticles 分页查询文章列表。
 //
 // GET /api/v1/admin/knowledge-bases/:kb_id/articles

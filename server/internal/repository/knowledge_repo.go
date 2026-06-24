@@ -152,6 +152,16 @@ func (r *KnowledgeRepo) UpdateArticleMetrics(ctx context.Context, id int64, word
 	}).Error
 }
 
+// DeleteArticle 删除文章（含关联的 knowledge_chunks 向量数据）。
+func (r *KnowledgeRepo) DeleteArticle(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("article_id = ?", id).Delete(&model.KnowledgeChunk{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("id = ?", id).Delete(&model.KnowledgeArticle{}).Error
+	})
+}
+
 func (r *KnowledgeRepo) DeleteKB(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("kb_id = ?", id).Delete(&model.KnowledgeArticle{}).Error; err != nil {
