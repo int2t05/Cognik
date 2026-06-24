@@ -12,6 +12,7 @@ export function getSessionList(page: number) { return apiFetchPage<ChatSession>(
 export function getChatDetail(id: number) { return apiFetch<ChatDetail>(`/api/v1/portal/chat-sessions/${id}`); }
 export function deleteSession(id: number) { return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}`, { method: 'DELETE' }); }
 export function submitMessageFeedback(sessionId: number, messageId: string, feedback: number) { return apiFetch<null>(`/api/v1/portal/chat-sessions/${sessionId}/messages/${messageId}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }); }
+export function submitFeedback(id: number, feedback: number) { return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }); }
 
 export interface FeedbackAnalysis {
   strong_areas: string[];
@@ -21,4 +22,12 @@ export interface FeedbackAnalysis {
 }
 export function analyzeFeedback(days: number) {
   return apiFetch<{ analysis: string }>('/api/v1/admin/feedback/analyze', { method: 'POST', body: JSON.stringify({ days }) });
+}
+
+// SSE 流式端点直连后端（绕过 Next.js rewrite，避免 Turbopack POST 代理问题）
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+export const streamUrl = (id: number) => `${API}/api/v1/portal/chat-sessions/${id}/stream`;
+export const resumeUrl = (id: number, since: number) => `${streamUrl(id)}?since=${since}`;
+export function cancelGeneration(id: number) {
+  return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}/cancel`, { method: 'POST' });
 }
