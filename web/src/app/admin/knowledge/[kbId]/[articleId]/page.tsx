@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { ArrowLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play } from 'lucide-react';
+import { ArrowLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -29,7 +29,7 @@ export default function ArticleEditPage() {
 
   const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setEditing(true); } };
   const handleSave = async () => { setEditSaving(true); try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } finally { setEditSaving(false); } };
-  const handleAction = async (fn: () => Promise<unknown>) => { setProcessing(true); try { await fn(); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
+  const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
   if (!article) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
@@ -49,12 +49,12 @@ export default function ArticleEditPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {article.status === 1 && <AppleButton onClick={() => handleAction(() => submitReview(Number(articleId)))} loading={processing}><Send size={16} /> 提交审核</AppleButton>}
-          {article.status === 2 && <><AppleButton onClick={() => handleAction(() => reviewArticle(Number(articleId), true))} loading={processing}><CheckCircle size={16} /> 通过</AppleButton><AppleButton variant="ghost" onClick={() => { if (reviewComment) handleAction(() => reviewArticle(Number(articleId), false, reviewComment)); else toast.error('驳回时需填写理由'); }} loading={processing}><XCircle size={16} /> 驳回</AppleButton></>}
-          {article.status === 3 && <AppleButton onClick={() => handleAction(() => publishArticle(Number(articleId)))} loading={processing}><Rocket size={16} /> 发布</AppleButton>}
-          {article.status === 4 && <AppleButton variant="utility" onClick={() => setDisableConfirm(true)} loading={processing}><Pause size={16} /> 停用</AppleButton>}
-          {article.status === 0 && <AppleButton onClick={() => handleAction(() => enableArticle(Number(articleId)))} loading={processing}><Play size={16} /> 启用</AppleButton>}
-          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" aria-label="编辑" onClick={startEdit} icon={<Pencil />} />}
+          {article.status === 1 && <AppleButton icon={<Send />} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')} loading={processing}>提交审核</AppleButton>}
+          {article.status === 2 && <><AppleButton icon={<CheckCircle />} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')} loading={processing}>通过</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }} loading={processing}>驳回</AppleButton></>}
+          {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
+          {article.status === 4 && <AppleButton variant="utility" icon={<Pause />} onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
+          {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(() => enableArticle(Number(articleId)), '已启用')} loading={processing}>启用</AppleButton>}
+          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export default function ArticleEditPage() {
         <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <div className="flex gap-2"><AppleButton onClick={handleSave} loading={editSaving}><CheckCircle size={16} /> 保存</AppleButton><AppleButton variant="ghost" onClick={() => setEditing(false)}><XCircle size={16} /> 取消</AppleButton></div>
+          <div className="flex gap-2"><AppleButton icon={<CheckCircle />} onClick={handleSave} loading={editSaving}>保存</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => setEditing(false)}>取消</AppleButton></div>
         </AppleCard>
       ) : (
         <AppleCard className="mb-4">
@@ -74,7 +74,20 @@ export default function ArticleEditPage() {
         </AppleCard>
       )}
 
-      {article.process_status === 'failed' && <AppleCard className="border border-[var(--color-error)] mb-4"><p className="text-[var(--color-error)] text-caption">处理失败: {article.process_error}</p></AppleCard>}
+      {article.process_status === 'failed' && (
+        <AppleCard className="border border-[var(--color-error)] mb-4">
+          <div className="flex items-start gap-3">
+            <XCircle size={18} className="text-[var(--color-error)] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-caption font-semibold text-[var(--color-error)] mb-1">发布失败</p>
+              <p className="text-caption text-[var(--color-text-muted-80)]">{article.process_error || '未知错误'}</p>
+              {article.status === 3 && (
+                <p className="text-fine text-[var(--color-text-muted-48)] mt-2">请修复问题后点击上方"发布"或"重试发布"按钮</p>
+              )}
+            </div>
+          </div>
+        </AppleCard>
+      )}
 
       <ConfirmDialog
         open={disableConfirm}

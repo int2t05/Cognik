@@ -439,12 +439,14 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "替换向量失败: " + err.Error()}
 	}
 
-	// Step 5: 更新状态
+	// Step 5: 更新状态 + 清除失败残留
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return err
 	}
+	// 发布成功后清除 process_status/process_error，避免前次失败残留误导用户
+	_ = s.repo.UpdateArticleProcessStatus(ctx, article.ID, "completed", "")
 	// 审计：发布文章
 	if s.auditRepo != nil {
 		s.auditRepo.Create(ctx, &model.AuditLog{
