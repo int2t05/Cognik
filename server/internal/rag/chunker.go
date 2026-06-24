@@ -1,9 +1,9 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
 // chunker.go 实现 ChineseRecursiveTextSplitter：
-//
-//  1. _split_text — 按分隔符优先级递归切分，收集 ≤ chunkSize 的片段
-//  2. _merge_splits — 滑动窗口合并至 chunkSize，左侧弹出至 overlap
+//  1. splitText — 按分隔符优先级递归切分
+//  2. mergeSplits — 干净合并至 ≤ chunkSize（不做 overlap）
+//  3. addOverlap — 后置追加前后 overlap（前缀+后缀）
 //
 // 参考：LangChain ChineseRecursiveTextSplitter 核心算法
 package rag
@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 )
 
-// separators 递归分割分隔符优先级（中文优化）。
 var separators = []string{
 	"\n\n", "\n",
 	"。", "！", "？",
@@ -23,7 +22,6 @@ var separators = []string{
 	" ", "",
 }
 
-// Chunker 中文递归文本分割器。
 type Chunker struct {
 	ChunkSize    int
 	ChunkOverlap int
@@ -42,7 +40,6 @@ func NewChunker(chunkSize, chunkOverlap int) *Chunker {
 	return &Chunker{ChunkSize: chunkSize, ChunkOverlap: chunkOverlap}
 }
 
-// Split 归一化 → 递归分割 → 滑动窗口合并。
 func (c *Chunker) Split(text string) []string {
 	if len(text) == 0 {
 		return nil
@@ -52,7 +49,8 @@ func (c *Chunker) Split(text string) []string {
 		return []string{text}
 	}
 	splits := c.splitText(text, separators)
-	return c.mergeSplits(splits)
+	chunks := c.mergeSplits(splits)
+	return c.addOverlap(chunks)
 }
 
 // =============================================================================
@@ -63,19 +61,15 @@ func (c *Chunker) splitText(text string, seps []string) []string {
 	if len(seps) == 0 {
 		return []string{text}
 	}
-
 	sep := seps[0]
 	remaining := seps[1:]
-
 	if sep == "" {
 		return c.splitByRunes(text)
 	}
-
 	parts := strings.Split(text, sep)
 	if len(parts) == 1 {
 		return c.splitText(text, remaining)
 	}
-
 	var good []string
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
@@ -91,7 +85,6 @@ func (c *Chunker) splitText(text string, seps []string) []string {
 	return good
 }
 
-// splitByRunes 字符级硬切分（最后兜底）。
 func (c *Chunker) splitByRunes(text string) []string {
 	runes := []rune(text)
 	if len(runes) <= c.ChunkSize {
@@ -116,58 +109,87 @@ func (c *Chunker) splitByRunes(text string) []string {
 }
 
 // =============================================================================
-// mergeSplits — 滑动窗口合并（核心算法）
+// mergeSplits — 干净合并（无 overlap）
 // =============================================================================
 
-// mergeSplits 将片段合并到 ≤ chunkSize，并通过左侧弹出产生 overlap。
-//
-// 算法：
-//
-//	total = 0
-//	doc = []
-//	for each split:
-//	    if doc not empty AND total + len(split) > chunkSize:
-//	        merged.append("".join(doc))
-//	        while total > chunkOverlap:
-//	            total -= len(doc.pop(0))
-//	    doc.append(split); total += len(split)
 func (c *Chunker) mergeSplits(splits []string) []string {
 	if len(splits) == 0 {
 		return nil
 	}
-
 	var merged []string
 	var doc []string
 	total := 0
-
 	for _, s := range splits {
 		n := utf8.RuneCountInString(s)
 		if n == 0 {
 			continue
 		}
-
-		// 加这个片段会超 → 先封口当前块，再弹左侧保留 overlap
 		if len(doc) > 0 && total+n > c.ChunkSize {
 			merged = append(merged, strings.Join(doc, ""))
-			for len(doc) > 0 && total > c.ChunkOverlap {
-				total -= utf8.RuneCountInString(doc[0])
-				doc = doc[1:]
-			}
+			doc = nil
+			total = 0
 		}
-
 		doc = append(doc, s)
 		total += n
 	}
-
 	if len(doc) > 0 {
 		merged = append(merged, strings.Join(doc, ""))
 	}
-
 	return merged
 }
 
 // =============================================================================
-// normalizeText — 文本归一化
+// addOverlap — 前后 overlap 追加
+// =============================================================================
+
+func (c *Chunker) addOverlap(chunks []string) []string {
+	if c.ChunkOverlap <= 0 || len(chunks) <= 1 {
+		return chunks
+	}
+	result := make([]string, len(chunks))
+	for i := range chunks {
+		s := chunks[i]
+		if i > 0 {
+			prev := []rune(chunks[i-1])
+			if len(prev) > c.ChunkOverlap {
+				s = tail(prev, c.ChunkOverlap) + s
+			}
+		}
+		if i < len(chunks)-1 {
+			next := []rune(chunks[i+1])
+			if len(next) > c.ChunkOverlap {
+				s = s + head(next, c.ChunkOverlap)
+			}
+		}
+		result[i] = s
+	}
+	return result
+}
+
+func tail(runes []rune, n int) string {
+	start := len(runes) - n
+	for j := start; j > start-n/3 && j > 0; j-- {
+		if runes[j] == '\n' {
+			start = j + 1
+			break
+		}
+	}
+	return string(runes[start:])
+}
+
+func head(runes []rune, n int) string {
+	end := n
+	for j := end; j < end+n/3 && j < len(runes); j++ {
+		if runes[j] == '\n' {
+			end = j
+			break
+		}
+	}
+	return string(runes[:end])
+}
+
+// =============================================================================
+// normalizeText
 // =============================================================================
 
 func normalizeText(text string) string {
@@ -185,7 +207,6 @@ func normalizeText(text string) string {
 		}
 	}
 	text = strings.Join(lines, "\n")
-	// 全角→半角
 	runes := []rune(text)
 	for i, r := range runes {
 		switch {

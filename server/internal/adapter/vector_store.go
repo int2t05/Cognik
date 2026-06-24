@@ -208,11 +208,12 @@ func (s *PgvectorStore) CosineSearch(ctx context.Context, kbID int64, embedding 
 		topK = 100
 	}
 
-	query := `SELECT id, article_id, content, chunk_index,
-		1 - (embedding <=> $1::halfvec) AS score
-		FROM knowledge_chunks
-		WHERE kb_id = $2
-		ORDER BY embedding <=> $1::halfvec
+	query := `SELECT kc.id, kc.article_id, kc.content, kc.chunk_index,
+		1 - (kc.embedding <=> $1::halfvec) AS score
+		FROM knowledge_chunks kc
+		JOIN knowledge_articles ka ON ka.id = kc.article_id
+		WHERE kc.kb_id = $2 AND ka.status = 4
+		ORDER BY kc.embedding <=> $1::halfvec
 		LIMIT $3`
 
 	rows, err := s.db.QueryContext(ctx, query, float32ToPgVector(embedding), kbID, topK)

@@ -27,40 +27,35 @@ export default function ArticleEditPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [article]);
 
-  // 发布/启用后指数退避轮询：5s → 10s → 20s → 40s → 80s → 120s（此后每 120s），总上限 5 分钟
+  // 发布/启用后每 5s 轮询直到 process_status 变为 completed / failed
   const [polling, setPolling] = useState(false);
-  const pollTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const pollDelay = useRef(5000);
-  const pollStart = useRef(0);
+  const pollTimer = useRef<ReturnType<typeof setInterval>>(null);
 
   const startPolling = useCallback(() => {
     setPolling(true);
-    pollDelay.current = 5000;
-    pollStart.current = Date.now();
-  }, []);
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollTimer.current = setInterval(() => mutate(), 5000);
+  }, [mutate]);
+
+  // 进入页面时如果文章正在处理中，自动开启轮询
+  useEffect(() => {
+    if (!article) return;
+    const ps = article.process_status;
+    if (ps && ps !== 'completed' && ps !== 'failed' && !polling) {
+      startPolling();
+    }
+  }, [article, polling, startPolling]);
 
   useEffect(() => {
     if (!polling || !article) return;
     if (article.process_status === 'completed' || article.process_status === 'failed') {
       setPolling(false);
-      if (pollTimer.current) { clearTimeout(pollTimer.current); pollTimer.current = null; }
-      return;
+      if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
     }
-    // 总超时 5 分钟，超时后显示处理超时提示
-    if (Date.now() - pollStart.current > 300_000) {
-      setPolling(false);
-      if (pollTimer.current) { clearTimeout(pollTimer.current); pollTimer.current = null; }
-      return;
-    }
-    pollTimer.current = setTimeout(() => {
-      mutate();
-      pollDelay.current = Math.min(pollDelay.current * 2, 120_000); // 退避到 120s 后不变
-    }, pollDelay.current);
-    return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
-  }, [polling, article, mutate]);
+  }, [polling, article]);
 
   useEffect(() => {
-    return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
+    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
   }, []);
 
   const [editing, setEditing] = useState(false);

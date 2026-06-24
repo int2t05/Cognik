@@ -497,6 +497,15 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	}
 
 	pubKey := articleContentKey(article.Title)
+	formatted := formatArticleText(article.Title, content)
+
+	// 同步上传正文到 MinIO——消除 uploadMinioAsync 与发布之间的竞态，
+	// 确保处理器取任务时文件已就位（特别是标题变更导致 key 变化时）
+	if s.storage != nil {
+		if _, err := s.storage.Upload(ctx, minioBucketDocs, pubKey, strings.NewReader(formatted), int64(len(formatted)), "text/plain; charset=utf-8"); err != nil {
+			return errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文章正文失败: " + err.Error()}
+		}
+	}
 
 	// 更新文章状态（MinioPath 先指向临时桶，嵌入成功后再改指向已发布桶）
 	article.Status = model.ArticleStatusPublished
@@ -552,11 +561,8 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已发布状态可停用"}
 	}
 
-	if s.store != nil {
-		if err := s.store.DeleteByArticle(ctx, id); err != nil {
-			return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "删除向量失败: " + err.Error()}
-		}
-	}
+	// 停用时不删向量——保留以支持增量 embedding（重新发布时只需 embed 变更的分块）。
+	// 搜索侧通过 knowledge_articles.status = 4 过滤，停用文章不会出现在检索结果中。
 
 	// 停用：从已发布桶移回临时桶（保留一份文档）
 	s.moveMinioFile(minioBucketPublished, minioBucketDocs, articleContentKey(article.Title))
