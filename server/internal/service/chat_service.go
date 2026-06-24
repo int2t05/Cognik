@@ -38,6 +38,9 @@ type chatKnowledgeRepo interface {
 type chatSessionRepo interface {
 	Create(ctx context.Context, session *model.ChatSession) error
 	CreateBatch(ctx context.Context, messages []model.ChatMessage) error
+	CreateMessage(ctx context.Context, m *model.ChatMessage) error
+	UpdateMessage(ctx context.Context, m *model.ChatMessage) error
+	MarkGeneratingFailed(ctx context.Context) (int64, error)
 	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
 	FindMessageByID(ctx context.Context, messageID, sessionID int64) (*model.ChatMessage, error)
 	FindMessagesBySession(ctx context.Context, sessionID int64) ([]model.ChatMessage, error)

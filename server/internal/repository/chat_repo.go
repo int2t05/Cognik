@@ -117,6 +117,29 @@ func (r *ChatRepo) UpdateMessageFeedback(ctx context.Context, messageID int64, f
 		Update("feedback", feedback).Error
 }
 
+// CreateMessage 单条写入消息并回填自增 ID。
+// 为什么单写：可续传方案要在生成开始时先建一条 generating 的 assistant 消息，
+// 拿到 ID 后于完成时再 UpdateMessage 回填内容，区别于一次性 CreateBatch。
+func (r *ChatRepo) CreateMessage(ctx context.Context, m *model.ChatMessage) error {
+	return r.db.WithContext(ctx).Create(m).Error
+}
+
+// UpdateMessage 按主键全量更新一条消息（含 Status/Content/Sources 等）。
+func (r *ChatRepo) UpdateMessage(ctx context.Context, m *model.ChatMessage) error {
+	return r.db.WithContext(ctx).Model(&model.ChatMessage{ID: m.ID}).
+		Select("content", "sources", "pipeline_metrics", "confidence", "status").
+		Updates(m).Error
+}
+
+// MarkGeneratingFailed 将所有残留 generating 消息标记为 failed。
+// 为什么需要：内存 Hub 在服务重启后丢失进行中的生成，避免前端永久卡「生成中」。
+func (r *ChatRepo) MarkGeneratingFailed(ctx context.Context) (int64, error) {
+	res := r.db.WithContext(ctx).Model(&model.ChatMessage{}).
+		Where("status = ?", model.MessageStatusGenerating).
+		Update("status", model.MessageStatusFailed)
+	return res.RowsAffected, res.Error
+}
+
 func (r *ChatRepo) CountMessagesBySessions(ctx context.Context, sessionIDs []int64) (map[int64]int64, error) {
 	if len(sessionIDs) == 0 {
 		return map[int64]int64{}, nil
