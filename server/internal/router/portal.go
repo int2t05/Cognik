@@ -19,6 +19,8 @@ func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.GET("/chat-sessions/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.GetChatDetail }))
 	rg.DELETE("/chat-sessions/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.DeleteSession }))
 	rg.POST("/chat-sessions/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.StreamChatMessage }))
+	rg.GET("/chat-sessions/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.ResumeStream }))
+	rg.POST("/chat-sessions/:id/cancel", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.CancelGeneration }))
 	rg.POST("/chat-sessions/:id/feedback", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.SubmitFeedback }))
 	rg.POST("/chat-sessions/:id/messages/:msgId/feedback", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.SubmitMessageFeedback }))
 

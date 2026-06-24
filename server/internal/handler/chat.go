@@ -223,6 +223,7 @@ func writeSSEEvent(w gin.ResponseWriter, evt any) error {
 // POST /api/v1/portal/chat-sessions/:id/stream
 //
 // 与 CreateChatSession 配合：先创建会话，再通过此端点流式对话。
+// 生成已脱离本请求生命周期——客户端断开后生成继续运行，通过续传接口可重连。
 func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 	idStr := c.Param("id")
 	sessionID, err := strconv.ParseInt(idStr, 10, 64)
@@ -238,7 +239,65 @@ func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
-	ctx := c.Request.Context()
+
+	replay, ch, unsub, err := h.svc.StreamChat(c.Request.Context(), sessionID, req.Question, userID, req.RouteCount, req.RerankCount)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	writeStream(c, replay, ch, unsub)
+}
+
+// ResumeStream 续传进行中的生成（GET ?since=N）。
+//
+// GET /api/v1/portal/chat-sessions/:id/stream?since=N
+//
+// 用于页面刷新、网络中断后重新接上进行中的 SSE 流。
+// since 指定已收到的最大 Seq，Service 层负责过滤已发送事件。
+func (h *ChatHandler) ResumeStream(c *gin.Context) {
+	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的会话 ID")
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	since, _ := strconv.Atoi(c.DefaultQuery("since", "0"))
+
+	replay, ch, unsub, err := h.svc.ResumeStream(c.Request.Context(), sessionID, userID, since)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	writeStream(c, replay, ch, unsub)
+}
+
+// CancelGeneration 停止后端生成（POST）。
+//
+// POST /api/v1/portal/chat-sessions/:id/cancel
+//
+// 由前端取消按钮触发，真正中断 LLM 生成 goroutine。
+// 与客户端断开不同：断开不停止生成，取消会终止生成。
+func (h *ChatHandler) CancelGeneration(c *gin.Context) {
+	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的会话 ID")
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+
+	if err := h.svc.CancelGeneration(c.Request.Context(), sessionID, userID); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// writeStream 把订阅到的历史回放事件 + 实时事件写到 SSE 客户端。
+//
+// 客户端断开时通过 unsub 退订（不影响后端生成），由 c.Request.Context().Done() 感知断开。
+// 使用 http.NewResponseController 每次 flush 后延长写超时，避免长 SSE 流被 WriteTimeout 截断。
+func writeStream(c *gin.Context, replay []service.StreamEvent, ch <-chan service.StreamEvent, unsub func()) {
+	defer unsub()
 
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
@@ -246,31 +305,30 @@ func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 		return
 	}
 
-	// 设置 SSE 响应头
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 	c.Status(http.StatusOK)
 
-	eventCh, err := h.svc.StreamChat(ctx, sessionID, req.Question, userID, req.RouteCount, req.RerankCount)
-	if err != nil {
-		// SSE 头已发送，改用 SSE error 事件返回错误
-		writeSSEEvent(c.Writer, service.StreamEvent{Type: "error", Error: err.Error()})
-		flusher.Flush()
-		return
+	for _, evt := range replay {
+		_ = writeSSEEvent(c.Writer, evt)
 	}
+	flusher.Flush()
 
 	rc := http.NewResponseController(c.Writer)
-	for evt := range eventCh {
+	for {
 		select {
-		case <-ctx.Done():
-			return
-		default:
+		case <-c.Request.Context().Done():
+			return // 客户端断开：退订，生成继续
+		case evt, ok := <-ch:
+			if !ok {
+				return // 通道关闭：生成结束
+			}
+			_ = writeSSEEvent(c.Writer, evt)
+			flusher.Flush()
+			// 每次写入后延长写超时，保证长 SSE 流不被 WriteTimeout 截断
+			rc.SetWriteDeadline(time.Now().Add(30 * time.Second))
 		}
-		writeSSEEvent(c.Writer, evt)
-		flusher.Flush()
-		// 每次写入后延长写超时（300s = 5 分钟），适应 llama.cpp CPU 推理的长等待场景
-		rc.SetWriteDeadline(time.Now().Add(300 * time.Second))
 	}
 }
