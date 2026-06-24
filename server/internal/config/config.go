@@ -122,6 +122,8 @@ type AIConfig struct {
 	DefaultTopK         int     `mapstructure:"default_top_k"`
 	ConfidenceThreshold float64 `mapstructure:"confidence_threshold"`
 	MaxHistoryMessages  int     `mapstructure:"max_history_messages"`
+	ChunkSize           int     `mapstructure:"chunk_size"`    // 文本分块大小（字符数），默认 500
+	ChunkOverlap        int     `mapstructure:"chunk_overlap"` // 分块重叠大小（字符数），默认 100
 	RAGQueryRewrite     bool    `mapstructure:"rag_query_rewrite"`
 	RAGMultiRoute       bool    `mapstructure:"rag_multi_route"`
 	RAGHybrid           bool    `mapstructure:"rag_hybrid"`
@@ -359,12 +361,14 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("embedding.api_key", "")
 	v.SetDefault("embedding.model", "") // 无默认值，必须通过环境变量或 LLM 配置指定
 	v.SetDefault("embedding.dimension", 1024)
-	v.SetDefault("embedding.timeout", "30s")
+	v.SetDefault("embedding.timeout", "300s")
 
 	// AI
 	v.SetDefault("ai.default_top_k", 5)
 	v.SetDefault("ai.confidence_threshold", 0.6)
 	v.SetDefault("ai.max_history_messages", 10)
+	v.SetDefault("ai.chunk_size", 500)
+	v.SetDefault("ai.chunk_overlap", 100)
 	v.SetDefault("ai.rag_query_rewrite", true)
 	v.SetDefault("ai.rag_multi_route", true)
 	v.SetDefault("ai.rag_hybrid", true)

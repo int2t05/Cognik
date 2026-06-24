@@ -851,7 +851,7 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 仅编辑草稿状态文章成功
+- [x] 仅编辑草稿状态文章成功
 
 ### 8.5 提交审核
 
@@ -864,8 +864,8 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 文章状态变为「待审核(2)」
+- [x] 返回 `code=0`
+- [x] 文章状态变为「待审核(2)」
 
 ### 8.6 审核操作
 
@@ -962,11 +962,11 @@ Authorization: Bearer <knowledge_token>
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 文章状态变为「已发布(4)」
-- [ ] `chunk_count` > 0（已生成分块和向量）
-- [ ] 文章详情中 `chunks` 数组非空
-- [ ] `published_by` 记录了发布人
+- [x] 返回 `code=0`
+- [x] 文章状态变为「已发布(4)」
+- [x] `chunk_count` > 0（已生成分块和向量）
+- [x] 文章详情中 `chunks` 数组非空
+- [x] `published_by` 记录了发布人
 
 > **注意：** 发布操作会调用 Embedding API 生成向量并写入 pgvector。如果 Embedding 服务不可用，发布将失败（`code=20001`）。
 
@@ -979,9 +979,9 @@ Authorization: Bearer <knowledge_token>
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 文章状态变为「已停用(0)」
-- [ ] 文章详情中 `chunks` 为空（向量已清除）
+- [x] 返回 `code=0`
+- [x] 文章状态变为「已停用(0)」
+- [x] 文章详情中 `chunks` 为空（向量已清除）
 
 ```http
 POST /api/v1/admin/articles/1/enable
@@ -990,9 +990,9 @@ Authorization: Bearer <knowledge_token>
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 文章状态恢复为「已发布(4)」
-- [ ] `chunks` 重新生成（向量已重建）
+- [x] 返回 `code=0`
+- [x] 文章状态恢复为「已发布(4)」
+- [x] `chunks` 重新生成（向量已重建）
 
 ### 8.10 完整状态机校验
 
@@ -1510,8 +1510,8 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 6 个预置用户
-- [ ] 含角色信息和状态
+- [x] 返回 6 个预置用户
+- [x] 含角色信息和状态
 
 ### 12.2 创建新用户
 
@@ -1602,7 +1602,7 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 4 个预置角色，含权限列表
+- [x] 返回 4 个预置角色，含权限列表
 
 ---
 

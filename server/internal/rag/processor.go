@@ -25,8 +25,8 @@ import (
 	"opsmind/internal/adapter"
 )
 
-// defaultTaskTimeout 单个任务最大处理时长（10 分钟）。
-const defaultTaskTimeout = 10 * time.Minute
+// defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。
+const defaultTaskTimeout = 5 * time.Minute
 
 // =============================================================================
 // ProcessTask — 处理任务

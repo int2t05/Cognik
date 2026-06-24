@@ -115,6 +115,10 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
     ports:
       - "8081:8081"
     volumes:
@@ -147,6 +151,10 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp-emb
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "12"
     ports:
       - "8082:8082"
     volumes:
@@ -161,11 +169,11 @@ services:
       - "--n-gpu-layers"
       - "0"
       - "--threads"
-      - "6"
+      - "1"
       - "--ctx-size"
-      - "2048"
-      - "--batch-size"
       - "512"
+      - "--batch-size"
+      - "64"
       - "--embeddings"
       - "--parallel"
       - "1"

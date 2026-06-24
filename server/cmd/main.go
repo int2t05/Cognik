@@ -218,7 +218,7 @@ func wireApp() (*app, error) {
 	// RAG 引擎组件
 	embedder := rag.NewEmbedder(embeddingClient, 5)
 	docParser := rag.NewDocParser()
-	chunker := rag.NewChunker(500, 100)
+	chunker := rag.NewChunker(cfg.AI.ChunkSize, cfg.AI.ChunkOverlap)
 
 	// 向量检索器仅当 vectorStore 可用时创建
 	var vectorRetriever *rag.VectorRetriever
