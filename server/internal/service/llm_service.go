@@ -34,6 +34,7 @@ type ragPipeline interface {
 // StreamEvent 流式响应中的单个事件，JSON 标签对应 SSE 线格式。
 type StreamEvent struct {
 	Type     string          `json:"type"`               // "step" | "token" | "done" | "error"
+	Seq      int             `json:"seq"`                // 生成内单调递增序号，用于断点续传去重
 	Content  string          `json:"content,omitempty"`  // token 文本（type=token）
 	ID       string          `json:"id,omitempty"`        // 步骤标识（type=step）
 	Label    string          `json:"label,omitempty"`     // 步骤显示名（type=step）
