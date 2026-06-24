@@ -56,6 +56,7 @@ ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS synced_at;
 
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS kb_id        bigint NOT NULL DEFAULT 0;
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS chunk_index  bigint NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS chunk_hash   varchar(64);
 
 -- embedding 列：halfvec(1024) — 由 VectorStore 适配器通过 SQL 管理，不走 GORM
 DO $$
@@ -71,27 +72,26 @@ END $$;
 COMMENT ON COLUMN knowledge_chunks.embedding IS 'halfvec 半精度向量（1024 维），pgvector 余弦相似度检索';
 
 -- llm_configs：LLM/Embedding 提供商配置
--- 注意：GORM AutoMigrate 使用 bigint 而非 integer，本 CREATE 仅在表不存在时生效
+-- 注意：GORM AutoMigrate 使用 bigint，本 CREATE 仅在表不存在时生效
 CREATE TABLE IF NOT EXISTS llm_configs (
-    id                bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name              varchar(128) NOT NULL,
-    provider_type     smallint NOT NULL DEFAULT 1,
-    base_url          varchar(512) NOT NULL,
+    id                 bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name               varchar(128) NOT NULL,
+    llm_base_url       varchar(512) DEFAULT '',
+    llm_api_key        varchar(512),
     embedding_base_url varchar(512),
-    api_key           varchar(512),
-    llm_model         varchar(128) NOT NULL,
-    embedding_model   varchar(128) NOT NULL,
-    system_prompt     text,
-    max_tokens        bigint NOT NULL DEFAULT 8192,
-    vector_dimension  bigint NOT NULL DEFAULT 1024,
-    is_default        boolean NOT NULL DEFAULT false,
-    created_at        timestamptz NOT NULL DEFAULT now(),
-    updated_at        timestamptz NOT NULL DEFAULT now()
+    embedding_api_key  varchar(512),
+    llm_model          varchar(128) NOT NULL,
+    embedding_model    varchar(128) NOT NULL,
+    system_prompt      text,
+    max_tokens         bigint NOT NULL DEFAULT 8192,
+    vector_dimension   bigint NOT NULL DEFAULT 1024,
+    is_default         boolean NOT NULL DEFAULT false,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE llm_configs IS 'LLM/Embedding 提供商配置';
-COMMENT ON COLUMN llm_configs.provider_type IS '1=llama.cpp, 2=OpenAI-compatible';
-COMMENT ON COLUMN llm_configs.api_key IS 'AES-256 加密存储';
+COMMENT ON COLUMN llm_configs.llm_api_key IS 'AES-256 加密存储';
 COMMENT ON COLUMN llm_configs.vector_dimension IS 'Qwen3-Embedding=1024, text-embedding-3-small=1536';
 COMMENT ON COLUMN llm_configs.is_default IS '默认配置，最多一条为 true';
 

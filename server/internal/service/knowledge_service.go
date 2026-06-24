@@ -339,6 +339,7 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 	oldTitle := article.Title
 	article.Title = req.Title
 	article.Content = req.Content
+	article.WordCount = len([]rune(req.Content))
 	article.Category = req.Category
 	article.Tags = marshalTags(req.Tags)
 	// 停用状态编辑后回到草稿，可重新走审核→发布流程
@@ -523,6 +524,9 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 	go s.deleteMinioFile(context.Background(), minioBucketPublished, articleContentKey(article.Title))
 
 	article.Status = model.ArticleStatusDisabled
+	article.ChunkCount = 0
+	article.ProcessStatus = ""
+	article.ProcessError = ""
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}

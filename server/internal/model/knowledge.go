@@ -39,7 +39,6 @@ type KnowledgeArticle struct {
 	MinioPath       string         `gorm:"type:varchar(512);column:minio_path" json:"minio_path"`
 	ProcessStatus   string         `gorm:"type:varchar(16);not null;default:pending;column:process_status;index:idx_articles_process_status" json:"process_status"`
 	ProcessError    string         `gorm:"type:text;column:process_error" json:"process_error"`
-	ContentHash     string         `gorm:"type:varchar(64);column:content_hash" json:"content_hash"` // SHA256，增量更新比对
 	CreatedBy       int64          `gorm:"column:created_by" json:"created_by"`
 	ReviewedBy      *int64         `gorm:"column:reviewed_by" json:"reviewed_by"`
 	PublishedBy     *int64         `gorm:"column:published_by" json:"published_by"`
