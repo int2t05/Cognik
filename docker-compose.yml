@@ -128,12 +128,14 @@ services:
       - "8081"
       - "--n-gpu-layers"
       - "0"
+      - "--threads"
+      - "4"
       - "--ctx-size"
-      - "8192"
+      - "4096"
       - "--flash-attn"
       - "on"
       - "--parallel"
-      - "2"
+      - "1"
     networks:
       - opsmind
     profiles:
@@ -158,11 +160,15 @@ services:
       - "8082"
       - "--n-gpu-layers"
       - "0"
+      - "--threads"
+      - "6"
       - "--ctx-size"
-      - "4096"
+      - "2048"
+      - "--batch-size"
+      - "512"
       - "--embeddings"
       - "--parallel"
-      - "2"
+      - "1"
     networks:
       - opsmind
     profiles:

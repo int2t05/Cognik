@@ -13,7 +13,8 @@ import { getAppName } from '@/lib/config/defaults';
 export function DynamicTitle() {
   const { data } = useSWR('public-app-name-title', () => getPublicConfig('app_name'), {
     revalidateOnFocus: true,
-    dedupingInterval: 30_000,
+    refreshInterval: 900_000, // 15 分钟轮询
+    dedupingInterval: 300_000,
   });
 
   useEffect(() => {

@@ -27,6 +27,7 @@ const ARTICLE_STATUS: Record<number, { label: string; variant: BadgeVariant }> =
 
 const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
   pending: { label: '等待中', variant: 'neutral' },
+  processing: { label: '处理中', variant: 'info' },
   parsing: { label: '解析中', variant: 'info' },
   chunking: { label: '分块中', variant: 'info' },
   embedding: { label: '向量化', variant: 'info' },

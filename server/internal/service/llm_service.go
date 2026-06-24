@@ -354,7 +354,7 @@ func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64
 // history 按滑动窗口截断（maxHistoryMessages 控制），避免长对话超出上下文窗口。
 // 系统提示词优先使用 LLM 配置中的 SystemPrompt，为空时回退到默认提示词。
 func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string, history []adapter.ChatMessage) []adapter.ChatMessage {
-	systemPrompt := "你是一个运维知识助手。根据以下知识库内容回答用户问题。如果知识库中没有相关信息，请如实说明。"
+	systemPrompt := "你是一个运维知识助手。根据以下知识库内容回答用户问题。如果知识库中没有相关信息，请如实说明。回答时引用知识库内容必须使用 [编号] 标注来源，例如 [1]、[2]。"
 	if s.configMgr != nil {
 		if cfg := s.configMgr.GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
 			systemPrompt = cfg.SystemPrompt
@@ -362,7 +362,7 @@ func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string
 	}
 	var ctxBuilder strings.Builder
 	for i, chunk := range chunks {
-		ctxBuilder.WriteString(fmt.Sprintf("【参考资料 %d】%s\n", i+1, chunk.Content))
+		ctxBuilder.WriteString(fmt.Sprintf("[%d] %s\n", i+1, chunk.Content))
 	}
 
 	msgs := []adapter.ChatMessage{

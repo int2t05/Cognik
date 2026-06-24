@@ -1,6 +1,6 @@
 'use client';
 import useSWR from 'swr';
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -18,6 +18,37 @@ export default function ArticleEditPage() {
   const router = useRouter();
   const toast = useToast();
   const { data: article, error, mutate } = useSWR(`article-${articleId}`, () => getArticle(Number(articleId)));
+  // 上传后 ?edit=1 → 自动进入编辑模式
+  useEffect(() => {
+    if (!article || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('edit') === '1' && [0, 1, 5].includes(article.status)) {
+      startEdit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [article]);
+
+  // 发布/启用后每 3s 轮询直到 process_status 变为 completed / failed
+  const [polling, setPolling] = useState(false);
+  const pollTimer = useRef<ReturnType<typeof setInterval>>(null);
+
+  const startPolling = useCallback(() => {
+    setPolling(true);
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollTimer.current = setInterval(() => mutate(), 3000);
+  }, [mutate]);
+
+  useEffect(() => {
+    if (!polling || !article) return;
+    if (article.process_status === 'completed' || article.process_status === 'failed') {
+      setPolling(false);
+      if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
+    }
+  }, [polling, article]);
+
+  useEffect(() => {
+    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
+  }, []);
+
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -26,10 +57,11 @@ export default function ArticleEditPage() {
   const [disableConfirm, setDisableConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(false);
 
+  const [tags, setTags] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
-  const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setEditing(true); } };
-  const handleSave = async () => { setEditSaving(true); try { await updateArticle(Number(articleId), { title, content }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } finally { setEditSaving(false); } };
+  const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setTags((article.tags || []).join(',')); setEditing(true); } };
+  const handleSave = async () => { setEditSaving(true); try { const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean); await updateArticle(Number(articleId), { title, content, tags: tagList }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } finally { setEditSaving(false); } };
   const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
@@ -52,9 +84,9 @@ export default function ArticleEditPage() {
         <div className="flex gap-2 flex-wrap">
           {article.status === 1 && <AppleButton icon={<Send />} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')} loading={processing}>提交审核</AppleButton>}
           {article.status === 2 && <><AppleButton icon={<CheckCircle />} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')} loading={processing}>通过</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }} loading={processing}>驳回</AppleButton></>}
-          {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
+          {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
           {article.status === 4 && <AppleButton variant="utility" icon={<Pause />} onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
-          {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(() => enableArticle(Number(articleId)), '已启用')} loading={processing}>启用</AppleButton>}
+          {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); startPolling(); }, '已启用')} loading={processing}>启用</AppleButton>}
           {(article.status === 0 || article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
           <AppleButton variant="danger" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(true)} />
         </div>
@@ -66,6 +98,7 @@ export default function ArticleEditPage() {
         <AppleCard className="mb-4">
           <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
           <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
+          <AppleInput label="标签（逗号分隔）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
           <div className="flex gap-2"><AppleButton icon={<CheckCircle />} onClick={handleSave} loading={editSaving}>保存</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => setEditing(false)}>取消</AppleButton></div>
         </AppleCard>
       ) : (

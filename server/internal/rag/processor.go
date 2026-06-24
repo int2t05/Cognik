@@ -101,34 +101,28 @@ func NewProcessor(parser *DocParser, chunker *Chunker, embedder *Embedder, store
 	return p
 }
 
-// Submit 提交处理任务（非阻塞）。
-//
-// Stop 后返回错误（stopped 标志位 + recover 双重防护）。
+// Submit 提交处理任务（非阻塞）。Stop 后或队列满时返回错误。
 func (p *Processor) Submit(task ProcessTask) (err error) {
-	if p.stopped.Load() {
+	notifyFailed := func(msg string) {
 		if task.OnStatusChange != nil {
-			task.OnStatusChange(task.ArticleID, "failed", "处理器已关闭")
+			task.OnStatusChange(task.ArticleID, "failed", msg)
 		}
+	}
+	if p.stopped.Load() {
+		notifyFailed("处理器已关闭")
 		return fmt.Errorf("处理器已关闭")
 	}
-
-	// recover 防护：万一 taskCh 已被关闭（极端并发场景）
 	defer func() {
 		if r := recover(); r != nil {
+			notifyFailed("处理器已关闭")
 			err = fmt.Errorf("处理器已关闭")
-			if task.OnStatusChange != nil {
-				task.OnStatusChange(task.ArticleID, "failed", "处理器已关闭")
-			}
 		}
 	}()
-
 	select {
 	case p.taskCh <- task:
 		return nil
 	default:
-		if task.OnStatusChange != nil {
-			task.OnStatusChange(task.ArticleID, "failed", "处理队列已满")
-		}
+		notifyFailed("处理队列已满")
 		return fmt.Errorf("处理队列已满")
 	}
 }
@@ -175,54 +169,83 @@ func (p *Processor) processWithRecovery(workerID int, task ProcessTask) {
 	p.processTask(ctx, task)
 }
 
-// processTask 处理单个文档的完整流程。
-//
-// 在各阶段之间检查 ctx 是否已取消，及时释放 worker 资源。
+// chunkWithHash 分块文本及其 SHA256 哈希。
+type chunkWithHash struct {
+	text string
+	hash string
+}
+
+// resolveContent 获取任务正文——MinIO 路径下载解析，或直接用纯文本。
+func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (string, error) {
+	if task.Bucket == "" || task.Key == "" {
+		return task.Content, nil
+	}
+	if p.storage == nil {
+		return "", fmt.Errorf("StorageClient 未初始化")
+	}
+	reader, err := p.storage.Download(ctx, task.Bucket, task.Key)
+	if err != nil {
+		return "", fmt.Errorf("从 MinIO 下载文件失败: %w", err)
+	}
+	defer reader.Close()
+
+	fileType := task.FileType
+	if fileType == "" {
+		if idx := strings.LastIndex(task.Key, "."); idx >= 0 {
+			fileType = task.Key[idx+1:]
+		}
+	}
+	return p.parser.Parse(reader, fileType)
+}
+
+// loadOldEmbeddings 查询旧分块 snapshot，构建 hash→向量映射以复用未变 chunk。
+func (p *Processor) loadOldEmbeddings(ctx context.Context, articleID int64) map[string][]float32 {
+	old := map[string][]float32{}
+	snapshots, err := p.store.GetChunkSnapshots(ctx, articleID)
+	if err != nil {
+		slog.Warn("查询旧分块快照失败，回退到全量 embedding", "article_id", articleID, "error", err)
+		return old
+	}
+	for _, ss := range snapshots {
+		if ss.ChunkHash == "" || ss.EmbeddingText == "" {
+			continue
+		}
+		emb, err := adapter.ParsePgVectorText(ss.EmbeddingText)
+		if err != nil {
+			slog.Warn("解析旧 embedding 失败，跳过该分块", "article_id", articleID, "chunk_hash", ss.ChunkHash, "error", err)
+			continue
+		}
+		old[ss.ChunkHash] = emb
+	}
+	return old
+}
+
+// computeHashes 为分块计算跨文章唯一的 SHA256 哈希。
+func computeHashes(articleID int64, chunks []string) []chunkWithHash {
+	result := make([]chunkWithHash, len(chunks))
+	for i, c := range chunks {
+		result[i] = chunkWithHash{text: c, hash: fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d:%s", articleID, c))))}
+	}
+	return result
+}
+
+// processTask 处理单个文档的完整流程：获取正文 → 分块 → 增量 embedding → 写入 pgvector。
 func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 	articleID := task.ArticleID
 
-	// 入口检查
-	if ctx.Err() != nil {
-		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
+	// 1. 获取正文
+	p.updateStatus(task, "parsing", "")
+	content, err := p.resolveContent(ctx, task)
+	if err != nil {
+		p.updateStatus(task, "failed", err.Error())
+		return
+	}
+	if strings.TrimSpace(content) == "" {
+		p.updateStatus(task, "failed", "文档内容为空")
 		return
 	}
 
-	var content string
-	p.updateStatus(task, "parsing", "")
-	if task.Bucket != "" && task.Key != "" {
-		if p.storage == nil {
-			p.updateStatus(task, "failed", "StorageClient 未初始化，无法下载 MinIO 文件")
-			return
-		}
-		reader, err := p.storage.Download(ctx, task.Bucket, task.Key)
-		if err != nil {
-			p.updateStatus(task, "failed", fmt.Sprintf("从 MinIO 下载文件失败: %v", err))
-			return
-		}
-		defer reader.Close()
-
-		fileType := task.FileType
-		if fileType == "" {
-			if idx := strings.LastIndex(task.Key, "."); idx >= 0 {
-				fileType = task.Key[idx+1:]
-			}
-		}
-
-		parsed, err := p.parser.Parse(reader, fileType)
-		if err != nil {
-			p.updateStatus(task, "failed", fmt.Sprintf("文档解析失败: %v", err))
-			return
-		}
-		if strings.TrimSpace(parsed) == "" {
-			p.updateStatus(task, "failed", "文档内容为空")
-			return
-		}
-		content = parsed
-	} else {
-		content = task.Content
-	}
-
-	// 阶段 2: 分块
+	// 2. 分块
 	if ctx.Err() != nil {
 		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
 		return
@@ -237,46 +260,21 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 		task.OnMetrics(articleID, len([]rune(content)), len(chunks))
 	}
 
-	// 增量比对：查询旧分块 snapshot，构建 hash→embedding 映射以复用未变 chunk 的向量。
-	oldEmbeddings := map[string][]float32{}
-	if snapshots, err := p.store.GetChunkSnapshots(ctx, articleID); err != nil {
-		slog.Warn("查询旧分块快照失败，回退到全量 embedding", "article_id", articleID, "error", err)
-	} else {
-		for _, ss := range snapshots {
-			if ss.ChunkHash == "" || ss.EmbeddingText == "" {
-				continue
-			}
-			emb, err := adapter.ParsePgVectorText(ss.EmbeddingText)
-			if err != nil {
-				slog.Warn("解析旧 embedding 文本失败，跳过该分块", "article_id", articleID, "chunk_hash", ss.ChunkHash, "error", err)
-				continue
-			}
-			oldEmbeddings[ss.ChunkHash] = emb
-		}
-	}
+	// 3. 增量比对：计算 hash → 分离需 embedding 的变更分块
+	oldEmbeddings := p.loadOldEmbeddings(ctx, articleID)
+	allChunks := computeHashes(articleID, chunks)
 
-	// 阶段 3: 计算新分块 hash 并分离变更/未变更
-	type chunkWithHash struct {
-		text string
-		hash string
-	}
-	allChunks := make([]chunkWithHash, len(chunks))
-	for i, chunk := range chunks {
-		allChunks[i] = chunkWithHash{text: chunk, hash: fmt.Sprintf("%x", sha256.Sum256([]byte(chunk)))}
-	}
-
-	// 分离需 embedding 的新/变更分块 vs 可复用的未变更分块
 	var changedIndices []int
 	var changedTexts []string
 	for i, ch := range allChunks {
 		if _, ok := oldEmbeddings[ch.hash]; ok {
-			continue // 未变更，复用旧 embedding
+			continue
 		}
 		changedIndices = append(changedIndices, i)
 		changedTexts = append(changedTexts, ch.text)
 	}
 
-	// 阶段 4: Embedding（仅变更的分块）
+	// 4. Embedding（仅变更分块）
 	var newVectors [][]float32
 	if len(changedTexts) > 0 {
 		if ctx.Err() != nil {
@@ -284,8 +282,7 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 			return
 		}
 		p.updateStatus(task, "embedding", "")
-		var err error
-		newVectors, _, err = p.embedder.Embed(ctx, changedTexts)
+		newVectors, _, err = p.embedder.Embed(ctx, changedTexts, task.EmbeddingModel)
 		if err != nil {
 			p.updateStatus(task, "failed", fmt.Sprintf("embedding 失败: %v", err))
 			return
@@ -299,43 +296,34 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 		slog.Debug("全部 chunk 未变更，跳过 embedding", "article_id", articleID, "total", len(chunks))
 	}
 
-	// 构建变更索引→新向量的映射
 	changedVecMap := make(map[int][]float32, len(changedIndices))
 	for j, idx := range changedIndices {
 		changedVecMap[idx] = newVectors[j]
 	}
 
-	// 阶段 5: 写入 pgvector（ReplaceVectors 原子替换，避免重复 chunk 累积）
+	// 5. 写入 pgvector
 	p.updateStatus(task, "indexing", "")
 	vc := make([]adapter.VectorChunk, len(chunks))
 	for i, ch := range allChunks {
 		var emb []float32
 		if v, ok := changedVecMap[i]; ok {
-			emb = v // 新 embedding
+			emb = v
 		} else if v, ok := oldEmbeddings[ch.hash]; ok {
-			emb = v // 复用旧 embedding
+			emb = v
 		} else {
-			// 理论不应到达：hash 不在 oldEmbeddings 也不在 changedVecMap
 			p.updateStatus(task, "failed", fmt.Sprintf("chunk %d (%s) 无可用 embedding", i, ch.hash[:16]))
 			return
 		}
 		vc[i] = adapter.VectorChunk{
-			ArticleID:       articleID,
-			KBID:            task.KBID,
-			Content:         ch.text,
-			ChunkIndex:      i,
-			Embedding:       emb,
-			EmbeddingModel:  task.EmbeddingModel,
-			VectorDimension: len(emb),
-			ChunkHash:       ch.hash,
+			ArticleID: articleID, KBID: task.KBID, Content: ch.text, ChunkIndex: i,
+			Embedding: emb, EmbeddingModel: task.EmbeddingModel,
+			VectorDimension: len(emb), ChunkHash: ch.hash,
 		}
 	}
-
 	if err := p.store.ReplaceVectors(ctx, articleID, vc); err != nil {
 		p.updateStatus(task, "failed", fmt.Sprintf("写入向量失败: %v", err))
 		return
 	}
-
 	p.updateStatus(task, "completed", "")
 }
 

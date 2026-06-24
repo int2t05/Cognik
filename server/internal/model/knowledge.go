@@ -29,7 +29,6 @@ type KnowledgeArticle struct {
 	KnowledgeBase   KnowledgeBase  `gorm:"foreignKey:KBID;references:ID" json:"knowledge_base,omitempty"`
 	Title           string         `gorm:"type:varchar(255);not null;column:title" json:"title"`
 	Content         string         `gorm:"type:text;not null;column:content" json:"content"`
-	Category        string         `gorm:"type:varchar(64)" json:"category"`
 	Tags            datatypes.JSON `gorm:"type:jsonb" json:"tags"`
 	Status          int16          `gorm:"not null;default:1;index:idx_articles_status" json:"status"`
 	SourceType      int16          `gorm:"not null;default:1;column:source_type" json:"source_type"`

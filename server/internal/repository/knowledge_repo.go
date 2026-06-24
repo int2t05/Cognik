@@ -97,7 +97,7 @@ func (r *KnowledgeRepo) UpdateArticle(ctx context.Context, article *model.Knowle
 	return r.db.WithContext(ctx).Save(article).Error
 }
 
-func (r *KnowledgeRepo) ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, page, pageSize int) ([]model.KnowledgeArticle, int64, error) {
+func (r *KnowledgeRepo) ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, keyword string, page, pageSize int) ([]model.KnowledgeArticle, int64, error) {
 	var articles []model.KnowledgeArticle
 	var total int64
 
@@ -110,6 +110,9 @@ func (r *KnowledgeRepo) ListArticles(ctx context.Context, kbID int64, status int
 	}
 	if processStatus != "" {
 		query = query.Where("process_status = ?", processStatus)
+	}
+	if keyword != "" {
+		query = query.Where("(title ILIKE ? OR tags::text ILIKE ?)", "%"+keyword+"%", "%"+keyword+"%")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -145,6 +148,32 @@ func (r *KnowledgeRepo) UpdateArticleStatusCAS(ctx context.Context, id int64, ex
 	return res.RowsAffected, res.Error
 }
 
+// UpdateArticleMinioPath 仅更新 minio_path（嵌入成功后回调使用，避免 Save 脏写）。
+func (r *KnowledgeRepo) UpdateArticleMinioPath(ctx context.Context, id int64, path string) error {
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).
+		Update("minio_path", path).Error
+}
+
+// UpdateArticleDisable 停用文章——状态置零 + 清除分块和处理状态。
+func (r *KnowledgeRepo) UpdateArticleDisable(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":         0,
+		"chunk_count":    0,
+		"process_status": "",
+		"process_error":  "",
+	}).Error
+}
+
+// UpdateArticleReview 仅更新审核相关字段（精确更新，不触及其他列）。
+func (r *KnowledgeRepo) UpdateArticleReview(ctx context.Context, id int64, status int, reviewerID int64, reviewComment string) error {
+	updates := map[string]interface{}{
+		"status":         status,
+		"reviewed_by":    reviewerID,
+		"review_comment": reviewComment,
+	}
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(updates).Error
+}
+
 func (r *KnowledgeRepo) UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error {
 	updates := map[string]interface{}{
 		"process_status": processStatus,
@@ -160,6 +189,20 @@ func (r *KnowledgeRepo) UpdateArticleMetrics(ctx context.Context, id int64, word
 		"word_count":  wordCount,
 		"chunk_count": chunkCount,
 	}).Error
+}
+
+// ExistsByTitle 检查同 KB 下是否已存在相同标题的文章。
+func (r *KnowledgeRepo) ExistsByTitle(ctx context.Context, kbID int64, title string, excludeID int64) (bool, error) {
+	var count int64
+	q := r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).
+		Where("kb_id = ? AND title = ?", kbID, title)
+	if excludeID > 0 {
+		q = q.Where("id != ?", excludeID)
+	}
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // DeleteArticle 删除文章（含关联的 knowledge_chunks 向量数据）。

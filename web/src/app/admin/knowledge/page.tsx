@@ -31,7 +31,7 @@ export default function KnowledgeListPage() {
     setSaving(true);
     try {
       if (editId) { await updateKB(editId, { name: kbName, description: kbDesc }); toast.success('已更新'); }
-      else { await createKB({ name: kbName, description: kbDesc, embedding_model: 'bge-m3', vector_dimension: 1024 }); toast.success('已创建'); }
+      else { await createKB({ name: kbName, description: kbDesc }); toast.success('已创建'); }
       setShowCreate(false); setEditId(null); setKbName(''); setKbDesc('');
       mutate();
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }

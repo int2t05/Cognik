@@ -24,16 +24,14 @@ type CreateArticleRequest struct {
 	Title      string   `json:"title" binding:"required"`
 	Content    string   `json:"content" binding:"required"`
 	SourceType int16    `json:"source_type"`
-	Category   string   `json:"category"`
 	Tags       []string `json:"tags"`
 }
 
 // UpdateArticleRequest 更新知识文章请求。
 type UpdateArticleRequest struct {
-	Title    string   `json:"title" binding:"required"`
-	Content  string   `json:"content" binding:"required"`
-	Category string   `json:"category"`
-	Tags     []string `json:"tags"`
+	Title   string   `json:"title" binding:"required"`
+	Content string   `json:"content" binding:"required"`
+	Tags    []string `json:"tags"`
 }
 
 // ReviewRequest 审核知识文章请求。

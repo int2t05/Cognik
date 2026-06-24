@@ -418,11 +418,11 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`，`access_token` 和 `refresh_token` 非空
-- [ ] `user.real_name` = "系统管理员"
-- [ ] `roles` 包含 "系统管理员"
-- [ ] `permissions` 包含 `user:manage`、`ticket:manage`、`knowledge:manage` 等
-- [ ] `menus` 返回 8 个菜单项
+- [x] 返回 `code=0`，`access_token` 和 `refresh_token` 非空
+- [x] `user.real_name` = "系统管理员"
+- [x] `roles` 包含 "系统管理员"
+- [x] `permissions` 包含 `user:manage`、`ticket:manage`、`knowledge:manage` 等
+- [x] `menus` 返回 8 个菜单项
 
 **异常测试：**
 
@@ -446,8 +446,8 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回新的 `access_token` 和 `refresh_token`
-- [ ] 旧 `refresh_token` 失效（再次使用返回 10001）
+- [x] 返回新的 `access_token` 和 `refresh_token`
+- [x] 旧 `refresh_token` 失效（再次使用返回 10001）
 
 ### 5.3 修改密码
 
@@ -464,9 +464,9 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 使用旧密码登录返回 10003
-- [ ] 使用新密码登录成功
+- [x] 返回 `code=0`
+- [x] 使用旧密码登录返回 10003
+- [x] 使用新密码登录成功
 
 > **测试完成后请改回原密码 `Admin@123`，以免影响后续测试。**
 
@@ -493,8 +493,8 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 登出后 refresh_token 被拉黑，刷新返回 10001
+- [x] 返回 `code=0`
+- [x] 登出后 refresh_token 被拉黑，刷新返回 10001
 
 ### 5.5 权限校验
 
@@ -507,7 +507,7 @@ Authorization: Bearer <reporter1_token>
 
 **验证点：**
 
-- [ ] 返回 `code=10002`（无权限）
+- [x] 返回 `code=10002`（无权限）
 
 ---
 
@@ -524,9 +524,9 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 3 条预置配置
-- [ ] ID=1 的配置 `is_default=true`，`provider_type=1`（llama.cpp）
-- [ ] ID=2 的配置 `is_default=false`，`provider_type=2`（OpenAI）
+- [x] 返回 3 条预置配置
+- [x] ID=1 的配置 `is_default=true`，`provider_type=1`（llama.cpp）
+- [x] ID=2 的配置 `is_default=false`，`provider_type=2`（OpenAI）
 
 ### 6.2 查看配置详情
 
@@ -537,7 +537,7 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] `api_key` 掩码显示（空字符串或 `****`）
+- [x] `api_key` 掩码显示（空字符串或 `****`）
 
 ### 6.3 测试连接
 
@@ -548,8 +548,8 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 若 LLM 服务可用：`code=0`，`success=true`，含 `latency_ms` 和 `model`
-- [ ] 若 LLM 服务不可用：`code=20001`，message 包含错误原因
+- [x] 若 LLM 服务可用：`code=0`，`success=true`，含 `latency_ms` 和 `model`
+- [x] 若 LLM 服务不可用：`code=20001`，message 包含错误原因
 
 ### 6.4 创建新配置
 
@@ -573,8 +573,8 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`，含新配置 ID
-- [ ] 列表中可见新配置（3 条）
+- [x] 返回 `code=0`，含新配置 ID
+- [x] 列表中可见新配置（3 条）
 
 ### 6.5 设为默认 — 热替换
 
@@ -598,8 +598,8 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 重新查看列表，ID=3 的 `is_default=true`，ID=1 的 `is_default=false`
+- [x] 返回 `code=0`
+- [x] 重新查看列表，ID=3 的 `is_default=true`，ID=1 的 `is_default=false`
 
 > **测试完成后将 ID=1 改回默认：** PUT `/api/v1/admin/llm-configs/1`，`is_default: true`
 
@@ -612,12 +612,12 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 列表中恢复为 2 条
+- [x] 返回 `code=0`
+- [x] 列表中恢复为 2 条
 
 **异常测试：** 尝试删除默认配置（ID=1）
 
-- [ ] 返回 `code=10003`，message 包含「不能删除默认配置」
+- [x] 返回 `code=10003`，message 包含「不能删除默认配置」
 
 ### 6.7 更新配置
 
@@ -641,8 +641,8 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] 详情中 `name` 已更新，`api_key` 保留原值（不传 `api_key` 不清空）
+- [x] 返回 `code=0`
+- [x] 详情中 `name` 已更新，`api_key` 保留原值（不传 `api_key` 不清空）
 
 ---
 
@@ -688,12 +688,12 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 两次创建均返回 `code=0`
-- [ ] 返回的 `data.id` 递增
+- [x] 两次创建均返回 `code=0`
+- [x] 返回的 `data.id` 递增
 
 **异常测试：** 重复创建同名知识库
 
-- [ ] 返回 `code=10005`（资源冲突）
+- [x] 返回 `code=10005`（资源冲突）
 
 ### 7.2 查看知识库列表
 
@@ -704,8 +704,8 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 2 条记录
-- [ ] 包含 `name`、`description`、`embedding_model`、`vector_dimension`、`article_count`（当前为 0）
+- [x] 返回 2 条记录
+- [x] 包含 `name`、`description`、`embedding_model`、`vector_dimension`、`article_count`（当前为 0）
 
 ### 7.3 门户端知识库列表
 
@@ -718,8 +718,8 @@ Authorization: Bearer <reporter1_token>
 
 **验证点：**
 
-- [ ] 返回知识库基本信息（仅 `id`、`name`、`description`）
-- [ ] 不包含 `embedding_model`、`llm_config_id` 等管理字段
+- [x] 返回知识库基本信息（仅 `id`、`name`、`description`）
+- [x] 不包含 `embedding_model`、`llm_config_id` 等管理字段
 
 ### 7.4 更新知识库
 
@@ -736,7 +736,7 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`，名称和描述已更新
+- [x] 返回 `code=0`，名称和描述已更新
 
 ---
 
@@ -804,9 +804,9 @@ Content-Type: application/json
 
 **验证点（每篇文章）：**
 
-- [ ] 返回 `code=0`
-- [ ] `status=1`（草稿）
-- [ ] `word_count` 自动计算
+- [x] 返回 `code=0`
+- [x] `status=1`（草稿）
+- [x] `word_count` 自动计算
 
 ### 8.2 查看文章列表
 
@@ -817,8 +817,8 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回 3 篇文章，状态均为「草稿」
-- [ ] 分页信息正确（`total=3`）
+- [x] 返回 3 篇文章，状态均为「草稿」
+- [x] 分页信息正确（`total=3`）
 
 ### 8.3 查看文章详情
 
@@ -829,10 +829,10 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 返回完整文章内容、标签、分类
-- [ ] `chunks` 数组为空（未发布时无分块）
-- [ ] `status_text` = "草稿"
-- [ ] `source_type_text` = "手动输入"
+- [x] 返回完整文章内容、标签、分类
+- [x] `chunks` 数组为空（未发布时无分块）
+- [x] `status_text` = "草稿"
+- [x] `source_type_text` = "手动输入"
 
 ### 8.4 编辑文章
 

@@ -45,21 +45,12 @@ func (e *Embedder) SetClient(client adapter.EmbeddingClient) {
 
 // Embed 将文本列表批量转换为向量。
 //
-// 返回的向量列表顺序与输入 texts 严格一致。
-// 采用 fail-fast 策略：任一批次失败立即返回错误，
-// 避免部分成功导致 vectors[i] 与 texts[i] 索引错位。
-//
-// 各批次返回的 embedding 维度必须一致——若中途模型变更导致维度不同则报错，
-// 防止混维向量写入 pgvector 时报错不友好。
-//
-// client 为 nil 时返回错误而非 panic。
-// 空输入返回空向量列表且 dimension=0。
-func (e *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, int, error) {
+// model 为空时使用 EmbeddingClient 的默认模型（全局配置）。
+// 非空时显式指定模型（如 KB 专属 embedding 模型）。
+func (e *Embedder) Embed(ctx context.Context, texts []string, model string) ([][]float32, int, error) {
 	if len(texts) == 0 {
 		return nil, 0, nil
 	}
-
-	// client 为 nil 时返回明确错误，避免 panic
 	if e.client == nil {
 		return nil, 0, fmt.Errorf("embedder 未初始化: EmbeddingClient 为 nil")
 	}
@@ -78,7 +69,7 @@ func (e *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, int,
 		batchIdx := i / e.batchSize
 
 		resp, err := e.client.CreateEmbeddings(ctx, adapter.EmbeddingRequest{
-			Model: "", // 空字符串表示使用 EmbeddingClient 配置的默认模型
+			Model: model,
 			Input: batch,
 		})
 		if err != nil {

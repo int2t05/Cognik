@@ -11,11 +11,12 @@ interface FilterBarProps<V extends string | number> {
   options: FilterOption<V>[];
   value: V;
   onChange: (value: V) => void;
+  className?: string;
 }
 
-export function FilterBar<V extends string | number>({ options, value, onChange }: FilterBarProps<V>) {
+export function FilterBar<V extends string | number>({ options, value, onChange, className = '' }: FilterBarProps<V>) {
   return (
-    <div className="mb-4 flex gap-2 flex-wrap">
+    <div className={`mb-4 flex gap-2 flex-wrap ${className}`}>
       {options.map((o) => (
         <button
           key={String(o.value)}

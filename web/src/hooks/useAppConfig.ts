@@ -31,7 +31,8 @@ export function useAppConfig(keys: SystemConfigKey[]) {
     () => getAllConfigs(keys as string[]),
     {
       revalidateOnFocus: false,
-      dedupingInterval: 30_000,
+      refreshInterval: 900_000, // 15 分钟轮询，减少 DB 查询压力
+      dedupingInterval: 300_000, // 5 分钟去重窗口
       errorRetryCount: 1, // 非管理页 401 只重试一次，避免无意义请求
     },
   );

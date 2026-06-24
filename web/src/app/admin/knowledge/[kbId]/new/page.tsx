@@ -17,7 +17,6 @@ export default function NewArticlePage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -41,11 +40,11 @@ export default function NewArticlePage() {
     setUploading(true);
 
     try {
-      const result = await uploadDocuments(Number(kbId), files);
+      const result = await uploadDocuments(Number(kbId), files, tags);
       const docs = result.documents || [];
       toast.success(docs.length ? `已上传 ${docs.length} 个文件，后台处理中` : '上传成功');
       if (docs[0]?.article_id) {
-        router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}`);
+        router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}?edit=1`);
         return;
       }
     } catch (err: unknown) {
@@ -59,11 +58,12 @@ export default function NewArticlePage() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) { toast.error('请输入标题'); return; }
+    if (!content.trim()) { toast.error('请输入正文内容'); return; }
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
     if (tagList.length > 10) { toast.error('标签最多 10 个'); return; }
     setSaving(true);
     try {
-      const res = await createArticle(Number(kbId), { title: title.trim(), content, source_type: 1, category, tags: tagList });
+      const res = await createArticle(Number(kbId), { title: title.trim(), content, source_type: 1, tags: tagList });
       toast.success('创建成功');
       router.push(`/admin/knowledge/${kbId}/${res.id}`);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '创建失败'); }
@@ -91,7 +91,6 @@ export default function NewArticlePage() {
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">手动创建</h2>
           <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
           <AppleTextarea label="正文内容" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="输入文章正文..." />
-          <AppleInput label="分类" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="如：网络与VPN" />
           <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
         </AppleCard>
         <div className="flex gap-3">

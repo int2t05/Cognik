@@ -61,7 +61,7 @@ func TestEmbedder_SingleBatch(t *testing.T) {
 	emb := rag.NewEmbedder(mock, 20) // batchSize=20
 
 	texts := []string{"文本A", "文本B", "文本C"}
-	vectors, dimension, err := emb.Embed(context.Background(), texts)
+	vectors, dimension, err := emb.Embed(context.Background(), texts, "")
 	if err != nil {
 		t.Fatalf("Embed 失败: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestEmbedder_MultiBatch(t *testing.T) {
 		texts[i] = fmt.Sprintf("文本%d", i)
 	}
 
-	vectors, dimension, err := emb.Embed(context.Background(), texts)
+	vectors, dimension, err := emb.Embed(context.Background(), texts, "")
 	if err != nil {
 		t.Fatalf("Embed 失败: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestEmbedder_PartialFailure(t *testing.T) {
 		texts[i] = fmt.Sprintf("文本%d", i)
 	}
 
-	_, _, err := emb.Embed(context.Background(), texts)
+	_, _, err := emb.Embed(context.Background(), texts, "")
 	if err == nil {
 		t.Fatal("批次失败应返回错误，而非静默跳过")
 	}
@@ -129,7 +129,7 @@ func TestEmbedder_PartialFailure(t *testing.T) {
 func TestEmbedder_NilClient(t *testing.T) {
 	emb := rag.NewEmbedder(nil, 20)
 
-	_, _, err := emb.Embed(context.Background(), []string{"测试文本"})
+	_, _, err := emb.Embed(context.Background(), []string{"测试文本"}, "")
 	if err == nil {
 		t.Fatal("nil client 应返回错误")
 	}
@@ -140,7 +140,7 @@ func TestEmbedder_DimensionValidation(t *testing.T) {
 	mock := &mockEmbeddingClient{dimension: 1536}
 	emb := rag.NewEmbedder(mock, 20)
 
-	vectors, dimension, err := emb.Embed(context.Background(), []string{"测试"})
+	vectors, dimension, err := emb.Embed(context.Background(), []string{"测试"}, "")
 	if err != nil {
 		t.Fatalf("Embed 失败: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestEmbedder_EmptyInput(t *testing.T) {
 	mock := &mockEmbeddingClient{dimension: 1024}
 	emb := rag.NewEmbedder(mock, 20)
 
-	vectors, dimension, err := emb.Embed(context.Background(), []string{})
+	vectors, dimension, err := emb.Embed(context.Background(), []string{}, "")
 	if err != nil {
 		t.Fatalf("空输入不应报错: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestEmbedder_LargeBatch(t *testing.T) {
 		texts[i] = fmt.Sprintf("运维文档片段 #%d: 账号冻结处理流程", i)
 	}
 
-	vectors, _, err := emb.Embed(context.Background(), texts)
+	vectors, _, err := emb.Embed(context.Background(), texts, "")
 	if err != nil {
 		t.Fatalf("Embed 失败: %v", err)
 	}

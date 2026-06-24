@@ -29,6 +29,7 @@ interface LoginResponse {
 export default function LoginPage() {
   const { data: appName } = useSWR('public-app-name', () => getPublicConfig('app_name'), {
     revalidateOnFocus: true,
+    refreshInterval: 900_000, // 15 分钟轮询
     dedupingInterval: 0, // 每次页面聚焦都重新获取，确保刷新即可更新
   });
   const displayName = (typeof appName === 'string' ? appName : undefined) || getAppName();

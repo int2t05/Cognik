@@ -181,7 +181,6 @@ func TestKnowledgeHandler_CreateArticle(t *testing.T) {
 		KBID:     kb.ID,
 		Title: "问题",
 		Content:   "答案",
-		Category: "分类",
 	})
 	req := httptest.NewRequest("POST", "/api/v1/admin/knowledge-bases/"+itoa(kb.ID)+"/articles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

@@ -8,7 +8,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft, Search } from 'lucide-react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
@@ -25,7 +25,8 @@ export default function ArticleListPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('-1');
-  const { data, error } = useSWR(`articles-${kbId}-${page}-${status}`, () => getArticleList(Number(kbId), page, status));
+  const [keyword, setKeyword] = useState('');
+  const { data, error } = useSWR(`articles-${kbId}-${page}-${status}-${keyword}`, () => getArticleList(Number(kbId), page, status, keyword));
 
   return (
     <div>
@@ -37,7 +38,19 @@ export default function ArticleListPage() {
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章" icon={<FilePlus />} />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} className="!mb-0" />
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
+          <input
+            type="text"
+            placeholder="搜索标题或标签…"
+            value={keyword}
+            onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+            className="w-56 py-2 pl-8 pr-3.5 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition placeholder:text-[var(--color-text-muted-48)] focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
+          />
+        </div>
+      </div>
       <AppleTable
         columns={[
           { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },

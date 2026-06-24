@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"opsmind/internal/database"
 	"opsmind/internal/handler"
 	opslog "opsmind/internal/log"
+	"opsmind/internal/model"
 	"opsmind/internal/rag"
 	"opsmind/internal/repository"
 	"opsmind/internal/router"
@@ -214,9 +216,9 @@ func wireApp() (*app, error) {
 	slog.Info("LLM 配置服务已初始化")
 
 	// RAG 引擎组件
-	embedder := rag.NewEmbedder(embeddingClient, 20)
+	embedder := rag.NewEmbedder(embeddingClient, 5)
 	docParser := rag.NewDocParser()
-	chunker := rag.NewChunker(1000, 200)
+	chunker := rag.NewChunker(500, 100)
 
 	// 向量检索器仅当 vectorStore 可用时创建
 	var vectorRetriever *rag.VectorRetriever
@@ -258,6 +260,11 @@ func wireApp() (*app, error) {
 		service.WithProcessor(processor),
 		service.WithStorage(a.storageClient),
 		service.WithAuditRepo(auditRepo),
+		service.WithDefaultEmbeddingModel(cfg.Embedding.Model),
+		service.WithOnKBChanged(func(kbID int64) {
+			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
+			go rebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
+		}),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
@@ -417,4 +424,51 @@ func (a *app) run() error {
 
 	slog.Info("OpsMind 服务已停止")
 	return nil
+}
+
+// rebuildBM25ForKB 从 DB 加载 KB 下所有已发布文章的分块和标签，重建 BM25 索引。
+func rebuildBM25ForKB(repo *repository.KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
+	ctx := context.Background()
+
+	// 查询该 KB 下所有已发布文章
+	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
+	if err != nil {
+		slog.Warn("BM25 索引重建：查询文章列表失败", "kb_id", kbID, "error", err)
+		return
+	}
+
+	var docs []rag.BM25Document
+	for _, a := range articles {
+		chunks, err := store.GetChunksByArticle(ctx, a.ID)
+		if err != nil {
+			slog.Warn("BM25 索引重建：查询分块失败", "article_id", a.ID, "error", err)
+			continue
+		}
+
+		// 解析标签 JSONB → []string
+		var tagList []string
+		if len(a.Tags) > 0 {
+			_ = json.Unmarshal(a.Tags, &tagList)
+		}
+
+		for _, c := range chunks {
+			docs = append(docs, rag.BM25Document{
+				ChunkID:    c.ID,
+				ArticleID:  a.ID,
+				KBID:       kbID,
+				Content:    c.Content,
+				ChunkIndex: c.ChunkIndex,
+				Tags:       tagList,
+			})
+		}
+	}
+
+	if len(docs) == 0 {
+		// 无已发布文章 → 清空索引
+		bm25.BuildIndex(kbID, nil)
+		return
+	}
+
+	bm25.BuildIndex(kbID, docs)
+	slog.Info("BM25 索引重建完成", "kb_id", kbID, "docs", len(docs))
 }

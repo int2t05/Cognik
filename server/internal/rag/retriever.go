@@ -37,7 +37,7 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64
 		return nil, fmt.Errorf("embedder 未初始化")
 	}
 
-	vectors, _, err := r.embedder.Embed(ctx, []string{query})
+	vectors, _, err := r.embedder.Embed(ctx, []string{query}, "")
 	if err != nil {
 		return nil, fmt.Errorf("查询向量化失败: %w", err)
 	}

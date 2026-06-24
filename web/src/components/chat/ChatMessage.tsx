@@ -43,14 +43,23 @@ export function ChatMessage({
       }`}>
         {content || (isStreaming ? <AppleSpinner size={16} /> : '')}
 
-        {/* 引用来源 */}
+        {/* 召回来源 — 带 [1][2][3] 编号 + 分块内容 */}
         {sources && sources.length > 0 && (
           <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
+            <div className={`text-fine font-semibold mb-1.5 ${isUser ? 'text-[var(--color-on-accent)]/60' : 'text-[var(--color-text-muted-48)]'}`}>📎 参考资料</div>
             {sources.map((s, i) => (
-              <div key={i} className={`flex items-center gap-1 text-fine mb-1 ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'}`}>
-                <FileText size={12} />
-                {s.doc_name} ({Number.isFinite(s.confidence) ? (s.confidence * 100).toFixed(0) : '—'}%)
-              </div>
+              <details key={i} className="mb-1 group">
+                <summary className={`flex items-center gap-1 text-fine cursor-pointer ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'} hover:text-[var(--color-ink)]`}>
+                  <FileText size={12} />
+                  <span className="font-semibold">[{i + 1}]</span> {s.doc_name}
+                  {Number.isFinite(s.confidence) && (
+                    <span className="opacity-60">· {(s.confidence * 100).toFixed(0)}%</span>
+                  )}
+                </summary>
+                <div className={`mt-1 pl-5 text-fine leading-relaxed whitespace-pre-wrap ${isUser ? 'text-[var(--color-on-accent)]/80' : 'text-[var(--color-text-muted-80)]'}`}>
+                  {s.chunk_content || '(空)'}
+                </div>
+              </details>
             ))}
           </div>
         )}

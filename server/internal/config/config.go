@@ -357,7 +357,7 @@ func setDefaults(v *viper.Viper) {
 	// Embedding
 	v.SetDefault("embedding.base_url", "")
 	v.SetDefault("embedding.api_key", "")
-	v.SetDefault("embedding.model", "bge-m3")
+	v.SetDefault("embedding.model", "") // 无默认值，必须通过环境变量或 LLM 配置指定
 	v.SetDefault("embedding.dimension", 1024)
 	v.SetDefault("embedding.timeout", "30s")
 

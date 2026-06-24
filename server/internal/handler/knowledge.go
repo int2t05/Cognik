@@ -308,8 +308,9 @@ func (h *KnowledgeHandler) ListArticles(c *gin.Context) {
 	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
 	sourceType, _ := strconv.Atoi(c.DefaultQuery("source_type", "0"))
 	processStatus := c.DefaultQuery("process_status", "")
+	keyword := c.DefaultQuery("keyword", "")
 
-	result, svcErr := h.svc.ListArticles(c.Request.Context(), kbID, status, sourceType, processStatus, page, pageSize)
+	result, svcErr := h.svc.ListArticles(c.Request.Context(), kbID, status, sourceType, processStatus, keyword, page, pageSize)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)
 		return
@@ -364,6 +365,14 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 	}
 
 	userID, _ := getCurrentUserID(c)
+	tagsRaw := c.PostForm("tags") // 逗号分隔的标签，可选
+	var tags []string
+	if tagsRaw != "" {
+		tags = strings.Split(tagsRaw, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+	}
 	items := make([]dto.DocumentUploadItem, 0, len(files))
 
 	for _, fh := range files {
@@ -374,7 +383,7 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		}
 		defer reader.Close()
 
-		article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, reader)
+		article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, tags, reader)
 		if err != nil {
 			handleServiceError(c, err)
 			return

@@ -5,7 +5,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"opsmind/internal/model"
 
@@ -45,18 +44,20 @@ func (r *LlmConfigRepo) FindByID(ctx context.Context, id int64) (*model.LlmConfi
 
 // FindDefault 查询默认配置。
 // 数据库层已有部分唯一索引 idx_llm_configs_default (WHERE is_default=true) 兜底。
-// 未找到默认配置时返回 nil, nil（静默降级，不视为错误），
-// 避免 GORM 在日志中打印 "record not found" 误导用户。
+// 未找到默认配置时返回 nil, nil（静默降级，不视为错误）。
+//
+// 为什么用 Limit(1).Find 而非 First：
+// GORM 的 First 在无记录时会返回 ErrRecordNotFound 并在日志打印 "record not found"，
+// 对用户产生误导——以为初始化失败。Limit(1).Find 对空结果不报错，静默返回空切片。
 func (r *LlmConfigRepo) FindDefault(ctx context.Context) (*model.LlmConfig, error) {
-	var cfg model.LlmConfig
-	err := r.db.WithContext(ctx).Where("is_default = ?", true).First(&cfg).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	var cfgs []model.LlmConfig
+	if err := r.db.WithContext(ctx).Where("is_default = ?", true).Limit(1).Find(&cfgs).Error; err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	if len(cfgs) == 0 {
+		return nil, nil
+	}
+	return &cfgs[0], nil
 }
 
 func (r *LlmConfigRepo) List(ctx context.Context) ([]model.LlmConfig, error) {

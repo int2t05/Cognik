@@ -179,7 +179,6 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 		KBID:     kb.ID,
 		Title: "如何重置密码？",
 		Content:   "请访问设置页面。",
-		Category: "账号管理",
 		Tags:     []string{"密码", "账号"},
 	}, 1)
 	if err != nil {
@@ -218,7 +217,6 @@ func TestKnowledgeService_UpdateArticle_Draft(t *testing.T) {
 	err := svc.UpdateArticle(bgCtx, article.ID, request.UpdateArticleRequest{
 		Title: "更新后的问题",
 		Content:   "更新后的答案",
-		Category: "新分类",
 	})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
@@ -415,7 +413,7 @@ func TestKnowledgeService_ListArticles(t *testing.T) {
 		createTestArticle(t, svc, kb.ID, 1)
 	}
 
-	result, err := svc.ListArticles(bgCtx, kb.ID, -1, 0, "", 1, 10)
+	result, err := svc.ListArticles(bgCtx, kb.ID, -1, 0, "", "", 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

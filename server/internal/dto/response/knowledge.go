@@ -35,7 +35,6 @@ type ArticleResponse struct {
 	KBName          string    `json:"kb_name"`
 	Title           string    `json:"title"`
 	Content         string    `json:"content"`
-	Category        string    `json:"category"`
 	Tags            []string  `json:"tags"`
 	Status          int16     `json:"status"`
 	StatusText      string    `json:"status_text"`

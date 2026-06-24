@@ -21,11 +21,6 @@ ALTER TABLE knowledge_bases DROP COLUMN IF EXISTS rag_workspace_slug;
 ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS rag_workspace_slug varchar(128);
 ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS llm_config_id bigint NOT NULL DEFAULT 0;
 
--- knowledge_articles：升级旧 schema → 统一文章模型
-ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS question;
-ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS rag_document_location;
-ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS content_hash;
-
 DO $$
 BEGIN
     IF EXISTS (
@@ -44,6 +39,12 @@ ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS file_type    varchar(16)
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS minio_path   varchar(512);
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS process_status varchar(16) NOT NULL DEFAULT 'pending';
 ALTER TABLE knowledge_articles ADD COLUMN IF NOT EXISTS process_error text;
+
+-- 清理已废弃字段
+ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS question;
+ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS rag_document_location;
+ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS content_hash;
+ALTER TABLE knowledge_articles DROP COLUMN IF EXISTS category;
 
 UPDATE knowledge_articles SET title = LEFT(COALESCE(content, '未命名文章'), 50) WHERE title = '';
 

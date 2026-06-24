@@ -109,6 +109,11 @@ const (
 	// b=0.75 是 Okapi 论文推荐值，给中等长度文档更多权重。
 	bm25B = 0.75
 
+	// bm25TagBoost 标签词频倍增系数。
+	// 标签是人工标注的高价值关键词，BM25 检索时应对标签匹配给予更高权重。
+	// 标签词加入 tf 但不计入 docLen，再乘以 boost 系数放大 BM25 得分。
+	bm25TagBoost = 3
+
 	// bm25DefaultTopK topK <= 0 时的默认返回数。
 	bm25DefaultTopK = 10
 
@@ -122,11 +127,12 @@ const (
 
 // BM25Document 待索引的文档（知识分块）。
 type BM25Document struct {
-	ChunkID    int64  `json:"chunk_id"`
-	ArticleID  int64  `json:"article_id"`
-	KBID       int64  `json:"kb_id"`
-	Content    string `json:"content"`
-	ChunkIndex int    `json:"chunk_index"`
+	ChunkID    int64    `json:"chunk_id"`
+	ArticleID  int64    `json:"article_id"`
+	KBID       int64    `json:"kb_id"`
+	Content    string   `json:"content"`
+	ChunkIndex int      `json:"chunk_index"`
+	Tags       []string `json:"tags"` // 文章标签，作为 BM25 关键词补充索引
 }
 
 // =============================================================================
@@ -266,6 +272,17 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 				docLen++
 			}
 		}
+
+		// 标签关键词补充：标签词加入 tf 但不计入 docLen，
+		// 同时乘以 bm25TagBoost 放大权重——人工标注的高价值关键词应比正文匹配获得更高 BM25 得分
+		for _, tag := range doc.Tags {
+			for _, tok := range r.segmenter.Segment(tag) {
+				if isValidToken(tok) {
+					tf[tok] += bm25TagBoost
+				}
+			}
+		}
+
 		idx.docLens[doc.ChunkID] = docLen
 		totalLen += docLen
 
