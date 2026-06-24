@@ -13,7 +13,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useConfigValue } from '@/hooks/useAppConfig';
-import { useChatStream, type ChatMessage as ChatMsg } from '@/hooks/useChatStream';
+import { useChatStreamStore, type ChatMessage as ChatMsg } from '@/contexts/ChatStreamProvider';
 import { isTokenExpired } from '@/lib/auth';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
@@ -35,6 +35,7 @@ interface ApiChatMessage {
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
   confidence?: number;
   feedback?: number;
+  status?: string;
   created_at: string;
 }
 
@@ -59,10 +60,12 @@ export default function ChatPage() {
   const [deleting, setDeleting] = useState(false);
   const { value: appName } = useConfigValue('app_name');
 
-  const {
-    messages, streaming, loading, pipelineSteps, currentStep,
-    send, abort, clear, loadMessages,
-  } = useChatStream(token || '', (msg) => toast.error(msg));
+  const store = useChatStreamStore();
+  const stream = sessionId ? store.getStream(sessionId) : undefined;
+  const messages = stream?.messages ?? [];
+  const streaming = stream?.status === "streaming";
+  const pipelineSteps = stream?.pipelineSteps ?? [];
+  const currentStep = stream?.currentStep ?? null;
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -95,16 +98,15 @@ export default function ChatPage() {
 
     setInput('');
     const wasNew = !sessionId;
-    const newSid = await send(question, selectedKB, sessionId);
-    if (newSid) {
-      setSessionId(newSid);
+    const sid = await store.send(sessionId, selectedKB, question, token || '', (m) => toast.error(m));
+    if (sid) {
+      setSessionId(sid);
       setFeedbackMap({});
       if (wasNew) mutateSessions();
     }
   };
 
   const handleNewChat = () => {
-    clear();
     setSessionId(null);
     setSelectedKB(0);
     setFeedbackMap({});
@@ -114,27 +116,31 @@ export default function ChatPage() {
     if (id === sessionId) return;
     const prevId = sessionId;
     setSessionId(id);
+    setMobileOpen(false);
+    setFeedbackMap({});
     try {
       const detail = await getChatDetail(id);
-      // 自动选中该会话的知识库
       if (detail.kb_id) setSelectedKB(detail.kb_id);
-
-      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map((msg) => ({
-        id: String(msg.id),
-        role: msg.role,
-        content: msg.content,
-        sources: msg.sources,
-        confidence: msg.confidence,
-        createdAt: msg.created_at,
-        dbId: msg.id,
+      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map((m) => ({
+        id: String(m.id),
+        role: m.role,
+        content: m.content,
+        sources: m.sources,
+        confidence: m.confidence,
+        status: m.status,
+        createdAt: m.created_at,
+        dbId: m.id,
       }));
-      loadMessages(msgs);
-      // 恢复反馈状态
+      store.setMessages(id, msgs);
       const fbMap: Record<string, number> = {};
-      ((detail.messages ?? []) as ApiChatMessage[]).forEach((msg) => {
-        if (msg.feedback && msg.feedback > 0) fbMap[String(msg.id)] = msg.feedback;
+      ((detail.messages ?? []) as ApiChatMessage[]).forEach((m) => {
+        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
       });
       setFeedbackMap(fbMap);
+      const last = msgs[msgs.length - 1];
+      if (last?.role === "assistant" && last.status === "generating" && token) {
+        store.resume(id, 0, token);
+      }
     } catch {
       toast.error('加载会话失败');
       setSessionId(prevId);
@@ -171,7 +177,7 @@ export default function ChatPage() {
     } finally { setFeedbackLoading(false); }
   };
 
-  const isLoading = loading || streaming;
+  const isLoading = streaming;
   const hasMessages = messages.length > 0;
   const hasSession = sessionId !== null;
 
@@ -327,19 +333,35 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* 输入栏 — 有 KB 时始终显示 */}
-        {(selectedKB > 0 || hasSession) && (
-          <ChatInput
-            ref={inputRef}
-            value={input}
-            onChange={setInput}
-            onSend={() => handleSend()}
-            onStop={abort}
-            disabled={!streaming && isLoading}
-            loading={loading}
-            streaming={streaming}
-            placeholder={selectedKB > 0 ? "输入问题，按 Enter 发送..." : "请先选择知识库"}
-          />
+        {selectedKB > 0 && (
+          <>
+            {streaming && sessionId && (
+              <div className="max-w-[768px] mx-auto px-4 pt-2">
+                <AppleButton variant="utility" onClick={() => store.cancel(sessionId)}>停止生成</AppleButton>
+              </div>
+            )}
+            <ChatInput
+              ref={inputRef}
+              value={input}
+              onChange={setInput}
+              onSend={() => handleSend()}
+              onStop={() => sessionId && store.cancel(sessionId)}
+              disabled={streaming}
+              loading={false}
+              streaming={streaming}
+              placeholder="输入问题，按 Enter 发送..."
+            />
+          </>
+        )}
+              onSend={() => handleSend()}
+              onStop={() => sessionId && store.cancel(sessionId)}
+              disabled={streaming}
+              loading={false}
+              streaming={streaming}
+              placeholder="输入问题，按 Enter 发送..."
+            />
+          </>
+>>>>>>> 70cf5b7 (feat: 聊天页改用全局流 store 并支持续传与停止生成)
         )}
       </div>
 
