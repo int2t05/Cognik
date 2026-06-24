@@ -55,7 +55,7 @@ export default function ArticleEditPage() {
           {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(() => publishArticle(Number(articleId)), '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
           {article.status === 4 && <AppleButton variant="utility" icon={<Pause />} onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
           {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(() => enableArticle(Number(articleId)), '已启用')} loading={processing}>启用</AppleButton>}
-          {(article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
+          {(article.status === 0 || article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
           <AppleButton variant="danger" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(true)} />
         </div>
       </div>

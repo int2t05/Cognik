@@ -42,9 +42,13 @@ const (
 	minioBucketPublished = "opsmind-published"
 )
 
-// articleContentKey 返回文章正文在 MinIO 中的 key（{标题}.txt）。
+// articleContentKey 返回文章正文在 MinIO 中的 key（{标题}.txt），清洗路径分隔符等特殊字符。
 func articleContentKey(title string) string {
-	return title + ".txt"
+	safe := strings.NewReplacer(
+		"/", "_", "\\", "_", ":", "_", "*", "_", "?", "_",
+		"\"", "_", "<", "_", ">", "_", "|", "_",
+	).Replace(title)
+	return safe + ".txt"
 }
 
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
@@ -328,8 +332,8 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 		}
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询文章失败: " + err.Error()}
 	}
-	if article.Status != model.ArticleStatusDraft && article.Status != model.ArticleStatusRejected {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿和驳回状态可编辑"}
+	if article.Status != model.ArticleStatusDraft && article.Status != model.ArticleStatusRejected && article.Status != model.ArticleStatusDisabled {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿、驳回和停用状态可编辑"}
 	}
 
 	oldTitle := article.Title
@@ -337,24 +341,20 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 	article.Content = req.Content
 	article.Category = req.Category
 	article.Tags = marshalTags(req.Tags)
+	// 停用状态编辑后回到草稿，可重新走审核→发布流程
+	if article.Status == model.ArticleStatusDisabled {
+		article.Status = model.ArticleStatusDraft
+	}
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
 	}
 
-	// MinIO：标题变更时同步更新 key，旧文件成为垃圾（异步清理成本高于留存）
-	if article.MinioPath != "" {
-		bucket, key := splitMinioPath(article.MinioPath)
-		if key == articleContentKey(oldTitle) {
-			// 手动创建的文章，key 跟随标题
-			newKey := articleContentKey(req.Title)
-			article.MinioPath = bucket + "/" + newKey
-			_ = s.repo.UpdateArticle(ctx, article)
-			s.uploadMinioAsync(bucket, newKey, req.Content)
-		} else {
-			// 文档上传等非标准路径，原地覆盖
-			s.uploadMinioAsync(bucket, key, req.Content)
-		}
+	// MinIO：标题变更时 key 跟随，旧文件成为垃圾
+	if oldTitle != req.Title {
+		article.MinioPath = minioBucketDocs + "/" + articleContentKey(req.Title)
+		_ = s.repo.UpdateArticle(ctx, article)
 	}
+	s.uploadMinioAsync(minioBucketDocs, articleContentKey(req.Title), req.Content)
 
 	return nil
 }
@@ -480,8 +480,8 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		KBID:           article.KBID,
 		Content:        content,
 		EmbeddingModel: article.KnowledgeBase.EmbeddingModel,
-		OnStatusChange: func(aID int64, status, errMsg string) { s.onPublishComplete(ctx, aID, status, errMsg) },
-		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
+		OnStatusChange: func(aID int64, status, errMsg string) { s.onPublishComplete(context.Background(), aID, status, errMsg) },
+		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount) },
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -519,14 +519,8 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		}
 	}
 
-	// 异步清理已发布桶中的文件
-	go func() {
-		s.deleteMinioFile(context.Background(), minioBucketPublished, articleContentKey(article.Title))
-		if article.MinioPath != "" {
-			b, k := splitMinioPath(article.MinioPath)
-			s.deleteMinioFile(context.Background(), b, k)
-		}
-	}()
+	// 异步清理已发布桶中的 {标题}.txt
+	go s.deleteMinioFile(context.Background(), minioBucketPublished, articleContentKey(article.Title))
 
 	article.Status = model.ArticleStatusDisabled
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
@@ -759,19 +753,11 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	// 原始文件异步写入 MinIO（解析后正文在 DB，不额外存一份）
-	if s.storage != nil {
-		rawKey := fmt.Sprintf("documents/%d_%s", time.Now().UnixNano(), filename)
-		article.MinioPath = minioBucketDocs + "/" + rawKey
-		_ = s.repo.UpdateArticle(ctx, article)
-		rawData := make([]byte, len(data))
-		copy(rawData, data)
-		go func() {
-			if _, err := s.storage.Upload(context.Background(), minioBucketDocs, rawKey, bytes.NewReader(rawData), int64(len(rawData)), ""); err != nil {
-				slog.Warn("原始文件上传 MinIO 失败", "key", rawKey, "error", err)
-			}
-		}()
-	}
+	// 解析后正文统一为 {标题}.txt（与手动创建一致）
+	key := articleContentKey(article.Title)
+	article.MinioPath = minioBucketDocs + "/" + key
+	_ = s.repo.UpdateArticle(ctx, article)
+	s.uploadMinioAsync(minioBucketDocs, key, text)
 
 	return article, nil
 }
@@ -824,8 +810,8 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 		KBID:           article.KBID,
 		Content:        article.Content,
 		EmbeddingModel: article.KnowledgeBase.EmbeddingModel,
-		OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(ctx, aID, status, errMsg) },
-		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(ctx, aID, wordCount, chunkCount) },
+		OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(context.Background(), aID, status, errMsg) },
+		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount) },
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -942,15 +928,6 @@ func unmarshalTags(data datatypes.JSON) []string {
 	return tags
 }
 
-// splitMinioPath 将 "bucket/key" 格式的 MinioPath 拆分为 bucket 和 key。
-func splitMinioPath(path string) (string, string) {
-	idx := strings.Index(path, "/")
-	if idx < 0 {
-		return path, ""
-	}
-	return path[:idx], path[idx+1:]
-}
-
 // mapArticleToProcessStatus 返回文章的处理状态字符串。
 //
 // 仅读取 ProcessStatus 字段，不再从 Status 反推（历史兼容逻辑已删除）。
@@ -962,20 +939,15 @@ func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 	return "pending"
 }
 
-// cleanupArticleFiles 异步清理文章的 MinIO 文件。
+// cleanupArticleFiles 异步清理文章在两个桶中的 {标题}.txt。
 func (s *KnowledgeService) cleanupArticleFiles(article *model.KnowledgeArticle) {
 	if s.storage == nil {
 		return
 	}
 	bg := context.Background()
-
-	// 标准路径 + 实际 MinioPath（幂等删除，重复调用无害）
-	s.deleteMinioFile(bg, minioBucketDocs, articleContentKey(article.Title))
-	s.deleteMinioFile(bg, minioBucketPublished, articleContentKey(article.Title))
-	if article.MinioPath != "" {
-		b, k := splitMinioPath(article.MinioPath)
-		s.deleteMinioFile(bg, b, k)
-	}
+	key := articleContentKey(article.Title)
+	s.deleteMinioFile(bg, minioBucketDocs, key)
+	s.deleteMinioFile(bg, minioBucketPublished, key)
 }
 
 // uploadMinioAsync 异步上传内容到 MinIO，不阻塞主流程。
@@ -990,45 +962,29 @@ func (s *KnowledgeService) uploadMinioAsync(bucket, key, content string) {
 	}()
 }
 
-// copyToPublished 从临时桶拷贝文件到已发布桶（异步，保持原名和格式）。
-//
-// 优先从 article.MinioPath 定位源文件；MinioPath 为空或下载失败时回退到
-// article.Content 写入 {标题}.txt。
+// copyToPublished 从临时桶拷贝 {标题}.txt 到已发布桶（异步）。
 func (s *KnowledgeService) copyToPublished(article *model.KnowledgeArticle) string {
+	key := articleContentKey(article.Title)
 	if s.storage == nil {
-		return articleContentKey(article.Title)
+		return key
 	}
 
-	// 确定源 key：从 MinioPath 提取，空则回退到 {标题}.txt
-	var srcKey string
-	if article.MinioPath != "" {
-		_, srcKey = splitMinioPath(article.MinioPath)
-	}
-	if srcKey == "" {
-		srcKey = articleContentKey(article.Title)
-	}
-
-	content := article.Content
 	bg := context.Background()
-
-	// 尝试从 docs 桶下载原始文件
-	if reader, err := s.storage.Download(bg, minioBucketDocs, srcKey); err == nil {
+	// 尝试从 docs 桶下载，失败则用 DB 正文
+	if reader, err := s.storage.Download(bg, minioBucketDocs, key); err == nil {
 		defer reader.Close()
-		data, _ := io.ReadAll(reader)
-		if len(data) > 0 {
+		if data, _ := io.ReadAll(reader); len(data) > 0 {
 			go func() {
-				if _, err := s.storage.Upload(bg, minioBucketPublished, srcKey, bytes.NewReader(data), int64(len(data)), ""); err != nil {
-					slog.Warn("拷贝文件到已发布桶失败", "key", srcKey, "error", err)
+				if _, err := s.storage.Upload(bg, minioBucketPublished, key, bytes.NewReader(data), int64(len(data)), ""); err != nil {
+					slog.Warn("拷贝文件到已发布桶失败", "key", key, "error", err)
 				}
 			}()
-			return srcKey
+			return key
 		}
 	}
 
-	// 回退：用 DB 中的正文写入 {标题}.txt
-	fallbackKey := articleContentKey(article.Title)
-	s.uploadMinioAsync(minioBucketPublished, fallbackKey, content)
-	return fallbackKey
+	s.uploadMinioAsync(minioBucketPublished, key, article.Content)
+	return key
 }
 
 // deleteMinioFile 安全删除 MinIO 文件（bucket/key 为空或 storage 为 nil 时静默跳过）。

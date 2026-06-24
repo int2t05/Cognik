@@ -92,6 +92,14 @@ async function rawApiRequest(url: string, options?: RequestInit): Promise<Record
   const json = (await safeResJson(res)) as Record<string, unknown>;
 
   if (json.code !== 0) {
+    // token 过期或无效 → 清除认证状态，跳转登录（避免在 login 页重定向循环）
+    if (json.code === 10001 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      localStorage.removeItem('auth');
+      document.cookie = 'access_token=; path=/; max-age=0';
+      document.cookie = 'refresh_token=; path=/; max-age=0';
+      window.location.href = '/login';
+      throw new ApiError(json.code as number, '登录已过期，请重新登录');
+    }
     throw new ApiError(json.code as number, json.message as string || `请求失败 (code=${json.code})`);
   }
 
