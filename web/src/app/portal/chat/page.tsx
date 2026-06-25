@@ -6,9 +6,9 @@
 import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, MessageSquare, Trash2, Menu, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
-import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, submitFeedback, createSession, updateSession } from '@/lib/api/chat';
+import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, createSession, updateSession } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
@@ -184,7 +184,7 @@ export default function ChatPage() {
     setDeleting(true);
     try {
       await deleteSession(deleteTarget);
-      if (sessionId === deleteTarget) handleNewChat();
+      if (sessionId === deleteTarget) { setSessionId(null); setFeedbackMap({}); }
       mutateSessions();
       setDeleteTarget(null);
       toast.success('会话已删除');
@@ -193,7 +193,7 @@ export default function ChatPage() {
     } finally { setDeleting(false); }
   };
 
-  const handleFeedback = async (msgId: string, dbId: number, value: number) => {
+  const handleFeedback = async (_msgId: string, dbId: number, value: number) => {
     if (!sessionId || feedbackLoading || !dbId) return;
     const key = String(dbId);
     const prev = feedbackMap[key] || 0;
@@ -222,9 +222,7 @@ export default function ChatPage() {
     } finally { setSaving(false); }
   };
 
-  const isLoading = streaming;
   const hasMessages = messages.length > 0;
-  const hasSession = sessionId !== null;
 
   return (
     <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
