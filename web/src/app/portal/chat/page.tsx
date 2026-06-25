@@ -115,14 +115,14 @@ export default function ChatPage() {
     }
   }, [messages.length, currentStep, enableVirtual, rowVirtualizer]);
 
-  // 确保有会话可对话：无会话时自动创建一个。返回 [sessionId, kbId]。
-  const ensureSession = async (kbId?: number): Promise<[number, number] | null> => {
-    if (sessionId) return [sessionId, currentKB || kbId || defaultKB];
-    const useKB = kbId || pendingKB || defaultKB;
+  // 确保有会话可对话：无会话时自动创建一个。title 用于初始标题（示例问题直接用它命名）。
+  const ensureSession = async (title?: string): Promise<[number, number] | null> => {
+    if (sessionId) return [sessionId, currentKB || defaultKB];
+    const useKB = pendingKB || defaultKB;
     if (!useKB) { toast.info('请先创建知识库'); return null; }
     setCreating(true);
     try {
-      const r = await createSession(useKB, '新对话');
+      const r = await createSession(useKB, title || '新对话');
       setSessionId(r.session_id);
       setFeedbackMap({});
       mutateSessions();
@@ -137,7 +137,7 @@ export default function ChatPage() {
     if (!token) { toast.error('请先登录'); return; }
     if (isTokenExpired(token)) { toast.error('登录已过期，请刷新页面'); return; }
 
-    const result = await ensureSession();
+    const result = await ensureSession(question);
     if (!result) return;
     const [sid, kbId] = result;
 
