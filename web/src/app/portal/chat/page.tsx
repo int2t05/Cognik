@@ -134,7 +134,6 @@ export default function ChatPage() {
     if (id === sessionId) return;
     const prevId = sessionId;
     setSessionId(id);
-    setMobileOpen(false);
     setFeedbackMap({});
     try {
       const detail = await getChatDetail(id);
@@ -343,7 +342,7 @@ export default function ChatPage() {
                           sources={msg.sources} confidence={msg.confidence}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                          onFeedback={(v) => handleFeedback(msg.id, v)} feedbackLoading={feedbackLoading}
+                          onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
                         />
                       </div>
                     );
@@ -358,7 +357,7 @@ export default function ChatPage() {
                       sources={msg.sources} confidence={msg.confidence}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                      onFeedback={(v) => handleFeedback(msg.id, v)} feedbackLoading={feedbackLoading}
+                      onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
                     />
                   ))}
                   {currentStep && <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />}
@@ -387,16 +386,6 @@ export default function ChatPage() {
               placeholder="输入问题，按 Enter 发送..."
             />
           </>
-        )}
-              onSend={() => handleSend()}
-              onStop={() => sessionId && store.cancel(sessionId)}
-              disabled={streaming}
-              loading={false}
-              streaming={streaming}
-              placeholder="输入问题，按 Enter 发送..."
-            />
-          </>
->>>>>>> 70cf5b7 (feat: 聊天页改用全局流 store 并支持续传与停止生成)
         )}
       </div>
 

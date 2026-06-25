@@ -98,8 +98,8 @@ func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, l
 		llmService:    llmService,
 		ragDefaults:   ragDefaults,
 		configReader:  configReader,
-t		auditRepo:     auditRepo,
-			hub:           hub,
+		auditRepo:     auditRepo,
+		hub:           hub,
 	}
 }
 
@@ -235,7 +235,6 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64
 	for evt := range llmEvents {
 		if evt.Type == "token" {
 			answer += evt.Content
->>>>>>> a861755 (feat: StreamChat 脱离请求生命周期并支持续传/取消)
 		}
 		if evt.Type == "done" && evt.Metadata != nil {
 			srcJSON, _ := json.Marshal(evt.Metadata.Sources)
@@ -475,7 +474,7 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 			var msgSources []response.SourceItem
 			if len(m.Sources) > 0 {
 				if err := json.Unmarshal(m.Sources, &msgSources); err != nil {
-					slog.Warn("解析消息 Sources JSON 失败", "message_id", m.ID, "error", err)
+				slog.Warn("解析消息 Sources JSON 失败", "message_id", m.ID, "error", err)
 				}
 			}
 			messages = append(messages, response.MessageItem{
@@ -484,8 +483,8 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 				Content:    m.Content,
 				Sources:    msgSources,
 				Confidence: m.Confidence,
-t				Feedback:   m.Feedback,
-					Status:     m.Status,
+				Feedback:   m.Feedback,
+				Status:     m.Status,
 				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
