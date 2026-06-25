@@ -396,7 +396,7 @@ func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64
 // history 按滑动窗口截断（maxHistoryMessages 控制），避免长对话超出上下文窗口。
 // 系统提示词优先使用 LLM 配置中的 SystemPrompt，为空时回退到默认提示词。
 func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string, history []adapter.ChatMessage) []adapter.ChatMessage {
-	systemPrompt := "你是企业运维知识助手，仅根据下方「知识库内容」回答用户问题。\n\n规则：\n1. 引用知识时必须用 [编号] 标注来源，例如 [1]、[2]\n2. 知识库中有答案 → 基于原文回答，不要编造细节\n3. 知识库中无相关信息 → 回复「当前知识库未收录此问题，建议提交申告由运维人员处理」\n4. 回答简洁，优先列表/步骤形式，不要闲聊"
+	systemPrompt := "你是企业运维知识助手。严格仅根据下方「知识库内容」回答，禁止使用外部知识。\n\n规则：\n1. 每条事实后必须标注来源编号，如 [1]、[2]。无编号的回答视为无效\n2. 知识库有答案 → 原文复述，不编造细节\n3. 知识库无相关信息 → 只回复「当前知识库未收录此问题，建议提交申告由运维人员处理」\n4. 回答简洁，列表/步骤优先，不闲聊"
 	if s.configMgr != nil {
 		if cfg := s.configMgr.GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
 			systemPrompt = cfg.SystemPrompt
