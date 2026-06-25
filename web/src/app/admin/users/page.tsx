@@ -108,16 +108,18 @@ export default function UserListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>用户管理</PageTitle>
+        <div className="flex items-center gap-2">
+          <PageTitle>用户管理</PageTitle>
+          {selectedIds.size > 0 && (
+            <span className="inline-flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--color-divider-soft)]">
+              <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong></span>
+              <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除</AppleButton>
+              <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
+            </span>
+          )}
+        </div>
         <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
       </div>
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-lg)] bg-[var(--color-pearl)] border border-[var(--color-hairline)]">
-          <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong> 个</span>
-          <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除所选 ({selectedIds.size})</AppleButton>
-          <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
-        </div>
-      )}
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable

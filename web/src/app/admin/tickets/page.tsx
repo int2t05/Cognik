@@ -71,17 +71,17 @@ export default function AdminTicketListPage() {
       <div className="flex justify-between items-center mb-5">
         <PageTitle>申告管理</PageTitle>
       </div>
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-lg)] bg-[var(--color-pearl)] border border-[var(--color-hairline)]">
-          <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong> 条</span>
-          <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除所选 ({selectedIds.size})</AppleButton>
-          <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
-        </div>
-      )}
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4 flex gap-3 items-center flex-wrap">
-        <SearchInput placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[240px]" />
+      <div className="mb-4 flex gap-2 items-center flex-wrap">
+        <SearchInput placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[100px]" />
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
+        {selectedIds.size > 0 && (
+          <span className="inline-flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--color-divider-soft)]">
+            <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong></span>
+            <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除</AppleButton>
+            <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
+          </span>
+        )}
       </div>
       <AppleTable
         columns={[

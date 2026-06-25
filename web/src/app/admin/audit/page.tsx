@@ -52,13 +52,6 @@ export default function AuditLogPage() {
   return (
     <div>
       <PageTitle>审计日志</PageTitle>
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-lg)] bg-[var(--color-pearl)] border border-[var(--color-hairline)]">
-          <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong> 条</span>
-          <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除所选 ({selectedIds.size})</AppleButton>
-          <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
-        </div>
-      )}
       <div className="flex gap-2 mb-4 flex-wrap items-end">
         <div>
           <label htmlFor={idOp} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">操作人</label>
@@ -80,6 +73,13 @@ export default function AuditLogPage() {
           <label htmlFor={idTo} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">结束</label>
           <input id={idTo} type="date" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-32 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('date_to', e.target.value)} />
         </div>
+        {selectedIds.size > 0 && (
+          <span className="inline-flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--color-divider-soft)]">
+            <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong></span>
+            <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除</AppleButton>
+            <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
+          </span>
+        )}
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       {!error && data?.items?.length === 0 ? (
