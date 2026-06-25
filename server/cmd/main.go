@@ -207,6 +207,7 @@ func wireApp() (*app, error) {
 	messageService := service.NewMessageService(messageRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo)
 	configService := service.NewConfigService(configRepo, auditRepo)
+	configService.SetChatRepo(chatRepo)
 
 	llmConfigRepo := repository.NewLlmConfigRepo(db)
 	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditRepo)
@@ -272,7 +273,7 @@ func wireApp() (*app, error) {
 	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
 	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
-	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
+	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
 
 	// LLM 默认配置变更回调：重建 LLM/Embedding 客户端以反映新的 BaseURL/APIKey/Model

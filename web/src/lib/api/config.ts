@@ -11,3 +11,15 @@ export async function getAllConfigs(keys: string[]): Promise<{ key: string; valu
   const results = await Promise.allSettled(keys.map((key) => getConfig(key)));
   return results.map((r, i) => ({ key: keys[i], value: r.status === 'fulfilled' ? r.value : null }));
 }
+
+export interface ComputeThresholdsResult {
+  p30: number; p70: number; sample_count: number;
+  date_from?: string; date_to?: string; warning?: string;
+}
+
+/** 从历史数据计算置信度分位数阈值。 */
+export function computeThresholds(days: number) {
+  return apiFetch<ComputeThresholdsResult>('/api/v1/admin/confidence/compute-thresholds', {
+    method: 'POST', body: JSON.stringify({ days }),
+  });
+}

@@ -371,12 +371,13 @@ func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, 
 	for _, s := range sorted {
 		meta := entry.index.docMeta[s.chunkID]
 		results = append(results, RetrievalResult{
-			ChunkID:    s.chunkID,
-			ArticleID:  meta.ArticleID,
-			Content:    meta.Content,
-			Score:      s.score,
-			Source:     "bm25",
-			ChunkIndex: meta.ChunkIndex,
+			ChunkID:        s.chunkID,
+			ArticleID:      meta.ArticleID,
+			Content:        meta.Content,
+			Score:          s.score,
+			RawCosineScore: 0, // BM25 路径无向量余弦
+			Source:         "bm25",
+			ChunkIndex:     meta.ChunkIndex,
 		})
 	}
 	return results, nil

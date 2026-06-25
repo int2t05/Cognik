@@ -24,9 +24,8 @@ import (
 )
 
 const (
-	defaultConfidenceThreshold = 0.6
-	fallbackLowConfidence      = "暂未找到足够匹配的知识，建议提交申告由运维人员人工处理"
-	fallbackAIUnavailable      = "当前 AI 服务暂不可用，请提交申告由人工处理"
+	fallbackLowConfidence = "暂未找到足够匹配的知识，建议提交申告由运维人员人工处理"
+	fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
 )
 
 // 消费者接口——ChatService 仅暴露它实际使用的依赖方法，
@@ -247,21 +246,22 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64
 		if evt.Type == "token" {
 			answer += evt.Content
 		}
-		if evt.Type == "done" && evt.Metadata != nil {
-			srcJSON, _ := json.Marshal(evt.Metadata.Sources)
-			pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
-	_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
+			if evt.Type == "done" && evt.Metadata != nil {
+				srcJSON, _ := json.Marshal(evt.Metadata.Sources)
+				pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
+				confRaw := evt.Metadata.ConfidenceRaw
+			_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
 				ID: sessionID, Answer: evt.Metadata.Answer, Sources: srcJSON,
-				Confidence: evt.Metadata.Confidence, DurationMs: evt.Metadata.DurationMS,
+				Confidence: confRaw, DurationMs: evt.Metadata.DurationMS,
 			})
-	_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
+			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
 				ID: msgID, Content: evt.Metadata.Answer, Sources: srcJSON,
-				PipelineMetrics: pipelineJSON, Confidence: evt.Metadata.Confidence,
+				PipelineMetrics: pipelineJSON, ConfidenceRaw: confRaw,
 				Status: model.MessageStatusCompleted,
 			})
-			evt.Metadata.SessionID = sessionID
-			evt.Metadata.Question = question
-			evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+				evt.Metadata.SessionID = sessionID
+				evt.Metadata.Question = question
+				evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 		}
 		if evt.Type == "error" {
 			s.failAssistant(msgID)
@@ -493,7 +493,9 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 				Role:       m.Role,
 				Content:    m.Content,
 				Sources:    msgSources,
-				Confidence: m.Confidence,
+				Confidence:      m.ConfidenceRaw,
+				ConfidenceRaw:   m.ConfidenceRaw,
+				ConfidenceLevel: confidenceLevel(m.ConfidenceRaw),
 				Feedback:   m.Feedback,
 				Status:     m.Status,
 				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -507,7 +509,9 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 		Answer:          session.Answer,
 		Sources:         sources,
 		Confidence:      session.Confidence,
-		CanSubmitTicket: session.Confidence < defaultConfidenceThreshold,
+		ConfidenceRaw:   session.Confidence,
+		ConfidenceLevel: confidenceLevel(session.Confidence),
+		CanSubmitTicket: confidenceLevel(session.Confidence) != "high",
 		DurationMS:      session.DurationMs,
 		Feedback:        session.Feedback,
 		CreatedAt:       session.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -622,6 +626,28 @@ func (s *ChatService) readBool(key string, fallback bool) bool {
 		return v
 	}
 	return fallback
+}
+
+func (s *ChatService) readFloat(key string, fallback float64) float64 {
+	if s.configReader == nil {
+		return fallback
+	}
+	if v, ok := s.configReader.GetFloat(context.Background(), key); ok {
+		return v
+	}
+	return fallback
+}
+
+// confidenceLevel 根据 Conf_raw 和配置阈值判定置信度等级。
+func confidenceLevel(raw float64) string {
+	const defaultLowT, defaultHighT = 0.40, 0.70
+	if raw >= defaultHighT {
+		return "high"
+	}
+	if raw >= defaultLowT {
+		return "medium"
+	}
+	return "low"
 }
 
 

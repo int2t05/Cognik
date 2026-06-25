@@ -34,7 +34,7 @@ interface ApiChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
-  confidence?: number;
+  confidence?: number; confidence_raw?: number; confidence_level?: string;
   feedback?: number;
   status?: string;
   created_at: string;
@@ -110,24 +110,25 @@ export default function ChatPage() {
     if (sessionId) inputRef.current?.focus();
   }, [sessionId]);
 
-  // 自动滚到底部：仅在消息数量或步骤变化时触发，而非每个 token（避免每 token 重算）
+  // 自动滚到底部：仅当用户已在底部附近（< 120px）或正在流式生成时才跟随。
+  // 用户手动上滚后不强制拉回，避免多轮对话浏览历史时被打断。
+  const isNearBottom = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
   useEffect(() => {
+    if (!streaming && messages.length > 0 && !isNearBottom()) return;
     if (enableVirtual) {
-      // 虚拟滚动模式：使用 scrollToIndex
       if (rowVirtualizer.getTotalSize() > 0) {
-        rowVirtualizer.scrollToIndex(
-          messages.length + (currentStep ? 1 : 0) - 1,
-          { align: 'end' },
-        );
+        rowVirtualizer.scrollToIndex(messages.length + (currentStep ? 1 : 0) - 1, { align: 'end' });
       }
     } else {
-      // 直接渲染模式：滚动容器到底部
       const el = listRef.current;
-      if (el) {
-        el.scrollTop = el.scrollHeight;
-      }
+      if (el) el.scrollTop = el.scrollHeight;
     }
-  }, [messages.length, currentStep, enableVirtual, rowVirtualizer]);
+  }, [messages.length, currentStep, enableVirtual, rowVirtualizer, streaming, isNearBottom]);
 
   // 确保有会话可对话：无会话时自动创建一个。title 用于初始标题（示例问题直接用它命名）。
   const ensureSession = async (title?: string): Promise<[number, number] | null> => {
@@ -182,7 +183,9 @@ export default function ChatPage() {
         role: m.role,
         content: m.content,
         sources: m.sources,
-        confidence: m.confidence,
+        confidence: m.confidence_raw ?? m.confidence,
+        confidence_raw: m.confidence_raw,
+        confidence_level: m.confidence_level,
         status: m.status,
         createdAt: m.created_at,
         dbId: m.id,
@@ -214,7 +217,7 @@ export default function ChatPage() {
     getChatDetail(sessionId).then(detail => {
       const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
         id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence,
+        sources: m.sources, confidence: m.confidence_raw ?? m.confidence, confidence_raw: m.confidence_raw, confidence_level: m.confidence_level,
         status: m.status, createdAt: m.created_at, dbId: m.id,
       }));
       store.setMessages(sessionId, msgs);
@@ -403,7 +406,8 @@ export default function ChatPage() {
                         style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
                         <ChatMessage
                           id={msg.id} role={msg.role} content={msg.content}
-                          sources={msg.sources} confidence={msg.confidence}
+                          sources={msg.sources} chunks={msg.chunks} confidence={msg.confidence}
+                          confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
                           onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
@@ -418,7 +422,8 @@ export default function ChatPage() {
                   {messages.map((msg, idx) => (
                     <ChatMessage
                       key={msg.id} id={msg.id} role={msg.role} content={msg.content}
-                      reasoning={msg.reasoning} sources={msg.sources} confidence={msg.confidence}
+                      reasoning={msg.reasoning} sources={msg.sources} chunks={msg.chunks}
+                      confidence={msg.confidence} confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
                       onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}

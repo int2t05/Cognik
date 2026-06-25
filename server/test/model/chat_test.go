@@ -56,7 +56,7 @@ func TestChatMessage_Fields(t *testing.T) {
 		Role:       "assistant",
 		Content:    "请清除浏览器缓存",
 		Sources:    sources,
-		Confidence: 0.9,
+		ConfidenceRaw: 0.9,
 		CreatedAt:  now,
 	}
 	msg.ID = 1
@@ -67,7 +67,7 @@ func TestChatMessage_Fields(t *testing.T) {
 	if msg.Role != "assistant" {
 		t.Errorf("Role = %q, 期望 %q", msg.Role, "assistant")
 	}
-	if msg.Confidence != 0.9 {
-		t.Errorf("Confidence = %f, 期望 0.9", msg.Confidence)
+	if msg.ConfidenceRaw != 0.9 {
+		t.Errorf("Confidence = %f, 期望 0.9", msg.ConfidenceRaw)
 	}
 }

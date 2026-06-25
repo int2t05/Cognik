@@ -1,5 +1,5 @@
 /**
- * ChatInput — 豆包风格居中药丸输入框，流式中显示 Stop 按钮（AI Chat 最佳实践）。
+ * ChatInput — 居中输入栏。流式生成时发送按钮原位变为停止按钮。
  */
 'use client';
 
@@ -36,28 +36,16 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               placeholder={placeholder}
               disabled={disabled}
               aria-label="输入消息"
-              className="w-full h-11 pr-24 pl-5 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
+              className="w-full h-11 pr-20 pl-5 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
               Enter ↵
             </span>
           </div>
           {streaming ? (
-            <button
-              onClick={onStop}
-              aria-label="停止生成"
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-text-muted-48)]/15 text-[var(--color-text-muted-48)] border-0 cursor-pointer transition hover:bg-[var(--color-text-muted-48)]/25 active:scale-95"
-            >
-              <Square size={14} fill="currentColor" />
-            </button>
+            <AppleButton variant="danger" icon={<Square />} onClick={onStop} aria-label="停止生成" />
           ) : (
-            <AppleButton
-              icon={<Send />}
-              onClick={onSend}
-              loading={loading}
-              disabled={!value.trim() || disabled}
-              aria-label="发送"
-            />
+            <AppleButton icon={<Send />} onClick={onSend} loading={loading} disabled={!value.trim() || disabled} aria-label="发送" />
           )}
         </div>
       </div>

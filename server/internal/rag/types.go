@@ -95,12 +95,20 @@ func (opts *RAGOptions) Normalize() {
 
 // RetrievalResult 单条检索命中结果。
 type RetrievalResult struct {
-	ChunkID    int64   `json:"chunk_id"`    // knowledge_chunks.id
-	ArticleID  int64   `json:"article_id"`  // knowledge_articles.id
-	Content    string  `json:"content"`     // 分块文本内容
-	Score      float64 `json:"score"`       // 相关度分数（RRF 融合后可 >1，BM25 无上界）
-	Source     string  `json:"source"`      // 检索来源："vector" | "bm25" | "hybrid"
-	ChunkIndex int     `json:"chunk_index"` // 分块序号
+	ChunkID        int64   `json:"chunk_id"`         // knowledge_chunks.id
+	ArticleID      int64   `json:"article_id"`        // knowledge_articles.id
+	Content        string  `json:"content"`           // 分块文本内容
+	Score          float64 `json:"score"`             // 相关度分数（RRF 融合后可 >1，BM25 无上界）
+	RawCosineScore float64 `json:"-"`                 // 向量检索原始余弦相似度 [0,1]，S_retrieval 输入（BM25-only chunk 为 0）
+	Source         string  `json:"source"`            // 检索来源："vector" | "bm25" | "hybrid"
+	ChunkIndex     int     `json:"chunk_index"`       // 分块序号
+}
+
+// ChunkDisplay chunks SSE 事件中单条 chunk 的展示信息（不含内容文本，仅标识与分数）。
+type ChunkDisplay struct {
+	ID     int64   `json:"id"`
+	Score  float64 `json:"score"`  // 批次归一化展示分 [0,1]
+	Source string  `json:"source"` // 来源文档名称
 }
 
 // =============================================================================
@@ -109,8 +117,10 @@ type RetrievalResult struct {
 
 // RAGResult RAG 管道执行最终结果。
 type RAGResult struct {
-	Chunks  []RetrievalResult `json:"chunks"`  // 检索到的分块列表（按分数降序）
-	Metrics PipelineMetrics   `json:"metrics"` // 管道各步骤耗时与状态
+	Chunks           []RetrievalResult `json:"chunks"`            // 检索到的分块列表（按分数降序）
+	ChunkDisplays    []ChunkDisplay    `json:"-"`                 // 前端展示用的 chunk 分数（批次归一化）
+	QuestionEmbedding []float32        `json:"-"`                 // 用户问题的 embedding 向量，供 S_qa 复用
+	Metrics          PipelineMetrics   `json:"metrics"`           // 管道各步骤耗时与状态
 }
 
 // PipelineMetrics 管道各步骤的执行指标。

@@ -3,18 +3,20 @@ package response
 
 // ChatSessionResponse 问答会话响应（含答案、来源和历史消息）。
 type ChatSessionResponse struct {
-	SessionID       int64         `json:"session_id"`
-	KBID            int64         `json:"kb_id"`
-	Question        string        `json:"question"`
-	Answer          string        `json:"answer"`
-	Sources         []SourceItem  `json:"sources"`
-	Confidence      float64       `json:"confidence"`
-	CanSubmitTicket bool          `json:"can_submit_ticket"`
-	DurationMS      int           `json:"duration_ms"`
-	Feedback        int16         `json:"feedback"`
-	CreatedAt       string        `json:"created_at"`
-	Messages        []MessageItem `json:"messages,omitempty"` // 多轮对话历史（GetChatDetail 时返回）
-	Pipeline        []PipelineStep `json:"pipeline,omitempty"` // RAG 管道步骤指标
+	SessionID       int64          `json:"session_id"`
+	KBID            int64          `json:"kb_id"`
+	Question        string         `json:"question"`
+	Answer          string         `json:"answer"`
+	Sources         []SourceItem   `json:"sources"`
+	Confidence      float64        `json:"confidence"`
+	ConfidenceRaw   float64        `json:"confidence_raw"`
+	ConfidenceLevel string         `json:"confidence_level"`
+	CanSubmitTicket bool           `json:"can_submit_ticket"`
+	DurationMS      int            `json:"duration_ms"`
+	Feedback        int16          `json:"feedback"`
+	CreatedAt       string         `json:"created_at"`
+	Messages        []MessageItem  `json:"messages,omitempty"`   // 多轮对话历史（GetChatDetail 时返回）
+	Pipeline        []PipelineStep `json:"pipeline,omitempty"`   // RAG 管道步骤指标
 }
 
 // PipelineStep RAG 管道步骤信息。
@@ -28,14 +30,16 @@ type PipelineStep struct {
 
 // MessageItem 对话消息条目（多轮对话历史）。
 type MessageItem struct {
-	ID         int64        `json:"id"`
-	Role       string       `json:"role"` // "user" | "assistant"
-	Content    string       `json:"content"`
-	Sources    []SourceItem `json:"sources,omitempty"`
-	Confidence float64      `json:"confidence"`
-	Feedback   int16        `json:"feedback"` // 0=未反馈, 1=有帮助, 2=无帮助
-	Status     string       `json:"status"`   // generating|completed|failed
-	CreatedAt  string       `json:"created_at"`
+	ID              int64        `json:"id"`
+	Role            string       `json:"role"` // "user" | "assistant"
+	Content         string       `json:"content"`
+	Sources         []SourceItem `json:"sources,omitempty"`
+	Confidence      float64      `json:"confidence"`
+	ConfidenceRaw   float64      `json:"confidence_raw"`
+	ConfidenceLevel string       `json:"confidence_level"`
+	Feedback        int16        `json:"feedback"` // 0=未反馈, 1=有帮助, 2=无帮助
+	Status          string       `json:"status"`   // generating|completed|failed
+	CreatedAt       string       `json:"created_at"`
 }
 
 // SessionListItem 会话列表条目（不含完整消息，仅摘要）。

@@ -38,9 +38,9 @@ type ChatMessage struct {
 	Content         string         `gorm:"type:text;not null" json:"content"`
 	Sources         datatypes.JSON `gorm:"type:jsonb" json:"sources"`
 	PipelineMetrics datatypes.JSON `gorm:"type:jsonb" json:"pipeline_metrics"` // RAG 管道各步骤耗时（JSONB）
-	Confidence      float64        `json:"confidence"`
-	Feedback        int16          `gorm:"default:0" json:"feedback"`                                                    // 0=未反馈, 1=有帮助, 2=无帮助
-	Status          string         `gorm:"type:varchar(16);not null;default:completed" json:"status"` // generating|completed|failed
+	ConfidenceRaw   float64        `gorm:"column:confidence_raw" json:"confidence_raw"` // 原始综合置信度 [0,1]，落库后供分位数统计
+	Feedback        int16          `gorm:"default:0" json:"feedback"`
+	Status          string         `gorm:"type:varchar(16);not null;default:completed" json:"status"`
 	CreatedAt       time.Time      `gorm:"not null" json:"created_at"`
 }
 

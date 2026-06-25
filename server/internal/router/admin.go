@@ -80,4 +80,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 系统配置
 	rg.GET("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Get }))
 	rg.PUT("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Update }))
+
+	// 置信度阈值计算
+	rg.POST("/confidence/compute-thresholds", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.ComputeThresholds }))
 }

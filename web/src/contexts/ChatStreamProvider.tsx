@@ -10,11 +10,14 @@
 import { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { streamUrl, resumeUrl, cancelGeneration, createSession } from '@/lib/api/chat';
 
+export interface ChunkDisplay { id: number; score: number; source: string }
 export interface ChatMessage {
   id: string; role: 'user' | 'assistant' | 'system'; content: string;
-  reasoning?: string; // 思考过程（思考模式开启时流式累积）
+  reasoning?: string;
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
-  confidence?: number; status?: string; createdAt: string;
+  chunks?: ChunkDisplay[];
+  confidence?: number; confidence_raw?: number; confidence_level?: string;
+  status?: string; createdAt: string;
 }
 interface PipelineStep { id: string; label: string; duration_ms?: number; }
 interface SessionStream {
@@ -127,12 +130,15 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
             });
           }
         }
+        else if (evt.type === 'chunks') {
+          ensureAssistant();
+          patch(id, s => ({ ...s, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, chunks: evt.chunks } : m) }));
+        }
         else if (evt.type === 'done') {
-          // 取消待处理的 rAF，直接 flush 最终内容
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           const meta = evt.metadata;
-          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
+          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw ?? meta.confidence, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
         }
         else if (evt.type === 'error') {
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
@@ -171,9 +177,8 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   }, [consume]);
 
   const cancel: Store['cancel'] = useCallback(async (id) => {
-    await cancelGeneration(id);
+    try { await cancelGeneration(id); } catch { /* 生成已自然结束，忽略 */ }
     controllers.current[id]?.abort();
-    // 取消待处理的 rAF，避免取消后残余 rAF 覆盖 UI 状态
     if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
   }, []);

@@ -6,6 +6,7 @@ package handler
 import (
 	"encoding/json"
 
+	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -113,4 +114,23 @@ func (h *ConfigHandler) Update(c *gin.Context) {
 	}
 
 	response.Success(c, nil)
+}
+
+// ComputeThresholds 计算置信度阈值分位数。
+//
+// POST /api/v1/admin/confidence/compute-thresholds
+func (h *ConfigHandler) ComputeThresholds(c *gin.Context) {
+	var req request.ComputeThresholdsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败")
+		return
+	}
+
+	result, err := h.svc.ComputeThresholds(c.Request.Context(), req.Days)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, result)
 }

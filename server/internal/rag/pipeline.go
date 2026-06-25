@@ -109,6 +109,15 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		return err
 	}
 
+	// ─── 缓存原始 query 的 embedding，供 S_qa 计算复用 ───
+	var questionEmbedding []float32
+	if p.embedder != nil {
+		vecs, _, err := p.embedder.Embed(ctx, []string{query}, "")
+		if err == nil && len(vecs) > 0 {
+			questionEmbedding = vecs[0]
+		}
+	}
+
 	// ─── Step 1: 查询改写 ───
 	rewrittenQuery := query
 	if opts.QueryRewrite && p.llmClient != nil {
@@ -234,6 +243,9 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		allChunks = allChunks[:opts.TopK]
 	}
 
+	// 计算 chunk 展示分（批次内 min-max 归一化，仅用于前端进度条）
+	chunkDisplays := computeDisplayScores(allChunks)
+
 	metrics.Steps = steps
 	metrics.TotalDurationMS = time.Since(start).Milliseconds()
 
@@ -248,9 +260,50 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		"steps", len(steps), "failures", failCount, "latency_ms", metrics.TotalDurationMS)
 
 	return &RAGResult{
-		Chunks:  allChunks,
-		Metrics: metrics,
+		Chunks:            allChunks,
+		ChunkDisplays:     chunkDisplays,
+		QuestionEmbedding: questionEmbedding,
+		Metrics:           metrics,
 	}, nil
+}
+
+// computeDisplayScores 对检索结果做批次内 min-max 归一化，生成前端展示用的分数。
+//
+// 归一化到 [0,1] 后每个 chunk 的展示分仅表示"在当前检索批次中的相对位置"，
+// 不参与 Conf_raw 计算，不落库。
+func computeDisplayScores(chunks []RetrievalResult) []ChunkDisplay {
+	if len(chunks) == 0 {
+		return nil
+	}
+	if len(chunks) == 1 {
+		return []ChunkDisplay{{ID: chunks[0].ChunkID, Score: 1.0, Source: fmt.Sprint(chunks[0].ArticleID)}}
+	}
+
+	// 找批次内 min/max
+	minS, maxS := chunks[0].Score, chunks[0].Score
+	for _, c := range chunks[1:] {
+		if c.Score < minS {
+			minS = c.Score
+		}
+		if c.Score > maxS {
+			maxS = c.Score
+		}
+	}
+
+	displays := make([]ChunkDisplay, len(chunks))
+	span := maxS - minS
+	for i, c := range chunks {
+		score := 1.0
+		if span > 0 {
+			score = (c.Score - minS) / span
+		}
+		displays[i] = ChunkDisplay{
+			ID:     c.ChunkID,
+			Score:  score,
+			Source: fmt.Sprint(c.ArticleID),
+		}
+	}
+	return displays
 }
 
 // dedupChunks 按 ChunkID 去重，保留首次出现的结果。

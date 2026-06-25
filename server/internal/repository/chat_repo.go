@@ -143,7 +143,7 @@ func (r *ChatRepo) CreateMessage(ctx context.Context, m *model.ChatMessage) erro
 // UpdateMessage 按主键全量更新一条消息（含 Status/Content/Sources 等）。
 func (r *ChatRepo) UpdateMessage(ctx context.Context, m *model.ChatMessage) error {
 	return r.db.WithContext(ctx).Model(&model.ChatMessage{ID: m.ID}).
-		Select("content", "sources", "pipeline_metrics", "confidence", "status").
+		Select("content", "sources", "pipeline_metrics", "confidence_raw", "status").
 		Updates(m).Error
 }
 
@@ -179,6 +179,26 @@ func (r *ChatRepo) CountMessagesBySessions(ctx context.Context, sessionIDs []int
 	}
 	return m, nil
 }
+// QueryRawScores 查询最近 N 天内 assistant 消息的原始置信度分数。
+//
+// 用于分位数计算，不过滤 confidence_raw=0（低分本身是有效信号）。
+// days 为 0 或负数时默认 7 天。
+func (r *ChatRepo) QueryRawScores(ctx context.Context, days int) ([]float64, error) {
+	if days <= 0 {
+		days = 7
+	}
+	var scores []float64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT confidence_raw FROM chat_messages
+		WHERE role = 'assistant'
+		  AND status = 'completed'
+		  AND confidence_raw IS NOT NULL
+		  AND content != ''
+		  AND created_at >= NOW() - make_interval(days => $1)
+		ORDER BY confidence_raw`, days).Scan(&scores).Error
+	return scores, err
+}
+
 // FindFeedbackSamples 查询最近 N 天内有反馈的消息样本（含用户问题）。
 //
 // 使用 LATERAL JOIN 为每条有反馈的 assistant 消息匹配最近的前一条 user 消息。
@@ -195,7 +215,7 @@ func (r *ChatRepo) FindFeedbackSamples(ctx context.Context, limitDays int) ([]mo
 			prev.content AS question,
 			cm.content AS answer,
 			cm.feedback,
-			cm.confidence,
+			COALESCE(cm.confidence_raw, cm.confidence) AS confidence,
 			TO_CHAR(cm.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
 		FROM chat_messages cm
 		CROSS JOIN LATERAL (

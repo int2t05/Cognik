@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -33,27 +34,30 @@ type ragPipeline interface {
 
 // StreamEvent 流式响应中的单个事件，JSON 标签对应 SSE 线格式。
 type StreamEvent struct {
-	Type     string          `json:"type"`               // "step" | "token" | "done" | "error"
-	Seq      int             `json:"seq"`                // 生成内单调递增序号，用于断点续传去重
-	Content  string          `json:"content,omitempty"`  // token 文本（type=token）
-	ID       string          `json:"id,omitempty"`        // 步骤标识（type=step）
-	Label    string          `json:"label,omitempty"`     // 步骤显示名（type=step）
-	Error    string          `json:"error,omitempty"`     // 错误信息（type=error）
-	Metadata *StreamDoneMeta `json:"metadata,omitempty"`  // 完成元数据（type=done）
+	Type     string             `json:"type"`               // "step" | "chunks" | "token" | "done" | "error"
+	Seq      int                `json:"seq"`                // 生成内单调递增序号，用于断点续传去重
+	Content  string             `json:"content,omitempty"`  // token 文本（type=token）或 reasoning 内容
+	ID       string             `json:"id,omitempty"`        // 步骤标识（type=step）
+	Label    string             `json:"label,omitempty"`     // 步骤显示名（type=step）
+	Error    string             `json:"error,omitempty"`     // 错误信息（type=error）
+	Chunks   []rag.ChunkDisplay `json:"chunks,omitempty"`   // 检索 chunk 展示分（type=chunks）
+	Metadata *StreamDoneMeta    `json:"metadata,omitempty"`  // 完成元数据（type=done）
 }
 
 // StreamDoneMeta done 事件携带的会话元数据。
 // 对应前端 ChatSessionResponse 接口字段。
 type StreamDoneMeta struct {
-	SessionID       int64                 `json:"session_id"`
-	Question        string                `json:"question"`
-	Answer          string                `json:"answer"`
-	Sources         []response.SourceItem `json:"sources"`
-	Confidence      float64               `json:"confidence"`
-	CanSubmitTicket bool                  `json:"can_submit_ticket"`
-	DurationMS      int                   `json:"duration_ms"`
-	Feedback        int16                 `json:"feedback"`
-	CreatedAt       string                `json:"created_at"`
+	SessionID         int64                 `json:"session_id"`
+	Question          string                `json:"question"`
+	Answer            string                `json:"answer"`
+	Sources           []response.SourceItem `json:"sources"`
+	Confidence        float64               `json:"confidence"`
+	ConfidenceRaw     float64               `json:"confidence_raw"`
+	ConfidenceLevel   string                `json:"confidence_level"`
+	CanSubmitTicket   bool                  `json:"can_submit_ticket"`
+	DurationMS        int                   `json:"duration_ms"`
+	Feedback          int16                 `json:"feedback"`
+	CreatedAt         string                `json:"created_at"`
 	Pipeline           *ChatPipelineMeta     `json:"pipeline,omitempty"`
 	UserMessageID      int64                 `json:"user_message_id,omitempty"`
 	AssistantMessageID int64                 `json:"assistant_message_id,omitempty"`
@@ -88,12 +92,14 @@ type LLMService struct {
 	configMgr          *LLMConfigManager
 	defaultModel       string
 	pipeline           ragPipeline
-	maxHistoryMessages int // 多轮对话历史消息数上限（滑动窗口，默认 10）
+	embedder           *rag.Embedder // 用于 S_qa 答案向量化
+	maxHistoryMessages int           // 多轮对话历史消息数上限（滑动窗口，默认 10）
+	configWarnOnce     sync.Once     // 缺少 DB 配置时仅 Warn 一次
 }
 
 // NewLLMService 创建 LLMService 实例。
 // maxHistoryMessages 控制注入 prompt 的历史消息数上限（0=不限制，默认 10）。
-func NewLLMService(llmClient adapter.LLMClient, configMgr *LLMConfigManager, defaultModel string, pipeline ragPipeline, maxHistoryMessages int) *LLMService {
+func NewLLMService(llmClient adapter.LLMClient, configMgr *LLMConfigManager, defaultModel string, pipeline ragPipeline, embedder *rag.Embedder, maxHistoryMessages int) *LLMService {
 	if maxHistoryMessages <= 0 {
 		maxHistoryMessages = 10 // 默认最近 10 条消息（约 5 轮 Q&A）
 	}
@@ -102,6 +108,7 @@ func NewLLMService(llmClient adapter.LLMClient, configMgr *LLMConfigManager, def
 		configMgr:          configMgr,
 		defaultModel:       defaultModel,
 		pipeline:           pipeline,
+		embedder:           embedder,
 		maxHistoryMessages: maxHistoryMessages,
 	}
 }
@@ -138,10 +145,12 @@ func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, 
 	start := time.Now()
 
 	// Step 1: RAG 管道检索
-	chunks, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, nil)
+	ragResult, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	chunks := ragResult.Chunks
 
 	// Step 2: 无检索结果 → 兜底答案
 	if len(chunks) == 0 {
@@ -187,10 +196,12 @@ func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, 
 		pipeMeta.TotalDurationMS = int(time.Since(start).Milliseconds())
 	}
 
+	confRaw, _ := s.computeConfidence(chunks, ragResult.QuestionEmbedding, answer)
+
 	return &SyncChatResult{
 		Answer:     answer,
 		Sources:    extractSources(chunks),
-		Confidence: maxConfidence(chunks),
+		Confidence: confRaw,
 		Pipeline:   pipeMeta,
 	}, nil
 }
@@ -225,12 +236,13 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		onStep := func(evt rag.StepEvent) {
 			sendOrCancel(ctx, eventCh, StreamEvent{Type: "step", ID: evt.ID, Label: evt.Label})
 		}
-		chunks, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, onStep)
+		ragResult, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, onStep)
 		if err != nil {
 			// RAG 管道失败 → 降级尝试无知识库 LLM
 			slog.Warn("RAG 检索失败，降级为纯 LLM 模式", "error", err)
-			chunks = nil // 确保走 LLM-only 分支
+			ragResult = &rag.RAGResult{} // 确保走 LLM-only 分支
 		}
+			chunks := ragResult.Chunks
 
 		// 判断是否需要发送降级提示
 			ragDisabled := opts.DisableRetrieval
@@ -242,16 +254,24 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 				} else {
 					notice = ragNoResultNotice
 				}
-				s.sendNoticeToken(ctx, eventCh, notice)
+			s.sendNoticeToken(ctx, eventCh, notice)
 				sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-					Answer:          "当前未找到足够匹配的知识，无法生成回答。",
-					Confidence:      0,
-					CanSubmitTicket: true,
-					DurationMS:      int(time.Since(start).Milliseconds()),
+					Answer:           "当前未找到足够匹配的知识，无法生成回答。",
+					Confidence:        0,
+					ConfidenceRaw:     0,
+					ConfidenceLevel:   "low",
+					CanSubmitTicket:   true,
+					DurationMS:        int(time.Since(start).Milliseconds()),
 				}})
 				return
 			}
 
+			// 发送 chunks SSE 事件（检索完成后、LLM 生成前）
+			if len(ragResult.ChunkDisplays) > 0 {
+				sendOrCancel(ctx, eventCh, StreamEvent{Type: "chunks", Chunks: ragResult.ChunkDisplays})
+			}
+
+			// Step 2: LLM 流式生成
 		// Step 2: LLM 流式生成
 		if s.getLLMClient() == nil {
 			s.sendFallback(ctx, eventCh, start)
@@ -287,11 +307,15 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 			}
 			if chunk.Error != nil {
 				if answerBuf.Len() > 0 {
+					partialAnswer := answerBuf.String()
+					confRaw, confLevel := s.computeConfidence(chunks, ragResult.QuestionEmbedding, partialAnswer)
 					sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
 						Answer:          answerBuf.String(),
 						Sources:         extractSources(chunks),
-						Confidence:      maxConfidence(chunks),
-						CanSubmitTicket: maxConfidence(chunks) < 0.6,
+						Confidence:       confRaw,
+						ConfidenceRaw:    confRaw,
+						ConfidenceLevel:  confLevel,
+						CanSubmitTicket:  confLevel != "high",
 						DurationMS:      int(time.Since(start).Milliseconds()),
 					}})
 				} else {
@@ -322,7 +346,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		}
 
 		sources := extractSources(chunks)
-		confidence := maxConfidence(chunks)
+		confRaw, confLevel := s.computeConfidence(chunks, ragResult.QuestionEmbedding, fullAnswer)
 		durationMS := int(time.Since(start).Milliseconds())
 		if pipeMeta != nil {
 			pipeMeta.TotalDurationMS = durationMS
@@ -331,8 +355,10 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
 			Answer:          fullAnswer,
 			Sources:         sources,
-			Confidence:      confidence,
-			CanSubmitTicket: confidence < 0.6,
+			Confidence:       confRaw,
+			ConfidenceRaw:    confRaw,
+			ConfidenceLevel:  confLevel,
+			CanSubmitTicket:  confLevel != "high",
 			DurationMS:      durationMS,
 			Pipeline:        pipeMeta,
 		}})
@@ -352,6 +378,8 @@ func (s *LLMService) sendFallback(ctx context.Context, eventCh chan<- StreamEven
 	sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
 		Answer:          llmUnavailableText,
 		Confidence:      0,
+		ConfidenceRaw:    0,
+		ConfidenceLevel:  "low",
 		CanSubmitTicket: true,
 		DurationMS:      int(time.Since(start).Milliseconds()),
 	}})
@@ -361,10 +389,10 @@ func (s *LLMService) sendFallback(ctx context.Context, eventCh chan<- StreamEven
 // 内部方法
 // =============================================================================
 
-// executeRAG 执行 RAG 管道检索，返回 chunk 列表和管道指标。
+// executeRAG 执行 RAG 管道检索，返回完整 RAGResult 和管道指标。
 //
 // 第二个返回值 pipelineMeta 可能为 nil（pipeline 不可用时）。
-func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, onStep rag.StepCallback) ([]rag.RetrievalResult, *ChatPipelineMeta, error) {
+func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, onStep rag.StepCallback) (*rag.RAGResult, *ChatPipelineMeta, error) {
 	if s.pipeline == nil {
 		return nil, nil, nil
 	}
@@ -387,7 +415,7 @@ func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64
 				Success:    m.Success,
 			})
 		}
-		return result.Chunks, &ChatPipelineMeta{
+		return result, &ChatPipelineMeta{
 			Steps:           steps,
 			TotalDurationMS: int(time.Since(start).Milliseconds()),
 		}, nil
@@ -432,8 +460,8 @@ func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string
 
 // getModelConfig 从 LLMConfigManager 读取当前模型和 maxTokens。
 //
-// 优先级：DB 热配置 > config.yaml 默认值。configMgr 为 nil 或 DB 无配置时回退到 defaultModel。
-// 首次启动时 DB 可能尚未 seed，使用默认值并记录 Warn 提示管理员配置。
+// 优先级：DB 热配置 > config.yaml 默认值。configMgr 为 nil 或 DB 无默认配置时回退到 defaultModel。
+// 缺少 DB 配置时仅 Warn 一次（sync.Once），避免每条消息重复刷屏。
 func (s *LLMService) getModelConfig() (model string, maxTokens int) {
 	model = s.defaultModel
 	maxTokens = 2048
@@ -448,7 +476,9 @@ func (s *LLMService) getModelConfig() (model string, maxTokens int) {
 			return
 		}
 	}
-	slog.Warn("LLM 配置缺失，使用 config.yaml 默认值——请通过后台管理页面配置 LLM", "model", model)
+	s.configWarnOnce.Do(func() {
+		slog.Info("LLM 配置使用 config.yaml 默认值（DB 中未设置默认 LLM 配置）", "model", model)
+	})
 	return
 }
 
@@ -481,20 +511,162 @@ func extractSources(chunks []rag.RetrievalResult) []response.SourceItem {
 	return sources
 }
 
-// maxConfidence 取检索结果中的最高相关度分数，钳位到 [0,1]。
+// =============================================================================
+// 置信度计算
+// =============================================================================
+
+// computeConfidence 计算原始综合分和置信度等级。
 //
-// 为什么需要钳位：BM25 原始分数无理论上界，RRF 融合后分数在 ~[0,1] 范围。
-// 多路检索场景下 RRF 已归一化处理；单路向量检索的 cosine 分数本就 ≤1。
-// 钳位确保不同检索路径的 confidence 在统一量纲下比较。
-func maxConfidence(chunks []rag.RetrievalResult) float64 {
-	var max float64
+// 公式：Conf_raw = α × S_retrieval + (1-α) × S_qa
+// α 根据答案长度动态调整（短答案 S_qa 噪声大，降低权重）。
+// 空答案强制 Conf_raw=0, level="low"。
+func (s *LLMService) computeConfidence(chunks []rag.RetrievalResult, questionEmb []float32, answer string) (float64, string) {
+	if strings.TrimSpace(answer) == "" {
+		return 0, "low"
+	}
+
+	sRetrieval := computeSRetrieval(chunks)
+	sQA := 0.0
+	if len(questionEmb) > 0 && s.embedder != nil {
+		sQA = computeSQA(s.embedder, questionEmb, answer)
+	}
+
+	alpha := answerLenAlpha(len([]rune(answer)))
+	confRaw := alpha*sRetrieval + (1-alpha)*sQA
+
+	// 精度钳位
+	if confRaw < 0 {
+		confRaw = 0
+	}
+	if confRaw > 1 {
+		confRaw = 1
+	}
+
+	// 阈值默认值：上线后通过分位数计算校准
+	const defaultLowT, defaultHighT = 0.40, 0.70
+	level := "low"
+	if confRaw >= defaultHighT {
+		level = "high"
+	} else if confRaw >= defaultLowT {
+		level = "medium"
+	}
+
+	return confRaw, level
+}
+
+// computeSRetrieval 计算检索聚合分（原始余弦相似度排名加权平均）。
+//
+// S_retrieval = Σ(w_i × raw_cosine_i) / Σ(w_i)
+// w_i = 1/(rank_i + 1)，rank 从 0 开始。
+// 纯 BM25 模式（全部 RawCosineScore=0）回退到 Score 的批次归一化。
+func computeSRetrieval(chunks []rag.RetrievalResult) float64 {
+	if len(chunks) == 0 {
+		return 0
+	}
+
+	// 检测是否为纯 BM25 模式（所有 chunk 的 RawCosineScore 均为 0）
+	allBM25 := true
 	for _, c := range chunks {
-		if c.Score > max {
-			max = c.Score
+		if c.RawCosineScore > 0 {
+			allBM25 = false
+			break
 		}
 	}
-	if max > 1 {
-		max = 1
+	if allBM25 {
+		return computeBM25Fallback(chunks)
 	}
-	return max
+
+	var sumWeighted, sumWeights float64
+	for i, c := range chunks {
+		w := 1.0 / float64(i+1) // rank 从 0 开始
+		sumWeighted += w * c.RawCosineScore
+		sumWeights += w
+	}
+	if sumWeights == 0 {
+		return 0
+	}
+	return sumWeighted / sumWeights
 }
+
+// computeBM25Fallback BM25-only 模式下对 BM25 分数做批次归一化后排名加权。
+func computeBM25Fallback(chunks []rag.RetrievalResult) float64 {
+	if len(chunks) == 0 {
+		return 0
+	}
+	if len(chunks) == 1 {
+		return 1.0
+	}
+	minS, maxS := chunks[0].Score, chunks[0].Score
+	for _, c := range chunks[1:] {
+		if c.Score < minS {
+			minS = c.Score
+		}
+		if c.Score > maxS {
+			maxS = c.Score
+		}
+	}
+	span := maxS - minS
+	var sumWeighted, sumWeights float64
+	for i, c := range chunks {
+		w := 1.0 / float64(i+1)
+		norm := 1.0
+		if span > 0 {
+			norm = (c.Score - minS) / span
+		}
+		sumWeighted += w * norm
+		sumWeights += w
+	}
+	if sumWeights == 0 {
+		return 0
+	}
+	return sumWeighted / sumWeights
+}
+
+// computeSQA 计算问答匹配分：question 与 answer embedding 的余弦相似度。
+//
+// 对 answer 调用一次 embedding，与已缓存的 question embedding 比较。
+// embedding 失败时降级返回 0（不阻塞主流程）。
+func computeSQA(embedder *rag.Embedder, questionEmb []float32, answer string) float64 {
+	vecs, _, err := embedder.Embed(context.Background(), []string{answer}, "")
+	if err != nil || len(vecs) == 0 {
+		slog.Warn("S_qa embedding 失败，降级为 0", "error", err)
+		return 0
+	}
+	return cosineSimilarity(questionEmb, vecs[0])
+}
+
+// cosineSimilarity 计算两个 float32 向量的余弦相似度。
+func cosineSimilarity(a, b []float32) float64 {
+	if len(a) == 0 || len(b) == 0 || len(a) != len(b) {
+		return 0
+	}
+	var dot, normA, normB float64
+	for i := range a {
+		dot += float64(a[i]) * float64(b[i])
+		normA += float64(a[i]) * float64(a[i])
+		normB += float64(b[i]) * float64(b[i])
+	}
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+
+// answerLenAlpha 根据答案长度调整 α 权重。
+//
+// 短答案 embedding 噪声大，降低 S_qa 权重：
+//
+//	≥20 字符 → α=0.7（正常）
+//	5~19 字符 → α=0.85（降权）
+//	<5 字符 → α=1.0（S_qa 不计入）
+func answerLenAlpha(length int) float64 {
+	switch {
+	case length >= 20:
+		return 0.7
+	case length >= 5:
+		return 0.85
+	default:
+		return 1.0
+	}
+}
+

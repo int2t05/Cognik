@@ -189,12 +189,12 @@ func TestConfigService_GetConfig_NotFound(t *testing.T) {
 }
 
 // TestConfigService_GetConfig_JSONObject 验证数值类型配置的 JSON 往返正确。
-// ai.threshold 声明为 number 类型，json.Unmarshal 返回 float64。
+// ai.confidence_threshold_low 声明为 number 类型，json.Unmarshal 返回 float64。
 func TestConfigService_GetConfig_JSONObject(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig(bgCtx, "ai.threshold", 0.6, 1)
+	svc.UpdateConfig(bgCtx, "ai.confidence_threshold_low", 0.6, 1)
 
-	val, err := svc.GetConfig(bgCtx, "ai.threshold")
+	val, err := svc.GetConfig(bgCtx, "ai.confidence_threshold_low")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -223,15 +223,15 @@ func TestConfigService_UpdateConfig_Create(t *testing.T) {
 	}
 }
 
-// TestConfigService_UpdateConfig_Update 验证更新已有配置（使用白名单中的 ai.threshold）。
+// TestConfigService_UpdateConfig_Update 验证更新已有配置（使用白名单中的 ai.confidence_threshold_low）。
 func TestConfigService_UpdateConfig_Update(t *testing.T) {
 	svc := setupConfigService(t)
-	svc.UpdateConfig(bgCtx, "ai.threshold", 0.7, 1)
-	err := svc.UpdateConfig(bgCtx, "ai.threshold", 0.85, 2)
+	svc.UpdateConfig(bgCtx, "ai.confidence_threshold_low", 0.7, 1)
+	err := svc.UpdateConfig(bgCtx, "ai.confidence_threshold_low", 0.85, 2)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	val, err := svc.GetConfig(bgCtx, "ai.threshold")
+	val, err := svc.GetConfig(bgCtx, "ai.confidence_threshold_low")
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}

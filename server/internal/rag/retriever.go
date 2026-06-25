@@ -53,12 +53,13 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64
 	retrievalResults := make([]RetrievalResult, len(results))
 	for i, r := range results {
 		retrievalResults[i] = RetrievalResult{
-			ChunkID:    r.ChunkID,
-			ArticleID:  r.ArticleID,
-			Content:    r.Content,
-			Score:      r.Score,
-			Source:     "vector",
-			ChunkIndex: r.ChunkIndex,
+			ChunkID:        r.ChunkID,
+			ArticleID:      r.ArticleID,
+			Content:        r.Content,
+			Score:          r.Score,
+			RawCosineScore: r.Score, // 向量检索的 Score 即 1 - cosine_distance ∈ [0,1]
+			Source:         "vector",
+			ChunkIndex:     r.ChunkIndex,
 		}
 	}
 	return retrievalResults, nil
