@@ -139,7 +139,10 @@ export default function ChatPage() {
       const r = await createSession(useKB, title || '新对话');
       setSessionId(r.session_id);
       setFeedbackMap({});
-      mutateSessions();
+      // 乐观更新：立即在侧栏显示新会话，消除 SWR 异步延迟
+      const now = new Date().toISOString();
+      const optimistic = { id: r.session_id, kb_id: useKB, question: title || '新对话', last_answer: '', message_count: 0, created_at: now, updated_at: now };
+      mutateSessions((d) => d ? { ...d, items: [optimistic, ...(d.items || [])] } : d, false);
       return [r.session_id, useKB];
     } catch { toast.error('创建会话失败'); return null; }
     finally { setCreating(false); }
