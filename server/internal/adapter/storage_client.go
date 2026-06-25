@@ -9,9 +9,11 @@
 package adapter
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"time"
 
@@ -57,7 +59,8 @@ type StorageClient interface {
 
 // MinIOClient 通过 minio-go SDK 实现 StorageClient 接口。
 type MinIOClient struct {
-	client *minio.Client
+	client     *minio.Client
+	maxRetries int
 }
 
 // NewMinIOClient 创建 MinIOClient 实例，自动确保指定 buckets 存在。
@@ -66,7 +69,7 @@ type MinIOClient struct {
 // 为什么在构造函数中确保 bucket 存在：应用启动时一次性创建，避免每个请求都检查。
 // ensureBucket 任一失败则返回 error，阻止不带存储能力的服务启动。
 func NewMinIOClient(client *minio.Client, buckets ...string) (*MinIOClient, error) {
-	mc := &MinIOClient{client: client}
+	mc := &MinIOClient{client: client, maxRetries: defaultMaxRetries}
 
 	for _, bucket := range buckets {
 		if err := mc.ensureBucket(context.Background(), bucket); err != nil {
@@ -95,11 +98,23 @@ func (c *MinIOClient) ensureBucket(ctx context.Context, bucket string) error {
 // Upload
 // =============================================================================
 
-// Upload 上传文件到 MinIO。
+// Upload 上传文件到 MinIO（含指数退避重试）。
 //
 // 使用 PutObject API，自动检测 Content-Type。
 // 返回与入参相同的 key，方便调用方确认。
+//
+// io.Reader 会被全部读入内存缓冲，以支持重试（io.Reader 不可回退）。
+// 对超大文件需注意内存占用——当前 OpsMind 上传上限为 50MB。
 func (c *MinIOClient) Upload(ctx context.Context, bucket, key string, reader io.Reader, size int64, contentType string) (string, error) {
+	// 将 reader 内容缓冲到内存，保证重试时每次都能从起始位置读取
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		return "", fmt.Errorf("读取上传内容失败: %w", err)
+	}
+	if size <= 0 {
+		size = int64(len(buf))
+	}
+
 	opts := minio.PutObjectOptions{
 		ContentType: contentType,
 	}
@@ -107,27 +122,57 @@ func (c *MinIOClient) Upload(ctx context.Context, bucket, key string, reader io.
 		opts.ContentType = "application/octet-stream"
 	}
 
-	if _, err := c.client.PutObject(ctx, bucket, key, reader, size, opts); err != nil {
-		return "", fmt.Errorf("上传文件失败 [%s/%s]: %w", bucket, key, err)
+	var lastErr error
+	for attempt := 0; attempt <= c.maxRetries; attempt++ {
+		if attempt > 0 {
+			delay := retryBaseDelay * time.Duration(1<<(attempt-1))
+			if delay > 8*time.Second {
+				delay = 8 * time.Second
+			}
+			slog.Warn("MinIO 上传重试中", "bucket", bucket, "key", key, "attempt", attempt, "delay_ms", delay.Milliseconds())
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		_, lastErr = c.client.PutObject(ctx, bucket, key, bytes.NewReader(buf), size, opts)
+		if lastErr == nil {
+			return key, nil
+		}
 	}
-
-	return key, nil
+	return "", fmt.Errorf("上传文件失败 [%s/%s] (重试%d次): %w", bucket, key, c.maxRetries, lastErr)
 }
 
 // =============================================================================
 // Download
 // =============================================================================
 
-// Download 从 MinIO 下载对象。
+// Download 从 MinIO 下载对象（含指数退避重试）。
 //
 // 使用 GetObject API，返回 io.ReadCloser。
 // 调用方负责在读取完毕后调用 Close() 释放连接。
 func (c *MinIOClient) Download(ctx context.Context, bucket, key string) (io.ReadCloser, error) {
-	obj, err := c.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("下载文件失败 [%s/%s]: %w", bucket, key, err)
+	var lastErr error
+	for attempt := 0; attempt <= c.maxRetries; attempt++ {
+		if attempt > 0 {
+			delay := retryBaseDelay * time.Duration(1<<(attempt-1))
+			if delay > 8*time.Second {
+				delay = 8 * time.Second
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		obj, err := c.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
+		if err == nil {
+			return obj, nil
+		}
+		lastErr = err
 	}
-	return obj, nil
+	return nil, fmt.Errorf("下载文件失败 [%s/%s] (重试%d次): %w", bucket, key, c.maxRetries, lastErr)
 }
 
 // =============================================================================

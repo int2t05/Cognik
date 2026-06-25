@@ -48,6 +48,7 @@ type FeedbackMarker interface {
 // TicketService 申告管理服务。
 type TicketService struct {
 	repo               *repository.TicketRepo
+	auditWriter        AuditWriter
 	txManager          TxManager
 	msgSvc             *MessageService
 	knowledgeCandidate KnowledgeCandidateSaver
@@ -59,8 +60,8 @@ type TicketService struct {
 // knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
 // feedbackMarker 为隐式反馈标记接口，ChatService 隐式满足该接口。
 // 所有依赖在构造时注入，对象始终处于有效状态。
-func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
-	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
+func NewTicketService(repo *repository.TicketRepo, auditWriter AuditWriter, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
 }
 
 // SetKnowledgeCandidate 延迟注入知识候选保存接口。
@@ -595,10 +596,9 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 				slog.Warn("auto_close 创建记录失败，跳过该工单", "ticket_id", id, "error", err)
 				continue
 			}
-			repository.NewAuditRepo(tx).Create(ctx, &model.AuditLog{
-				OperatorID: 0, Action: "ticket.auto_close",
-				TargetType: "ticket", TargetID: id,
-			})
+			if err := s.auditWriter.WriteWithTx(ctx, tx, 0, "ticket.auto_close", "ticket", id, ""); err != nil {
+				continue
+			}
 		}
 
 		closedCount = int64(len(ids))

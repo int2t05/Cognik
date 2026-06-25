@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 
-	"opsmind/internal/model"
 	"opsmind/internal/repository"
 	"opsmind/pkg/errcode"
 
@@ -46,7 +45,7 @@ var validConfigKeys = map[string]configKeyMeta{
 // ConfigService 系统配置管理服务。
 type ConfigService struct {
 	repo      *repository.ConfigRepo
-	auditRepo *repository.AuditRepo
+	auditWriter AuditWriter
 	chatRepo  confidenceScoreQuerier
 }
 
@@ -61,8 +60,8 @@ func (s *ConfigService) SetChatRepo(r confidenceScoreQuerier) {
 }
 
 // NewConfigService 创建 ConfigService 实例。
-func NewConfigService(repo *repository.ConfigRepo, auditRepo *repository.AuditRepo) *ConfigService {
-	return &ConfigService{repo: repo, auditRepo: auditRepo}
+func NewConfigService(repo *repository.ConfigRepo, auditWriter AuditWriter) *ConfigService {
+	return &ConfigService{repo: repo, auditWriter: auditWriter}
 }
 
 // GetInt 读取整数配置，不存在或类型不匹配返回 (0, false)。
@@ -147,11 +146,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, key string, value inte
 	if err := s.repo.Upsert(ctx, key, meta.Description, datatypes.JSON(jsonBytes), updatedBy); err != nil {
 		return err
 	}
-	s.auditRepo.Create(ctx, &model.AuditLog{
-		OperatorID: updatedBy, Action: "config.update",
-		TargetType: "config", TargetID: 0,
-		Detail: datatypes.JSON(jsonBytes),
-	})
+	s.auditWriter.Write(ctx, updatedBy, "config.update", "config", 0, string(jsonBytes))
 	return nil
 }
 
@@ -236,3 +231,10 @@ func percentile(sorted []float64, p float64) float64 {
 func round2(v float64) float64 {
 	return float64(int(v*100+0.5)) / 100
 }
+
+// IsPublicKey 判断指定 key 是否为无需认证的公开配置项。
+// Handler 层通过此方法判断是否允许公开访问，而非自行维护白名单。
+func (s *ConfigService) IsPublicKey(key string) bool {
+	return key == "app_name"
+}
+

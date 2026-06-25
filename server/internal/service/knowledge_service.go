@@ -19,7 +19,6 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/rag"
-	"opsmind/internal/repository"
 	"opsmind/pkg/errcode"
 
 	"gorm.io/datatypes"
@@ -116,7 +115,7 @@ type KnowledgeService struct {
 	docParser             knowledgeDocParser
 	processor             *rag.Processor
 	storage               adapter.StorageClient
-	auditRepo             *repository.AuditRepo
+	auditWriter          AuditWriter
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string            // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
@@ -160,9 +159,9 @@ func WithStorage(sc adapter.StorageClient) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.storage = sc }
 }
 
-// WithAuditRepo 设置审计日志仓库（Publish/Disable 时写入审计记录）。
-func WithAuditRepo(ar *repository.AuditRepo) KnowledgeServiceOption {
-	return func(s *KnowledgeService) { s.auditRepo = ar }
+// WithAuditWriter 设置审计日志写入器（Publish/Disable 时写入审计记录）。
+func WithAuditWriter(aw AuditWriter) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.auditWriter = aw }
 }
 
 // WithOnKBChanged 设置知识库变更回调（publish/disable 后触发，用于 BM25 索引重建等）。
@@ -598,11 +597,8 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	}
 
 	// 审计：发布文章
-	if s.auditRepo != nil {
-		s.auditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: publisherID, Action: "knowledge.publish",
-			TargetType: "knowledge_article", TargetID: id,
-		})
+	if s.auditWriter != nil {
+		s.auditWriter.Write(ctx, publisherID, "knowledge.publish", "knowledge_article", id, "")
 	}
 	return nil
 }
@@ -627,11 +623,8 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
 
-	if s.auditRepo != nil {
-		s.auditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: operatorID, Action: "knowledge.disable",
-			TargetType: "knowledge_article", TargetID: id,
-		})
+	if s.auditWriter != nil {
+		s.auditWriter.Write(ctx, operatorID, "knowledge.disable", "knowledge_article", id, "")
 	}
 	if s.onKBChanged != nil {
 		go s.onKBChanged(article.KBID)

@@ -104,7 +104,8 @@ type ChunkSnapshot struct {
 //
 // 复用 GORM 的 *sql.DB 连接池，避免创建独立连接池造成双池浪费。
 type PgvectorStore struct {
-	db *sql.DB
+	db         *sql.DB
+	maxRetries int
 }
 
 // NewPgvectorStore 创建 PgvectorStore 实例，复用 GORM DB 连接池。
@@ -116,7 +117,7 @@ func NewPgvectorStore(gormDB *gorm.DB) (*PgvectorStore, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("pgvector Ping 失败: %w", err)
 	}
-	return &PgvectorStore{db: db}, nil
+	return &PgvectorStore{db: db, maxRetries: defaultMaxRetries}, nil
 }
 
 // Close 关闭与 GORM 共享的底层连接（由 GORM 管理生命周期，此方法为 no-op）。

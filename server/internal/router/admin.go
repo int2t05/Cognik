@@ -16,7 +16,7 @@ import (
 func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 申告管理
 	rg.GET("/tickets", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.ListAll }))
-	rg.GET("/tickets/:id", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetail }))
+	rg.GET("/tickets/:id", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetailAdmin }))
 	rg.PATCH("/tickets/:id/status", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.UpdateStatus }))
 	rg.POST("/tickets/:id/records", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.AddRecord }))
 	rg.POST("/tickets/:id/knowledge-candidate", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateKnowledgeCandidate }))

@@ -191,6 +191,7 @@ func wireApp() (*app, error) {
 	chatRepo := repository.NewChatRepo(db)
 	messageRepo := repository.NewMessageRepo(db)
 	auditRepo := repository.NewAuditRepo(db)
+	auditService := service.NewAuditService(auditRepo)
 	dashboardRepo := repository.NewDashboardRepo(db)
 
 	// 5. Service 层（无 RAG 依赖的部分）
@@ -202,15 +203,15 @@ func wireApp() (*app, error) {
 	slog.Info("用户状态缓存已创建", "ttl", "30s")
 
 	a.authService = service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
-	userService := service.NewUserService(userRepo, auditRepo, db, userCache)
-	roleService := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
+	userService := service.NewUserService(userRepo, auditService, db, userCache)
+	roleService := service.NewRoleService(roleRepo, menuRepo, auditService, db)
 	messageService := service.NewMessageService(messageRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo)
-	configService := service.NewConfigService(configRepo, auditRepo)
+	configService := service.NewConfigService(configRepo, auditService)
 	configService.SetChatRepo(chatRepo)
 
 	llmConfigRepo := repository.NewLlmConfigRepo(db)
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditService)
 	if err != nil {
 		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
 	}
@@ -260,7 +261,7 @@ func wireApp() (*app, error) {
 		service.WithDocParser(docParser),
 		service.WithProcessor(processor),
 		service.WithStorage(a.storageClient),
-		service.WithAuditRepo(auditRepo),
+		service.WithAuditWriter(auditService),
 		service.WithDefaultEmbeddingModel(cfg.Embedding.Model),
 		service.WithOnKBChanged(func(kbID int64) {
 			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
@@ -272,7 +273,7 @@ func wireApp() (*app, error) {
 
 	// TicketService 依赖 KnowledgeService 的 CreateArticle（知识候选），
 	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
-	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
+	ticketService := service.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
@@ -313,7 +314,7 @@ func wireApp() (*app, error) {
 		MultiRoute:   cfg.AI.RAGMultiRoute,
 		Hybrid:       cfg.AI.RAGHybrid,
 		Rerank:       cfg.AI.RAGRerank,
-	}, configService, auditRepo, genHub)
+	}, configService, auditService, genHub)
 	slog.Info("ChatService 已初始化")
 
 	// 将 ChatService 作为隐式反馈标记器注入 TicketService（申告创建 → AI 回答自动标记）
@@ -324,7 +325,6 @@ func wireApp() (*app, error) {
 		slog.Warn("清理残留 generating 消息失败", "error", err)
 	}
 
-	auditService := service.NewAuditService(auditRepo)
 
 	// 6. Handler 层
 	handlers := &router.Handlers{

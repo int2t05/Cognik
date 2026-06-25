@@ -28,7 +28,7 @@ func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 申告管理
 	rg.POST("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateTicket }))
 	rg.GET("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.ListByUser }))
-	rg.GET("/tickets/:id", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetail }))
+	rg.GET("/tickets/:id", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetailPortal }))
 	rg.PATCH("/tickets/:id/supplement", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.SupplementTicket }))
 		rg.PATCH("/tickets/:id", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.UpdateTicket }))
 

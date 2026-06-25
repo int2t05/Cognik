@@ -57,9 +57,9 @@ type ProcessTask struct {
 
 // Processor 管理文档处理的 goroutine pool。
 type Processor struct {
-	parser   *DocParser
-	chunker  *Chunker
-	embedder *Embedder
+	parser   DocumentParser
+	chunker  TextChunker
+	embedder TextEmbedder
 	store    adapter.VectorStore
 	storage  adapter.StorageClient
 
@@ -77,7 +77,7 @@ type Processor struct {
 //
 // storage 可以为 nil（MinIO 不可用时自动降级到 Content 模式）。
 // poolSize 为 worker goroutine 数量，建议 2-4。
-func NewProcessor(parser *DocParser, chunker *Chunker, embedder *Embedder, store adapter.VectorStore, storage adapter.StorageClient, poolSize int) *Processor {
+func NewProcessor(parser DocumentParser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage adapter.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
 		poolSize = 2
 	}

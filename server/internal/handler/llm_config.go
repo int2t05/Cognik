@@ -6,9 +6,7 @@ package handler
 import (
 	"context"
 	"strconv"
-	"time"
 
-	"opsmind/internal/adapter"
 	"opsmind/internal/dto/request"
 	"opsmind/internal/model"
 	"opsmind/internal/service"
@@ -34,6 +32,7 @@ type llmConfigService interface {
 	GetConfig(ctx context.Context, id int64) (*model.LlmConfig, error)
 	UpdateConfig(ctx context.Context, cfg *model.LlmConfig) error
 	DeleteConfig(ctx context.Context, id int64) error
+	TestConnection(ctx context.Context, id int64) (map[string]any, error)
 	GetManager() *service.LLMConfigManager
 }
 
@@ -154,6 +153,7 @@ func (h *LLMConfigHandler) DeleteConfig(c *gin.Context) {
 // TestConnection 测试指定 LLM 配置的连接。
 //
 // POST /api/v1/admin/llm-configs/:id/test
+// 委托给 LlmConfigService.TestConnection（Handler 不直接创建适配器或调用 LLM）。
 func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -161,42 +161,11 @@ func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.svc.GetConfig(c.Request.Context(), id)
+	result, err := h.svc.TestConnection(c.Request.Context(), id)
 	if err != nil {
-		handleServiceError(c, err)
+		response.Error(c, errcode.ErrAIUnavailable, err.Error())
 		return
 	}
 
-	// 基于被测配置创建临时客户端，而非使用注入的全局默认客户端
-	testClient, err := adapter.NewOpenAIClient(cfg.LLMBaseURL, cfg.LLMAPIKey, 10*time.Second)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "配置的 BaseURL 无效: "+err.Error())
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
-
-	testReq := adapter.ChatRequest{
-		Model:       cfg.LLMModel,
-		Messages:    []adapter.ChatMessage{{Role: "user", Content: "ping"}},
-		MaxTokens:   1,
-		Temperature: 0,
-	}
-
-	start := time.Now()
-	resp, err := testClient.ChatCompletion(ctx, testReq)
-	latency := time.Since(start).Milliseconds()
-	if err != nil {
-		response.Error(c, errcode.ErrAIUnavailable, "连接测试失败: "+err.Error())
-		return
-	}
-
-	response.Success(c, gin.H{
-		"success":      true,
-		"model":        cfg.LLMModel,
-		"latency_ms":   latency,
-		"test_message": resp.Content,
-		"tokens_used":  resp.TokensUsed,
-	})
+	response.Success(c, result)
 }

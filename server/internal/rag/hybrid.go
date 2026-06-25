@@ -28,6 +28,15 @@ const (
 	rrfK = 60
 )
 
+// rrfFusion 将 HybridFuse 函数适配为 FusionStrategy 接口。
+// 使用 RRF k=60 融合策略，是 Pipeline 的默认融合实现。
+type rrfFusion struct{}
+
+// Fuse 实现 FusionStrategy 接口，委托给 HybridFuse（RRF k=60）。
+func (r *rrfFusion) Fuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult {
+	return HybridFuse(vectorResults, bm25Results, topK)
+}
+
 // HybridFuse 使用 RRF 融合向量检索和 BM25 检索结果。
 //
 // 两路均有结果时计算 RRF 分数，降序排列后截取 topK。

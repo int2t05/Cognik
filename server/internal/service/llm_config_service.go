@@ -10,8 +10,12 @@ import (
 	"sync/atomic"
 
 	"opsmind/internal/model"
+	"opsmind/internal/adapter"
 	"opsmind/internal/repository"
 	"opsmind/pkg/errcode"
+
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -70,17 +74,17 @@ type LLMConfigService struct {
 	repo      llmConfigRepo
 	newRepo   txRepoFactory
 	manager   *LLMConfigManager
-	auditRepo *repository.AuditRepo
+	auditWriter AuditWriter
 	db        *gorm.DB
 }
 
 // NewLLMConfigService 创建 LLMConfigService 实例。
-func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditRepo *repository.AuditRepo) (*LLMConfigService, error) {
+func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditWriter AuditWriter) (*LLMConfigService, error) {
 	svc := &LLMConfigService{
 		repo:      repo,
 		manager:   NewLLMConfigManager(),
 		db:        db,
-		auditRepo: auditRepo,
+		auditWriter: auditWriter,
 	}
 	if db != nil {
 		svc.newRepo = func(tx *gorm.DB) llmConfigRepo { return repository.NewLlmConfigRepo(tx) }
@@ -200,11 +204,8 @@ func (s *LLMConfigService) UpdateConfig(ctx context.Context, cfg *model.LlmConfi
 		cfg = fresh
 		s.manager.store(cfg)
 	}
-	if s.auditRepo != nil {
-		s.auditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: 0, Action: "llm_config.update",
-			TargetType: "llm_config", TargetID: cfg.ID,
-		})
+	if s.auditWriter != nil {
+		s.auditWriter.Write(ctx, 0, "llm_config.update", "llm_config", cfg.ID, "")
 	}
 	return nil
 }
@@ -312,3 +313,46 @@ func maskAPIKey(key string) string {
 	}
 	return key[:4] + "****" + key[len(key)-4:]
 }
+
+// TestConnection 测试指定 LLM 配置的连接是否可用。
+//
+// 为什么放在 Service 而非 Handler：
+// LLM 连接测试涉及适配器创建和 API 调用，属于领域逻辑而非 HTTP 管道。
+// Handler 只负责解析参数和格式化响应，不应知道 adapter.NewOpenAIClient。
+func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[string]any, error) {
+	cfg, err := s.GetConfig(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	testClient, err := adapter.NewOpenAIClient(cfg.LLMBaseURL, cfg.LLMAPIKey, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("配置的 BaseURL 无效: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	testReq := adapter.ChatRequest{
+		Model:       cfg.LLMModel,
+		Messages:    []adapter.ChatMessage{{Role: "user", Content: "ping"}},
+		MaxTokens:   1,
+		Temperature: 0,
+	}
+
+	start := time.Now()
+	resp, err := testClient.ChatCompletion(ctx, testReq)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return nil, fmt.Errorf("连接测试失败: %w", err)
+	}
+
+	return map[string]any{
+		"success":      true,
+		"model":        cfg.LLMModel,
+		"latency_ms":   latency,
+		"test_message": resp.Content,
+		"tokens_used":  resp.TokensUsed,
+	}, nil
+}
+

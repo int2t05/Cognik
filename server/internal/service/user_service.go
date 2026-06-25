@@ -24,15 +24,16 @@ import (
 
 // UserService 用户管理服务。
 type UserService struct {
-	repo      *repository.UserRepo
-	auditRepo *repository.AuditRepo
-	db        *gorm.DB
-	userCache *cache.UserStatusCache
+	repo        *repository.UserRepo
+	auditWriter AuditWriter
+	db          *gorm.DB
+	userCache   *cache.UserStatusCache
 }
 
 // NewUserService 创建 UserService 实例。
-func NewUserService(repo *repository.UserRepo, auditRepo *repository.AuditRepo, db *gorm.DB, userCache *cache.UserStatusCache) *UserService {
-	return &UserService{repo: repo, auditRepo: auditRepo, db: db, userCache: userCache}
+// auditWriter 通过 AuditWriter 接口注入，而非直接依赖 AuditRepo——遵循"消费者接口"模式。
+func NewUserService(repo *repository.UserRepo, auditWriter AuditWriter, db *gorm.DB, userCache *cache.UserStatusCache) *UserService {
+	return &UserService{repo: repo, auditWriter: auditWriter, db: db, userCache: userCache}
 }
 
 // GetByID 根据 ID 获取用户详情（含角色列表）。
@@ -147,14 +148,12 @@ func (s *UserService) Create(ctx context.Context, req request.CreateUserRequest)
 			}
 		}
 
-		// 审计：创建用户
-		txAuditRepo := repository.NewAuditRepo(tx)
-		txAuditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: 0, Action: "user.create", TargetType: "user", TargetID: user.ID,
+			if err := s.auditWriter.WriteWithTx(ctx, tx, 0, "user.create", "user", user.ID, ""); err != nil {
+				return err
+			}
+			return nil
 		})
-		return nil
-	})
-}
+	}
 
 // Update 更新用户基本信息。
 //
@@ -186,12 +185,11 @@ func (s *UserService) Update(ctx context.Context, id int64, req request.UpdateUs
 			return err
 		}
 
-		txAuditRepo := repository.NewAuditRepo(tx)
-		txAuditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: 0, Action: "user.update", TargetType: "user", TargetID: id,
+			if err := s.auditWriter.WriteWithTx(ctx, tx, 0, "user.update", "user", id, ""); err != nil {
+				return err
+			}
+			return nil
 		})
-		return nil
-	})
 }
 
 // Freeze 冻结用户。
@@ -224,9 +222,7 @@ func (s *UserService) Freeze(ctx context.Context, id int64, operatorID int64) er
 		return err
 	}
 	s.invalidateCache(id)
-	s.auditRepo.Create(ctx, &model.AuditLog{
-		OperatorID: operatorID, Action: "user.freeze", TargetType: "user", TargetID: id,
-	})
+	s.auditWriter.Write(ctx, operatorID, "user.freeze", "user", id, "")
 	return nil
 }
 
@@ -250,9 +246,7 @@ func (s *UserService) Restore(ctx context.Context, id int64) error {
 		return err
 	}
 	s.invalidateCache(id)
-	s.auditRepo.Create(ctx, &model.AuditLog{
-		OperatorID: 0, Action: "user.restore", TargetType: "user", TargetID: id,
-	})
+	s.auditWriter.Write(ctx, 0, "user.restore", "user", id, "")
 	return nil
 }
 

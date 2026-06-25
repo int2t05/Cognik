@@ -21,31 +21,49 @@ import (
 type RoleService struct {
 	repo      *repository.RoleRepo
 	menuRepo  *repository.MenuRepo
-	auditRepo *repository.AuditRepo
+	auditWriter AuditWriter
 	db        *gorm.DB
 }
 
 // NewRoleService 创建 RoleService 实例。
-func NewRoleService(repo *repository.RoleRepo, menuRepo *repository.MenuRepo, auditRepo *repository.AuditRepo, db *gorm.DB) *RoleService {
-	return &RoleService{repo: repo, menuRepo: menuRepo, auditRepo: auditRepo, db: db}
+func NewRoleService(repo *repository.RoleRepo, menuRepo *repository.MenuRepo, auditWriter AuditWriter, db *gorm.DB) *RoleService {
+	return &RoleService{repo: repo, menuRepo: menuRepo, auditWriter: auditWriter, db: db}
 }
+
+
+// 权限标识常量——router/permissions.go 通过别名引用此处。
+// 新增权限时只需在此处添加，router 自动同步。
+const (
+	PermUserManage      = "user:manage"
+	PermTicketRead      = "ticket:read"
+	PermTicketWrite     = "ticket:write"
+	PermTicketManage    = "ticket:manage"
+	PermKnowledgeRead   = "knowledge:read"
+	PermKnowledgeWrite  = "knowledge:write"
+	PermKnowledgeCreate = "knowledge:create"
+	PermKnowledgeManage = "knowledge:manage"
+	PermKnowledgeReview = "knowledge:review"
+	PermAuditRead       = "audit:read"
+	PermDashboardRead   = "dashboard:read"
+	PermSystemConfig    = "system:config"
+)
 
 // validPermissions 权限白名单。
 //
 // 仅允许写入已定义的权限标识，防止拼写错误导致权限静默失效。
 var validPermissions = map[string]bool{
-	"user:manage":      true,
-	"ticket:read":      true,
-	"ticket:write":     true,
-	"ticket:manage":    true,
-	"knowledge:read":   true,
-	"knowledge:write":  true,
-	"knowledge:create": true,
-	"knowledge:manage": true,
-	"knowledge:review": true,
-	"audit:read":       true,
-	"dashboard:read":   true,
-	"system:config":    true,
+	PermUserManage:      true,
+	PermTicketRead:      true,
+	PermTicketWrite:     true,
+	PermTicketManage:    true,
+	PermKnowledgeRead:   true,
+	PermKnowledgeWrite:  true,
+	PermKnowledgeCreate: true,
+	PermKnowledgeManage: true,
+	PermKnowledgeReview: true,
+	PermAuditRead:       true,
+	PermDashboardRead:   true,
+	PermSystemConfig:    true,
 }
 
 // validatePermissions 校验权限列表是否全部在白名单中。
@@ -90,9 +108,7 @@ func (s *RoleService) Create(ctx context.Context, name, description string, perm
 	if err := s.repo.Create(ctx, role); err != nil {
 		return err
 	}
-	s.auditRepo.Create(ctx, &model.AuditLog{
-		OperatorID: 0, Action: "role.create", TargetType: "role", TargetID: role.ID,
-	})
+	s.auditWriter.Write(ctx, 0, "role.create", "role", role.ID, "")
 	return nil
 }
 
@@ -152,9 +168,7 @@ func (s *RoleService) Update(ctx context.Context, id int64, name, description st
 	if err := s.repo.Update(ctx, role); err != nil {
 		return err
 	}
-	s.auditRepo.Create(ctx, &model.AuditLog{
-		OperatorID: 0, Action: "role.update", TargetType: "role", TargetID: id,
-	})
+	s.auditWriter.Write(ctx, 0, "role.update", "role", id, "")
 	return nil
 }
 

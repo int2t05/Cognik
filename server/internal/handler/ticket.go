@@ -7,7 +7,6 @@ package handler
 
 import (
 	"strconv"
-	"strings"
 
 	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
@@ -137,23 +136,38 @@ func (h *TicketHandler) ListAll(c *gin.Context) {
 	response.SuccessWithPage(c, result.Tickets, result.Total, page, pageSize)
 }
 
-// GetDetail 获取申告详情。
+// GetDetailAdmin 获取申告详情（后台——不限所有权）。
 //
-// GET /api/v1/admin/tickets/:id  — 后台查看（不限所有权）
-// GET /api/v1/portal/tickets/:id — 门户查看（仅限自己的申告）
-func (h *TicketHandler) GetDetail(c *gin.Context) {
+// GET /api/v1/admin/tickets/:id
+// 为什么独立方法而非路由前缀判断：Handler 不应感知 URL 结构，
+// 路由逻辑应留在 Router 层。
+func (h *TicketHandler) GetDetailAdmin(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, errcode.ErrParam, "无效的申告 ID")
 		return
 	}
 
-	// 门户端受限于所有权，后台端可查看全部
-	userID, _ := getCurrentUserID(c)
-	if strings.HasPrefix(c.FullPath(), "/api/v1/admin/") {
-		userID = 0 // 后台不限制所有权
+	result, svcErr := h.svc.GetDetail(c.Request.Context(), id, 0)
+	if svcErr != nil {
+		handleServiceError(c, svcErr)
+		return
 	}
 
+	response.Success(c, result)
+}
+
+// GetDetailPortal 获取申告详情（门户——仅限自己的申告）。
+//
+// GET /api/v1/portal/tickets/:id
+func (h *TicketHandler) GetDetailPortal(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		return
+	}
+
+	userID, _ := getCurrentUserID(c)
 	result, svcErr := h.svc.GetDetail(c.Request.Context(), id, userID)
 	if svcErr != nil {
 		handleServiceError(c, svcErr)

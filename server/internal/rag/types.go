@@ -14,7 +14,10 @@
 // 这样设计的目的是保持 RAG 引擎的可测试性和可替换性。
 package rag
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // =============================================================================
 // Retriever 接口
@@ -26,6 +29,35 @@ import "context"
 type Retriever interface {
 	// Retrieve 执行检索，返回 topK 个最相关的结果。
 	Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error)
+}
+
+
+// =============================================================================
+// 内部模块接口（与 Retriever 同级，统一风格）
+// =============================================================================
+
+// TextChunker 文本分块接口。
+// Chunker 实现此接口；Pipeline 和 Processor 通过此接口解耦分块策略。
+type TextChunker interface {
+	Split(text string) []string
+}
+
+// DocumentParser 文档解析接口。
+// DocParser 实现此接口；Processor 通过此接口解耦解析实现。
+type DocumentParser interface {
+	Parse(reader io.Reader, fileType string) (string, error)
+}
+
+// TextEmbedder 文本向量化接口。
+// Embedder 实现此接口；Pipeline 和 Processor 通过此接口解耦嵌入生成。
+type TextEmbedder interface {
+	Embed(ctx context.Context, texts []string, model string) ([][]float32, int, error)
+}
+
+// FusionStrategy 混合融合策略接口。
+// HybridFuse 实现此接口（RRF k=60）；可替换为加权求和等其他策略。
+type FusionStrategy interface {
+	Fuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult
 }
 
 // =============================================================================

@@ -38,7 +38,8 @@ type Pipeline struct {
 	bm25Retriever   Retriever           // BM25 检索器（可为 nil，表示不启用 BM25）
 	llmClient       adapter.LLMClient   // LLM 客户端（查询改写/多路）
 	reranker        adapter.Reranker    // Cross-encoder 重排序器（可为 nil，nil 时降级跳过）
-	embedder        *Embedder           // 向量嵌入器
+	embedder        TextEmbedder        // 向量嵌入器（问题 embedding 缓存）
+	fusion          FusionStrategy      // 混合融合策略（默认 RRF k=60）
 	llmModel        string              // LLM 模型名称（查询改写/多路同步调用需要）
 }
 
@@ -47,13 +48,14 @@ type Pipeline struct {
 // vectorRet 不可为 nil。bm25Ret 可以为 nil（不启用 BM25 混合检索）。
 // reranker 可以为 nil（不启用重排序或降级为 LLM prompt 方案）。
 // llmModel 用于查询改写和多路检索的同步 LLM 调用（与流式生成的模型相同）。
-func NewPipeline(vectorRet, bm25Ret Retriever, llm adapter.LLMClient, emb *Embedder, reranker adapter.Reranker, llmModel string) *Pipeline {
+func NewPipeline(vectorRet, bm25Ret Retriever, llm adapter.LLMClient, emb TextEmbedder, reranker adapter.Reranker, llmModel string) *Pipeline {
 	return &Pipeline{
 		vectorRetriever: vectorRet,
 		bm25Retriever:   bm25Ret,
 		llmClient:       llm,
 		reranker:        reranker,
 		embedder:        emb,
+		fusion:          &rrfFusion{},
 		llmModel:        llmModel,
 	}
 }
@@ -199,7 +201,7 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 
 		// 3c: RRF 融合（内部携带 Bm25NormScore 到融合结果）
 		fuseErr := track("hybrid_fuse", "混合融合", func() error {
-			allChunks = HybridFuse(vectorResults, bm25Results, opts.RerankCount)
+			allChunks = p.fusion.Fuse(vectorResults, bm25Results, opts.RerankCount)
 			if len(allChunks) == 0 {
 				return fmt.Errorf("混合融合后无结果")
 			}

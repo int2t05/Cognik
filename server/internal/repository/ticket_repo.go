@@ -75,6 +75,7 @@ func (r *TicketRepo) UpdateStatus(ctx context.Context, id int64, expectedStatus,
 }
 
 // IncrementSupplementCount 原子自增补充信息计数。
+// WHERE supplement_count < 3 提供 SQL 级 CAS 并发安全，配合 Service 层前置检查形成纵深防御。
 func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bool, error) {
 	result := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("id = ? AND supplement_count < 3", id).
 		UpdateColumn("supplement_count", gorm.Expr("supplement_count + 1"))

@@ -24,21 +24,17 @@ func NewConfigHandler(svc *service.ConfigService) *ConfigHandler {
 	return &ConfigHandler{svc: svc}
 }
 
-// publicConfigKeys 公开可访问的配置键白名单（无需认证）。
-var publicConfigKeys = map[string]bool{
-	"app_name": true,
-}
-
 // GetPublic 获取公开配置值（无需认证）。
 //
 // GET /api/v1/public/configs/:key
+// 公开键判定委托给 ConfigService.IsPublicKey，Handler 不再维护独立白名单。
 func (h *ConfigHandler) GetPublic(c *gin.Context) {
 	key := c.Param("key")
 	if key == "" {
 		response.Error(c, errcode.ErrParam, "配置 key 不能为空")
 		return
 	}
-	if !publicConfigKeys[key] {
+	if !h.svc.IsPublicKey(key) {
 		response.Error(c, errcode.ErrNotFound, "配置不存在")
 		return
 	}

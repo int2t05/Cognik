@@ -1,12 +1,12 @@
 // Package handler 实现 HTTP 请求处理。
 //
 // audit.go 提供审计日志查询接口。
-// 审计日志写入由各 Service 层直接调用 AuditRepo.Create，不经过 Handler。
+// 审计日志写入由各 Service 通过 AuditWriter 接口触发，
+// 统一经过 AuditService.Write，不直接调用 AuditRepo。
 package handler
 
 import (
 	"opsmind/internal/dto/request"
-	"opsmind/internal/repository"
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -36,7 +36,7 @@ func (h *AuditHandler) List(c *gin.Context) {
 
 	page, pageSize := parsePagination(c)
 
-	f := repository.AuditFilter{
+	f := service.AuditFilter{
 		OperatorID: req.OperatorID,
 		Action:     req.Action,
 		TargetType: req.TargetType,
