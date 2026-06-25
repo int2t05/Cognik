@@ -22,11 +22,12 @@ import (
 
 // stripThinkingPrefix 移除模型思考/推理前缀，提取实际改写结果。
 //
-// 这是 llm_client.go 优先取 reasoning_content 之后的兜底后处理。
-// 当模型将所有输出都放在 content 字段（内联思考模式）时生效。
+// 适配层已通过 chat_template_kwargs 禁用思考模式，正常情况不会走到这里。
+// 此函数作为安全网：当 API 不支持 chat_template_kwargs（如 OpenAI/DeepSeek）
+// 且模型输出内联思考内容时兜底清理。
 //
-// 策略（按优先级）：
-//  1. 如果整段输出短且无思考标识 → 直接返回
+// 策略：
+//  1. 短输出且无思考标记 → 直接返回
 //  2. 按句号/换行分割 → 从末尾反向扫描 → 跳过思考片段 → 返回第一个有效句
 //  3. 无法识别 → 返回原始字符串（降级）
 func stripThinkingPrefix(s string) string {
@@ -68,11 +69,8 @@ func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query strin
 		return query, nil
 	}
 
-	// 构造 prompt
-	//
-	// 为什么用 few-shot 而非单行指令：
-	// Qwen3 等模型内建思考模式，简单的「不要解释」指令不足够阻止其输出
-	// 推理链。通过给出输入→输出示例，让模型直接模仿输出格式。
+	// 构造 prompt。
+	// 思考模式已通过 chat_template_kwargs 在适配层禁用，模型直接输出改写结果。
 	systemMsg := "你是运维场景的查询改写助手。将用户口语化问题改写为正式、精确的检索查询。\n\n规则：\n1. 将口语转为书面用语（如「怎么搞」→「如何配置」）\n2. 补充运维术语（如「连不上」→「网络连接失败」）\n3. 若对话历史中有指代（「那个」「它」），替换为具体名词\n4. 只输出改写后的一句话，不要解释"
 	userMsg := fmt.Sprintf("原始查询：%s\n\n请直接输出改写后的查询语句，不要输出任何解释、分析或思考过程。", query)
 

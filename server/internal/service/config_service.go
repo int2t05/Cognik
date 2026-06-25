@@ -29,11 +29,6 @@ type configKeyMeta struct {
 // 为什么用白名单而非自由 key-value：
 // 自由 key-value 允许调用方写入任意键名，拼写错误导致静默创建无用配置项，
 // 且前端无法区分「配置不存在」和「配置类型不符」。
-// validConfigKeys 配置键白名单。
-//
-// 为什么用白名单而非自由 key-value：
-// 自由 key-value 允许调用方写入任意键名，拼写错误导致静默创建无用配置项，
-// 且前端无法区分「配置不存在」和「配置类型不符」。
 var validConfigKeys = map[string]configKeyMeta{
 	"app_name":                {ValueType: "string", Description: "应用名称，显示在页面标题和系统通知中"},
 	"ai.rag_enabled":          {ValueType: "bool", Description: "全局 RAG 检索开关（关闭后为纯 LLM 对话模式）"},
