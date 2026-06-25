@@ -104,8 +104,6 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           patch(id, s => ({ ...s, thinking: true }));
         }
         else if (evt.type === 'token') {
-          // 首个 token 到达时清除 thinking 状态
-          patch(id, s => s.thinking ? { ...s, thinking: false } : s);
           // token 先写入内存缓冲区 acc，通过 rAF 批处理合并为一次 React 渲染。
           // 每个 rAF 周期内多次 setState 合并为一次，消除逐 token 渲染的性能灾难。
           ensureAssistant();
@@ -121,7 +119,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           // 取消待处理的 rAF，直接 flush 最终内容
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           const meta = evt.metadata;
-          patch(id, s => ({ ...s, status: 'idle', currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
+          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
         }
         else if (evt.type === 'error') {
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
