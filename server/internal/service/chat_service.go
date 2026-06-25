@@ -39,6 +39,7 @@ type chatSessionRepo interface {
 	CreateBatch(ctx context.Context, messages []model.ChatMessage) error
 	CreateMessage(ctx context.Context, m *model.ChatMessage) error
 	UpdateMessage(ctx context.Context, m *model.ChatMessage) error
+	DeleteMessage(ctx context.Context, id int64) error
 	MarkGeneratingFailed(ctx context.Context) (int64, error)
 	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
 	FindMessageByID(ctx context.Context, messageID, sessionID int64) (*model.ChatMessage, error)
@@ -188,10 +189,9 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	// RAG 管道选项：env 默认值 → DB 配置覆盖 → 请求级参数
 	opts := s.buildRAGOptions(routeCount, rerankCount, ragHistory)
 
-	// 立即落库用户消息（解决导航/刷新后用户消息丢失）
-	if err := s.chatRepo.CreateMessage(ctx, &model.ChatMessage{
-		SessionID: sessionID, Role: "user", Content: question, Status: model.MessageStatusCompleted,
-	}); err != nil {
+	// 立即落库用户消息
+	userMsg := &model.ChatMessage{SessionID: sessionID, Role: "user", Content: question, Status: model.MessageStatusCompleted}
+	if err := s.chatRepo.CreateMessage(ctx, userMsg); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "保存用户消息失败"}
 	}
 		// 首次对话时将标题从"新对话"自动更新为用户问题
@@ -220,7 +220,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: err.Error()}
 	}
 
-	go s.runGeneration(gctx, sessionID, assistant.ID, question, session.KBID, opts, history)
+	go s.runGeneration(gctx, sessionID, userMsg.ID, assistant.ID, question, session.KBID, opts, history)
 
 	replay, ch, unsub, ok := s.hub.Subscribe(sessionID, 0)
 	if !ok {
@@ -230,14 +230,14 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 }
 
 // runGeneration 在后台跑 RAG 管道，逐事件 Publish 到 Hub；完成/失败时落库并 Finish。
-func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) {
+func (s *ChatService) runGeneration(gctx context.Context, sessionID, userMsgID, assistantID int64, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) {
 	defer s.hub.Finish(sessionID)
 
 	enableThinking := s.readBool("ai.enable_thinking", false)
 	llmEvents, err := s.llmService.StreamChat(gctx, question, kbID, opts, history, enableThinking)
 	if err != nil {
 		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: err.Error()})
-		s.failAssistant(msgID)
+		s.failAssistant(assistantID)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64
 				Confidence: confRaw, DurationMs: evt.Metadata.DurationMS,
 			})
 			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
-				ID: msgID, Content: evt.Metadata.Answer, Sources: srcJSON,
+				ID: assistantID, Content: evt.Metadata.Answer, Sources: srcJSON,
 				PipelineMetrics: pipelineJSON, ConfidenceRaw: confRaw,
 				Status: model.MessageStatusCompleted,
 			})
@@ -264,16 +264,21 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64
 				evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 		}
 		if evt.Type == "error" {
-			s.failAssistant(msgID)
+			s.failAssistant(assistantID)
 		}
 		s.hub.Publish(sessionID, evt)
 	}
 
-	// gctx 被取消（用户停止/超时）：落库当前已生成内容为 failed
+	// 超时：落库已生成内容；用户主动停止：删除双方消息（回溯到发送前）
 	if gctx.Err() != nil {
-		_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
-			ID: msgID, Content: answer, Status: model.MessageStatusFailed,
-		})
+		if errors.Is(gctx.Err(), context.DeadlineExceeded) {
+			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
+				ID: assistantID, Content: answer, Status: model.MessageStatusFailed,
+			})
+		} else {
+			_ = s.chatRepo.DeleteMessage(context.Background(), userMsgID)
+			_ = s.chatRepo.DeleteMessage(context.Background(), assistantID)
+		}
 		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: "生成已停止"})
 	}
 }

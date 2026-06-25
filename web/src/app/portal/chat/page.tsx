@@ -62,7 +62,8 @@ export default function ChatPage() {
     setSessionIdState(sid);
     const params = new URLSearchParams(searchParams.toString());
     if (sid) { params.set('sid', String(sid)); } else { params.delete('sid'); }
-    router.replace(`?${params.toString()}`, { scroll: false });
+    const url = `?${params.toString()}`;
+    if (typeof window !== 'undefined') { router.replace(url, { scroll: false }); }
   }, [router, searchParams]);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -82,7 +83,6 @@ export default function ChatPage() {
 
   // 默认知识库：列表第一个（建议卡片/直接输入时自动使用）
   const defaultKB = (kbs && kbs.length > 0) ? kbs[0].id : 0;
-  const currentKB = sessionId ? (sessions.find(s => s.id === sessionId)?.kb_id || 0) : 0;
   const currentTitle = sessionId ? (sessions.find(s => s.id === sessionId)?.question || '对话') : null;
 
   const store = useChatStreamStore();
@@ -130,37 +130,29 @@ export default function ChatPage() {
     }
   }, [messages.length, currentStep, enableVirtual, rowVirtualizer, streaming, isNearBottom]);
 
-  // 确保有会话可对话：无会话时自动创建一个。title 用于初始标题（示例问题直接用它命名）。
-  const ensureSession = async (title?: string): Promise<[number, number] | null> => {
-    if (sessionId) return [sessionId, currentKB || defaultKB];
-    const useKB = pendingKB || defaultKB;
-    if (!useKB) { toast.info('请先创建知识库'); return null; }
-    setCreating(true);
-    try {
-      const r = await createSession(useKB, title || '新对话');
-      setSessionId(r.session_id);
-      setFeedbackMap({});
-      // 乐观更新：立即在侧栏显示新会话，消除 SWR 异步延迟
-      const now = new Date().toISOString();
-      const optimistic = { id: r.session_id, kb_id: useKB, question: title || '新对话', last_answer: '', message_count: 0, created_at: now, updated_at: now };
-      mutateSessions((d) => d ? { ...d, items: [optimistic, ...(d.items || [])] } : d, false);
-      return [r.session_id, useKB];
-    } catch { toast.error('创建会话失败'); return null; }
-    finally { setCreating(false); }
-  };
-
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
-    if (!question) return;
-    if (!token) { toast.error('请先登录'); return; }
-    if (isTokenExpired(token)) { toast.error('登录已过期，请刷新页面'); return; }
-
-    const result = await ensureSession(question);
-    if (!result) return;
-    const [sid, kbId] = result;
-
+    if (!question || !token || isTokenExpired(token)) return;
     setInput('');
-    await store.send(sid, kbId, question, token || '', (m) => toast.error(m));
+
+    // 无会话时先创建，再发送
+    let sid = sessionId;
+    if (!sid) {
+      const kb = pendingKB || defaultKB;
+      if (!kb) { toast.info('请先创建知识库'); return; }
+      setCreating(true);
+      try {
+        const r = await createSession(kb, question);
+        sid = r.session_id;
+        setSessionId(sid);
+        setFeedbackMap({});
+        const now = new Date().toISOString();
+        mutateSessions((d) => d ? { ...d, items: [{ id: r.session_id, kb_id: kb, question, last_answer: '', message_count: 0, created_at: now, updated_at: now }, ...(d.items || [])] } : d, false);
+      } catch { toast.error('创建会话失败'); return; }
+      finally { setCreating(false); }
+    }
+
+    await store.send(sid, pendingKB || defaultKB || 0, question, token || '', (m) => toast.error(m));
   };
 
   // 点击"新对话"→ 弹 KB 选择 → 创建空会话
@@ -209,10 +201,10 @@ export default function ChatPage() {
   // 页面加载时从 URL 恢复会话消息
   useEffect(() => {
     if (!sessionId || sessionsLoading || sessions.length === 0) return;
+    // 已有消息则跳过（store.send 已填充或 handleSelectSession 已加载过）——优先于列表检查
+    if (store.getStream(sessionId)?.messages.length) return;
     // 会话不在列表中（已删除）→ 清除
     if (!sessions.some(s => s.id === sessionId)) { setSessionId(null); return; }
-    // 已有消息则跳过（handleSelectSession 已加载过）
-    if (store.getStream(sessionId)?.messages.length) return;
     // 从 API 加载消息
     getChatDetail(sessionId).then(detail => {
       const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
@@ -386,20 +378,11 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-[768px] mx-auto px-4 py-4 w-full">
+            <div className="max-w-[900px] mx-auto px-4 py-4 w-full">
               {enableVirtual ? (
                 /* 虚拟滚动模式（消息数量 > 50 时启用）*/
                 <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
                   {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                    const isPipeline = virtualItem.index === messages.length && currentStep;
-                    if (isPipeline) {
-                      return (
-                        <div key={`pipeline-${currentStep}`} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
-                          style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
-                          <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
-                        </div>
-                      );
-                    }
                     const msg = messages[virtualItem.index];
                     return (
                       <div key={msg.id} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
@@ -408,6 +391,7 @@ export default function ChatPage() {
                           id={msg.id} role={msg.role} content={msg.content}
                           sources={msg.sources} chunks={msg.chunks} confidence={msg.confidence}
                           confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
+                          cancelled={msg.cancelled}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
                           onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
@@ -424,37 +408,44 @@ export default function ChatPage() {
                       key={msg.id} id={msg.id} role={msg.role} content={msg.content}
                       reasoning={msg.reasoning} sources={msg.sources} chunks={msg.chunks}
                       confidence={msg.confidence} confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
+                      cancelled={msg.cancelled}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
                       onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
                     />
                   ))}
-                  {currentStep && <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />}
                 </>
               )}
             </div>
           )}
         </div>
 
-        {/* 输入栏 — 始终显示，无 KB 时 send 会提示选择 */}
-        <>
-          {streaming && sessionId && (
-            <div className="max-w-[768px] mx-auto px-4 pt-2">
-              <AppleButton variant="utility" onClick={() => store.cancel(sessionId)}>停止生成</AppleButton>
+        {/* RAG 管道步骤 — 固定在输入框下方 */}
+        {currentStep && (
+          <div className="shrink-0 bg-[var(--color-accent)]/4 border-t border-[var(--color-divider-soft)]">
+            <div className="max-w-[900px] mx-auto w-full">
+              <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
             </div>
-          )}
-          <ChatInput
+          </div>
+        )}
+
+        {/* 输入栏 — 始终显示，无 KB 时 send 会提示选择 */}
+        <ChatInput
             ref={inputRef}
             value={input}
             onChange={setInput}
             onSend={() => handleSend()}
-            onStop={() => sessionId && store.cancel(sessionId)}
+            onStop={() => {
+            if (!sessionId) return;
+            const lastUser = [...messages].reverse().find(m => m.role === 'user');
+            if (lastUser) setInput(lastUser.content);
+            store.cancel(sessionId);
+          }}
             disabled={streaming}
             loading={false}
             streaming={streaming}
             placeholder="输入问题，按 Enter 发送..."
           />
-        </>
       </div>
 
       <ConfirmDialog

@@ -497,16 +497,19 @@ func sendOrCancel(ctx context.Context, ch chan<- StreamEvent, evt StreamEvent) b
 	}
 }
 
-// extractSources 从检索结果中提取前端展示用的来源列表。
-// 编号与 LLM 上下文 [1][2] 严格对应，点引用徽章可跳转到对应来源块。
+// extractSources 用原始余弦相似度生成前端展示用的来源列表。
+//
+// 每个 chunk 的 Confidence 等于其 RawCosineScore（[0,1] 余弦相似度）。
+// 与 pipeline.computeDisplayScores 算法完全一致：直接使用 RawCosineScore，不做批次归一化。
+// Sources 以 JSONB 落库到 chat_messages.sources，前端刷新后读到的是持久化的相同分数。
 func extractSources(chunks []rag.RetrievalResult) []response.SourceItem {
-	sources := make([]response.SourceItem, 0, len(chunks))
+	sources := make([]response.SourceItem, len(chunks))
 	for i, c := range chunks {
-		sources = append(sources, response.SourceItem{
+		sources[i] = response.SourceItem{
 			DocName:      fmt.Sprintf("来源 %d", i+1),
 			ChunkContent: c.Content,
-			Confidence:   c.Score,
-		})
+			Confidence:   c.RawCosineScore,
+		}
 	}
 	return sources
 }
@@ -596,13 +599,13 @@ func computeBM25Fallback(chunks []rag.RetrievalResult) float64 {
 	if len(chunks) == 1 {
 		return 1.0
 	}
-	minS, maxS := chunks[0].Score, chunks[0].Score
+	minS, maxS := chunks[0].RawCosineScore, chunks[0].RawCosineScore
 	for _, c := range chunks[1:] {
-		if c.Score < minS {
-			minS = c.Score
+		if c.RawCosineScore < minS {
+			minS = c.RawCosineScore
 		}
-		if c.Score > maxS {
-			maxS = c.Score
+		if c.RawCosineScore > maxS {
+			maxS = c.RawCosineScore
 		}
 	}
 	span := maxS - minS
@@ -611,7 +614,7 @@ func computeBM25Fallback(chunks []rag.RetrievalResult) float64 {
 		w := 1.0 / float64(i+1)
 		norm := 1.0
 		if span > 0 {
-			norm = (c.Score - minS) / span
+			norm = (c.RawCosineScore - minS) / span
 		}
 		sumWeighted += w * norm
 		sumWeights += w

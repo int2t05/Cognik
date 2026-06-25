@@ -238,6 +238,10 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		})
 	}
 
+	// 内容级去重：多路检索 + 混合融合后，不同 ChunkID 可能包含相同文本。
+	// 按内容去重保留最高 Score 的条目，避免前端展示重复内容和 LLM 收到重复上下文。
+	allChunks = dedupByContent(allChunks)
+
 	// 截取 TopK
 	if len(allChunks) > opts.TopK {
 		allChunks = allChunks[:opts.TopK]
@@ -267,40 +271,18 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 	}, nil
 }
 
-// computeDisplayScores 对检索结果做批次内 min-max 归一化，生成前端展示用的分数。
+// computeDisplayScores 用原始余弦相似度生成前端展示分数。
 //
-// 归一化到 [0,1] 后每个 chunk 的展示分仅表示"在当前检索批次中的相对位置"，
-// 不参与 Conf_raw 计算，不落库。
+// 每个 chunk 的 ShowScore 等于其 RawCosineScore（向量检索的余弦相似度，[0,1]）。
+// BM25-only chunk 无向量分则为 0。
+// 不做批次归一化——余弦相似度本身就是可比的统一量纲。
 func computeDisplayScores(chunks []RetrievalResult) []ChunkDisplay {
-	if len(chunks) == 0 {
-		return nil
-	}
-	if len(chunks) == 1 {
-		return []ChunkDisplay{{ID: chunks[0].ChunkID, Score: 1.0, Source: fmt.Sprint(chunks[0].ArticleID)}}
-	}
-
-	// 找批次内 min/max
-	minS, maxS := chunks[0].Score, chunks[0].Score
-	for _, c := range chunks[1:] {
-		if c.Score < minS {
-			minS = c.Score
-		}
-		if c.Score > maxS {
-			maxS = c.Score
-		}
-	}
-
 	displays := make([]ChunkDisplay, len(chunks))
-	span := maxS - minS
 	for i, c := range chunks {
-		score := 1.0
-		if span > 0 {
-			score = (c.Score - minS) / span
-		}
 		displays[i] = ChunkDisplay{
 			ID:     c.ChunkID,
-			Score:  score,
-			Source: fmt.Sprint(c.ArticleID),
+			Score:  c.RawCosineScore,
+			Source: fmt.Sprintf("来源 %d", i+1),
 		}
 	}
 	return displays
@@ -316,6 +298,29 @@ func dedupChunks(chunks []RetrievalResult) []RetrievalResult {
 	for _, c := range chunks {
 		if !seen[c.ChunkID] {
 			seen[c.ChunkID] = true
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+// dedupByContent 按 chunk 内容文本去重，保留 Score 最高的条目。
+//
+// 场景：文档处理时可能产生内容重叠的多个 chunk（不同 ChunkID 但相同文本），
+// 多路检索会将这些 chunk 全部召回。HybridFuse 按 ChunkID 合并无法捕获此类重复。
+// 去重避免前端展示重复条目和 LLM 上下文浪费 token。
+// 时间复杂度 O(n)，内容作为 map key 不额外哈希。
+func dedupByContent(chunks []RetrievalResult) []RetrievalResult {
+	seen := make(map[string]int, len(chunks)) // content → 在 result 中的索引
+	result := make([]RetrievalResult, 0, len(chunks))
+	for _, c := range chunks {
+		if idx, exists := seen[c.Content]; exists {
+			// 保留 Score 更高的（RRF 融合分或重排序后的分）
+			if c.Score > result[idx].Score {
+				result[idx] = c
+			}
+		} else {
+			seen[c.Content] = len(result)
 			result = append(result, c)
 		}
 	}

@@ -17,7 +17,7 @@ export interface ChatMessage {
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
   chunks?: ChunkDisplay[];
   confidence?: number; confidence_raw?: number; confidence_level?: string;
-  status?: string; createdAt: string;
+  status?: string; cancelled?: boolean; createdAt: string;
 }
 interface PipelineStep { id: string; label: string; duration_ms?: number; }
 interface SessionStream {
@@ -177,11 +177,19 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   }, [consume]);
 
   const cancel: Store['cancel'] = useCallback(async (id) => {
-    try { await cancelGeneration(id); } catch { /* 生成已自然结束，忽略 */ }
     controllers.current[id]?.abort();
+    cancelGeneration(id).catch(() => {});
     if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
-          if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
-  }, []);
+    if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
+    // 删除本次交换，回溯到发送前
+    patch(id, s => {
+      const msgs = [...s.messages];
+      // 移除末尾的 user + assistant 消息对
+      while (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') msgs.pop();
+      while (msgs.length > 0 && msgs[msgs.length - 1].role === 'user') msgs.pop();
+      return { ...s, status: 'idle', thinking: false, currentStep: null, messages: msgs };
+    });
+  }, [patch]);
 
   return <Ctx.Provider value={{ getStream, setMessages, send, resume, cancel }}>{children}</Ctx.Provider>;
 }

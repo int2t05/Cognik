@@ -140,6 +140,11 @@ func (r *ChatRepo) CreateMessage(ctx context.Context, m *model.ChatMessage) erro
 	return r.db.WithContext(ctx).Create(m).Error
 }
 
+// DeleteMessage 按主键删除单条消息。
+func (r *ChatRepo) DeleteMessage(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Delete(&model.ChatMessage{}, id).Error
+}
+
 // UpdateMessage 按主键全量更新一条消息（含 Status/Content/Sources 等）。
 func (r *ChatRepo) UpdateMessage(ctx context.Context, m *model.ChatMessage) error {
 	return r.db.WithContext(ctx).Model(&model.ChatMessage{ID: m.ID}).

@@ -1,19 +1,11 @@
 /**
- * ChatPipeline — RAG 管道步骤时间线（Apple 设计风格）。
+ * ChatPipeline — RAG 管道步骤（Apple HIG 横向布局）。
  *
- * 垂直时间线布局：
- *   已完成 → 蓝色实心圆点 + 耗时
- *   进行中 → 蓝色脉冲圆点 + spinner
- *   等待中 → 灰色空心圆点
- *   失败   → 红色圆点 + ✗
- *
- * 为什么用垂直时间线而非水平 pills：
- * Apple 设计偏好纵向信息流——步骤间用竖线串联，
- * 一眼看清"哪些已完成、当前在哪、还有哪些"。
- * 水平 pill 流在小屏幕上容易折行断裂。
+ * 横向排列 + 箭头连接，大幅压缩垂直空间。
+ * 已完成 → 蓝色对勾  进行中 → 脉冲圆点  等待 → 空心圆  失败 → 红色叉
  */
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { Check, X } from 'lucide-react';
+import { Check, X, ChevronRight } from 'lucide-react';
 
 interface PipelineStep { id: string; label: string; duration_ms?: number; success?: boolean; }
 
@@ -28,7 +20,7 @@ const STEP_ORDER = [
 ];
 const STEP_LABELS: Record<string, string> = {
   query_rewrite: '查询改写', multi_route: '多路检索', vector_retrieve: '向量检索',
-  bm25_retrieve: 'BM25 检索', hybrid_fuse: '混合融合', rerank: '重排序', llm_generate: 'LLM 生成',
+  bm25_retrieve: 'BM25', hybrid_fuse: '混合融合', rerank: '重排序', llm_generate: 'LLM 生成',
 };
 
 export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
@@ -36,80 +28,50 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
 
   const stepsMap = new Map(steps.map(s => [s.id, s]));
   const currentId = steps.find(s => s.label === currentStep)?.id || '';
-
-  // 过滤出已在步骤列表中的项（按 STEP_ORDER 排序）
   const visible = STEP_ORDER.filter(id => stepsMap.has(id) || id === currentId);
 
   return (
-    <div className="px-4 py-3">
-      {/* 标题 */}
-      <div className="text-fine font-medium text-[var(--color-text-muted-48)] mb-2.5 tracking-wide">
-        RAG 管道
-      </div>
+    <div className="px-4 py-2 flex items-center gap-1 flex-wrap">
+      <span className="text-[11px] font-medium text-[var(--color-text-muted-48)] tracking-wide mr-1 shrink-0">
+        RAG
+      </span>
+      {visible.map((id, i) => {
+        const s = stepsMap.get(id);
+        const isCurrent = id === currentId;
+        const done = s?.success === true;
+        const failed = s?.success === false;
 
-      {/* 垂直时间线 */}
-      <div className="flex flex-col gap-0">
-        {visible.map((id, i) => {
-          const s = stepsMap.get(id);
-          const isCurrent = id === currentId;
-          const isLast = i === visible.length - 1;
+        return (
+          <span key={id} className="flex items-center gap-0.5 shrink-0">
+            {/* 箭头连接 */}
+            {i > 0 && (
+              <ChevronRight size={10} className="text-[var(--color-text-muted-48)]/30 shrink-0" />
+            )}
 
-          // 状态判定
-          let dotBg = 'border-[var(--color-text-muted-48)]/30 bg-transparent'; // 等待中：空心
-          let textColor = 'text-[var(--color-text-muted-48)]/60';
-          let dotContent: React.ReactNode = null;
-
-          if (s?.success === true) {
-            // 已完成 → 蓝色实心 + 对勾
-            dotBg = 'bg-[var(--color-accent)]/12 border-[var(--color-accent)]/30';
-            textColor = 'text-[var(--color-accent)]';
-            dotContent = <Check size={9} className="text-[var(--color-accent)]" />;
-          } else if (s?.success === false) {
-            // 失败 → 红色
-            dotBg = 'bg-[var(--color-error)]/10 border-[var(--color-error)]/30';
-            textColor = 'text-[var(--color-error)]';
-            dotContent = <X size={9} className="text-[var(--color-error)]" />;
-          } else if (isCurrent) {
-            // 进行中 → 蓝色脉冲
-            dotBg = 'bg-[var(--color-accent)]/12 border-[var(--color-accent)]/30';
-            textColor = 'text-[var(--color-accent)]';
-            dotContent = <AppleSpinner size={10} />;
-          }
-
-          return (
-            <div key={id} className="flex items-stretch gap-2.5">
-              {/* 圆点 + 竖线 */}
-              <div className="flex flex-col items-center shrink-0 w-5">
-                <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-500 mt-px ${dotBg}`}
-                >
-                  {dotContent}
-                </div>
-                {!isLast && (
-                  <div
-                    className={`flex-1 w-px my-0.5 transition-colors duration-500 ${
-                      s?.success === true
-                        ? 'bg-[var(--color-accent)]/20'
-                        : 'bg-[var(--color-text-muted-48)]/15'
-                    }`}
-                  />
-                )}
-              </div>
-
-              {/* 标签 + 耗时 */}
-              <div className={`flex-1 flex items-center justify-between text-fine leading-5 transition-colors duration-500 ${textColor} ${!isLast ? 'pb-1.5' : ''}`}>
-                <span className="font-medium">{STEP_LABELS[id] || s?.label || id}</span>
-                {s?.duration_ms != null && s.duration_ms > 0 && (
-                  <span className="opacity-60 tabular-nums">{s.duration_ms}ms</span>
-                )}
-                {isCurrent && !s?.duration_ms && (
-                  <span className="opacity-50 text-fine">进行中</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            {/* 步骤 */}
+            <span className={`inline-flex items-center gap-1 text-[11px] leading-none transition-colors duration-500 ${
+              done ? 'text-[var(--color-accent)]' :
+              failed ? 'text-[var(--color-error)]' :
+              isCurrent ? 'text-[var(--color-accent)]' :
+              'text-[var(--color-text-muted-48)]/45'
+            }`}>
+              {/* 状态图标 */}
+              <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border transition-colors duration-500 ${
+                done ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/25' :
+                failed ? 'bg-[var(--color-error)]/10 border-[var(--color-error)]/25' :
+                isCurrent ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/25' :
+                'border-[var(--color-text-muted-48)]/20 bg-transparent'
+              }`}>
+                {done ? <Check size={7} strokeWidth={2.5} className="text-[var(--color-accent)]" /> :
+                 failed ? <X size={7} strokeWidth={2.5} className="text-[var(--color-error)]" /> :
+                 isCurrent ? <AppleSpinner size={7} /> :
+                 null}
+              </span>
+              {STEP_LABELS[id] || s?.label || id}
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }

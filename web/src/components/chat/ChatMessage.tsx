@@ -21,6 +21,7 @@ interface ChatMessageProps {
   confidence?: number | null;
   confidence_raw?: number;
   confidence_level?: string;
+  cancelled?: boolean;
   isStreaming: boolean;
   sessionId?: number | null;
   feedback?: number;
@@ -49,7 +50,7 @@ function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
 }
 
 export function ChatMessage({
-  id, role, content, reasoning, sources, chunks, confidence, confidence_raw, confidence_level, isStreaming,
+  id, role, content, reasoning, sources, chunks, confidence, confidence_raw, confidence_level, cancelled, isStreaming,
   sessionId, feedback = 0, onFeedback, feedbackLoading,
 }: ChatMessageProps) {
   const rawConf = confidence_raw ?? confidence;
@@ -96,10 +97,10 @@ export function ChatMessage({
         </div>
       )}
 
-      <div className={`max-w-[75%] px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
+      <div className={`px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
         isUser
-          ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)]'
-          : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
+          ? 'max-w-[70%] bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)]'
+          : 'w-full bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       }`}>
         {renderContent()}
 
@@ -126,56 +127,59 @@ export function ChatMessage({
           </details>
         )}
 
-        {/* Chunk 匹配分数（检索完成后即渲染，固定进度条宽度保持一致） */}
-        {isAi && chunks && chunks.length > 0 && (
+        {/* 来源列表：有 sources（含内容）优先，否则用 chunks（仅分数） */}
+        {isAi && (sources?.length || chunks?.length) ? (
           <div className="mt-2 pt-2 border-t border-[var(--color-divider-soft)]">
-            <div className="text-fine font-medium mb-1.5 text-[var(--color-text-muted-48)]">匹配来源</div>
-            {chunks.map((c, i) => (
-              <div key={c.id || i} className="flex items-center gap-2 text-fine mb-1 text-[var(--color-text-muted-48)]">
-                <FileText size={12} className="shrink-0" />
-                <span className="min-w-0 flex-1">{c.source || `来源 ${i + 1}`}</span>
-                <div className="w-20 h-1.5 rounded-full bg-[var(--color-divider-soft)] overflow-hidden shrink-0">
-                  <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300" style={{ width: `${Math.round(c.score * 100)}%` }} />
-                </div>
-                <span className="w-10 text-right tabular-nums shrink-0">{(c.score * 100).toFixed(0)}%</span>
-              </div>
-            ))}
+            {sources && sources.length > 0
+              ? sources.map((s, i) => {
+                  const score = Number.isFinite(s.confidence) ? s.confidence : 0;
+                  return (
+                    <details key={`src-${i}`} className="mb-0.5 group" ref={el => { sourceRefs.current[i] = el; }}>
+                      <summary className="flex items-center gap-2 text-fine cursor-pointer text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
+                        <FileText size={12} className="shrink-0" />
+                        <span className="font-semibold text-[var(--color-ink)]">[{i + 1}]</span>
+                        <span className="min-w-0 flex-1 truncate">{s.doc_name}</span>
+                        <div className="w-16 h-1 rounded-full bg-[var(--color-divider-soft)] overflow-hidden shrink-0">
+                          <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${Math.round(score * 100)}%` }} />
+                        </div>
+                        <span className="w-9 text-right tabular-nums shrink-0">{(score * 100).toFixed(0)}%</span>
+                      </summary>
+                      <div className="mt-1 pl-7 text-fine leading-relaxed whitespace-pre-wrap break-words overflow-hidden text-[var(--color-text-muted-80)]">
+                        {s.chunk_content}
+                      </div>
+                    </details>
+                  );
+                })
+              : chunks!.map((c, i) => (
+                  <div key={`src-${i}`} className="flex items-center gap-2 text-fine mb-0.5 text-[var(--color-text-muted-48)]">
+                    <FileText size={12} className="shrink-0" />
+                    <span className="font-semibold text-[var(--color-ink)]">[{i + 1}]</span>
+                    <span className="min-w-0 flex-1 truncate">来源 {i + 1}</span>
+                    <div className="w-16 h-1 rounded-full bg-[var(--color-divider-soft)] overflow-hidden shrink-0">
+                      <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${Math.round(c.score * 100)}%` }} />
+                    </div>
+                    <span className="w-9 text-right tabular-nums shrink-0">{(c.score * 100).toFixed(0)}%</span>
+                  </div>
+                ))
+            }
           </div>
-        )}
+        ) : null}
 
-        {/* 召回来源详情（done 后展示，低置信时不展示） */}
-        {sources && sources.length > 0 && confidence_level !== 'low' && (
-          <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
-            <div className={`text-fine font-medium mb-1.5 ${isUser ? 'text-[var(--color-on-accent)]/60' : 'text-[var(--color-text-muted-48)]'}`}>来源详情</div>
-            {sources.map((s, i) => (
-              <details key={i} className="mb-1 group" ref={(el) => { sourceRefs.current[i] = el; }}>
-                <summary className={`flex items-center gap-1 text-fine cursor-pointer ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'} hover:text-[var(--color-ink)]`}>
-                  <FileText size={12} />
-                  <span className="font-semibold">[{i + 1}]</span> {s.doc_name}
-                </summary>
-                <div className={`mt-1 pl-5 text-fine leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded ${isUser ? 'text-[var(--color-on-accent)]/80' : 'text-[var(--color-text-muted-80)]'}`}>
-                  {s.chunk_content || '(空)'}
-                </div>
-              </details>
-            ))}
-          </div>
-        )}
-
-        {/* 置信度等级标签 */}
+        {/* 置信度标签 */}
         {isAi && !isStreaming && confidence_level && (
-          <div className={`flex items-center gap-1.5 mt-2 text-fine ${
+          <div className={`flex items-center gap-1 mt-2 text-fine ${
             confidence_level === 'low' ? 'text-[var(--color-error)]' :
             confidence_level === 'medium' ? 'text-[var(--badge-warning-text)]' :
             'text-[var(--color-accent)]'
           }`}>
-            {confidence_level === 'high' && <CheckCircle2 size={13} />}
-            {confidence_level === 'medium' && <HelpCircle size={13} />}
-            {confidence_level === 'low' && <AlertTriangle size={13} />}
+            {confidence_level === 'high' && <CheckCircle2 size={12} />}
+            {confidence_level === 'medium' && <HelpCircle size={12} />}
+            {confidence_level === 'low' && <AlertTriangle size={12} />}
             {confidence_level === 'high' && '高置信'}
-            {confidence_level === 'medium' && '中置信 · 匹配资料有限，内容仅供参考'}
-            {confidence_level === 'low' && '低置信 · 建议提交申告由运维人员确认'}
+            {confidence_level === 'medium' && '中置信'}
+            {confidence_level === 'low' && '低置信'}
             {rawConf != null && Number.isFinite(rawConf) && (
-              <span className="opacity-50 ml-1">{(rawConf * 100).toFixed(0)}%</span>
+              <span className="opacity-50">· {(rawConf * 100).toFixed(0)}%</span>
             )}
           </div>
         )}
@@ -188,7 +192,15 @@ export function ChatMessage({
           </div>
         )}
 
-        {isAi && !isStreaming && !!sessionId && !!onFeedback && (
+        {/* 已中止标记 */}
+        {isAi && !isStreaming && cancelled && (
+          <div className="flex items-center gap-1 mt-2 text-fine text-[var(--color-text-muted-48)]">
+            <AlertTriangle size={11} />
+            已中止
+          </div>
+        )}
+
+        {isAi && !isStreaming && !!sessionId && !!onFeedback && !cancelled && (
           <div className="flex items-center gap-0.5 mt-3">
             <button
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
