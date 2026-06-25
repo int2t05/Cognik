@@ -129,13 +129,24 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 		return nil, fmt.Errorf("LLM 返回空 choices")
 	}
 
-	// Qwen3 等思考模型将实际回答放在 reasoning_content 中，content 可能为空
+	// 思考模型（Qwen3/DeepSeek-R1）的响应字段语义：
+	//   reasoning_content = 模型的思考/推理过程（"好的，用户问的是..."）
+	//   content           = 实际回答（改写后的查询语句）
+	//
+	// 为什么优先 reasoning_content：
+	// Qwen3 等模型启用思考模式时，llama.cpp 将推理链放在 content 字段，
+	// 将实际回答放在 reasoning_content 字段（与 OpenAI 命名惯例相反）。
+	// 当 reasoning_content 非空时优先取它——这是模型的"最终回答"。
+	// 当 reasoning_content 为空时取 content（非思考模式或旧版模型），
+	// 并依赖上层的 stripThinkingPrefix 做后处理。
 	content := apiResp.Choices[0].Message.Content
-	if content == "" {
-		content = apiResp.Choices[0].Message.ReasoningContent
+	reasoning := apiResp.Choices[0].Message.ReasoningContent
+	if reasoning != "" {
+		content = reasoning
 	}
-
-	slog.Info("LLM 同步调用完成", "model", req.Model, "tokens", apiResp.Usage.TotalTokens, "latency_ms", time.Since(start).Milliseconds())
+	slog.Info("LLM 同步调用完成", "model", req.Model, "tokens", apiResp.Usage.TotalTokens,
+		"latency_ms", time.Since(start).Milliseconds(),
+		"content_len", len(content), "reasoning_len", len(reasoning))
 	return &ChatResponse{
 		Content:      content,
 		FinishReason: apiResp.Choices[0].FinishReason,
