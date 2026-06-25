@@ -208,7 +208,7 @@ func (r *ChatRepo) FindFeedbackSamples(ctx context.Context, limitDays int) ([]mo
 		) prev
 		WHERE cm.feedback > 0
 		  AND cm.role = 'assistant'
-		  AND cm.created_at >= NOW() - ($1::text || ' days')::INTERVAL
+		  AND cm.created_at >= NOW() - make_interval(days => $1)
 		ORDER BY cm.created_at DESC
 	`, limitDays).Scan(&samples).Error
 	return samples, err
