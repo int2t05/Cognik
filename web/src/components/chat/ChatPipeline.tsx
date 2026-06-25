@@ -51,11 +51,14 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
             const s = stepsMap.get(id);
             const isLast = i === arr.length - 1;
 
-            // 颜色统一蓝色系：成功=蓝 / 失败=红 / 当前=蓝+spinner / 未知=灰
+            // 颜色规则：
+            //   done 事件到达后：success=true→蓝✓ / success=false→红✗
+            //   流式进行中：已完成的步骤（在列表中但非当前）→蓝；当前步骤→蓝+spinner；未开始→灰
             let bg = 'bg-[var(--color-text-muted-48)]/40';
             let textColor = 'text-[var(--color-text-muted-48)]';
             let icon: React.ReactNode = null;
-            if (s?.success === true) {
+            const isDone = id !== currentId && s !== undefined && s.success === undefined; // 步骤已在列表中但非当前=已跑完
+            if (s?.success === true || isDone) {
               bg = 'bg-[var(--color-accent)]/15';
               textColor = 'text-[var(--color-accent)]';
               icon = <Check size={10} />;

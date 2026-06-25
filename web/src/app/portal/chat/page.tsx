@@ -51,22 +51,23 @@ export default function ChatPage() {
 
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [input, setInput] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true); // 侧栏开关
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<{ id: number; title: string; kb_id: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
-  // KB 选择弹窗（新对话时触发）
+  const [creating, setCreating] = useState(false);
+  // 新对话 KB 选择弹窗
   const [showKBPicker, setShowKBPicker] = useState(false);
   const [pendingKB, setPendingKB] = useState(0);
-  // 编辑表单临时状态
   const [editTitle, setEditTitle] = useState('');
   const [editKB, setEditKB] = useState(0);
   const [saving, setSaving] = useState(false);
   const { value: appName } = useConfigValue('app_name');
 
-  // 当前会话的 KB（优先从会话列表获取，回退到 pending）
+  // 默认知识库：列表第一个（建议卡片/直接输入时自动使用）
+  const defaultKB = (kbs && kbs.length > 0) ? kbs[0].id : 0;
   const currentKB = sessionId ? (sessions.find(s => s.id === sessionId)?.kb_id || 0) : 0;
   const currentTitle = sessionId ? (sessions.find(s => s.id === sessionId)?.question || '对话') : null;
 
@@ -113,36 +114,41 @@ export default function ChatPage() {
     }
   }, [messages.length, currentStep, enableVirtual, rowVirtualizer]);
 
+  // 确保有会话可对话：无会话时自动创建一个。返回 [sessionId, kbId]。
+  const ensureSession = async (kbId?: number): Promise<[number, number] | null> => {
+    if (sessionId) return [sessionId, currentKB || kbId || defaultKB];
+    const useKB = kbId || pendingKB || defaultKB;
+    if (!useKB) { toast.info('请先创建知识库'); return null; }
+    setCreating(true);
+    try {
+      const r = await createSession(useKB, '新对话');
+      setSessionId(r.session_id);
+      setFeedbackMap({});
+      mutateSessions();
+      return [r.session_id, useKB];
+    } catch { toast.error('创建会话失败'); return null; }
+    finally { setCreating(false); }
+  };
+
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
     if (!question) return;
     if (!token) { toast.error('请先登录'); return; }
     if (isTokenExpired(token)) { toast.error('登录已过期，请刷新页面'); return; }
 
-    // 确定本次对话的知识库：已有会话从列表获取，新会话用 pending
-    const kbId = sessionId ? currentKB : pendingKB;
-    if (!kbId) {
-      toast.info('请先选择知识库');
-      setShowKBPicker(true);
-      return;
-    }
+    const result = await ensureSession();
+    if (!result) return;
+    const [sid, kbId] = result;
 
     setInput('');
-    let sid = sessionId;
-    if (!sid) {
-      const r = await createSession(kbId, question.slice(0, 50));
-      sid = r.session_id;
-      setSessionId(sid);
-      setFeedbackMap({});
-      mutateSessions();
-    }
     await store.send(sid, kbId, question, token || '', (m) => toast.error(m));
   };
 
+  // 点击"新对话"→ 弹 KB 选择 → 创建空会话
   const handleNewChat = () => {
     setSessionId(null);
     setFeedbackMap({});
-    setPendingKB(0);
+    setPendingKB(defaultKB);
     setShowKBPicker(true);
   };
 
@@ -412,12 +418,22 @@ export default function ChatPage() {
       <ConfirmDialog
         open={showKBPicker}
         onOpenChange={(open) => !open && setShowKBPicker(false)}
-        title="选择知识库"
-        message="请选择要对话的知识库"
-        confirmLabel="开始对话"
-        onConfirm={() => {
+        title="新建会话"
+        message="选择知识库以创建对话"
+        confirmLabel="创建会话"
+        loading={creating}
+        onConfirm={async () => {
           if (!pendingKB) { toast.info('请选择一个知识库'); return; }
-          setShowKBPicker(false);
+          setCreating(true);
+          try {
+            const r = await createSession(pendingKB, '新对话');
+            setSessionId(r.session_id);
+            setFeedbackMap({});
+            setPendingKB(0);
+            setShowKBPicker(false);
+            mutateSessions();
+          } catch { toast.error('创建会话失败'); }
+          finally { setCreating(false); }
         }}
       >
         <select
@@ -426,7 +442,7 @@ export default function ChatPage() {
           aria-label="选择知识库"
           className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
         >
-          <option value={0}>请选择...</option>
+          <option value={0}>请选择知识库...</option>
           {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
         </select>
       </ConfirmDialog>

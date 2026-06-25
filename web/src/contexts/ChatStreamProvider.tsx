@@ -74,9 +74,11 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
       buf += dec.decode(value, { stream: true });
       const lines = buf.split('\n'); buf = lines.pop() || '';
       for (const ln of lines) {
-        if (!ln.startsWith('data: ')) continue;
+        // HTTP 传输会在行尾附加 \r（CRLF），trim 掉避免 JSON.parse 失败
+        const clean = ln.trim();
+        if (!clean.startsWith('data: ')) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let evt: any; try { evt = JSON.parse(ln.slice(6)); } catch { continue; }
+        let evt: any; try { evt = JSON.parse(clean.slice(6)); } catch { continue; }
         // seq 去重：只接受比已消费更大的
         let skip = false;
         patch(id, s => { if (evt.seq <= s.lastSeq) { skip = true; return s; } return { ...s, lastSeq: evt.seq }; });
