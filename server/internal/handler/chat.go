@@ -91,6 +91,32 @@ func (h *ChatHandler) DeleteSession(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// UpdateSessionMeta 更新会话标题和/或知识库。
+//
+// PATCH /api/v1/portal/chat-sessions/:id
+func (h *ChatHandler) UpdateSessionMeta(c *gin.Context) {
+	userID, _ := getCurrentUserID(c)
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Question string `json:"title"`
+		KBID     int64  `json:"kb_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败")
+		return
+	}
+
+	if err := h.svc.UpdateSessionMeta(c.Request.Context(), id, userID, req.Question, req.KBID); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
 // SubmitFeedback 提交问答反馈。
 //
 // POST /api/v1/portal/chat-sessions/:id/feedback

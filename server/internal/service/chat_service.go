@@ -48,6 +48,7 @@ type chatSessionRepo interface {
 	UpdateMessageFeedback(ctx context.Context, messageID int64, feedback int16) error
 	FindFeedbackSamples(ctx context.Context, limitDays int) ([]model.FeedbackSample, error)
 	UpdateSession(ctx context.Context, session *model.ChatSession) error
+	UpdateSessionMeta(ctx context.Context, sessionID int64, question string, kbID int64) error
 	ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
 	DeleteSession(ctx context.Context, id, userID int64) error
 	CountMessagesBySession(ctx context.Context, sessionID int64) (int64, error)
@@ -536,6 +537,7 @@ func (s *ChatService) ListSessions(ctx context.Context, userID int64, page, page
 		lastAnswer := truncateText(sess.Answer, 100)
 		items = append(items, response.SessionListItem{
 			ID:           sess.ID,
+			KBID:         sess.KBID,
 			Question:     sess.Question,
 			LastAnswer:   lastAnswer,
 			MessageCount: msgCounts[sess.ID],
@@ -559,6 +561,21 @@ func (s *ChatService) DeleteSession(ctx context.Context, sessionID, userID int64
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权删除该会话"}
 	}
 	return s.chatRepo.DeleteSession(ctx, sessionID, userID)
+}
+
+// UpdateSessionMeta 更新会话标题和/或所属知识库（含归属校验）。
+func (s *ChatService) UpdateSessionMeta(ctx context.Context, sessionID, userID int64, question string, kbID int64) error {
+	if s.chatRepo == nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+	}
+	if session.UserID != userID {
+		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权修改该会话"}
+	}
+	return s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, kbID)
 }
 
 // buildRAGOptions 合并多层配置：env 默认 → DB 运行时配置 → 请求参数。

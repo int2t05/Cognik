@@ -6,11 +6,12 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  message: string;
+  message?: string;
   confirmLabel?: string;
   onConfirm: () => void;
   loading?: boolean;
   danger?: boolean;
+  children?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -22,13 +23,14 @@ export function ConfirmDialog({
   onConfirm,
   loading,
   danger,
+  children,
 }: ConfirmDialogProps) {
   return (
     <AppleDialog
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description={message}
+      description={message ?? ''}
       footer={
         <>
           <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>
@@ -44,7 +46,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <div />
+      {children ?? <div />}
     </AppleDialog>
   );
 }

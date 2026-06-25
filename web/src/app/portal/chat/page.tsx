@@ -8,7 +8,7 @@ import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, MessageSquare, Trash2, Menu, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
-import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, submitFeedback, createSession } from '@/lib/api/chat';
+import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, submitFeedback, createSession, updateSession } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
@@ -49,7 +49,6 @@ export default function ChatPage() {
   );
   const sessions = sessionsPage?.items ?? [];
 
-  const [selectedKB, setSelectedKB] = useState(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true); // 侧栏开关
@@ -58,7 +57,18 @@ export default function ChatPage() {
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<{ id: number; title: string; kb_id: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // KB 选择弹窗（新对话时触发）
+  const [showKBPicker, setShowKBPicker] = useState(false);
+  const [pendingKB, setPendingKB] = useState(0);
+  // 编辑表单临时状态
+  const [editTitle, setEditTitle] = useState('');
+  const [editKB, setEditKB] = useState(0);
+  const [saving, setSaving] = useState(false);
   const { value: appName } = useConfigValue('app_name');
+
+  // 当前会话的 KB（优先从会话列表获取，回退到 pending）
+  const currentKB = sessionId ? (sessions.find(s => s.id === sessionId)?.kb_id || 0) : 0;
+  const currentTitle = sessionId ? (sessions.find(s => s.id === sessionId)?.question || '对话') : null;
 
   const store = useChatStreamStore();
   const stream = sessionId ? store.getStream(sessionId) : undefined;
@@ -81,8 +91,8 @@ export default function ChatPage() {
   });
 
   useEffect(() => {
-    if (selectedKB) inputRef.current?.focus();
-  }, [selectedKB]);
+    if (sessionId) inputRef.current?.focus();
+  }, [sessionId]);
 
   // 自动滚到底部：仅在消息数量或步骤变化时触发，而非每个 token（避免每 token 重算）
   useEffect(() => {
@@ -105,29 +115,35 @@ export default function ChatPage() {
 
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
-    if (!question || !selectedKB) return;
+    if (!question) return;
     if (!token) { toast.error('请先登录'); return; }
     if (isTokenExpired(token)) { toast.error('登录已过期，请刷新页面'); return; }
 
+    // 确定本次对话的知识库：已有会话从列表获取，新会话用 pending
+    const kbId = sessionId ? currentKB : pendingKB;
+    if (!kbId) {
+      toast.info('请先选择知识库');
+      setShowKBPicker(true);
+      return;
+    }
+
     setInput('');
-    // 新会话：先建 session、立即设 sid 并刷新侧栏——
-    // 保证流式中切走/刷新后还能在侧栏找到这个会话。
     let sid = sessionId;
     if (!sid) {
-      const r = await createSession(selectedKB, question.slice(0, 50));
+      const r = await createSession(kbId, question.slice(0, 50));
       sid = r.session_id;
       setSessionId(sid);
       setFeedbackMap({});
       mutateSessions();
     }
-    // store.send 启动流式消费；组件已持有正确 sid，token 实时渲染。
-    await store.send(sid, selectedKB, question, token || '', (m) => toast.error(m));
+    await store.send(sid, kbId, question, token || '', (m) => toast.error(m));
   };
 
   const handleNewChat = () => {
     setSessionId(null);
-    setSelectedKB(0);
     setFeedbackMap({});
+    setPendingKB(0);
+    setShowKBPicker(true);
   };
 
   const handleSelectSession = async (id: number) => {
@@ -137,7 +153,6 @@ export default function ChatPage() {
     setFeedbackMap({});
     try {
       const detail = await getChatDetail(id);
-      if (detail.kb_id) setSelectedKB(detail.kb_id);
       const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map((m) => ({
         id: String(m.id),
         role: m.role,
@@ -194,6 +209,19 @@ export default function ChatPage() {
     } finally { setFeedbackLoading(false); }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editingSession) return;
+    setSaving(true);
+    try {
+      await updateSession(editingSession.id, { title: editTitle, kb_id: editKB });
+      toast.success('会话已更新');
+      setEditingSession(null);
+      mutateSessions();
+    } catch {
+      toast.error('更新失败');
+    } finally { setSaving(false); }
+  };
+
   const isLoading = streaming;
   const hasMessages = messages.length > 0;
   const hasSession = sessionId !== null;
@@ -207,19 +235,6 @@ export default function ChatPage() {
         `}
       >
         <div className="flex flex-col h-full p-3 w-[240px]">
-          <div className="flex items-center gap-2 mb-3">
-            {/* KB 选择器 — 移动到侧栏内 */}
-            <select
-              value={selectedKB}
-              onChange={(e) => { setSelectedKB(Number(e.target.value)); handleNewChat(); }}
-              aria-label="选择知识库"
-              className="flex-1 h-8 px-3 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
-            >
-              <option value={0}>选择知识库...</option>
-              {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
-            </select>
-          </div>
-
           <AppleButton variant="pill" icon={<Plus />} onClick={handleNewChat} className="w-full py-2 mb-2" aria-label="新对话">
             新对话
           </AppleButton>
@@ -254,7 +269,7 @@ export default function ChatPage() {
                       {/* hover 操作按钮 */}
                       <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: 0 }); }}
+                          onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }}
                           aria-label="编辑会话" title="编辑"
                           className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer"
                         >
@@ -279,15 +294,17 @@ export default function ChatPage() {
 
       {/* 主区域 */}
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
-        {/* 精简顶栏：侧栏切换 + 标题 */}
+        {/* 精简顶栏：侧栏切换 + 居中标题 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'}
             className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
             {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
           </button>
-          <span className="text-caption text-[var(--color-text-muted-80)] truncate">
-            {hasSession ? (sessions.find(s => s.id === sessionId)?.question || '对话') : (selectedKB ? '新对话' : `${appName || 'OpsMind'} 智能问答`)}
+          <span className="flex-1 text-center text-caption text-[var(--color-ink)] font-medium truncate">
+            {currentTitle || `${appName || 'OpsMind'} 智能问答`}
           </span>
+          {/* 占位保持对称 */}
+          <div className="w-8 h-8 shrink-0" />
         </div>
 
         {/* 对话区域 */}
@@ -299,24 +316,22 @@ export default function ChatPage() {
                   <Bot size={32} className="text-[var(--color-accent)]" />
                 </div>
                 <h1 className="text-headline font-semibold text-[var(--color-ink)] mb-2">
-                  {selectedKB ? '有什么可以帮助你？' : `${appName || 'OpsMind'} 智能问答`}
+                  {'有什么可以帮助你？'}
                 </h1>
                 <p className="text-caption text-[var(--color-text-muted-48)]">
-                  {selectedKB ? '基于知识库内容，为你提供精准解答' : '请先在左侧选择知识库开始对话'}
+                  请从左侧发起新对话，或选择已有会话继续
                 </p>
               </div>
 
-              {selectedKB ? (
-                <div className="grid gap-2 w-full max-w-[480px]">
-                  {SUGGESTIONS.map((s, i) => (
-                    <button key={i} onClick={() => handleSend(s.text)}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-pill)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 transition cursor-pointer">
-                      <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
-                      {s.text}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              <div className="grid gap-2 w-full max-w-[480px]">
+                {SUGGESTIONS.map((s, i) => (
+                  <button key={i} onClick={() => handleSend(s.text)}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-pill)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 transition cursor-pointer">
+                    <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
+                    {s.text}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="max-w-[768px] mx-auto px-4 py-4 w-full">
@@ -367,26 +382,25 @@ export default function ChatPage() {
           )}
         </div>
 
-        {selectedKB > 0 && (
-          <>
-            {streaming && sessionId && (
-              <div className="max-w-[768px] mx-auto px-4 pt-2">
-                <AppleButton variant="utility" onClick={() => store.cancel(sessionId)}>停止生成</AppleButton>
-              </div>
-            )}
-            <ChatInput
-              ref={inputRef}
-              value={input}
-              onChange={setInput}
-              onSend={() => handleSend()}
-              onStop={() => sessionId && store.cancel(sessionId)}
-              disabled={streaming}
-              loading={false}
-              streaming={streaming}
-              placeholder="输入问题，按 Enter 发送..."
-            />
-          </>
-        )}
+        {/* 输入栏 — 始终显示，无 KB 时 send 会提示选择 */}
+        <>
+          {streaming && sessionId && (
+            <div className="max-w-[768px] mx-auto px-4 pt-2">
+              <AppleButton variant="utility" onClick={() => store.cancel(sessionId)}>停止生成</AppleButton>
+            </div>
+          )}
+          <ChatInput
+            ref={inputRef}
+            value={input}
+            onChange={setInput}
+            onSend={() => handleSend()}
+            onStop={() => sessionId && store.cancel(sessionId)}
+            disabled={streaming}
+            loading={false}
+            streaming={streaming}
+            placeholder="输入问题，按 Enter 发送..."
+          />
+        </>
       </div>
 
       <ConfirmDialog
@@ -396,15 +410,57 @@ export default function ChatPage() {
         confirmLabel="删除" onConfirm={handleDelete} loading={deleting} danger
       />
 
-      {/* 编辑会话对话框（MVP：仅展示占位，后续可扩展重命名/换KB） */}
+      {/* KB 选择弹窗（新对话时触发）*/}
+      <ConfirmDialog
+        open={showKBPicker}
+        onOpenChange={(open) => !open && setShowKBPicker(false)}
+        title="选择知识库"
+        message="请选择要对话的知识库"
+        confirmLabel="开始对话"
+        onConfirm={() => {
+          if (!pendingKB) { toast.info('请选择一个知识库'); return; }
+          setShowKBPicker(false);
+        }}
+      >
+        <select
+          value={pendingKB}
+          onChange={(e) => setPendingKB(Number(e.target.value))}
+          aria-label="选择知识库"
+          className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
+        >
+          <option value={0}>请选择...</option>
+          {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
+        </select>
+      </ConfirmDialog>
+
+      {/* 编辑会话对话框 */}
       <ConfirmDialog
         open={editingSession !== null}
         onOpenChange={(open) => !open && setEditingSession(null)}
         title="编辑会话"
-        message={`会话「${editingSession?.title || ''}」的编辑功能（重命名/更换知识库）将在后续版本中支持。`}
-        confirmLabel="知道了"
-        onConfirm={() => setEditingSession(null)}
-      />
+        confirmLabel="保存"
+        onConfirm={handleSaveEdit}
+        loading={saving}
+      >
+        <div className="flex flex-col gap-3">
+          <input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            aria-label="会话标题"
+            placeholder="会话标题"
+            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
+          />
+          <select
+            value={editKB}
+            onChange={(e) => setEditKB(Number(e.target.value))}
+            aria-label="知识库"
+            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
+          >
+            <option value={0}>选择知识库...</option>
+            {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
+          </select>
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }

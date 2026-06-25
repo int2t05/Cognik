@@ -88,6 +88,22 @@ func (r *ChatRepo) UpdateSession(ctx context.Context, session *model.ChatSession
 	}).Error
 }
 
+// UpdateSessionMeta 更新会话元数据（标题 + 知识库），仅会话所有者可调用。
+// 与 UpdateSession 分离的原因：元数据由前端主动编辑，answer/sources 由流式生成自动写入，职责不同。
+func (r *ChatRepo) UpdateSessionMeta(ctx context.Context, sessionID int64, question string, kbID int64) error {
+	updates := map[string]interface{}{}
+	if question != "" {
+		updates["question"] = question
+	}
+	if kbID > 0 {
+		updates["kb_id"] = kbID
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.ChatSession{}).Where("id = ?", sessionID).Updates(updates).Error
+}
+
 func (r *ChatRepo) DeleteSession(ctx context.Context, id, userID int64) error {
 	if err := r.db.WithContext(ctx).Where("session_id = ?", id).Delete(&model.ChatMessage{}).Error; err != nil {
 		return err

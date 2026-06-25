@@ -2,7 +2,7 @@ import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 import type { PageResponse } from './types';
 
-export interface ChatSession { id: number; question: string; last_answer: string; message_count: number; created_at: string; updated_at: string; }
+export interface ChatSession { id: number; kb_id: number; question: string; last_answer: string; message_count: number; created_at: string; updated_at: string; }
 export interface ChatDetail { session_id: number; kb_id?: number; question: string; answer: string; sources: unknown[]; confidence: number; can_submit_ticket: boolean; duration_ms: number; feedback: number; messages: unknown[]; pipeline: unknown[]; created_at: string; }
 
 export function createSession(kb_id: number, title?: string) {
@@ -30,4 +30,7 @@ export const streamUrl = (id: number) => `${API}/api/v1/portal/chat-sessions/${i
 export const resumeUrl = (id: number, since: number) => `${streamUrl(id)}?since=${since}`;
 export function cancelGeneration(id: number) {
   return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}/cancel`, { method: 'POST' });
+}
+export function updateSession(id: number, data: { title?: string; kb_id?: number }) {
+  return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 }

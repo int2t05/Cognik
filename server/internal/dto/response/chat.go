@@ -41,7 +41,8 @@ type MessageItem struct {
 // SessionListItem 会话列表条目（不含完整消息，仅摘要）。
 type SessionListItem struct {
 	ID           int64  `json:"id"`
-	Question     string `json:"question"`      // 首轮问题
+	KBID         int64  `json:"kb_id"`        // 所属知识库 ID，前端编辑/更换 KB 时使用
+	Question     string `json:"question"`      // 首轮问题，兼作会话标题
 	LastAnswer   string `json:"last_answer"`   // 最后一条 assistant 回复（截断）
 	MessageCount int64  `json:"message_count"` // 消息总数
 	CreatedAt    string `json:"created_at"`
