@@ -10,6 +10,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Trash2, LogIn } from 'lucide-react';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
+import { useToast } from '@/hooks/useToast';
 
 interface Props {
   /** 触发按钮的 className（由调用方控制样式）。 */
@@ -22,6 +23,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
   const { accounts, switchTo, removeAccount, logout } = useAccountSwitcher();
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const toast = useToast();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +41,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
     if (ok) {
       router.push('/portal/chat');
     } else {
+      toast.warning(`账号「${account.realName || account.username}」已被冻结或失效，已自动移除`);
       logout();
       router.push('/login');
     }
