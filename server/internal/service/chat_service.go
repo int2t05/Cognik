@@ -207,7 +207,12 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	}
 
 	// 脱离请求 ctx：用 background + 独立超时
-	gctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// 思考模式额外增加超时（思考 ~30s + 生成 ~90s）
+	genTimeout := 120 * time.Second
+	if s.readBool("ai.enable_thinking", false) {
+		genTimeout = 300 * time.Second
+	}
+	gctx, cancel := context.WithTimeout(context.Background(), genTimeout)
 	if err := s.hub.Start(sessionID, assistant.ID, cancel); err != nil {
 		cancel()
 		// 标记占位失败，避免残留 generating

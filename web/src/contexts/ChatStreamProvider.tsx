@@ -45,6 +45,8 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   // 每个 token 到达时只更新内存缓冲区，通过 rAF 合并多个 token 为一次 setState，
   // 将渲染频率从 ~50次/s（逐 token）降至 ~10-15次/s（按帧批处理）。
   const rafRefs = useRef<Record<number, number | null>>({});
+  // reasoning 和 token 需要独立 rAF 槽位——共用会导致互相覆盖
+  const reasoningRafRefs = useRef<Record<number, number | null>>({});
 
   const patch = useCallback((id: number, f: (s: SessionStream) => SessionStream) => {
     setStreams((prev) => {
@@ -103,12 +105,12 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           }));
         }
         else if (evt.type === 'reasoning') {
-          // 思考模式内容 — 流式累积到 reasoning 字段，rAF 批处理渲染
+          // 思考模式内容 — 流式累积到 reasoning 字段，独立 rAF 槽位
           ensureAssistant();
           reasoningAcc += evt.content;
-          if (rafRefs.current[id] === null || rafRefs.current[id] === undefined) {
-            rafRefs.current[id] = requestAnimationFrame(() => {
-              rafRefs.current[id] = null;
+          if (reasoningRafRefs.current[id] === null || reasoningRafRefs.current[id] === undefined) {
+            reasoningRafRefs.current[id] = requestAnimationFrame(() => {
+              reasoningRafRefs.current[id] = null;
               flushReasoning();
             });
           }
@@ -127,17 +129,20 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
         }
         else if (evt.type === 'done') {
           // 取消待处理的 rAF，直接 flush 最终内容
+          if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           const meta = evt.metadata;
           patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
         }
         else if (evt.type === 'error') {
+          if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           patch(id, s => ({ ...s, status: 'error', currentStep: null })); onError?.(evt.error || '生成失败');
         }
       }
     }
     // 流结束但未收到 done（异常终止）：取消 rAF + flush 剩余内容
+    if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
     if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
   }, [patch]);
 
@@ -169,7 +174,8 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
     await cancelGeneration(id);
     controllers.current[id]?.abort();
     // 取消待处理的 rAF，避免取消后残余 rAF 覆盖 UI 状态
-    if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
+    if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
+          if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
   }, []);
 
   return <Ctx.Provider value={{ getStream, setMessages, send, resume, cancel }}>{children}</Ctx.Provider>;
