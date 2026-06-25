@@ -6,6 +6,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 
 	"opsmind/internal/dto/request"
 	"opsmind/internal/service"
@@ -126,5 +127,7 @@ func handleServiceError(c *gin.Context, err error) {
 		response.Error(c, appErr.Code, appErr.Message)
 		return
 	}
+	// 非 AppError 说明是未预期的内部错误，记录真实原因方便排查
+	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
 	response.Error(c, errcode.ErrUnknown, "服务器内部错误")
 }
