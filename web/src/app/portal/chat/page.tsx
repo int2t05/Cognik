@@ -3,7 +3,8 @@
  */
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
@@ -42,6 +43,8 @@ interface ApiChatMessage {
 export default function ChatPage() {
   const { token } = useAuth();
   const toast = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: kbs } = useSWR('portal-kbs', getPortalKBList);
   const { data: sessionsPage, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR(
     'chat-sessions',
@@ -49,7 +52,20 @@ export default function ChatPage() {
   );
   const sessions = sessionsPage?.items ?? [];
 
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  // URL 持久化：sessionId 写入 ?sid=X，刷新恢复
+  const urlSid = searchParams.get('sid');
+  const [sessionId, setSessionIdState] = useState<number | null>(null);
+
+  const setSessionId = useCallback((sid: number | null) => {
+    setSessionIdState(sid);
+    // 同步到 URL，刷新不丢会话
+    const params = new URLSearchParams(searchParams.toString());
+    if (sid) { params.set('sid', String(sid)); } else { params.delete('sid'); }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  // 从 URL 恢复会话（仅首次加载时执行一次）
+  const restoredRef = useRef(false);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
@@ -185,6 +201,17 @@ export default function ChatPage() {
       setSessionId(prevId);
     }
   };
+
+  // 页面加载时从 ?sid=X 恢复会话
+  useEffect(() => {
+    if (restoredRef.current || !urlSid || sessionsLoading || sessions.length === 0) return;
+    const sid = Number(urlSid);
+    if (!sid) return;
+    if (sessions.some(s => s.id === sid)) {
+      restoredRef.current = true;
+      handleSelectSession(sid);
+    }
+  }, [urlSid, sessionsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
