@@ -55,3 +55,20 @@ func (h *AuditHandler) List(c *gin.Context) {
 
 	response.SuccessWithPage(c, items, total, page, pageSize)
 }
+
+// BatchDelete 批量删除审计日志。
+//
+// POST /api/v1/admin/audit-logs/batch-delete
+func (h *AuditHandler) BatchDelete(c *gin.Context) {
+	var req request.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+	deleted, err := h.svc.BatchDelete(c.Request.Context(), req.IDs)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, map[string]int64{"deleted": deleted})
+}

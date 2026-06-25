@@ -87,6 +87,13 @@ export default function AdminTicketDetailPage() {
         <span className="text-caption text-[var(--color-text-muted-48)]">
           {ticket.ticket_no} / 提交人 {ticket.submitter_name || '-'} / {formatDate(ticket.created_at)}
         </span>
+        {ticket.tags && ticket.tags.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {ticket.tags.map((t) => (
+              <span key={t} className="px-2 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-pearl)] text-[var(--color-text-muted-80)]">{t}</span>
+            ))}
+          </span>
+        )}
       </div>
 
       <AppleCard className="mb-4">
@@ -95,23 +102,23 @@ export default function AdminTicketDetailPage() {
 
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
-          <AppleButton onClick={() => handleAction('start')} loading={processing}>
-            <Play size={16} /> 开始处理
+          <AppleButton icon={<Play />} onClick={() => handleAction('start')} loading={processing}>
+            开始处理
           </AppleButton>
         )}
         {ticket.status === 2 && (
           <>
-            <AppleButton onClick={() => handleAction('resolve')} loading={processing}>
-              <CheckCircle size={16} /> 标记解决
+            <AppleButton icon={<CheckCircle />} onClick={() => handleAction('resolve')} loading={processing}>
+              标记解决
             </AppleButton>
-            <AppleButton variant="ghost" onClick={() => handleAction('request_info')} loading={processing}>
-              <MessageSquare size={16} /> 索要补充
+            <AppleButton variant="ghost" icon={<MessageSquare />} onClick={() => handleAction('request_info')} loading={processing}>
+              索要补充
             </AppleButton>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
-          <AppleButton variant="utility" onClick={() => handleAction('close')} loading={processing}>
-            <XCircle size={16} /> 关闭申告
+          <AppleButton variant="danger" icon={<XCircle />} onClick={() => handleAction('close')} loading={processing}>
+            关闭申告
           </AppleButton>
         )}
       </div>
@@ -144,8 +151,8 @@ export default function AdminTicketDetailPage() {
               </option>
             ))}
           </select>
-          <AppleButton variant="ghost" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}>
-            <Sparkles size={16} /> 生成
+          <AppleButton variant="ghost" icon={<Sparkles />} disabled={!kbId} onClick={handleCreateKnowledgeCandidate}>
+            生成
           </AppleButton>
         </div>
       </AppleCard>

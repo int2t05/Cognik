@@ -134,3 +134,20 @@ func (h *UserHandler) Restore(c *gin.Context) {
 
 	response.Success(c, nil)
 }
+
+// BatchDelete 批量删除用户。
+//
+// POST /api/v1/admin/users/batch-delete
+func (h *UserHandler) BatchDelete(c *gin.Context) {
+	var req request.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+	deleted, err := h.svc.BatchDelete(c.Request.Context(), req.IDs)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, map[string]int64{"deleted": deleted})
+}

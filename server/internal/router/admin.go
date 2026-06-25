@@ -20,6 +20,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.PATCH("/tickets/:id/status", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.UpdateStatus }))
 	rg.POST("/tickets/:id/records", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.AddRecord }))
 	rg.POST("/tickets/:id/knowledge-candidate", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateKnowledgeCandidate }))
+	rg.POST("/tickets/batch-delete", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.BatchDelete }))
 
 	// 知识库管理
 	rg.GET("/knowledge-bases", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ListKBs }))
@@ -45,6 +46,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	userRoutes.GET("", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.List }))
 	userRoutes.POST("", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.Create }))
 	userRoutes.GET("/:id", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.GetByID }))
+	userRoutes.POST("/batch-delete", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.BatchDelete }))
 	userRoutes.PUT("/:id", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.Update }))
 	userRoutes.PATCH("/:id/freeze", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.Freeze }))
 	userRoutes.PATCH("/:id/unfreeze", middleware.RequirePermission(PermUserManage), safeHandler(h, func() bool { return h.User != nil }, func() gin.HandlerFunc { return h.User.Restore }))
@@ -68,6 +70,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 
 	// 操作日志
 	rg.GET("/audit-logs", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.List }))
+	rg.POST("/audit-logs/batch-delete", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.BatchDelete }))
 
 	// LLM 配置
 	rg.GET("/llm-configs", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.ListConfigs }))

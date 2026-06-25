@@ -6,6 +6,7 @@ import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenu
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { AppleChip } from '@/components/ui/AppleChip';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -116,12 +117,13 @@ export default function RoleManagePage() {
           <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
           <div className="flex flex-wrap gap-1.5">
             {knownPermissions.map((p) => (
-              <button key={p} role="checkbox" aria-checked={perms.includes(p)}
-                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); togglePerm(p); } }}
+              <AppleChip key={p} selected={perms.includes(p)}
                 onClick={() => togglePerm(p)}
-                className={`px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition ${perms.includes(p) ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]' : ''}`}>
+                role="checkbox" aria-checked={perms.includes(p)}
+                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); togglePerm(p); } }}
+              >
                 {p}
-              </button>
+              </AppleChip>
             ))}
           </div>
         </div>

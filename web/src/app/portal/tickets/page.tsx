@@ -8,7 +8,6 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { formatDate } from '@/lib/date';
-import { URGENCY_LABELS } from '@/lib/format';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -59,7 +58,7 @@ export default function TicketQueryPage() {
             columns={[
               { key: 'ticket_no', title: '编号', render: (r) => <span className="font-[var(--font-mono)] text-fine">{r.ticket_no}</span> },
               { key: 'title', title: '标题', render: (r) => <a href={`/portal/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
-              { key: 'urgency', title: '紧急程度', render: (r) => URGENCY_LABELS[r.urgency] || '—' },
+              { key: 'tags', title: '标签', render: (r) => (r.tags || []).join(', ') || '—' },
               { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
               { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },
             ]}

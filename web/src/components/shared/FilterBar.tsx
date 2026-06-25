@@ -1,5 +1,6 @@
 /** FilterBar — 筛选按钮组。每个选项带 icon+文字，激活态高亮。 */
 import type { ReactNode } from 'react';
+import { AppleChip } from '@/components/ui/AppleChip';
 
 export interface FilterOption<V extends string | number> {
   value: V;
@@ -18,19 +19,16 @@ export function FilterBar<V extends string | number>({ options, value, onChange,
   return (
     <div className={`mb-4 flex gap-2 flex-wrap ${className}`}>
       {options.map((o) => (
-        <button
+        <AppleChip
           key={String(o.value)}
+          size="md"
+          selected={value === o.value}
           onClick={() => onChange(o.value)}
+          icon={o.icon}
           aria-label={o.label}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 text-caption font-normal rounded-[var(--radius-pill)] border cursor-pointer transition active:scale-95 ${
-            value === o.value
-              ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm'
-              : 'bg-[var(--color-canvas)] border-[var(--color-hairline)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-pearl)] hover:border-[var(--color-divider-soft)]'
-          }`}
         >
-          {o.icon}
-          <span>{o.label}</span>
-        </button>
+          {o.label}
+        </AppleChip>
       ))}
     </div>
   );

@@ -5,7 +5,7 @@
  * button-pearl-capsule（14px/8×14px）、touch-target 44×44px。
  *
  * 层级：pill（主要 CTA）> pillOutline（次要 CTA）> ghost / utility（紧凑操作）
- * 新增 danger 变体用于不可逆操作，icon 属性让图标与文字自动协调。
+ * menu 变体用于菜单/导航 chrome（无色），danger 变体用于不可逆操作。
  */
 
 import {
@@ -18,10 +18,10 @@ import {
   isValidElement,
 } from 'react';
 
-type ButtonVariant = 'pill' | 'pillOutline' | 'ghost' | 'utility' | 'danger';
+type ButtonVariant = 'pill' | 'pillOutline' | 'ghost' | 'utility' | 'danger' | 'menu';
 
 interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** 变体：pill=首要CTA | pillOutline=次要CTA | ghost=极简 | utility=珍珠底 | danger=危险操作 */
+  /** 变体：pill=首要CTA | pillOutline=次要CTA | ghost=蓝色文字 | utility=珍珠底 | danger=危险操作 | menu=菜单/导航 */
   variant?: ButtonVariant;
   /** 左侧图标，传入 Lucide 组件即可（无需手动设 size） */
   icon?: ReactNode;
@@ -52,6 +52,12 @@ const variantMeta: Record<ButtonVariant, {
   ghost: {
     base: 'bg-transparent text-[var(--color-accent)] rounded-[var(--radius-pill)] text-caption py-[7px] px-[15px]',
     iconSize: 16,
+  },
+  menu: {
+    // 菜单/导航 chrome 专用：无色（不抢眼），文字为 ink 而非 accent blue。
+    // 比 ghost 更大的尺寸，确保侧栏和顶栏导航触控区域充裕。
+    base: 'bg-transparent text-[var(--color-ink)] rounded-[var(--radius-pill)] text-callout py-[9px] px-[18px]',
+    iconSize: 18,
   },
   utility: {
     base: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] rounded-[var(--radius-pill)] text-caption py-[7px] px-[15px] border border-[var(--color-divider-soft)]',

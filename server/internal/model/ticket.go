@@ -7,6 +7,9 @@ import (
 )
 
 // Ticket 申告工单表
+//
+// Tags 为逗号分隔的标签字符串（如 "网络,邮箱,VPN"），替代原来的 Urgency/ImpactScope/AffectedSystems 三个字段。
+// 存储为 JSONB 数组，与知识库文章的 Tags 字段互通——从申告生成知识候选时标签直接复制。
 type Ticket struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketNo        string         `gorm:"type:varchar(32);uniqueIndex;not null;column:ticket_no" json:"ticket_no"`
@@ -14,9 +17,7 @@ type Ticket struct {
 	User            User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Title           string         `gorm:"type:varchar(255);not null" json:"title"`
 	Description     string         `gorm:"type:text;not null" json:"description"`
-	Urgency         int16          `gorm:"not null" json:"urgency"`
-	ImpactScope     int16          `gorm:"column:impact_scope" json:"impact_scope"`
-	AffectedSystems datatypes.JSON `gorm:"type:jsonb;column:affected_systems" json:"affected_systems"`
+	Tags            datatypes.JSON `gorm:"type:jsonb" json:"tags"` // JSON 字符串数组，如 ["网络","VPN"]
 	ContactPhone    string         `gorm:"type:varchar(20);not null;column:contact_phone" json:"contact_phone"`
 	ContactEmail    string         `gorm:"type:varchar(128);column:contact_email" json:"contact_email"`
 	Status          int16          `gorm:"not null;default:1;index:idx_tickets_status" json:"status"`

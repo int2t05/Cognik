@@ -6,20 +6,6 @@ const (
 	StatusInactive int16 = 2 // 冻结
 )
 
-// 工单紧急程度
-const (
-	TicketUrgencyLow    int16 = 1 // 低
-	TicketUrgencyMedium int16 = 2 // 中
-	TicketUrgencyHigh   int16 = 3 // 高
-)
-
-// 工单影响范围
-const (
-	ImpactPersonal int16 = 1 // 个人
-	ImpactDept     int16 = 2 // 部门
-	ImpactCompany  int16 = 3 // 全公司
-)
-
 // 工单状态
 const (
 	TicketStatusPending        int16 = 1 // 待处理
@@ -116,34 +102,6 @@ func ArticleSourceTypeText(sourceType int16) string {
 		return "手动创建"
 	case SourceTypeUpload:
 		return "文档上传"
-	default:
-		return "未知"
-	}
-}
-
-// TicketUrgencyText 返回紧急程度的中文描述。
-func TicketUrgencyText(urgency int16) string {
-	switch urgency {
-	case TicketUrgencyLow:
-		return "低"
-	case TicketUrgencyMedium:
-		return "中"
-	case TicketUrgencyHigh:
-		return "高"
-	default:
-		return "未知"
-	}
-}
-
-// TicketImpactText 返回影响范围的中文描述。
-func TicketImpactText(impact int16) string {
-	switch impact {
-	case ImpactPersonal:
-		return "个人"
-	case ImpactDept:
-		return "部门"
-	case ImpactCompany:
-		return "全公司"
 	default:
 		return "未知"
 	}

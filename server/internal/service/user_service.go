@@ -344,3 +344,8 @@ func (s *UserService) toDetailResponse(ctx context.Context, user *model.User) (*
 		UpdatedAt:  user.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
+
+// BatchDelete 批量删除用户。
+func (s *UserService) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	return s.repo.BatchDelete(ctx, ids)
+}

@@ -12,6 +12,7 @@ import { useConfigValue } from '@/hooks/useAppConfig';
 import { isActivePath } from '@/lib/menu';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
+import { AppleButton } from '@/components/ui/AppleButton';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, ChevronDown, Cpu, FileText, User, Bot } from 'lucide-react';
 
 // ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
@@ -43,7 +44,7 @@ const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/system-config': '/admin/config/system',
 };
 
-const SIDEBAR_COLLAPSED_WIDTH = 64;
+const SIDEBAR_COLLAPSED_WIDTH = 68;
 const SIDEBAR_EXPANDED_WIDTH = 240;
 
 interface MenuItem { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; children?: MenuItem[]; }
@@ -91,26 +92,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const expanded = expandedMenus.has(m.id);
 
     const btnClass = [
-      'flex items-center gap-3 w-full px-5 py-2.5 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption cursor-pointer text-left rounded-[var(--radius-pill)] transition active:scale-95 hover:bg-[var(--color-divider-soft)]',
-      collapsed ? 'justify-center px-0 py-3' : '',
-      active ? 'bg-[var(--color-divider-soft)] text-[var(--color-ink)] font-semibold shadow-[inset_4px_0_0_var(--color-accent)]' : '',
+      'w-full justify-start',
+      collapsed ? 'justify-center' : '',
+      active ? '!bg-[var(--color-divider-soft)] font-semibold' : '',
       depthPadding(depth),
     ].filter(Boolean).join(' ');
 
     return (
       <div key={m.id}>
-        <button
+        <AppleButton
+          variant="menu"
+          icon={ICON_MAP[m.icon] || <Settings />}
           onClick={() => { if (hasChildren) toggleSubmenu(m.id); else router.push(targetPath); }}
           title={collapsed ? m.name : undefined}
           className={btnClass}
           aria-current={active ? 'page' : undefined}
         >
-          {ICON_MAP[m.icon] || <Settings size={16} />}
-          {!collapsed && <span className="flex-1">{m.name}</span>}
-          {!collapsed && hasChildren && (
-            <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+          {!collapsed && (
+            <span className="inline-flex items-center gap-3 flex-1">
+              <span className="flex-1 text-left">{m.name}</span>
+              {hasChildren && <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />}
+            </span>
           )}
-        </button>
+        </AppleButton>
         {!collapsed && hasChildren && expanded && m.children!.map((c) => renderMenuItem(c, depth + 1))}
       </div>
     );
@@ -160,27 +164,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="p-3 border-t border-[var(--color-divider-soft)] flex flex-col gap-1.5">
-          <button onClick={() => router.push('/portal/chat')} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label="门户首页">
-            <Bot size={16} /> {!collapsed && <span>门户</span>}
-          </button>
-          <button onClick={() => router.push('/portal/messages')} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}>
-            <MessageSquare size={16} /> {!collapsed && <span>消息 {unreadCount > 0 && `(${unreadCount})`}</span>}
-          </button>
-          <button onClick={toggleTheme} className="flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-text-muted-80)] text-caption cursor-pointer rounded-[var(--radius-pill)] transition hover:bg-[var(--color-divider-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]" aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            {!collapsed && (theme === 'dark' ? '浅色模式' : '暗色模式')}
-          </button>
+        <div className="p-3 border-t border-[var(--color-divider-soft)]">
+          <AppleButton variant="menu" icon={<MessageSquare />} onClick={() => router.push('/portal/messages')}
+            aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}
+            className={`w-full justify-start ${collapsed ? 'justify-center' : ''}`}>
+            {!collapsed && (
+              <span className="inline-flex items-center gap-3 flex-1">
+                <span className="flex-1 text-left">消息 {unreadCount > 0 && `(${unreadCount})`}</span>
+              </span>
+            )}
+          </AppleButton>
         </div>
+
       </aside>
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
-          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] transition hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-          <div className="flex items-center gap-[var(--spacing-md-plus)]">
-            {mounted && <span className="text-caption text-[var(--color-text-muted-48)]">{user?.real_name || user?.username}</span>}
+          <AppleButton variant="menu" icon={collapsed ? <ChevronRight /> : <ChevronLeft />}
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} />
+          <div className="flex items-center gap-3">
+            <AppleButton variant="menu" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} />
+            <AppleButton variant="menu" icon={<Bot />} onClick={() => router.push('/portal/chat')} aria-label="门户首页" />
+            {mounted && <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name || user?.username}</span>}
             {mounted && <AccountSwitcher />}
           </div>
         </header>

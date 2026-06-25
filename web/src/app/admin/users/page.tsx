@@ -2,19 +2,20 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail } from '@/lib/api/user';
+import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
 import { useDebounce } from '@/hooks/useDebounce';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { AppleChip } from '@/components/ui/AppleChip';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { formatDate } from '@/lib/date';
-import { UserPlus, Pencil, Lock, Unlock } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock, Trash2, X } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -28,6 +29,32 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
   const toast = useToast();
+
+  // 批量选择
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const items = data?.items || [];
+  const toggleSelect = (id: number) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const selectAll = () => {
+    if (selectedIds.size === items.length && items.length > 0) setSelectedIds(new Set());
+    else setSelectedIds(new Set(items.map((t) => t.id)));
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const handleBatchDelete = async () => {
+    setDeleting(true);
+    try {
+      await batchDeleteUsers([...selectedIds]);
+      toast.success(`已删除 ${selectedIds.size} 个用户`);
+      clearSelection();
+      mutate();
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
+    finally { setDeleting(false); setConfirmDelete(false); }
+  };
 
   const roles = rolesData?.items || [];
 
@@ -84,10 +111,24 @@ export default function UserListPage() {
         <PageTitle>用户管理</PageTitle>
         <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
       </div>
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-lg)] bg-[var(--color-pearl)] border border-[var(--color-hairline)]">
+          <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong> 个</span>
+          <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除所选 ({selectedIds.size})</AppleButton>
+          <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
+        </div>
+      )}
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
         columns={[
+          { key: '_check', title: (
+            <input type="checkbox" checked={items.length > 0 && selectedIds.size === items.length} onChange={selectAll}
+              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
+          ), render: (r) => (
+            <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)}
+              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
+          ), width: '44px' },
           { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
@@ -97,7 +138,7 @@ export default function UserListPage() {
               : <AppleButton variant="utility" icon={<Unlock />} aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })} />}
           </div> },
         ]}
-        data={data?.items || []} loading={!data && !error} rowKey="id"
+        data={items} loading={!data && !error} rowKey="id"
         emptyText={debouncedKeyword ? `未找到与“${debouncedKeyword}”匹配的用户` : '暂无用户'}
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
@@ -112,21 +153,16 @@ export default function UserListPage() {
           <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
           <div className="flex flex-wrap gap-2">
             {roles.map(role => (
-              <button
+              <AppleChip
                 key={role.id}
-                type="button"
+                selected={form.role_ids.includes(role.id)}
+                onClick={() => toggleRole(role.id)}
                 role="checkbox"
                 aria-checked={form.role_ids.includes(role.id)}
-                onClick={() => toggleRole(role.id)}
                 onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}
-                className={
-                  form.role_ids.includes(role.id)
-                    ? 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)] cursor-pointer transition'
-                    : 'px-2.5 py-1 text-fine rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] cursor-pointer transition hover:bg-[var(--color-divider-soft)]'
-                }
               >
                 {role.name}
-              </button>
+              </AppleChip>
             ))}
           </div>
         </div>
@@ -136,6 +172,11 @@ export default function UserListPage() {
         title={confirmFreeze?.freeze ? '冻结用户' : '恢复用户'}
         message={confirmFreeze?.freeze ? `确定要冻结用户 ${confirmFreeze?.username} 吗？冻结后将无法登录。` : `确定要恢复用户 ${confirmFreeze?.username} 吗？`}
         onConfirm={handleFreeze} confirmLabel={confirmFreeze?.freeze ? '冻结' : '恢复'} danger={confirmFreeze?.freeze} />
+
+      <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete}
+        title="批量删除用户"
+        message={`确定要删除 ${selectedIds.size} 个用户吗？此操作不可撤销。`}
+        onConfirm={handleBatchDelete} loading={deleting} danger confirmLabel="删除" />
     </div>
   );
 }

@@ -91,19 +91,44 @@ func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+	// UpdateTicket 编辑申告（仅申告人可操作）。
+	//
+	// PATCH /api/v1/portal/tickets/:id
+	func (h *TicketHandler) UpdateTicket(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			response.Error(c, errcode.ErrParam, "无效的申告 ID")
+			return
+		}
+
+		var req request.UpdateTicketRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+			return
+		}
+
+		userID, _ := getCurrentUserID(c)
+		if svcErr := h.svc.UpdateTicket(c.Request.Context(), id, userID, req); svcErr != nil {
+			handleServiceError(c, svcErr)
+			return
+		}
+
+		response.Success(c, nil)
+	}
+
+
 // =============================================================================
 // 后台管理
 // =============================================================================
 
-// ListAll 分页查询全部申告（支持按状态和紧急程度筛选）。
+// ListAll 分页查询全部申告（支持按状态筛选）。
 //
 // GET /api/v1/admin/tickets
 func (h *TicketHandler) ListAll(c *gin.Context) {
 	page, pageSize := parsePagination(c)
 	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
-	urgency, _ := strconv.Atoi(c.DefaultQuery("urgency", "0"))
 
-	result, err := h.svc.ListAll(c.Request.Context(), status, urgency, page, pageSize)
+	result, err := h.svc.ListAll(c.Request.Context(), status, page, pageSize)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -217,4 +242,21 @@ func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	}
 
 	response.Success(c, nil)
+}
+
+// BatchDelete 批量删除申告。
+//
+// POST /api/v1/admin/tickets/batch-delete
+func (h *TicketHandler) BatchDelete(c *gin.Context) {
+	var req request.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+	deleted, err := h.svc.BatchDelete(c.Request.Context(), req.IDs)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, map[string]int64{"deleted": deleted})
 }

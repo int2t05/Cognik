@@ -11,29 +11,27 @@ type TicketListResponse struct {
 
 // TicketItem 列表中的申告条目（精简字段）。
 type TicketItem struct {
-	ID              int64  `json:"id"`
-	TicketNo        string `json:"ticket_no"`
-	UserID          int64  `json:"user_id"`
-	SubmitterName   string `json:"submitter_name"`
-	Title           string `json:"title"`
-	Urgency         int16  `json:"urgency"`
-	ImpactScope     int16  `json:"impact_scope"`
-	ContactPhone    string `json:"contact_phone"`
-	Status          int16  `json:"status"`
-	StatusText      string `json:"status_text"`
-	SupplementCount int16  `json:"supplement_count"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID              int64    `json:"id"`
+	TicketNo        string   `json:"ticket_no"`
+	UserID          int64    `json:"user_id"`
+	SubmitterName   string   `json:"submitter_name"`
+	Title           string   `json:"title"`
+	Tags            []string `json:"tags"`
+	ContactPhone    string   `json:"contact_phone"`
+	Status          int16    `json:"status"`
+	StatusText      string   `json:"status_text"`
+	SupplementCount int16    `json:"supplement_count"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
 }
 
 // TicketDetailResponse 申告详情响应（含提交人信息和处理记录时间线）。
 type TicketDetailResponse struct {
 	TicketItem
-	Description     string              `json:"description"`
-	AffectedSystems []string            `json:"affected_systems"`
-	ContactEmail    string              `json:"contact_email"`
-	Source          int16               `json:"source"`
-	Records         []TicketRecordItem  `json:"records"`
+	Description  string             `json:"description"`
+	ContactEmail string             `json:"contact_email"`
+	Source       int16              `json:"source"`
+	Records      []TicketRecordItem `json:"records"`
 }
 
 // TicketRecordItem 处理记录条目。

@@ -97,3 +97,12 @@ func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]AuditLogRow, int
 	}
 	return rows, total, nil
 }
+
+// BatchDelete 批量删除审计日志。
+func (r *AuditRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	res := r.db.WithContext(ctx).Table("audit_logs").Where("id IN ?", ids).Delete(nil)
+	return res.RowsAffected, res.Error
+}

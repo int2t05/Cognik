@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { AppleButton } from '@/components/ui/AppleButton';
+import { AppleChip } from '@/components/ui/AppleChip';
 import { Calendar } from 'lucide-react';
 
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
@@ -72,17 +73,14 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
         <h3 className="text-title font-semibold text-[var(--color-ink)]">趋势图</h3>
         <div className="flex items-center gap-2 flex-wrap">
           {PRESETS.map((p) => (
-            <button
+            <AppleChip
               key={p.days}
+              size="md"
+              selected={activePreset === p.days}
               onClick={() => applyPreset(p.days)}
-              className={`px-3 py-1.5 text-caption rounded-[var(--radius-pill)] border-0 cursor-pointer transition font-normal ${
-                activePreset === p.days
-                  ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm'
-                  : 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] hover:bg-[var(--color-hairline)]'
-              }`}
             >
               {p.label}
-            </button>
+            </AppleChip>
           ))}
           <span className="text-[var(--color-hairline)]">|</span>
           <Calendar size={12} className="text-[var(--color-text-muted-48)] shrink-0" />

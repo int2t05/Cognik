@@ -103,6 +103,15 @@ func (r *UserRepo) Update(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
+// BatchDelete 批量删除用户。
+func (r *UserRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	res := r.db.WithContext(ctx).Delete(&model.User{}, ids)
+	return res.RowsAffected, res.Error
+}
+
 // List 分页查询用户列表，支持关键词搜索。
 func (r *UserRepo) List(ctx context.Context, page, pageSize int, keyword string) ([]model.User, int64, error) {
 	var users []model.User

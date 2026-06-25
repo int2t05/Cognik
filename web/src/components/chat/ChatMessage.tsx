@@ -5,7 +5,8 @@
  * 点击后展开下方对应的来源块并滚动到视图。
  */
 import { useRef, useCallback } from 'react';
-import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle } from 'lucide-react';
+import Link from 'next/link';
+import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink } from 'lucide-react';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import type { ChunkDisplay } from '@/contexts/ChatStreamProvider';
 
@@ -24,6 +25,7 @@ interface ChatMessageProps {
   cancelled?: boolean;
   isStreaming: boolean;
   sessionId?: number | null;
+  question?: string;
   feedback?: number;
   onFeedback?: (value: number) => void;
   feedbackLoading?: boolean;
@@ -51,7 +53,7 @@ function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
 
 export function ChatMessage({
   id, role, content, reasoning, sources, chunks, confidence, confidence_raw, confidence_level, cancelled, isStreaming,
-  sessionId, feedback = 0, onFeedback, feedbackLoading,
+  sessionId, question, feedback = 0, onFeedback, feedbackLoading,
 }: ChatMessageProps) {
   const rawConf = confidence_raw ?? confidence;
   const isUser = role === 'user';
@@ -226,6 +228,21 @@ export function ChatMessage({
             >
               <ThumbsDown size={14} />
             </button>
+            {/* 用户点击"无帮助"后显示转申告入口 */}
+            {feedback === 2 && question && (
+              <Link
+                href={`/portal/tickets/new?chat_context=${encodeURIComponent(JSON.stringify({
+                  session_id: sessionId ?? 0,
+                  question,
+                  answer: content,
+                  confidence: confidence_raw ?? confidence ?? 0,
+                }))}`}
+                className="flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition cursor-pointer no-underline"
+              >
+                <ExternalLink size={12} />
+                转申告
+              </Link>
+            )}
           </div>
         )}
       </div>

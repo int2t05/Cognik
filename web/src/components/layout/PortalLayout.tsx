@@ -58,26 +58,28 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 return !exactMatch;
               })();
               return (
-                <button
-                  key={item.path}
-                  onClick={() => router.push(item.path)}
-                  className={`flex items-center gap-2 px-3 py-3 min-h-[44px] border-0 bg-transparent text-[var(--color-ink)] text-caption rounded-[var(--radius-pill)] cursor-pointer relative transition active:scale-95 hover:bg-[var(--color-divider-soft)] ${active ? 'bg-[var(--color-divider-soft)] font-semibold shadow-[inset_0_-2px_0_var(--color-accent)]' : ''}`}
-                >
-                  {item.icon} {item.label}
+                <div key={item.path} className="relative">
+                  <AppleButton
+                    variant="menu"
+                    icon={item.icon}
+                    onClick={() => router.push(item.path)}
+                    className={active ? '!bg-[var(--color-divider-soft)] font-semibold' : ''}
+                  >
+                    {item.label}
+                  </AppleButton>
                   {item.label === '消息' && unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold w-5 h-5 rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} className="border-0 bg-transparent cursor-pointer p-3 text-[var(--color-ink)] flex transition hover:opacity-70 min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]">
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+          <AppleButton variant="menu" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggleTheme}
+            aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} />
           {mounted && isAdmin && (
             <AppleButton variant="utility" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
           )}

@@ -13,3 +13,6 @@ export function updateUser(id: number, data: Record<string, unknown>) { return a
 export function freezeUser(id: number) { return apiFetch<null>(`/api/v1/admin/users/${id}/freeze`, { method: 'PATCH' }); }
 export function getUserDetail(id: number) { return apiFetch<User>(`/api/v1/admin/users/${id}`); }
 export function unfreezeUser(id: number) { return apiFetch<null>(`/api/v1/admin/users/${id}/unfreeze`, { method: 'PATCH' }); }
+export function batchDeleteUsers(ids: number[]) {
+  return apiFetch<null>('/api/v1/admin/users/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+}

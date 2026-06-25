@@ -48,6 +48,19 @@ func (r *TicketRepo) FindByID(ctx context.Context, id int64) (*model.Ticket, err
 	return &ticket, nil
 }
 
+// BatchDelete 批量删除申告（含关联处理记录）。
+func (r *TicketRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	// 先删关联记录，再删申告
+	if err := r.db.WithContext(ctx).Where("ticket_id IN ?", ids).Delete(&model.TicketRecord{}).Error; err != nil {
+		return 0, err
+	}
+	res := r.db.WithContext(ctx).Delete(&model.Ticket{}, ids)
+	return res.RowsAffected, res.Error
+}
+
 // Update 更新申告全部字段。
 func (r *TicketRepo) Update(ctx context.Context, ticket *model.Ticket) error {
 	return r.db.WithContext(ctx).Save(ticket).Error
@@ -87,17 +100,14 @@ func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSiz
 	return tickets, total, nil
 }
 
-// ListAll 分页查询全部申告，支持按状态和紧急程度筛选。
-func (r *TicketRepo) ListAll(ctx context.Context, status int, urgency int, page, pageSize int) ([]model.Ticket, int64, error) {
+// ListAll 分页查询全部申告，支持按状态筛选。
+func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{})
 	if status >= 0 {
 		query = query.Where("status = ?", status)
-	}
-	if urgency > 0 {
-		query = query.Where("urgency = ?", urgency)
 	}
 
 	if err := query.Count(&total).Error; err != nil {

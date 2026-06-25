@@ -9,6 +9,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Trash2, LogIn } from 'lucide-react';
+import { AppleButton } from '@/components/ui/AppleButton';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
 import { useToast } from '@/hooks/useToast';
 
@@ -55,14 +56,15 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
 
   return (
     <div ref={ref} className="relative">
-      <button
+      <AppleButton
+        variant="menu"
+        icon={<UserPlus />}
         onClick={() => setOpen(!open)}
         aria-label="切换账号"
-        className={className || 'flex items-center gap-2 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] text-caption hover:text-[var(--color-ink)] transition min-h-[44px] min-w-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]'}
+        className={className}
       >
-        <UserPlus size={16} />
-        {!iconOnly && <span>切换账号</span>}
-      </button>
+        {!iconOnly && '切换账号'}
+      </AppleButton>
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] z-50 overflow-hidden">
@@ -113,13 +115,14 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
           </div>
 
           <div className="border-t border-[var(--color-divider-soft)]">
-            <button
+            <AppleButton
+              variant="menu"
+              icon={<LogIn />}
               onClick={handleNewLogin}
-              className="w-full flex items-center gap-2 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption text-[var(--color-accent)] font-semibold"
+              className="w-full justify-start font-semibold"
             >
-              <LogIn size={16} />
               其他账号登录
-            </button>
+            </AppleButton>
           </div>
         </div>
       )}

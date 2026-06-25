@@ -10,7 +10,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Sparkles, Lightbulb, Target, FileText } from 'lucide-react';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
@@ -124,13 +124,9 @@ export default function DashboardPage() {
       {/* 知识健康度分析 */}
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-[var(--color-accent)]" />
-            <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
-          </div>
+          <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
           <AppleButton
             variant="pill"
-            icon={analyzing ? undefined : <Lightbulb />}
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"
@@ -139,7 +135,7 @@ export default function DashboardPage() {
           </AppleButton>
         </div>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">
-          基于近 30 天的用户 👍👎 反馈，由 LLM 自动分析知识库的优势与待补充领域。
+          基于近 30 天的用户反馈，由 LLM 自动分析知识库的优势与待补充领域。
           需要先有用户反馈数据才能分析。
         </p>
 
@@ -153,19 +149,15 @@ export default function DashboardPage() {
         {analysis && (
           <div className="space-y-4">
             {/* 总结 */}
-            <div className="flex items-start gap-3 bg-[var(--color-accent)]/5 rounded-[var(--radius-md)] p-4">
-              <FileText size={16} className="text-[var(--color-accent)] mt-0.5 shrink-0" />
+            <div className="bg-[var(--color-accent)]/5 rounded-[var(--radius-md)] p-4">
               <p className="text-body text-[var(--color-ink)]">{analysis.summary}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 优势领域 */}
               <div className="bg-[var(--color-success)]/5 rounded-[var(--radius-md)] p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <ThumbsUp size={14} className="text-[var(--color-success)]" />
-                  <span className="text-caption font-semibold text-[var(--color-ink)]">回答较好的领域</span>
-                </div>
-                <ul className="space-y-1">
+                <span className="text-caption font-semibold text-[var(--color-ink)]">回答较好的领域</span>
+                <ul className="space-y-1 mt-2">
                   {analysis.strong_areas?.map((area, i) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" />
@@ -177,11 +169,8 @@ export default function DashboardPage() {
 
               {/* 待补充领域 */}
               <div className="bg-[var(--color-error)]/5 rounded-[var(--radius-md)] p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target size={14} className="text-[var(--color-error)]" />
-                  <span className="text-caption font-semibold text-[var(--color-ink)]">需要补充的领域</span>
-                </div>
-                <ul className="space-y-1">
+                <span className="text-caption font-semibold text-[var(--color-ink)]">需要补充的领域</span>
+                <ul className="space-y-1 mt-2">
                   {analysis.weak_areas?.map((area, i) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-error)] shrink-0" />
@@ -195,11 +184,8 @@ export default function DashboardPage() {
             {/* 改进建议 */}
             {analysis.suggestions && analysis.suggestions.length > 0 && (
               <div className="bg-[var(--color-parchment)] rounded-[var(--radius-md)] p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Lightbulb size={14} className="text-[var(--color-accent)]" />
-                  <span className="text-caption font-semibold text-[var(--color-ink)]">改进建议</span>
-                </div>
-                <ul className="space-y-1.5">
+                <span className="text-caption font-semibold text-[var(--color-ink)]">改进建议</span>
+                <ul className="space-y-1.5 mt-2">
                   {analysis.suggestions.map((s, i) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-start gap-2">
                       <span className="text-[var(--color-accent)] font-semibold shrink-0">{i + 1}.</span>

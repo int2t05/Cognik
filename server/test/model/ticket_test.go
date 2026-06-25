@@ -1,4 +1,3 @@
-
 package model_test
 
 import (
@@ -14,15 +13,13 @@ import (
 func TestTicket_Fields(t *testing.T) {
 	now := time.Now()
 	context := datatypes.JSON(`{"session_id": 1}`)
-	systems := datatypes.JSON(`["OA系统","ERP系统"]`)
+	tags := datatypes.JSON(`["OA系统","ERP系统"]`)
 	tk := model.Ticket{
 		TicketNo:        "TK-20250101-0001",
 		UserID:          1,
 		Title:           "OA系统无法登录",
 		Description:     "点击登录后页面空白",
-		Urgency:         model.TicketUrgencyHigh,
-		ImpactScope:     model.ImpactDept,
-		AffectedSystems: systems,
+		Tags:            tags,
 		ContactPhone:    "13800138000",
 		ContactEmail:    "user@example.com",
 		Status:          model.TicketStatusPending,
@@ -40,12 +37,6 @@ func TestTicket_Fields(t *testing.T) {
 	if tk.UserID != 1 {
 		t.Errorf("UserID = %d, 期望 1", tk.UserID)
 	}
-	if tk.Urgency != model.TicketUrgencyHigh {
-		t.Errorf("Urgency = %d, 期望 %d", tk.Urgency, model.TicketUrgencyHigh)
-	}
-	if tk.ImpactScope != model.ImpactDept {
-		t.Errorf("ImpactScope = %d, 期望 %d", tk.ImpactScope, model.ImpactDept)
-	}
 	if tk.Status != model.TicketStatusPending {
 		t.Errorf("Status = %d, 期望 %d", tk.Status, model.TicketStatusPending)
 	}
@@ -55,8 +46,8 @@ func TestTicket_Fields(t *testing.T) {
 	if tk.SupplementCount != 0 {
 		t.Errorf("SupplementCount = %d, 期望 0", tk.SupplementCount)
 	}
-	if tk.AffectedSystems == nil {
-		t.Error("AffectedSystems 为 nil, 期望有值")
+	if tk.Tags == nil {
+		t.Error("Tags 为 nil, 期望有值")
 	}
 	if tk.ChatContext == nil {
 		t.Error("ChatContext 为 nil, 期望有值")

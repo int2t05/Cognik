@@ -48,3 +48,8 @@ func (s *AuditService) List(ctx context.Context, f repository.AuditFilter) ([]re
 
 	return items, total, nil
 }
+
+// BatchDelete 批量删除审计日志。
+func (s *AuditService) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	return s.auditRepo.BatchDelete(ctx, ids)
+}

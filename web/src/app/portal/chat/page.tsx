@@ -20,7 +20,6 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatPipeline } from '@/components/chat/ChatPipeline';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { formatDate } from '@/lib/date';
 
 /** 建议问题卡片 */
 const SUGGESTIONS = [
@@ -317,40 +316,33 @@ export default function ChatPage() {
                 {sessions.map((s) => {
                   const isActive = s.id === sessionId;
                   return (
-                    <div key={s.id} className="group relative">
+                    <div key={s.id} className="flex items-center gap-1 group">
                       <div
                         role="button" tabIndex={0}
                         onClick={() => handleSelectSession(s.id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectSession(s.id); } }}
-                        className={`w-full text-left px-2 py-2.5 rounded-xl text-caption transition cursor-pointer ${
+                        className={`flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2 ${
                           isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <MessageSquare size={12} className={`mt-0.5 shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate text-caption leading-tight">{s.question}</div>
-                            <div className="text-fine text-[var(--color-text-muted-48)] mt-1">{formatDate(s.updated_at)}</div>
-                          </div>
-                        </div>
+                        <MessageSquare size={12} className={`shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
+                        <span className="truncate leading-tight">{s.question}</span>
                       </div>
-                      {/* hover 操作按钮 */}
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }}
-                          aria-label="编辑会话" title="编辑"
-                          className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }}
-                          aria-label="删除会话" title="删除"
-                          className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
+                      {/* 固定按钮：编辑 + 删除 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }}
+                        aria-label="编辑会话" title="编辑"
+                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }}
+                        aria-label="删除会话" title="删除"
+                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   );
                 })}
@@ -364,10 +356,7 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
         {/* 精简顶栏：侧栏切换 + 居中标题 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-divider-soft)] bg-[var(--color-canvas)]">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'}
-            className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
-          </button>
+          <AppleButton variant="menu" icon={sidebarOpen ? <PanelLeftClose /> : <PanelLeft />} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'} />
           <span className="flex-1 text-center text-caption text-[var(--color-ink)] font-medium truncate">
             {currentTitle || `${appName || 'OpsMind'} 智能问答`}
           </span>
@@ -418,6 +407,7 @@ export default function ChatPage() {
                           cancelled={msg.cancelled}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
+                        question={msg.role === 'assistant' ? (messages[virtualItem.index - 1]?.role === 'user' ? messages[virtualItem.index - 1].content : undefined) : undefined}
                           onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
                         />
                       </div>
@@ -435,6 +425,7 @@ export default function ChatPage() {
                       cancelled={msg.cancelled}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
+                        question={msg.role === 'assistant' ? (messages[idx - 1]?.role === 'user' ? messages[idx - 1].content : undefined) : undefined}
                       onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
                     />
                   ))}

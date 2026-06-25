@@ -84,7 +84,7 @@ func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
 //
 // 业务规则：
 //   - title、description、contact_phone 为必填
-//   - urgency 必须为 TicketUrgencyLow/Medium/High
+//   - tags 为用户提交的逗号分隔标签
 //   - ticket_no 格式：TK-YYYYMMDD-XXXX（XXXX 为随机 6 位后缀）
 //   - 新建申告 status=TicketStatusPending、source=TicketSourcePortal
 func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTicketRequest, userID int64) error {
@@ -98,9 +98,6 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 	if strings.TrimSpace(req.ContactPhone) == "" {
 		return AppError{Code: errcode.ErrParam, Message: "联系电话不能为空"}
 	}
-	if req.Urgency < int(model.TicketUrgencyLow) || req.Urgency > int(model.TicketUrgencyHigh) {
-		return AppError{Code: errcode.ErrParam, Message: "紧急程度必须为 1-3"}
-	}
 
 	// 生成唯一 ticket_no：日期 + 加密随机 6 位数字。
 	// 为什么用 crypto/rand 而非纳秒时间戳：纳秒取模在并发场景碰撞风险不可控，
@@ -110,10 +107,10 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		return AppError{Code: errcode.ErrUnknown, Message: "生成工单编号失败，请重试"}
 	}
 
-	// 序列化 AffectedSystems
-	var systemsJSON datatypes.JSON
-	if len(req.AffectedSystems) > 0 {
-		systemsJSON = marshalTicketTags(req.AffectedSystems)
+	// 序列化 Tags
+	var tagsJSON datatypes.JSON
+	if len(req.Tags) > 0 {
+		tagsJSON = marshalTicketTags(req.Tags)
 	}
 
 	// 序列化 ChatContext（若提供）
@@ -131,9 +128,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		UserID:          userID,
 		Title:           req.Title,
 		Description:     req.Description,
-		Urgency:         int16(req.Urgency),
-		ImpactScope:     int16(req.ImpactScope),
-		AffectedSystems: systemsJSON,
+		Tags: tagsJSON,
 		ContactPhone:    req.ContactPhone,
 		ContactEmail:    req.ContactEmail,
 		ChatContext:     chatCtxJSON,
@@ -158,8 +153,48 @@ return nil
 }
 
 // =============================================================================
-// SupplementTicket
+// UpdateTicket / SupplementTicket
 // =============================================================================
+
+// UpdateTicket 编辑申告（仅申告人可操作，仅待处理/处理中状态可编辑）。
+//
+// 仅更新请求中非空的字段，空字段保持原值不变。
+// 这样前端可以只发送需要修改的字段，避免覆盖未修改的数据。
+func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64, req request.UpdateTicketRequest) error {
+	ticket, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+		}
+		return err
+	}
+
+	if ticket.UserID != userID {
+		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可编辑"}
+	}
+	if ticket.Status != model.TicketStatusPending && ticket.Status != model.TicketStatusProcessing {
+		return AppError{Code: errcode.ErrParam, Message: "仅待处理或处理中的申告可编辑"}
+	}
+
+	// 仅更新非空字段
+	if req.Title != "" {
+		ticket.Title = req.Title
+	}
+	if req.Description != "" {
+		ticket.Description = req.Description
+	}
+	if req.ContactPhone != "" {
+		ticket.ContactPhone = req.ContactPhone
+	}
+	if req.ContactEmail != "" {
+		ticket.ContactEmail = req.ContactEmail
+	}
+	if len(req.Tags) > 0 {
+		ticket.Tags = marshalTicketTags(req.Tags)
+	}
+
+	return s.repo.Update(ctx, ticket)
+}
 
 // SupplementTicket 补充申告信息。
 //
@@ -397,8 +432,8 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 // ListAll 分页查询全部申告（支持按状态和紧急程度筛选）。
 //
 // status=-1 表示不过滤，urgency=0 表示不过滤。
-func (s *TicketService) ListAll(ctx context.Context, status, urgency, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListAll(ctx, status, urgency, page, pageSize)
+func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -455,8 +490,8 @@ func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (
 	detail.Records = records
 
 	// 反序列化受影响的系统
-	if len(ticket.AffectedSystems) > 0 {
-		detail.AffectedSystems = unmarshalTicketTags(ticket.AffectedSystems)
+	if len(ticket.Tags) > 0 {
+		detail.Tags = unmarshalTicketTags(ticket.Tags)
 	}
 
 	return detail, nil
@@ -479,8 +514,7 @@ func toTicketItem(t *model.Ticket) response.TicketItem {
 		UserID:          t.UserID,
 		SubmitterName:   submitterName,
 		Title:           t.Title,
-		Urgency:         t.Urgency,
-		ImpactScope:     t.ImpactScope,
+		Tags:            unmarshalTicketTags(t.Tags),
 		ContactPhone:    t.ContactPhone,
 		Status:          t.Status,
 		StatusText:      model.TicketStatusText(t.Status),
@@ -577,11 +611,14 @@ func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, 
 		return err
 	}
 
-	answer := fmt.Sprintf("问题描述：%s\n\n解决方案：%s", detail.Title, detail.Description)
+	// 结构化知识候选：标题 / 详细描述 / 解决方案（待人工补充），标签与申告互通
+	content := fmt.Sprintf("## 标题\n%s\n\n## 详细描述\n%s\n\n## 解决方案\n> 请根据实际情况补充解决方案",
+		detail.Title, detail.Description)
 	articleReq := request.CreateArticleRequest{
 		KBID:    kbID,
 		Title:   "申告经验 - " + detail.Title,
-		Content: answer,
+		Content: content,
+		Tags:    detail.Tags,
 	}
 
 	if s.knowledgeCandidate == nil {
@@ -628,4 +665,9 @@ var validRecordActions = map[string]bool{
 
 func isValidRecordAction(action string) bool {
 	return validRecordActions[action]
+}
+
+// BatchDelete 批量删除申告（含关联处理记录）。
+func (s *TicketService) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
+	return s.repo.BatchDelete(ctx, ids)
 }
