@@ -53,19 +53,17 @@ export default function ChatPage() {
   const sessions = sessionsPage?.items ?? [];
 
   // URL 持久化：sessionId 写入 ?sid=X，刷新恢复
-  const urlSid = searchParams.get('sid');
-  const [sessionId, setSessionIdState] = useState<number | null>(null);
+  const [sessionId, setSessionIdState] = useState<number | null>(
+    // 直接从 URL 取初始值，消除「先外面再里面」的闪烁
+    () => { const s = searchParams.get('sid'); return s ? Number(s) : null; }
+  );
 
   const setSessionId = useCallback((sid: number | null) => {
     setSessionIdState(sid);
-    // 同步到 URL，刷新不丢会话
     const params = new URLSearchParams(searchParams.toString());
     if (sid) { params.set('sid', String(sid)); } else { params.delete('sid'); }
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
-
-  // 从 URL 恢复会话（仅首次加载时执行一次）
-  const restoredRef = useRef(false);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
@@ -202,16 +200,32 @@ export default function ChatPage() {
     }
   };
 
-  // 页面加载时从 ?sid=X 恢复会话
+  // 页面加载时从 URL 恢复会话消息
   useEffect(() => {
-    if (restoredRef.current || !urlSid || sessionsLoading || sessions.length === 0) return;
-    const sid = Number(urlSid);
-    if (!sid) return;
-    if (sessions.some(s => s.id === sid)) {
-      restoredRef.current = true;
-      handleSelectSession(sid);
-    }
-  }, [urlSid, sessionsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!sessionId || sessionsLoading || sessions.length === 0) return;
+    // 会话不在列表中（已删除）→ 清除
+    if (!sessions.some(s => s.id === sessionId)) { setSessionId(null); return; }
+    // 已有消息则跳过（handleSelectSession 已加载过）
+    if (store.getStream(sessionId)?.messages.length) return;
+    // 从 API 加载消息
+    getChatDetail(sessionId).then(detail => {
+      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
+        id: String(m.id), role: m.role, content: m.content,
+        sources: m.sources, confidence: m.confidence,
+        status: m.status, createdAt: m.created_at, dbId: m.id,
+      }));
+      store.setMessages(sessionId, msgs);
+      const fbMap: Record<string, number> = {};
+      ((detail.messages ?? []) as ApiChatMessage[]).forEach(m => {
+        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
+      });
+      setFeedbackMap(fbMap);
+      const last = msgs[msgs.length - 1];
+      if (last?.role === 'assistant' && last.status === 'generating' && token) {
+        store.resume(sessionId, 0, token);
+      }
+    }).catch(() => { setSessionId(null); });
+  }, [sessionId, sessionsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
