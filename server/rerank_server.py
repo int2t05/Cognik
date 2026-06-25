@@ -140,6 +140,14 @@ def handle_request(line: str) -> None:
 
 def main() -> None:
     """主循环：读取 stdin 逐行处理。"""
+    # ── Windows 编码修复 ──
+    # Go exec.Command 子进程的 stdin/stdout 管道在 Windows 上默认使用系统编码
+    # （如 GBK/CP936），而非 UTF-8。这会导致中文字符在 Go→Python→Go 往返中
+    # 出现双重编码损坏（mojibake: "如何重置" → "濡備綍閲嶇疆"）。
+    # 显式重配置为 UTF-8 确保编码一致性。
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+
     # 优雅退出
     running = True
 
