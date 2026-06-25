@@ -11,13 +11,14 @@ interface ChatPipelineProps {
 /**
  * ChatPipeline — RAG 管道步骤进度条。
  *
- * 三步渲染：
- *   1. 当前执行中的步骤 → 蓝色 spinner + 标签
- *   2. 已完成的步骤 → 箭头串联的彩色标签（绿=成功/红=失败）
- *   3. 等待中的步骤 → 灰色标签
+ * 三态渲染（带 CSS 过渡）：
+ *   1. 当前步骤 → 蓝色 spinner + 标签（transition-colors duration-500 渐变进入）
+ *   2. 已完成（done 事件后 success=true）→ 蓝色 ✓
+ *   3. 等待中/未完成 → 灰色（默认态）
  *
- * 为什么用箭头串联而非 badge 堆叠：
- * 管道是线性流程，箭头直观表达"上一步→下一步"的时序关系。
+ * 为什么不在步骤出现时立即标蓝：
+ * 管道步骤在 ms 级内连续触发，立即变蓝看不出时间差。
+ * 只有 done 事件携带 success 后才变色，配合 CSS 过渡产生"先后完成"的视觉感。
  */
 export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
   if (!currentStep && steps.length === 0) return null;
@@ -36,29 +37,28 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
 
   return (
     <div className="px-4 py-2">
-      {/* 当前步骤 */}
       {currentStep && (
-        <div className="flex items-center gap-2 text-caption text-[var(--color-accent)] mb-1.5">
+        <div className="flex items-center gap-2 text-caption text-[var(--color-accent)] mb-1.5 animate-in fade-in">
           <AppleSpinner size={12} />
           <span>{currentStep}</span>
         </div>
       )}
 
-      {/* 步骤流程 — 箭头串联 */}
       {steps.length > 0 && (
         <div className="flex items-center gap-0.5 flex-wrap">
           {STEP_ORDER.filter(id => stepsMap.has(id) || id === currentId).map((id, i, arr) => {
             const s = stepsMap.get(id);
             const isLast = i === arr.length - 1;
 
-            // 颜色规则：
-            //   done 事件到达后：success=true→蓝✓ / success=false→红✗
-            //   流式进行中：已完成的步骤（在列表中但非当前）→蓝；当前步骤→蓝+spinner；未开始→灰
+            // 颜色规则（只有 done 事件后 success 字段才可靠）：
+            //   success=true  → 蓝色 ✓（过渡动画可见）
+            //   success=false → 红色 ✗
+            //   当前步骤      → 蓝色高亮
+            //   其他          → 灰色（默认）
             let bg = 'bg-[var(--color-text-muted-48)]/40';
             let textColor = 'text-[var(--color-text-muted-48)]';
             let icon: React.ReactNode = null;
-            const isDone = id !== currentId && s !== undefined && s.success === undefined; // 步骤已在列表中但非当前=已跑完
-            if (s?.success === true || isDone) {
+            if (s?.success === true) {
               bg = 'bg-[var(--color-accent)]/15';
               textColor = 'text-[var(--color-accent)]';
               icon = <Check size={10} />;
@@ -73,7 +73,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
 
             return (
               <span key={id} className="flex items-center gap-0.5">
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-fine rounded-[var(--radius-pill)] ${bg} ${textColor}`}>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-fine rounded-[var(--radius-pill)] transition-colors duration-500 ${bg} ${textColor}`}>
                   {icon}
                   {STEP_LABELS[id] || s?.label || id}
                   {s?.duration_ms ? ` ${s.duration_ms}ms` : ''}

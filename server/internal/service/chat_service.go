@@ -195,6 +195,10 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	}); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "保存用户消息失败"}
 	}
+		// 首次对话时将标题从"新对话"自动更新为用户问题
+	if session.Question == "新对话" || session.Question == "" {
+	_ = s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, 0)
+		}
 
 	// 建 generating 的 assistant 占位消息，拿到 msgID
 	assistant := &model.ChatMessage{SessionID: sessionID, Role: "assistant", Content: "", Status: model.MessageStatusGenerating}
@@ -240,11 +244,11 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64
 		if evt.Type == "done" && evt.Metadata != nil {
 			srcJSON, _ := json.Marshal(evt.Metadata.Sources)
 			pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
-			_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
+	_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
 				ID: sessionID, Answer: evt.Metadata.Answer, Sources: srcJSON,
 				Confidence: evt.Metadata.Confidence, DurationMs: evt.Metadata.DurationMS,
 			})
-			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
+	_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
 				ID: msgID, Content: evt.Metadata.Answer, Sources: srcJSON,
 				PipelineMetrics: pipelineJSON, Confidence: evt.Metadata.Confidence,
 				Status: model.MessageStatusCompleted,

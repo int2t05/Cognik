@@ -51,14 +51,15 @@ export function ChatMessage({
   const isAi = role === 'assistant';
   const sourceRefs = useRef<(HTMLDetailsElement | null)[]>([]);
 
-  const scrollToSource = useCallback((index: number) => {
+  const toggleSource = useCallback((index: number) => {
     const el = sourceRefs.current[index];
     if (!el) return;
-    el.open = true;
-    // 小延迟等 open 触发的布局完成后再滚动
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    el.open = !el.open;
+    if (el.open) {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
   }, []);
 
   // 将 AI 回复文本按 [N] 正则拆分为文本段 + 可点击徽章
@@ -75,7 +76,7 @@ export function ChatMessage({
         const idx = n - 1;
         // 引用号超出来源范围则渲染为纯文本
         if (idx < 0 || !sources || idx >= sources.length) return <span key={i}>{part}</span>;
-        return <CitationBadge key={i} n={n} onClick={() => scrollToSource(idx)} />;
+        return <CitationBadge key={i} n={n} onClick={() => toggleSource(idx)} />;
       }
       return <span key={i}>{part}</span>;
     });
@@ -109,7 +110,7 @@ export function ChatMessage({
                     <span className="opacity-60">· {(s.confidence * 100).toFixed(0)}%</span>
                   )}
                 </summary>
-                <div className={`mt-1 pl-5 text-fine leading-relaxed whitespace-pre-wrap ${isUser ? 'text-[var(--color-on-accent)]/80' : 'text-[var(--color-text-muted-80)]'}`}>
+                <div className={`mt-1 pl-5 text-fine leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded ${isUser ? 'text-[var(--color-on-accent)]/80' : 'text-[var(--color-text-muted-80)]'}`}>
                   {s.chunk_content || '(空)'}
                 </div>
               </details>
@@ -117,7 +118,7 @@ export function ChatMessage({
           </div>
         )}
 
-        {isAi && confidence != null && (
+        {isAi && !isStreaming && confidence != null && (
           <div className={`flex items-center gap-1.5 mt-2 text-fine ${
             confidence < 0.6 ? 'text-[var(--badge-warning-text)]' : 'text-[var(--color-text-muted-48)]'
           }`}>
