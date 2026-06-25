@@ -343,10 +343,18 @@ func writeStream(c *gin.Context, replay []service.StreamEvent, ch <-chan service
 	flusher.Flush()
 
 	rc := http.NewResponseController(c.Writer)
+	// 心跳：RAG 管道执行时可能数秒无事件，定期发 SSE 注释防浏览器/代理断开
+	heartbeat := time.NewTicker(5 * time.Second)
+	defer heartbeat.Stop()
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return // 客户端断开：退订，生成继续
+		case <-heartbeat.C:
+			// SSE 注释行：浏览器忽略但保持 TCP 连接活跃
+			fmt.Fprintf(c.Writer, ": heartbeat\n\n")
+			flusher.Flush()
+			rc.SetWriteDeadline(time.Now().Add(30 * time.Second))
 		case evt, ok := <-ch:
 			if !ok {
 				return // 通道关闭：生成结束
