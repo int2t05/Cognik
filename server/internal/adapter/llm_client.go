@@ -115,10 +115,11 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 	body := openAICompletionRequest{
 		Model: req.Model, Messages: req.Messages, MaxTokens: req.MaxTokens,
 		Temperature: req.Temperature, Stream: false,
-		// 禁用思考模式：llama.cpp 的 Qwen3 模型默认输出推理链（"好的，首先..."），
-		// 污染查询改写/多路检索等管道步骤。chat_template_kwargs 是 llama.cpp 特有参数，
-		// OpenAI/DeepSeek 等 API 会忽略此字段。
-		ChatTemplateKwargs: map[string]any{"enable_thinking": false},
+	}
+	// 同步调用默认禁用思考（管道步骤需要干净输出）；
+	// 复杂分析任务（如反馈分析）可显式设置 EnableThinking=true 开启思考
+	if !req.EnableThinking {
+		body.ChatTemplateKwargs = map[string]any{"enable_thinking": false}
 	}
 
 	respBody, err := c.doRequest(ctx, "/chat/completions", body)

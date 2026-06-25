@@ -688,9 +688,10 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
 			{Role: "system", Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
 			{Role: "user", Content: prompt},
 		},
-		Model:       model,
-		MaxTokens:   maxTokens,
-		Temperature: 0.3,
+		Model:          model,
+		MaxTokens:      maxTokens,
+		Temperature:    0.3,
+		EnableThinking: true, // 反馈分析是复杂推理任务，开启思考提升分析质量
 	})
 	if err != nil {
 		return "", fmt.Errorf("LLM 分析调用失败: %w", err)
