@@ -109,14 +109,6 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		return err
 	}
 
-	// ─── 缓存原始 query 的 embedding，供 S_qa 计算复用 ───
-	var questionEmbedding []float32
-	if p.embedder != nil {
-		vecs, _, err := p.embedder.Embed(ctx, []string{query}, "")
-		if err == nil && len(vecs) > 0 {
-			questionEmbedding = vecs[0]
-		}
-	}
 
 	// ─── Step 1: 查询改写 ───
 	rewrittenQuery := query
@@ -130,6 +122,17 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			return nil
 		})
 	}
+	// ─── 缓存 question embedding，供 S_qa 计算复用 ───
+	// 放在查询改写之后：开启改写时使用改写后 query 的 embedding，
+	// 使 S_qa 问答匹配分与检索实际使用的查询对齐。
+	var questionEmbedding []float32
+	if p.embedder != nil {
+		vecs, _, err := p.embedder.Embed(ctx, []string{rewrittenQuery}, "")
+		if err == nil && len(vecs) > 0 {
+			questionEmbedding = vecs[0]
+		}
+	}
+
 
 	// ─── Step 2: 多路检索 ───
 	routes := []string{rewrittenQuery}
@@ -146,18 +149,29 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 
 	// ─── Step 3: 检索（向量 + 可选 BM25） ───
 	// Retriever 接口内部处理 embedding 生成，Pipeline 不直接调用 Embedder。
+	//
+	// 多路检索置信度策略：
+	// 同一 chunk 被多条 route 命中时，RawCosineScore 取所有命中的均值，
+	// 避免频繁出现的 chunk 因某条 route 的噪声分而失真。
 	var allChunks []RetrievalResult
+	hybridRan := false // 记录 BM25 是否实际产出结果（用于置信度计算）
+	rerankRan := false // 记录重排序是否实际执行（用于置信度计算）
 	if opts.Hybrid && p.bm25Retriever != nil {
 		var vectorResults, bm25Results []RetrievalResult
 
-		// 3a: 向量检索（核心路径—失败不可降级）
+		// 3a: 向量检索（核心路径—失败不可降级，含多路均值）
 		err := track("vector_retrieve", "向量检索", func() error {
-			for _, route := range routes {
-				results, err := p.vectorRetriever.Retrieve(ctx, route, kbID, opts.TopK)
-				if err != nil {
-					return err
+			multiRoute := opts.MultiRoute && opts.RouteCount > 1 && len(routes) > 1
+			if multiRoute {
+				vectorResults = retrieveMultiRoute(ctx, p.vectorRetriever, routes, kbID, opts.TopK)
+			} else {
+				for _, route := range routes {
+					results, err := p.vectorRetriever.Retrieve(ctx, route, kbID, opts.TopK)
+					if err != nil {
+						return err
+					}
+					vectorResults = append(vectorResults, results...)
 				}
-				vectorResults = append(vectorResults, results...)
 			}
 			return nil
 		})
@@ -177,7 +191,13 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			return nil
 		})
 
-		// 3c: RRF 融合
+		// BM25 分数归一化到 [0,1]，使 Bm25NormScore 可与 RawCosineScore 混合
+		if len(bm25Results) > 0 {
+			normalizeBm25Scores(bm25Results)
+			hybridRan = true
+		}
+
+		// 3c: RRF 融合（内部携带 Bm25NormScore 到融合结果）
 		fuseErr := track("hybrid_fuse", "混合融合", func() error {
 			allChunks = HybridFuse(vectorResults, bm25Results, opts.RerankCount)
 			if len(allChunks) == 0 {
@@ -186,7 +206,6 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			return nil
 		})
 		if fuseErr != nil && len(vectorResults) == 0 && len(bm25Results) == 0 {
-			// 两路都为空时才传播错误（否则融合失败不影响已有结果）
 			return nil, fmt.Errorf("混合检索无结果: %w", fuseErr)
 		}
 		if len(allChunks) == 0 && len(vectorResults) > 0 {
@@ -195,14 +214,19 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			allChunks = dedupChunks(bm25Results)
 		}
 	} else {
-		// 纯向量模式
+		// 纯向量模式（含多路均值）
 		err := track("vector_retrieve", "向量检索", func() error {
-			for _, route := range routes {
-				results, err := p.vectorRetriever.Retrieve(ctx, route, kbID, opts.TopK)
-				if err != nil {
-					return err
+			multiRoute := opts.MultiRoute && opts.RouteCount > 1 && len(routes) > 1
+			if multiRoute {
+				allChunks = retrieveMultiRoute(ctx, p.vectorRetriever, routes, kbID, opts.TopK)
+			} else {
+				for _, route := range routes {
+					results, err := p.vectorRetriever.Retrieve(ctx, route, kbID, opts.TopK)
+					if err != nil {
+						return err
+					}
+					allChunks = append(allChunks, results...)
 				}
-				allChunks = append(allChunks, results...)
 			}
 			if len(allChunks) == 0 {
 				return fmt.Errorf("向量检索无结果")
@@ -233,6 +257,7 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 				return err
 			}
 			allChunks = reranked
+			rerankRan = true
 			slog.Info("重排序完成", "结果数", len(reranked))
 			return nil
 		})
@@ -247,7 +272,10 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 		allChunks = allChunks[:opts.TopK]
 	}
 
-	// 计算 chunk 展示分（批次内 min-max 归一化，仅用于前端进度条）
+	// 计算综合置信度：按管道步骤逐层组合 S_qa / BM25 / Rerank
+	computeConfidenceScores(allChunks, hybridRan, rerankRan)
+
+	// 生成前端展示用的 chunk 分（基于 ConfRaw）
 	chunkDisplays := computeDisplayScores(allChunks)
 
 	metrics.Steps = steps
@@ -271,21 +299,141 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 	}, nil
 }
 
-// computeDisplayScores 用原始余弦相似度生成前端展示分数。
+// computeConfidenceScores 按管道步骤逐层计算每个 chunk 的综合置信度 ConfRaw。
 //
-// 每个 chunk 的 ShowScore 等于其 RawCosineScore（向量检索的余弦相似度，[0,1]）。
-// BM25-only chunk 无向量分则为 0。
-// 不做批次归一化——余弦相似度本身就是可比的统一量纲。
+// 采用分层组合公式，每层基于前一层的输出叠加：
+//
+//	Layer 0: S_qa = RawCosineScore                     ← 基座（已含查询改写+多路均值）
+//	Layer 1: if hybrid: S = (1-α)*S + α*Bm25NormScore   ← BM25 混合，α=0.4
+//	Layer 2: if rerank: S = (1-β)*S + β*RerankScore     ← 重排序修正，β=0.6
+//
+// 任意步骤组合均可兼容——未运行的步骤对应字段为 0，该层退化为恒等。
+//
+// 权重设计依据：
+//   - BM25 权重 0.4：稀疏检索辅助信号，不应主导稠密向量结果
+//   - Rerank 权重 0.6：cross-encoder 对相关性判断更准确，给予更高权重
+func computeConfidenceScores(chunks []RetrievalResult, hybridRan, rerankRan bool) {
+	const (
+		bm25Weight  = 0.4 // BM25 归一化分在综合置信度中的权重
+		rerankWeight = 0.6 // Cross-encoder 分在综合置信度中的权重
+	)
+
+	for i := range chunks {
+		c := &chunks[i]
+		s := c.RawCosineScore // Layer 0: S_qa 基座
+
+		// Layer 1: BM25 混合（仅当混合检索实际运行且该 chunk 有 BM25 分时生效）
+		if hybridRan && c.Bm25NormScore > 0 {
+			s = (1-bm25Weight)*s + bm25Weight*c.Bm25NormScore
+		}
+
+		// Layer 2: 重排序修正（仅当重排序实际运行且该 chunk 有 cross-encoder 分时生效）
+		if rerankRan && c.RerankScore > 0 {
+			s = (1-rerankWeight)*s + rerankWeight*c.RerankScore
+		}
+
+		// 精度钳位
+		if s < 0 {
+			s = 0
+		}
+		if s > 1 {
+			s = 1
+		}
+		c.ConfRaw = s
+	}
+}
+
+// computeDisplayScores 从 ConfRaw 生成前端展示用的 chunk 分数。
+//
+// 每个 chunk 的 ShowScore 等于其 ConfRaw（综合置信度 [0,1]），
+// 不做批次归一化——ConfRaw 本身就是跨批次可比的统一量纲。
 func computeDisplayScores(chunks []RetrievalResult) []ChunkDisplay {
 	displays := make([]ChunkDisplay, len(chunks))
 	for i, c := range chunks {
 		displays[i] = ChunkDisplay{
 			ID:     c.ChunkID,
-			Score:  c.RawCosineScore,
+			Score:  c.ConfRaw,
 			Source: fmt.Sprintf("来源 %d", i+1),
 		}
 	}
 	return displays
+}
+
+// retrieveMultiRoute 执行多路向量检索并对同一 chunk 的 RawCosineScore 取均值。
+//
+// 多路检索时同一 chunk 可能被多条 route 命中，每次命中的余弦相似度不同。
+// 取均值避免频繁出现的 chunk 因某条 route 的噪声分而失真，
+// 同时保留"被多条 route 命中"这一正向信号。
+func retrieveMultiRoute(ctx context.Context, retriever Retriever, routes []string, kbID int64, topK int) []RetrievalResult {
+	type scoreAccum struct {
+		sum   float64
+		count int
+	}
+	chunkScores := make(map[int64]*scoreAccum)
+	var allResults []RetrievalResult
+
+	for _, route := range routes {
+		results, err := retriever.Retrieve(ctx, route, kbID, topK)
+		if err != nil {
+			continue // 单路失败降级跳过
+		}
+		for _, r := range results {
+			acc := chunkScores[r.ChunkID]
+			if acc == nil {
+				acc = &scoreAccum{}
+				chunkScores[r.ChunkID] = acc
+			}
+			acc.sum += r.RawCosineScore
+			acc.count++
+		}
+		allResults = append(allResults, results...)
+	}
+
+	// 多路均值：同一 chunk 出现在多条 route 中时取均分
+	for i := range allResults {
+		acc := chunkScores[allResults[i].ChunkID]
+		if acc != nil && acc.count > 1 {
+			allResults[i].RawCosineScore = acc.sum / float64(acc.count)
+		}
+	}
+
+	return allResults
+}
+
+// normalizeBm25Scores 将 BM25 原始分数归一化到 [0,1] 区间。
+//
+// BM25 分数无上界且量纲与余弦相似度不同，归一化后使 Bm25NormScore
+// 可与 RawCosineScore 在同一公式中加权混合。
+// 使用批次内 max-min 归一化：norm = (score - min) / (max - min)，
+// 单结果时直接赋予 0.8（BM25 命中但无法归一化时的保守估计）。
+func normalizeBm25Scores(results []RetrievalResult) {
+	if len(results) == 0 {
+		return
+	}
+	if len(results) == 1 {
+		results[0].Bm25NormScore = 0.8
+		return
+	}
+
+	// 找到批次内的最大最小值
+	minS, maxS := results[0].Score, results[0].Score
+	for _, r := range results[1:] {
+		if r.Score < minS {
+			minS = r.Score
+		}
+		if r.Score > maxS {
+			maxS = r.Score
+		}
+	}
+
+	span := maxS - minS
+	for i := range results {
+		if span > 0 {
+			results[i].Bm25NormScore = (results[i].Score - minS) / span
+		} else {
+			results[i].Bm25NormScore = 0.8 // 所有分数相同，保守估计
+		}
+	}
 }
 
 // dedupChunks 按 ChunkID 去重，保留首次出现的结果。

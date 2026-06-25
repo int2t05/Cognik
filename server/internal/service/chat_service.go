@@ -40,6 +40,7 @@ type chatSessionRepo interface {
 	CreateMessage(ctx context.Context, m *model.ChatMessage) error
 	UpdateMessage(ctx context.Context, m *model.ChatMessage) error
 	DeleteMessage(ctx context.Context, id int64) error
+	CleanFailedMessages(ctx context.Context, sessionID int64) (int64, error)
 	MarkGeneratingFailed(ctx context.Context) (int64, error)
 	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
 	FindMessageByID(ctx context.Context, messageID, sessionID int64) (*model.ChatMessage, error)
@@ -261,6 +262,8 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, userMsgID, 
 			})
 				evt.Metadata.SessionID = sessionID
 				evt.Metadata.Question = question
+					evt.Metadata.AssistantMessageID = assistantID
+					evt.Metadata.UserMessageID = userMsgID
 				evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 		}
 		if evt.Type == "error" {
@@ -474,6 +477,14 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 	}
 	if session.UserID != userID {
 		return nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权查看该会话"}
+	}
+
+	// 进入会话页时清理残留的失败消息对（failed assistant + 对应 user），
+	// 避免前端展示无意义的失败状态。失败原因已在生成时通过 toast 通知用户。
+	if cleaned, err := s.chatRepo.CleanFailedMessages(ctx, sessionID); err != nil {
+		slog.Warn("清理失败消息对失败", "session_id", sessionID, "error", err)
+	} else if cleaned > 0 {
+		slog.Info("已清理失败消息对", "session_id", sessionID, "pairs", cleaned/2)
 	}
 
 	var sources []response.SourceItem

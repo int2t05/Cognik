@@ -145,6 +145,48 @@ func (r *ChatRepo) DeleteMessage(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&model.ChatMessage{}, id).Error
 }
 
+// CleanFailedMessages 删除会话中所有失败的 assistant 消息及其配对 user 消息。
+//
+// 配对规则：failed assistant 的配对 user 是同一会话中 ID 小于 assistant 的最近一条 user 消息。
+// 这样进入会话页面时自动清理残留的失败消息对，前端无需感知"失败"状态。
+//
+// 返回删除的消息对数（每对含 1 user + 1 assistant）。
+func (r *ChatRepo) CleanFailedMessages(ctx context.Context, sessionID int64) (int64, error) {
+	// 1. 查所有 failed assistant 消息
+	var failed []model.ChatMessage
+	if err := r.db.WithContext(ctx).
+		Where("session_id = ? AND role = ? AND status = ?", sessionID, "assistant", model.MessageStatusFailed).
+		Order("id ASC").
+		Find(&failed).Error; err != nil {
+		return 0, err
+	}
+	if len(failed) == 0 {
+		return 0, nil
+	}
+
+	// 2. 为每个 failed assistant 查找其配对的 user 消息
+	//    规则：同一会话中 ID 小于 assistant 的最近一条 user 消息
+	var toDelete []int64
+	for _, f := range failed {
+		var user model.ChatMessage
+		err := r.db.WithContext(ctx).
+			Where("session_id = ? AND role = ? AND id < ?", sessionID, "user", f.ID).
+			Order("id DESC").
+			First(&user).Error
+		if err == nil {
+			toDelete = append(toDelete, user.ID)
+		}
+		toDelete = append(toDelete, f.ID)
+	}
+
+	// 3. 批量删除
+	if len(toDelete) == 0 {
+		return 0, nil
+	}
+	res := r.db.WithContext(ctx).Delete(&model.ChatMessage{}, toDelete)
+	return res.RowsAffected, res.Error
+}
+
 // UpdateMessage 按主键全量更新一条消息（含 Status/Content/Sources 等）。
 func (r *ChatRepo) UpdateMessage(ctx context.Context, m *model.ChatMessage) error {
 	return r.db.WithContext(ctx).Model(&model.ChatMessage{ID: m.ID}).

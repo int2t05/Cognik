@@ -497,18 +497,18 @@ func sendOrCancel(ctx context.Context, ch chan<- StreamEvent, evt StreamEvent) b
 	}
 }
 
-// extractSources 用原始余弦相似度生成前端展示用的来源列表。
+// extractSources 用综合置信度生成前端展示用的来源列表。
 //
-// 每个 chunk 的 Confidence 等于其 RawCosineScore（[0,1] 余弦相似度）。
-// 与 pipeline.computeDisplayScores 算法完全一致：直接使用 RawCosineScore，不做批次归一化。
-// Sources 以 JSONB 落库到 chat_messages.sources，前端刷新后读到的是持久化的相同分数。
+// 每个 source 的 Confidence 取自 chunk.ConfRaw（综合置信度 [0,1]），
+// 而非原始余弦相似度，确保前端展示与后端评分逻辑一致。
+// Sources 以 JSONB 落库到 chat_messages.sources，前端刷新后读到持久化的一致分数。
 func extractSources(chunks []rag.RetrievalResult) []response.SourceItem {
 	sources := make([]response.SourceItem, len(chunks))
 	for i, c := range chunks {
 		sources[i] = response.SourceItem{
 			DocName:      fmt.Sprintf("来源 %d", i+1),
 			ChunkContent: c.Content,
-			Confidence:   c.RawCosineScore,
+			Confidence:   c.ConfRaw,
 		}
 	}
 	return sources
@@ -557,66 +557,32 @@ func (s *LLMService) computeConfidence(chunks []rag.RetrievalResult, questionEmb
 	return confRaw, level
 }
 
-// computeSRetrieval 计算检索聚合分（原始余弦相似度排名加权平均）。
+// computeSRetrieval 计算检索聚合分（综合置信度 ConfRaw 的排名加权平均）。
 //
-// S_retrieval = Σ(w_i × raw_cosine_i) / Σ(w_i)
+// Pipeline 已通过 computeConfidenceScores 计算了每个 chunk 的综合置信度 ConfRaw，
+// 这里仅做排名加权的聚合——排名靠前的 chunk 对整体置信度贡献更大。
+//
+// S_retrieval = Σ(w_i × ConfRaw_i) / Σ(w_i)
 // w_i = 1/(rank_i + 1)，rank 从 0 开始。
-// 纯 BM25 模式（全部 RawCosineScore=0）回退到 Score 的批次归一化。
+//
+// 为什么用 ConfRaw 而非 RawCosineScore：
+// ConfRaw 已综合了 S_qa、BM25、Rerank 三层信号，是 chunk 级的最终置信度。
+// 用 ConfRaw 聚合得到的是管道全貌的检索质量评估。
 func computeSRetrieval(chunks []rag.RetrievalResult) float64 {
 	if len(chunks) == 0 {
 		return 0
 	}
 
-	// 检测是否为纯 BM25 模式（所有 chunk 的 RawCosineScore 均为 0）
-	allBM25 := true
-	for _, c := range chunks {
-		if c.RawCosineScore > 0 {
-			allBM25 = false
-			break
-		}
-	}
-	if allBM25 {
-		return computeBM25Fallback(chunks)
-	}
-
 	var sumWeighted, sumWeights float64
 	for i, c := range chunks {
-		w := 1.0 / float64(i+1) // rank 从 0 开始
-		sumWeighted += w * c.RawCosineScore
-		sumWeights += w
-	}
-	if sumWeights == 0 {
-		return 0
-	}
-	return sumWeighted / sumWeights
-}
-
-// computeBM25Fallback BM25-only 模式下对 BM25 分数做批次归一化后排名加权。
-func computeBM25Fallback(chunks []rag.RetrievalResult) float64 {
-	if len(chunks) == 0 {
-		return 0
-	}
-	if len(chunks) == 1 {
-		return 1.0
-	}
-	minS, maxS := chunks[0].RawCosineScore, chunks[0].RawCosineScore
-	for _, c := range chunks[1:] {
-		if c.RawCosineScore < minS {
-			minS = c.RawCosineScore
+		w := 1.0 / float64(i+1) // rank 从 0 开始，首位权重最高
+		score := c.ConfRaw
+		if score == 0 {
+			// ConfRaw 为 0 时回退到 RawCosineScore（兜底：computeConfidenceScores
+			// 仅在有 BM25/Rerank 信号时才覆盖 ConfRaw）
+			score = c.RawCosineScore
 		}
-		if c.RawCosineScore > maxS {
-			maxS = c.RawCosineScore
-		}
-	}
-	span := maxS - minS
-	var sumWeighted, sumWeights float64
-	for i, c := range chunks {
-		w := 1.0 / float64(i+1)
-		norm := 1.0
-		if span > 0 {
-			norm = (c.RawCosineScore - minS) / span
-		}
-		sumWeighted += w * norm
+		sumWeighted += w * score
 		sumWeights += w
 	}
 	if sumWeights == 0 {

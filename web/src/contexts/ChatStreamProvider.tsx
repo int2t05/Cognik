@@ -18,6 +18,7 @@ export interface ChatMessage {
   chunks?: ChunkDisplay[];
   confidence?: number; confidence_raw?: number; confidence_level?: string;
   status?: string; cancelled?: boolean; createdAt: string;
+  dbId?: number; // 后端落库后的真实消息 ID，生成完成后可用于反馈
 }
 interface PipelineStep { id: string; label: string; duration_ms?: number; }
 interface SessionStream {
@@ -138,7 +139,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           const meta = evt.metadata;
-          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw ?? meta.confidence, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed' } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
+          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw ?? meta.confidence, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed', dbId: meta.assistant_message_id } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
         }
         else if (evt.type === 'error') {
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }

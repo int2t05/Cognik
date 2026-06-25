@@ -54,6 +54,8 @@ type SessionListItem struct {
 }
 
 // SourceItem 知识来源条目。
+//
+// Confidence 取自 chunk.ConfRaw（综合置信度：S_qa + BM25 + Rerank 分层组合），范围 [0,1]。
 type SourceItem struct {
 	DocName      string  `json:"doc_name"`
 	ChunkContent string  `json:"chunk_content"`

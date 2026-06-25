@@ -80,6 +80,18 @@ export default function ChatPage() {
   const [editKB, setEditKB] = useState(0);
   const [saving, setSaving] = useState(false);
   const { value: appName } = useConfigValue('app_name');
+  const { value: lowT } = useConfigValue('ai.confidence_threshold_low');
+  const { value: highT } = useConfigValue('ai.confidence_threshold_high');
+
+  // 动态判定置信度等级（阈值从系统配置读取，管理员修改后所有消息即时生效）
+  const getConfLevel = useCallback((raw: number | null | undefined): string => {
+    if (raw == null || !Number.isFinite(raw)) return '';
+    const ht = Number(highT) || 0.70;
+    const lt = Number(lowT) || 0.40;
+    if (raw >= ht) return 'high';
+    if (raw >= lt) return 'medium';
+    return 'low';
+  }, [lowT, highT]);
 
   // 默认知识库：列表第一个（建议卡片/直接输入时自动使用）
   const defaultKB = (kbs && kbs.length > 0) ? kbs[0].id : 0;
@@ -111,24 +123,37 @@ export default function ChatPage() {
   }, [sessionId]);
 
   // 自动滚到底部：仅当用户已在底部附近（< 120px）或正在流式生成时才跟随。
-  // 用户手动上滚后不强制拉回，避免多轮对话浏览历史时被打断。
   const isNearBottom = useCallback(() => {
     const el = listRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }, []);
 
+  // 首次加载后强制滚动到底部（刷新页面恢复会话时）。
+  // 后续仅在流式生成中或用户已在底部附近时才跟随。
+  const scrolledRef = useRef(false);
   useEffect(() => {
-    if (!streaming && messages.length > 0 && !isNearBottom()) return;
+    const el = listRef.current;
+    if (!el) return;
+    const shouldScroll = streaming || isNearBottom();
+    if (!shouldScroll && !scrolledRef.current && messages.length > 0) {
+      // 首次加载：强制滚到底部
+      scrolledRef.current = true;
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    if (!shouldScroll) return;
     if (enableVirtual) {
       if (rowVirtualizer.getTotalSize() > 0) {
         rowVirtualizer.scrollToIndex(messages.length + (currentStep ? 1 : 0) - 1, { align: 'end' });
       }
     } else {
-      const el = listRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      el.scrollTop = el.scrollHeight;
     }
   }, [messages.length, currentStep, enableVirtual, rowVirtualizer, streaming, isNearBottom]);
+
+  // 切换会话时重置首次滚动标记
+  useEffect(() => { scrolledRef.current = false; }, [sessionId]);
 
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
@@ -177,7 +202,6 @@ export default function ChatPage() {
         sources: m.sources,
         confidence: m.confidence_raw ?? m.confidence,
         confidence_raw: m.confidence_raw,
-        confidence_level: m.confidence_level,
         status: m.status,
         createdAt: m.created_at,
         dbId: m.id,
@@ -390,11 +414,11 @@ export default function ChatPage() {
                         <ChatMessage
                           id={msg.id} role={msg.role} content={msg.content}
                           sources={msg.sources} chunks={msg.chunks} confidence={msg.confidence}
-                          confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
+                          confidence_raw={msg.confidence_raw} confidence_level={getConfLevel(msg.confidence_raw)}
                           cancelled={msg.cancelled}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                          onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
+                          onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
                         />
                       </div>
                     );
@@ -407,11 +431,11 @@ export default function ChatPage() {
                     <ChatMessage
                       key={msg.id} id={msg.id} role={msg.role} content={msg.content}
                       reasoning={msg.reasoning} sources={msg.sources} chunks={msg.chunks}
-                      confidence={msg.confidence} confidence_raw={msg.confidence_raw} confidence_level={msg.confidence_level}
+                      confidence={msg.confidence} confidence_raw={msg.confidence_raw} confidence_level={getConfLevel(msg.confidence_raw)}
                       cancelled={msg.cancelled}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                      onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
+                      onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
                     />
                   ))}
                 </>

@@ -32,7 +32,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
 
   return (
     <div className="px-4 py-2 flex items-center gap-1 flex-wrap">
-      <span className="text-[11px] font-medium text-[var(--color-text-muted-48)] tracking-wide mr-1 shrink-0">
+      <span className="text-fine font-medium text-[var(--color-text-muted-48)] tracking-wide mr-1 shrink-0">
         RAG
       </span>
       {visible.map((id, i) => {
@@ -49,7 +49,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
             )}
 
             {/* 步骤 */}
-            <span className={`inline-flex items-center gap-1 text-[11px] leading-none transition-colors duration-500 ${
+            <span className={`inline-flex items-center gap-1 text-fine leading-none transition-colors duration-500 ${
               done ? 'text-[var(--color-accent)]' :
               failed ? 'text-[var(--color-error)]' :
               isCurrent ? 'text-[var(--color-accent)]' :

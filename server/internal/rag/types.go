@@ -95,19 +95,22 @@ func (opts *RAGOptions) Normalize() {
 
 // RetrievalResult 单条检索命中结果。
 type RetrievalResult struct {
-	ChunkID        int64   `json:"chunk_id"`         // knowledge_chunks.id
-	ArticleID      int64   `json:"article_id"`        // knowledge_articles.id
-	Content        string  `json:"content"`           // 分块文本内容
-	Score          float64 `json:"score"`             // 相关度分数（RRF 融合后可 >1，BM25 无上界）
-	RawCosineScore float64 `json:"-"`                 // 向量检索原始余弦相似度 [0,1]，S_retrieval 输入（BM25-only chunk 为 0）
-	Source         string  `json:"source"`            // 检索来源："vector" | "bm25" | "hybrid"
-	ChunkIndex     int     `json:"chunk_index"`       // 分块序号
+	ChunkID        int64   `json:"chunk_id"`          // knowledge_chunks.id
+	ArticleID      int64   `json:"article_id"`         // knowledge_articles.id
+	Content        string  `json:"content"`            // 分块文本内容
+	Score          float64 `json:"score"`              // 相关度分数（RRF 融合后可 >1，BM25 无上界）
+	RawCosineScore float64 `json:"-"`                  // 向量检索原始余弦相似度 [0,1]，S_qa 置信度基座（BM25-only chunk 为 0）
+	Bm25NormScore  float64 `json:"-"`                  // 归一化 BM25 分数 [0,1]（仅混合检索时有值，否则 0）
+	RerankScore    float64 `json:"-"`                  // Cross-encoder 相关性分数 [0,1]（仅重排序时有值，否则 0）
+	ConfRaw        float64 `json:"conf_raw,omitempty"` // 综合置信度 [0,1]（由 computeConfidenceScores 计算）
+	Source         string  `json:"source"`             // 检索来源："vector" | "bm25" | "hybrid"
+	ChunkIndex     int     `json:"chunk_index"`        // 分块序号
 }
 
 // ChunkDisplay chunks SSE 事件中单条 chunk 的展示信息（不含内容文本，仅标识与分数）。
 type ChunkDisplay struct {
 	ID     int64   `json:"id"`
-	Score  float64 `json:"score"`  // 批次归一化展示分 [0,1]
+	Score  float64 `json:"score"`  // 综合置信度 ConfRaw [0,1]（S_qa + BM25 + Rerank 分层组合）
 	Source string  `json:"source"` // 来源文档名称
 }
 

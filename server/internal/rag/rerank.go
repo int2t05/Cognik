@@ -31,7 +31,10 @@ import (
 //  2. 构建 []RerankPassage 并调用 Reranker.Rerank
 //  3. 按返回 order 重新排列 candidates
 //
-// reranker 为 nil 时降级返回原始排序（不报错）。
+// 重排序后将 cross-encoder 相关性分数写入每个结果的 RerankScore 字段，
+// 供后续 computeConfidenceScores 加权混合使用。
+//
+// reranker 为 nil 时降级返回原始排序（不报错，RerankScore 保持 0）。
 func Rerank(ctx context.Context, reranker adapter.Reranker, query string, candidates []RetrievalResult) ([]RetrievalResult, error) {
 	if len(candidates) <= 1 {
 		return candidates, nil
@@ -58,15 +61,27 @@ func Rerank(ctx context.Context, reranker adapter.Reranker, query string, candid
 		return candidates, nil
 	}
 
-	// 按 cross-encoder 分数重排
-	reranked := make([]RetrievalResult, 0, len(candidates))
-	for _, idx := range result.Order {
-		if idx >= 0 && idx < len(candidates) {
-			reranked = append(reranked, candidates[idx])
+	// 构建 order → score 的索引，用于写入 RerankScore
+	orderToScore := make(map[int]float64, len(result.Order))
+	for i, idx := range result.Order {
+		if i < len(result.Scores) {
+			orderToScore[idx] = result.Scores[i]
 		}
 	}
 
-	// 补充未被返回的候选（兜底）
+	// 按 cross-encoder 分数重排，同时写入 RerankScore
+	reranked := make([]RetrievalResult, 0, len(candidates))
+	for _, idx := range result.Order {
+		if idx >= 0 && idx < len(candidates) {
+			c := candidates[idx]
+			if score, ok := orderToScore[idx]; ok {
+				c.RerankScore = score
+			}
+			reranked = append(reranked, c)
+		}
+	}
+
+	// 补充未被返回的候选（兜底，RerankScore 保持 0）
 	seen := make(map[int]bool)
 	for _, idx := range result.Order {
 		seen[idx] = true
