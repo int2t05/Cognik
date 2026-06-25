@@ -2,6 +2,7 @@
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useState } from 'react';
 import { getMessages, markAsRead, markAllRead } from '@/lib/api/message';
+import { PAGE_SIZE } from '@/lib/api/constants';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -17,7 +18,11 @@ const TYPE_LABEL: Record<string, string> = {
   ticket_closed: '已关闭',
   knowledge_approved: '审核通过',
   knowledge_rejected: '审核驳回',
+  knowledge_article: '知识文章',
 };
+
+/** 有有效跳转目标的消息类型 */
+const NAVIGABLE_TYPES = new Set(['ticket']);
 
 export default function MessagesPage() {
   const [page, setPage] = useState(1);
@@ -73,14 +78,14 @@ export default function MessagesPage() {
         <>
           <AppleTable
             columns={[
-              { key: 'type', title: '类型', width: '100px', render: (r) => TYPE_LABEL[r.type] ? <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[r.type]}</span> : null },
+              { key: 'type', title: '类型', width: '100px', render: (r) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[r.type] ?? r.type}</span> },
               { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{r.title}</span> },
               { key: 'content', title: '内容', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{r.content}</span> },
               { key: 'created_at', title: '时间', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(r.created_at)}</span> },
               { key: 'actions', title: '', width: '60px', render: (r) =>
                 !r.is_read ? (
                   <AppleButton variant="ghost" icon={<Eye />} aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)} />
-                ) : r.related_type ? (
+                ) : NAVIGABLE_TYPES.has(r.related_type) ? (
                   <AppleButton variant="ghost" icon={<ExternalLink />} aria-label="跳转" onClick={() => {
                     if (r.related_type === 'ticket') router.push(`/portal/tickets/${r.related_id}`);
                   }} />
@@ -91,7 +96,7 @@ export default function MessagesPage() {
             loading={!data && !error}
             rowKey="id"
           />
-          {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+          {data && <ApplePagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(p) => setPage(p)} />}
         </>
       )}
     </div>

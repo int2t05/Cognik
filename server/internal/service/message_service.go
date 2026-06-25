@@ -71,44 +71,53 @@ func (s *MessageService) NotifySupplement(ctx context.Context, ticketID int64, u
 	if ticketTitle != "" {
 		content = fmt.Sprintf("您的申告「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
 	}
-	return s.notify(ctx, userID, "申告需补充信息", content, "ticket_supplement", "ticket", ticketID)
+	return s.notify(ctx, userID, "申告需补充信息", content, model.MessageTypeTicketSupplement, "ticket", ticketID)
 }
 
 // NotifyTicketResolved 通知申告人申告已解决（TicketService 状态变更为已解决时调用）。
 func (s *MessageService) NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
 	content := fmt.Sprintf("您的申告「%s」已被标记为已解决，如有疑问请联系运维人员。", ticketTitle)
-	return s.notify(ctx, userID, "申告已解决", content, "ticket_resolved", "ticket", ticketID)
+	return s.notify(ctx, userID, "申告已解决", content, model.MessageTypeTicketResolved, "ticket", ticketID)
 }
 
 // NotifyTicketClosed 通知申告人申告已关闭（TicketService 状态变更为已关闭时调用）。
 func (s *MessageService) NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
 	content := fmt.Sprintf("您的申告「%s」已被关闭，如有需要请重新提交申告。", ticketTitle)
-	return s.notify(ctx, userID, "申告已关闭", content, "ticket_closed", "ticket", ticketID)
+	return s.notify(ctx, userID, "申告已关闭", content, model.MessageTypeTicketClosed, "ticket", ticketID)
 }
 
 // NotifyKnowledgeReviewed 通知文章作者审核结果（KnowledgeService.Review 调用）。
 func (s *MessageService) NotifyKnowledgeReviewed(ctx context.Context, articleID int64, articleTitle string, userID int64, approved bool, comment string) error {
 	if approved {
 		content := fmt.Sprintf("您的文章「%s」已通过审核，可前往发布。", articleTitle)
-		return s.notify(ctx, userID, "文章审核通过", content, "knowledge_approved", "knowledge_article", articleID)
+		return s.notify(ctx, userID, "文章审核通过", content, model.MessageTypeKnowledgeApproved, "knowledge_article", articleID)
 	}
 	content := fmt.Sprintf("您的文章「%s」已被驳回", articleTitle)
 	if comment != "" {
 		content += "，原因：" + comment
 	}
-	return s.notify(ctx, userID, "文章被驳回", content, "knowledge_rejected", "knowledge_article", articleID)
+	return s.notify(ctx, userID, "文章被驳回", content, model.MessageTypeKnowledgeRejected, "knowledge_article", articleID)
 }
 
 // =============================================================================
 // 查询和操作
 // =============================================================================
 
+// MessageFilter 消息列表过滤条件。
+//
+// 在 Service 层定义而非直接暴露 repository.MessageFilter，
+// 避免上层（Handler）依赖 Repository 包的类型。
+type MessageFilter struct {
+	IsRead *bool
+	Type   string
+}
+
 // ListMessages 分页查询用户消息列表，支持按 is_read/type 过滤。
-func (s *MessageService) ListMessages(ctx context.Context, userID int64, page, pageSize int, filter repository.MessageFilter) ([]model.Message, int64, error) {
+func (s *MessageService) ListMessages(ctx context.Context, userID int64, page, pageSize int, filter MessageFilter) ([]model.Message, int64, error) {
 	if userID <= 0 {
 		return nil, 0, AppError{Code: errcode.ErrParam, Message: "无效的用户 ID"}
 	}
-	return s.repo.ListByUser(ctx, userID, page, pageSize, filter)
+	return s.repo.ListByUser(ctx, userID, page, pageSize, repository.MessageFilter{IsRead: filter.IsRead, Type: filter.Type})
 }
 
 // MarkAsRead 将指定用户的消息标记为已读。

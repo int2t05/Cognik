@@ -8,6 +8,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from './useAuth';
+import { getUnreadCount } from '@/lib/api/message';
 
 const STORAGE_KEY = 'opsmind-accounts';
 const MAX_ACCOUNTS = 5;
@@ -101,17 +102,16 @@ export function useAccountSwitcher() {
       // 立即发一次请求验证 token——账号可能已被冻结，后台返回 10001
       // client.ts 捕获 10001 后自动清除认证 + 跳转登录页
       try {
-        const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-        const res = await fetch(`${BASE}/api/v1/portal/messages/unread-count`, {
-          headers: { Authorization: `Bearer ${account.token}` },
-        });
-        const json = await res.json();
-        if (json.code === 10001) {
+        await getUnreadCount(account.token);
+      } catch (err: unknown) {
+        const code = (err as { code?: number })?.code;
+        if (code === 10001) {
           logout();
           removeAccount(account.username);
           return false;
         }
-      } catch { /* 网络错误不处理，让后续 API 调用触发 */ }
+        /* 网络错误不处理，让后续 API 调用触发 */
+      }
       return true;
     },
     [login, logout, removeAccount],

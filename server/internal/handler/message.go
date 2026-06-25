@@ -7,7 +7,7 @@ package handler
 import (
 	"strconv"
 
-	"opsmind/internal/repository"
+	dto "opsmind/internal/dto/response"
 	"opsmind/internal/service"
 	"opsmind/pkg/errcode"
 	"opsmind/pkg/response"
@@ -38,7 +38,7 @@ func (h *MessageHandler) ListMessages(c *gin.Context) {
 	page, pageSize := parsePagination(c)
 
 	// 解析可选过滤参数
-	var filter repository.MessageFilter
+	var filter service.MessageFilter
 	if v := c.Query("is_read"); v != "" {
 		b := v == "true" || v == "1"
 		filter.IsRead = &b
@@ -73,7 +73,7 @@ func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{"unread_count": count})
+	response.Success(c, dto.MarkAsReadResponse{UnreadCount: count})
 }
 
 // MarkAllRead 标记当前用户所有消息为已读。
@@ -86,7 +86,7 @@ func (h *MessageHandler) MarkAllRead(c *gin.Context) {
 		handleServiceError(c, err)
 		return
 	}
-	response.Success(c, gin.H{"affected": affected})
+	response.Success(c, dto.MarkAllReadResponse{Affected: affected})
 }
 
 // CountUnread 查询未读消息数。
@@ -101,5 +101,5 @@ func (h *MessageHandler) CountUnread(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, map[string]int64{"count": count})
+	response.Success(c, dto.UnreadCountResponse{Count: count})
 }

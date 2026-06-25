@@ -126,6 +126,9 @@ func assertHandlers(h *Handlers) {
 	if h.LLMConfig == nil {
 		panic("opsmind: LLMConfigHandler 未初始化")
 	}
+	if h.Message == nil {
+		panic("opsmind: MessageHandler 未初始化")
+	}
 }
 
 func registerPublicRoutes(rg *gin.RouterGroup, h *Handlers) {

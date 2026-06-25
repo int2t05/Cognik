@@ -479,7 +479,9 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 			return err
 		}
 		if s.msgSvc != nil {
-			_ = s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, true, "")
+			if err := s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, true, ""); err != nil {
+				slog.Warn("审核通过通知失败", "article_id", id, "error", err)
+			}
 		}
 		return nil
 	}
@@ -490,7 +492,9 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 		return err
 	}
 	if s.msgSvc != nil {
-		_ = s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, false, req.ReviewComment)
+		if err := s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, false, req.ReviewComment); err != nil {
+			slog.Warn("审核驳回通知失败", "article_id", id, "error", err)
+		}
 	}
 	return nil
 }

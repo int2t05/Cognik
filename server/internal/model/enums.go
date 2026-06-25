@@ -52,10 +52,36 @@ const (
 )
 
 // 站内消息类型
+//
+// 新增类型时需同步更新前端 web/src/app/portal/messages/page.tsx 的 TYPE_LABEL 映射。
 const (
-	MessageTypeTicketSupplement = "ticket_supplement" // 申告补充信息
-	MessageTypeSystem           = "system"            // 系统通知
+	MessageTypeTicketSupplement  = "ticket_supplement"   // 申告补充信息
+	MessageTypeTicketResolved    = "ticket_resolved"     // 申告已解决
+	MessageTypeTicketClosed      = "ticket_closed"       // 申告已关闭
+	MessageTypeKnowledgeApproved = "knowledge_approved"  // 知识文章审核通过
+	MessageTypeKnowledgeRejected = "knowledge_rejected"  // 知识文章审核驳回
+	MessageTypeSystem            = "system"              // 系统通知
 )
+
+// MessageTypeText 返回消息类型的中文描述。
+func MessageTypeText(msgType string) string {
+	switch msgType {
+	case MessageTypeTicketSupplement:
+		return "补充信息"
+	case MessageTypeTicketResolved:
+		return "已解决"
+	case MessageTypeTicketClosed:
+		return "已关闭"
+	case MessageTypeKnowledgeApproved:
+		return "审核通过"
+	case MessageTypeKnowledgeRejected:
+		return "审核驳回"
+	case MessageTypeSystem:
+		return "系统通知"
+	default:
+		return msgType
+	}
+}
 
 // TicketStatusText 返回工单状态的中文描述。
 func TicketStatusText(status int16) string {
