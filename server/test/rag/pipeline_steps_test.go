@@ -40,7 +40,7 @@ func TestQueryRewrite_Success(t *testing.T) {
 		},
 	}
 
-	rewritten, err := rag.QueryRewrite(context.Background(), llm, "VPN怎么连", nil)
+	rewritten, err := rag.QueryRewrite(context.Background(), llm, "test-model", "VPN怎么连", nil)
 	if err != nil {
 		t.Fatalf("QueryRewrite 失败: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestQueryRewrite_LLMFail(t *testing.T) {
 	}
 
 	original := "账号冻结如何处理"
-	rewritten, err := rag.QueryRewrite(context.Background(), llm, original, nil)
+	rewritten, err := rag.QueryRewrite(context.Background(), llm, "test-model", original, nil)
 
 	// LLM 失败时：返回原始查询 + error。Pipeline 层通过 track() 记录失败但不阻塞。
 	if rewritten != original {
@@ -84,7 +84,7 @@ func TestQueryRewrite_WithHistory(t *testing.T) {
 		{"role": "assistant", "content": "您可以联系管理员重置密码。"},
 	}
 
-	rewritten, err := rag.QueryRewrite(context.Background(), llm, "过期了怎么办", history)
+	rewritten, err := rag.QueryRewrite(context.Background(), llm, "test-model", "过期了怎么办", history)
 	if err != nil {
 		t.Fatalf("带历史对话的 QueryRewrite 失败: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestMultiRoute_Success(t *testing.T) {
 		},
 	}
 
-	routes, err := rag.MultiRoute(context.Background(), llm, "VPN连接问题", 3)
+	routes, err := rag.MultiRoute(context.Background(), llm, "test-model", "VPN连接问题", 3)
 	if err != nil {
 		t.Fatalf("MultiRoute 失败: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestMultiRoute_LLMFail(t *testing.T) {
 	}
 
 	original := "邮箱无法登录"
-	_, err := rag.MultiRoute(context.Background(), llm, original, 3)
+	_, err := rag.MultiRoute(context.Background(), llm, "test-model", original, 3)
 
 	if err == nil {
 		t.Fatal("LLM 失败应返回错误（Pipeline 层负责降级）")

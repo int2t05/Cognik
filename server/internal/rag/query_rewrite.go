@@ -23,7 +23,7 @@ import (
 //
 // history 为最近 N 轮对话（每轮含 role/content），用于上下文消歧。
 // LLM 调用失败或 llm 为 nil 时降级返回原始 query。
-func QueryRewrite(ctx context.Context, llm adapter.LLMClient, query string, history []map[string]string) (string, error) {
+func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query string, history []map[string]string) (string, error) {
 	if llm == nil {
 		return query, nil
 	}
@@ -48,6 +48,7 @@ func QueryRewrite(ctx context.Context, llm adapter.LLMClient, query string, hist
 	messages = append(messages, adapter.ChatMessage{Role: "user", Content: userMsg})
 
 	resp, err := llm.ChatCompletion(ctx, adapter.ChatRequest{
+		Model:       model,
 		Messages:    messages,
 		MaxTokens:   256,
 		Temperature: 0.1, // 低温度保证输出稳定

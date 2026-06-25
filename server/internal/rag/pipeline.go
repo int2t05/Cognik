@@ -39,20 +39,22 @@ type Pipeline struct {
 	llmClient       adapter.LLMClient   // LLM 客户端（查询改写/多路）
 	reranker        adapter.Reranker    // Cross-encoder 重排序器（可为 nil，nil 时降级跳过）
 	embedder        *Embedder           // 向量嵌入器
+	llmModel        string              // LLM 模型名称（查询改写/多路同步调用需要）
 }
 
 // NewPipeline 创建 Pipeline 实例。
 //
 // vectorRet 不可为 nil。bm25Ret 可以为 nil（不启用 BM25 混合检索）。
 // reranker 可以为 nil（不启用重排序或降级为 LLM prompt 方案）。
-// onStep 回调通过 Execute 的 onStep 参数传入，不在此处存储（避免闭包陷阱）。
-func NewPipeline(vectorRet, bm25Ret Retriever, llm adapter.LLMClient, emb *Embedder, reranker adapter.Reranker) *Pipeline {
+// llmModel 用于查询改写和多路检索的同步 LLM 调用（与流式生成的模型相同）。
+func NewPipeline(vectorRet, bm25Ret Retriever, llm adapter.LLMClient, emb *Embedder, reranker adapter.Reranker, llmModel string) *Pipeline {
 	return &Pipeline{
 		vectorRetriever: vectorRet,
 		bm25Retriever:   bm25Ret,
 		llmClient:       llm,
 		reranker:        reranker,
 		embedder:        emb,
+		llmModel:        llmModel,
 	}
 }
 
@@ -111,7 +113,7 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 	rewrittenQuery := query
 	if opts.QueryRewrite && p.llmClient != nil {
 		_ = track("query_rewrite", "查询改写", func() error {
-			rw, err := QueryRewrite(ctx, p.llmClient, query, opts.History)
+			rw, err := QueryRewrite(ctx, p.llmClient, p.llmModel, query, opts.History)
 			if err != nil {
 				return err
 			}
@@ -124,7 +126,7 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 	routes := []string{rewrittenQuery}
 	if opts.MultiRoute && opts.RouteCount > 1 && p.llmClient != nil {
 		_ = track("multi_route", "多路检索", func() error {
-			rts, err := MultiRoute(ctx, p.llmClient, rewrittenQuery, opts.RouteCount)
+			rts, err := MultiRoute(ctx, p.llmClient, p.llmModel, rewrittenQuery, opts.RouteCount)
 			if err != nil {
 				return err
 			}

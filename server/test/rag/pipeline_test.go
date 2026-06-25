@@ -73,7 +73,7 @@ func TestPipeline_FullSuccess(t *testing.T) {
 		},
 	}
 
-	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil) // reranker=nil: cross-encoder 未启用，降级跳过
+	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil, "test-model") // reranker=nil: cross-encoder 未启用，降级跳过
 	opts := rag.DefaultRAGOptions()
 
 	result, err := pipe.Execute(context.Background(), "VPN怎么连接", 1, opts, nil)
@@ -103,7 +103,7 @@ func TestPipeline_QueryRewriteDisabled(t *testing.T) {
 		},
 	}
 
-	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil) // reranker=nil: cross-encoder 未启用，降级跳过
+	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil, "test-model") // reranker=nil: cross-encoder 未启用，降级跳过
 	opts := rag.DefaultRAGOptions()
 	opts.QueryRewrite = false // 关闭查询改写
 
@@ -127,7 +127,7 @@ func TestPipeline_VectorRetrievalFail(t *testing.T) {
 	}
 
 	// 不启用 BM25 时，向量检索失败应导致错误
-	pipe := rag.NewPipeline(failingRetriever, nil, llm, embedder, nil)
+	pipe := rag.NewPipeline(failingRetriever, nil, llm, embedder, nil, "test-model")
 	opts := rag.DefaultRAGOptions()
 	opts.Hybrid = false // 纯向量模式
 	opts.QueryRewrite = false
@@ -150,7 +150,7 @@ func TestPipeline_StepCallback(t *testing.T) {
 		},
 	}
 
-	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil) // reranker=nil: cross-encoder 未启用，降级跳过
+	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil, "test-model") // reranker=nil: cross-encoder 未启用，降级跳过
 
 	var steps []string
 	callback := func(event rag.StepEvent) {
@@ -180,7 +180,7 @@ func TestPipeline_Metrics(t *testing.T) {
 		},
 	}
 
-	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil) // reranker=nil: cross-encoder 未启用，降级跳过
+	pipe := rag.NewPipeline(vectorRet, nil, llm, embedder, nil, "test-model") // reranker=nil: cross-encoder 未启用，降级跳过
 	opts := rag.DefaultRAGOptions()
 
 	start := time.Now()

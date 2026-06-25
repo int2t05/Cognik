@@ -236,7 +236,7 @@ func wireApp() (*app, error) {
 	segmenter := rag.NewGseSegmenter()
 	bm25Retriever := rag.NewBM25Retriever(segmenter, bm25TTL)
 
-	pipeline := rag.NewPipeline(vectorRetriever, bm25Retriever, llmClient, embedder, a.reranker)
+	pipeline := rag.NewPipeline(vectorRetriever, bm25Retriever, llmClient, embedder, a.reranker, cfg.LLM.Model)
 
 	// 文档处理器仅当 vectorStore 或 storageClient 可用时创建
 	var processor *rag.Processor

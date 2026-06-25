@@ -28,7 +28,7 @@ import (
 //
 // count 控制生成的子查询数量，自动钳位到 [2, 4]。
 // LLM 调用失败或 llm 为 nil 时降级返回 [query] 单路检索。
-func MultiRoute(ctx context.Context, llm adapter.LLMClient, query string, count int) ([]string, error) {
+func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string, count int) ([]string, error) {
 	if llm == nil {
 		return []string{query}, nil
 	}
@@ -47,6 +47,7 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, query string, count 
 	userMsg := fmt.Sprintf("原始查询：%s", query)
 
 	resp, err := llm.ChatCompletion(ctx, adapter.ChatRequest{
+		Model: model,
 		Messages: []adapter.ChatMessage{
 			{Role: "system", Content: systemMsg},
 			{Role: "user", Content: userMsg},
