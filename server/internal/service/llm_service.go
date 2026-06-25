@@ -463,11 +463,12 @@ func sendOrCancel(ctx context.Context, ch chan<- StreamEvent, evt StreamEvent) b
 }
 
 // extractSources 从检索结果中提取前端展示用的来源列表。
+// 编号与 LLM 上下文 [1][2] 严格对应，点引用徽章可跳转到对应来源块。
 func extractSources(chunks []rag.RetrievalResult) []response.SourceItem {
 	sources := make([]response.SourceItem, 0, len(chunks))
-	for _, c := range chunks {
+	for i, c := range chunks {
 		sources = append(sources, response.SourceItem{
-			DocName:      fmt.Sprintf("chunk_%d", c.ChunkID),
+			DocName:      fmt.Sprintf("来源 %d", i+1),
 			ChunkContent: c.Content,
 			Confidence:   c.Score,
 		})
