@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"opsmind/internal/adapter"
@@ -56,14 +57,17 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string,
 		Temperature: 0.3,
 	})
 	if err != nil {
+		slog.Warn("多路检索 LLM 调用失败，降级为单路", "model", model, "query", query, "error", err)
 		return []string{query}, fmt.Errorf("多路检索 LLM 调用失败，降级为单路: %w", err)
 	}
 
 	// 从 LLM 响应中提取 JSON 数组
 	routes := parseMultiRouteJSON(resp.Content, query, count)
 	if len(routes) == 0 {
+		slog.Info("多路检索解析为空，降级为单路", "query", query, "raw_response", resp.Content)
 		return []string{query}, nil
 	}
+	slog.Info("多路检索完成", "原始", query, "子查询数", len(routes), "子查询", routes, "model", model)
 	return routes, nil
 }
 

@@ -81,7 +81,10 @@ def handle_request(line: str) -> None:
     query = req.get("query", "")
     passages = req.get("passages", [])
 
-    if not query or not passages:
+    # 防御性校验：query 类型（JSON null → None → ""）
+    if not isinstance(query, str):
+        query = str(query) if query is not None else ""
+    if not query.strip() or not passages:
         write_result({"req_id": req_id, "order": [], "scores": [], "error": "query 或 passages 为空"})
         return
 
@@ -92,8 +95,9 @@ def handle_request(line: str) -> None:
     ids = []
     for i, p in enumerate(passages):
         text = p.get("text", "")
-        # 如果 text 不是字符串（如 None/null/数字），转为空字符串
+        # 如果 text 不是字符串（如 None/null/数字/字典），转为空字符串
         if not isinstance(text, str):
+            logger.warning("passage[%d] text 类型异常 (%s)，转为字符串", i, type(text).__name__)
             text = str(text) if text is not None else ""
         # 跳过空文本的 passage（无实际内容，送入 cross-encoder 也无意义）
         if not text.strip():
@@ -105,11 +109,16 @@ def handle_request(line: str) -> None:
         write_result({"req_id": req_id, "order": [], "scores": [], "error": "passages 无有效文本"})
         return
 
+    logger.info("rerank 推理: query=%r, pairs=%d", query[:80], len(pairs))
+
     # Cross-encoder 批量打分
     try:
         scores = model.predict(pairs, show_progress_bar=False)
     except Exception as e:
-        logger.error("模型推理失败: %s", e)
+        logger.error("模型推理失败: %s (query=%r, pairs=%d, first_pair_types=(%s, %s))",
+                     e, query[:60], len(pairs),
+                     type(pairs[0][0]).__name__ if pairs else "N/A",
+                     type(pairs[0][1]).__name__ if pairs else "N/A")
         write_result({"req_id": req_id, "error": f"模型推理失败: {e}"})
         return
 

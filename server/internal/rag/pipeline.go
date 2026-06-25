@@ -214,14 +214,17 @@ func (p *Pipeline) Execute(ctx context.Context, query string, kbID int64, opts R
 			candidates = candidates[:opts.RerankCount]
 		}
 
+		slog.Info("开始重排序", "候选数", len(candidates), "query", query)
 		_ = track("rerank", "重排序", func() error {
 			// 使用原始 query：cross-encoder 评估 query-document 对的相关性，
 			// 原始 query 最能代表用户真实意图
 			reranked, err := Rerank(ctx, p.reranker, query, candidates)
 			if err != nil {
+				slog.Warn("重排序失败，降级为原始排序", "query", query, "候选数", len(candidates), "error", err)
 				return err
 			}
 			allChunks = reranked
+			slog.Info("重排序完成", "结果数", len(reranked))
 			return nil
 		})
 	}

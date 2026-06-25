@@ -14,6 +14,7 @@ package rag
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"opsmind/internal/adapter"
@@ -55,11 +56,14 @@ func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query strin
 	})
 	if err != nil {
 		// 降级：返回原始查询，但上报错误让管道步骤显示失败状态
+		slog.Warn("查询改写 LLM 调用失败，降级为原始查询", "model", model, "query", query, "error", err)
 		return query, fmt.Errorf("查询改写 LLM 调用失败: %w", err)
 	}
 	result := strings.TrimSpace(resp.Content)
 	if result == "" {
+		slog.Info("查询改写返回空结果，使用原始查询", "query", query)
 		return query, nil
 	}
+	slog.Info("查询改写完成", "原始", query, "改写", result, "model", model)
 	return result, nil
 }
