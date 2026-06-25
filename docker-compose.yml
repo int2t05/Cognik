@@ -141,7 +141,7 @@ services:
       - "--threads"
       - "4"
       - "--ctx-size"
-      - "${OPSMIND_LLM_CTX_SIZE:-4096}"
+      - "${OPSMIND_LLM_CTX_SIZE:-32768}"
       - "--flash-attn"
       - "on"
       - "--parallel"

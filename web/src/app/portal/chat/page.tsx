@@ -70,8 +70,11 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // 流式对话通常 < 50 条消息，虚拟滚动只有开销没有收益。
+  // 仅在消息数量足够多时才启用虚拟化 — count=0 时虚拟器不执行任何计算。
+  const enableVirtual = messages.length > 50;
   const rowVirtualizer = useVirtualizer({
-    count: messages.length + (currentStep ? 1 : 0),
+    count: enableVirtual ? messages.length + (currentStep ? 1 : 0) : 0,
     getScrollElement: () => listRef.current,
     estimateSize: () => 80,
     overscan: 5,
@@ -81,14 +84,24 @@ export default function ChatPage() {
     if (selectedKB) inputRef.current?.focus();
   }, [selectedKB]);
 
+  // 自动滚到底部：仅在消息数量或步骤变化时触发，而非每个 token（避免每 token 重算）
   useEffect(() => {
-    if (rowVirtualizer.getTotalSize() > 0) {
-      rowVirtualizer.scrollToIndex(
-        messages.length + (currentStep ? 1 : 0) - 1,
-        { align: 'end' },
-      );
+    if (enableVirtual) {
+      // 虚拟滚动模式：使用 scrollToIndex
+      if (rowVirtualizer.getTotalSize() > 0) {
+        rowVirtualizer.scrollToIndex(
+          messages.length + (currentStep ? 1 : 0) - 1,
+          { align: 'end' },
+        );
+      }
+    } else {
+      // 直接渲染模式：滚动容器到底部
+      const el = listRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
-  }, [messages, currentStep, rowVirtualizer]);
+  }, [messages.length, currentStep, enableVirtual, rowVirtualizer]);
 
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
@@ -308,32 +321,49 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="max-w-[768px] mx-auto px-4 py-4 w-full">
-              <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                  const isPipeline = virtualItem.index === messages.length && currentStep;
-                  if (isPipeline) {
+              {enableVirtual ? (
+                /* 虚拟滚动模式（消息数量 > 50 时启用）*/
+                <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const isPipeline = virtualItem.index === messages.length && currentStep;
+                    if (isPipeline) {
+                      return (
+                        <div key={`pipeline-${currentStep}`} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
+                          style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
+                          <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
+                        </div>
+                      );
+                    }
+                    const msg = messages[virtualItem.index];
                     return (
-                      <div key={`pipeline-${currentStep}`} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
+                      <div key={msg.id} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
                         style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
-                        <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
+                        <ChatMessage
+                          id={msg.id} role={msg.role} content={msg.content}
+                          sources={msg.sources} confidence={msg.confidence}
+                          isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
+                          sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
+                          onFeedback={(v) => handleFeedback(msg.id, v)} feedbackLoading={feedbackLoading}
+                        />
                       </div>
                     );
-                  }
-                  const msg = messages[virtualItem.index];
-                  return (
-                    <div key={msg.id} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
-                      style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
-                      <ChatMessage
-                        id={msg.id} role={msg.role} content={msg.content}
-                        sources={msg.sources} confidence={msg.confidence}
-                        isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
-                        sessionId={sessionId} feedback={feedbackMap[String(msg.dbId || msg.id)] || 0}
-                        onFeedback={(v) => handleFeedback(msg.id, msg.dbId || 0, v)} feedbackLoading={feedbackLoading}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              ) : (
+                /* 直接渲染模式（流式对话场景，无虚拟化开销）*/
+                <>
+                  {messages.map((msg, idx) => (
+                    <ChatMessage
+                      key={msg.id} id={msg.id} role={msg.role} content={msg.content}
+                      sources={msg.sources} confidence={msg.confidence}
+                      isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
+                      sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
+                      onFeedback={(v) => handleFeedback(msg.id, v)} feedbackLoading={feedbackLoading}
+                    />
+                  ))}
+                  {currentStep && <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />}
+                </>
+              )}
             </div>
           )}
         </div>

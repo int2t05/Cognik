@@ -58,12 +58,21 @@ export function useChatStream(
     userAborted: boolean;
   } | null>(null);
 
-  // 组件卸载时中止未完成的请求
+  // rafRef 持有 rAF ID，用于 token 批处理。
+  // 每个 token 到达时只更新内存缓冲区，通过 rAF 合并多个 token 为一次 setState，
+  // 将渲染频率从 ~50次/s（逐 token）降至 ~10-15次/s（按帧批处理）。
+  const rafRef = useRef<number | null>(null);
+
+  // 组件卸载时中止未完成的请求 + 取消待处理的 rAF
   useEffect(() => {
     return () => {
       if (abortRef.current) {
         abortRef.current.userAborted = true;
         abortRef.current.controller.abort();
+      }
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, []);
@@ -170,17 +179,31 @@ export function useChatStream(
                   break;
 
                 case 'token':
+                  // token 先写入内存缓冲区，通过 rAF 批处理合并多个 token 为一次 React 渲染。
+                  // 本地 LLM 每秒 50+ token，逐 token setState 会导致每秒 50+ 次重渲染；
+                  // rAF 将渲染频率降至浏览器帧率（最多 60fps，实际因批处理更低），
+                  // 消除了 React reconciliation 和虚拟滚动重算的累积卡顿。
                   assistantContent += evt.content;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMsgId
-                        ? { ...m, content: assistantContent }
-                        : m,
-                    ),
-                  );
+                  if (rafRef.current === null) {
+                    rafRef.current = requestAnimationFrame(() => {
+                      rafRef.current = null;
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === assistantMsgId
+                            ? { ...m, content: assistantContent }
+                            : m,
+                        ),
+                      );
+                    });
+                  }
                   break;
 
                 case 'done':
+                  // 取消待处理的 rAF，避免 rAF 回调在 done 之后覆盖最终消息状态
+                  if (rafRef.current !== null) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = null;
+                  }
                   setStreaming(false);
                   setCurrentStep(null);
                   const meta = evt.metadata;
@@ -201,6 +224,10 @@ export function useChatStream(
                   break;
 
                 case 'error':
+                  if (rafRef.current !== null) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = null;
+                  }
                   setStreaming(false);
                   setCurrentStep(null);
                   onError(evt.error || '生成失败');
@@ -239,6 +266,10 @@ export function useChatStream(
       abortRef.current.userAborted = true;
       abortRef.current.controller.abort();
     }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     setStreaming(false);
     setLoading(false);
   }, []);
@@ -248,6 +279,10 @@ export function useChatStream(
     if (abortRef.current) {
       abortRef.current.userAborted = true;
       abortRef.current.controller.abort();
+    }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
     setMessages([]);
     setStreaming(false);
