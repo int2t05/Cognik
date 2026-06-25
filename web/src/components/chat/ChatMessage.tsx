@@ -75,13 +75,14 @@ export function ChatMessage({
           </div>
         )}
 
-        {/* 反馈按钮 — 仅 AI 完成消息 */}
+        {/* 反馈按钮 — 仅 AI 完成消息，支持点赞/倒赞切换（点击已选中按钮取消） */}
         {isAi && !isStreaming && !!sessionId && !!onFeedback && (
           <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--color-divider-soft)]">
             <button
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
               disabled={feedbackLoading}
-              aria-label="有帮助"
+              aria-label={feedback === 1 ? '取消有帮助' : '有帮助'}
+              title={feedback === 1 ? '取消' : '回答有帮助'}
               className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
@@ -89,11 +90,13 @@ export function ChatMessage({
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
               <ThumbsUp size={12} />
+              <span className="hidden sm:inline">有帮助</span>
             </button>
             <button
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
               disabled={feedbackLoading}
-              aria-label="没有帮助"
+              aria-label={feedback === 2 ? '取消无帮助' : '无帮助'}
+              title={feedback === 2 ? '取消' : '回答没有帮助'}
               className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
@@ -101,6 +104,7 @@ export function ChatMessage({
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
               <ThumbsDown size={12} />
+              <span className="hidden sm:inline">无帮助</span>
             </button>
           </div>
         )}

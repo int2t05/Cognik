@@ -29,6 +29,7 @@ type dashboardRepo interface {
 	CountTodayChats(ctx context.Context) (int64, error)
 	AvgTodayConfidence(ctx context.Context) (float64, error)
 	CountKnowledgeArticles(ctx context.Context) (int64, error)
+	CountFeedbackByType(ctx context.Context, feedbackType int16) (int64, error)
 	GetTicketTrends(ctx context.Context, startDate, endDate, granularity string) ([]repository.TrendPoint, error)
 	GetChatTrends(ctx context.Context, startDate, endDate string, granularity string) ([]repository.TrendPoint, error)
 }
@@ -58,7 +59,7 @@ func (s *DashboardService) GetStats(ctx context.Context) (*response.StatsRespons
 		})
 	}
 
-	wg.Add(7)
+	wg.Add(9)
 	go func() {
 		defer wg.Done()
 		count, err := s.repo.CountTodayTickets(queryCtx)
@@ -124,6 +125,26 @@ func (s *DashboardService) GetStats(ctx context.Context) (*response.StatsRespons
 		count, err := s.repo.CountKnowledgeArticles(queryCtx)
 		mu.Lock()
 		resp.KnowledgeCount = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountFeedbackByType(queryCtx, 1)
+		mu.Lock()
+		resp.HelpfulFeedback = count
+		mu.Unlock()
+		if err != nil {
+			setErr(err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		count, err := s.repo.CountFeedbackByType(queryCtx, 2)
+		mu.Lock()
+		resp.UnhelpfulFeedback = count
 		mu.Unlock()
 		if err != nil {
 			setErr(err)

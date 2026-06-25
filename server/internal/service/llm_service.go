@@ -53,7 +53,9 @@ type StreamDoneMeta struct {
 	DurationMS      int                   `json:"duration_ms"`
 	Feedback        int16                 `json:"feedback"`
 	CreatedAt       string                `json:"created_at"`
-	Pipeline        *ChatPipelineMeta     `json:"pipeline,omitempty"`
+	Pipeline           *ChatPipelineMeta     `json:"pipeline,omitempty"`
+	UserMessageID      int64                 `json:"user_message_id,omitempty"`
+	AssistantMessageID int64                 `json:"assistant_message_id,omitempty"`
 }
 
 // =============================================================================
@@ -66,11 +68,12 @@ type ChatPipelineMeta struct {
 	TotalDurationMS int                `json:"total_duration_ms"`
 }
 
-// ChatPipelineStep 管道单步骤耗时。
+// ChatPipelineStep 管道单步骤耗时与状态。
 type ChatPipelineStep struct {
 	ID         string `json:"id"`
 	Label      string `json:"label"`
 	DurationMS int    `json:"duration_ms"`
+	Success    bool   `json:"success"`
 }
 
 // =============================================================================
@@ -195,7 +198,20 @@ func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, 
 // StreamChat — 流式问答
 // =============================================================================
 
+// 降级常量：RAG 不可用/无结果时的提示前缀和 LLM 不可用时的固定回复。
+const (
+	ragDisabledNotice  = "\n\n> ⚠️ 当前已关闭知识库检索，以下回答由 AI 直接生成，可能不够准确。\n\n"
+	ragNoResultNotice  = "\n\n> ⚠️ 当前暂未找到足够匹配的知识，以下回答由 AI 直接生成，仅供参考。\n\n"
+	llmUnavailableText = "抱歉，当前 AI 服务暂不可用。建议您：\n1. 稍后重试\n2. 提交运维申告由人工处理\n3. 联系运维团队获取帮助"
+)
+
 // StreamChat 执行 RAG 检索 + LLM 流式生成，返回事件通道供 SSE 代理。
+//
+// 降级策略（三级）：
+//  1. RAG 可用 → 正常检索+生成
+//  2. RAG 禁用/无结果 → 发送提示 notice token → 直接 LLM 生成（无知识上下文）
+//  3. LLM 不可用 → 返回固定降级语句
+//
 // history 为多轮对话历史，在 RAG 上下文前注入。
 func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) (<-chan StreamEvent, error) {
 	eventCh := make(chan StreamEvent, 100)
@@ -210,37 +226,42 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		}
 		chunks, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, onStep)
 		if err != nil {
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: err.Error()})
-			return
+			// RAG 管道失败 → 降级尝试无知识库 LLM
+			slog.Warn("RAG 检索失败，降级为纯 LLM 模式", "error", err)
+			chunks = nil // 确保走 LLM-only 分支
 		}
 
-		// Step 2: 无检索结果 → 直接发送 done
-		if len(chunks) == 0 {
-			select {
-			case eventCh <- StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-				Answer:          "暂未找到足够匹配的知识，建议提交申告由运维人员人工处理。",
+		// 判断是否需要发送降级提示
+ragDisabled := opts.DisableRetrieval
+		ragEmpty := len(chunks) == 0
+		if ragDisabled || ragEmpty {
+			notice := ragNoResultNotice
+			if ragDisabled {
+				notice = ragDisabledNotice
+			}
+			s.sendNoticeToken(ctx, eventCh, notice)
+			s.sendNoticeToken(ctx, eventCh, notice)
+			sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+				Answer:          "当前未找到足够匹配的知识，无法生成回答。",
 				Confidence:      0,
 				CanSubmitTicket: true,
 				DurationMS:      int(time.Since(start).Milliseconds()),
-			}}:
-			case <-ctx.Done():
-			}
+			}})
+			sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+				Answer:          "当前未找到足够匹配的知识，无法生成回答。",
+				Confidence:      0,
+				CanSubmitTicket: true,
+				DurationMS:      int(time.Since(start).Milliseconds()),
+			}})
 			return
 		}
 
-		// Step 3: LLM 流式生成（仅当 llmClient 可用）
+		// Step 2: LLM 流式生成
 		if s.getLLMClient() == nil {
-			// 无 LLM：模拟流式输出检索摘要
-			var sb strings.Builder
-			for i, c := range chunks {
-				sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, c.Content))
-			}
-			answer := "以下是与您问题相关的知识条目：\n\n" + sb.String()
-			s.sendSimulated(ctx, eventCh, answer, extractSources(chunks), maxConfidence(chunks), int(time.Since(start).Milliseconds()))
+			s.sendFallback(ctx, eventCh, start)
 			return
 		}
 
-		// 发送 LLM 生成步骤事件
 		sendOrCancel(ctx, eventCh, StreamEvent{Type: "step", ID: "llm_generate", Label: "LLM 生成"})
 
 		messages := s.buildMessages(chunks, question, history)
@@ -252,7 +273,9 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 			Temperature: 0.3,
 		})
 		if llmErr != nil {
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: "LLM 流式调用失败: " + llmErr.Error()})
+			// LLM 不可用 → 降级固定回复
+			slog.Error("LLM 流式调用失败，降级固定回复", "error", llmErr)
+			s.sendFallback(ctx, eventCh, start)
 			return
 		}
 
@@ -275,7 +298,7 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 						DurationMS:      int(time.Since(start).Milliseconds()),
 					}})
 				} else {
-					sendOrCancel(ctx, eventCh, StreamEvent{Type: "error", Error: "LLM 生成中断: " + chunk.Error.Error()})
+					s.sendFallback(ctx, eventCh, start)
 				}
 				return
 			}
@@ -290,8 +313,13 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 			}
 		}
 
-		// 合并管道耗时
 		fullAnswer := answerBuf.String()
+		// 空回答降级为固定回复
+		if strings.TrimSpace(fullAnswer) == "" {
+			s.sendFallback(ctx, eventCh, start)
+			return
+		}
+
 		sources := extractSources(chunks)
 		confidence := maxConfidence(chunks)
 		durationMS := int(time.Since(start).Milliseconds())
@@ -310,6 +338,22 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 	}()
 
 	return eventCh, nil
+}
+
+// sendNoticeToken 发送降级提示 notice 作为 token 事件（前端显示为灰色引文）。
+func (s *LLMService) sendNoticeToken(ctx context.Context, eventCh chan<- StreamEvent, notice string) {
+	sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: notice})
+}
+
+// sendFallback 发送 LLM 不可用时的固定降级回复。
+func (s *LLMService) sendFallback(ctx context.Context, eventCh chan<- StreamEvent, start time.Time) {
+	sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: llmUnavailableText})
+	sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+		Answer:          llmUnavailableText,
+		Confidence:      0,
+		CanSubmitTicket: true,
+		DurationMS:      int(time.Since(start).Milliseconds()),
+	}})
 }
 
 // =============================================================================
@@ -339,6 +383,7 @@ func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64
 				ID:         m.StepID,
 				Label:      m.Label,
 				DurationMS: int(m.DurationMS),
+				Success:    m.Success,
 			})
 		}
 		return result.Chunks, &ChatPipelineMeta{
@@ -404,31 +449,6 @@ func (s *LLMService) getModelConfig() (model string, maxTokens int) {
 	}
 	slog.Warn("LLM 配置缺失，使用 config.yaml 默认值——请通过后台管理页面配置 LLM", "model", model)
 	return
-}
-
-// sendSimulated 无 LLM 时的模拟流式输出（检索内容摘要）。
-func (s *LLMService) sendSimulated(ctx context.Context, eventCh chan<- StreamEvent, answer string, sources []response.SourceItem, confidence float64, durationMS int) {
-	// 发送 LLM 生成步骤事件
-	sendOrCancel(ctx, eventCh, StreamEvent{Type: "step", ID: "llm_generate", Label: "LLM 生成"})
-
-	runes := []rune(answer)
-	chunkSize := 5
-	for i := 0; i < len(runes); i += chunkSize {
-		end := i + chunkSize
-		if end > len(runes) {
-			end = len(runes)
-		}
-		if ok := sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: string(runes[i:end])}); !ok {
-			return
-		}
-	}
-	sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-		Answer:          answer,
-		Sources:         sources,
-		Confidence:      confidence,
-		CanSubmitTicket: confidence < 0.6,
-		DurationMS:      durationMS,
-	}})
 }
 
 // =============================================================================

@@ -324,7 +324,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("server.mode", "debug")
 	v.SetDefault("server.read_timeout", "15s")
-	v.SetDefault("server.write_timeout", "60s")
+	v.SetDefault("server.write_timeout", "300s")
 	v.SetDefault("server.idle_timeout", "60s")
 
 	// Database
@@ -354,7 +354,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("llm.api_key", "")
 	v.SetDefault("llm.model", "qwen3-4b")
 	v.SetDefault("llm.max_tokens", 8192)
-	v.SetDefault("llm.timeout", "60s")
+	v.SetDefault("llm.timeout", "300s")
 
 	// Embedding
 	v.SetDefault("embedding.base_url", "")

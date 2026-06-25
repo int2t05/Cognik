@@ -4,6 +4,7 @@ package response
 // ChatSessionResponse 问答会话响应（含答案、来源和历史消息）。
 type ChatSessionResponse struct {
 	SessionID       int64         `json:"session_id"`
+	KBID            int64         `json:"kb_id"`
 	Question        string        `json:"question"`
 	Answer          string        `json:"answer"`
 	Sources         []SourceItem  `json:"sources"`
@@ -32,6 +33,7 @@ type MessageItem struct {
 	Content    string       `json:"content"`
 	Sources    []SourceItem `json:"sources,omitempty"`
 	Confidence float64      `json:"confidence"`
+	Feedback   int16        `json:"feedback"` // 0=未反馈, 1=有帮助, 2=无帮助
 	CreatedAt  string       `json:"created_at"`
 }
 

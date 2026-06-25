@@ -86,8 +86,24 @@ def handle_request(line: str) -> None:
         return
 
     # 构建 (query, passage) 对
-    pairs = [(query, p.get("text", "")) for p in passages]
-    ids = [p.get("id", i) for i, p in enumerate(passages)]
+    # 防御性校验：确保所有 passage text 都是字符串类型（JSON null → ""），
+    # 避免 sentence_transformers 报 "TextInputSequence must be str"
+    pairs = []
+    ids = []
+    for i, p in enumerate(passages):
+        text = p.get("text", "")
+        # 如果 text 不是字符串（如 None/null/数字），转为空字符串
+        if not isinstance(text, str):
+            text = str(text) if text is not None else ""
+        # 跳过空文本的 passage（无实际内容，送入 cross-encoder 也无意义）
+        if not text.strip():
+            continue
+        pairs.append((query, text))
+        ids.append(p.get("id", i))
+
+    if not pairs:
+        write_result({"req_id": req_id, "order": [], "scores": [], "error": "passages 无有效文本"})
+        return
 
     # Cross-encoder 批量打分
     try:

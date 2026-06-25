@@ -13,19 +13,22 @@ export interface ChatMessage {
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
   confidence?: number;
   createdAt: string;
+  /** 数据库 ID（用于反馈 API），流式过程中为 0，done 事件后由后端回传 */
+  dbId?: number;
 }
 
 interface PipelineStep {
   id: string;
   label: string;
   duration_ms?: number;
+  /** 步骤是否成功（done 事件中携带，用于前端着色：绿=成功/红=失败/灰=未知） */
   success?: boolean;
 }
 
 // --- 常量 ---
 
-/** SSE 流式请求超时时间（毫秒） */
-const STREAM_TIMEOUT_MS = 120_000;
+/** SSE 流式请求超时时间（毫秒）— 5 分钟以适应 CPU 推理长等待 */
+const STREAM_TIMEOUT_MS = 300_000;
 
 // --- Hook ---
 
@@ -186,6 +189,7 @@ export function useChatStream(
                             content: meta.answer || assistantContent,
                             sources: meta.sources,
                             confidence: meta.confidence,
+                            dbId: meta.assistant_message_id || 0,
                           }
                         : msg,
                     ),

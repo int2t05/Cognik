@@ -19,6 +19,7 @@ import (
 	"opsmind/internal/rag"
 	"opsmind/pkg/errcode"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -38,8 +39,11 @@ type chatSessionRepo interface {
 	Create(ctx context.Context, session *model.ChatSession) error
 	CreateBatch(ctx context.Context, messages []model.ChatMessage) error
 	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
+	FindMessageByID(ctx context.Context, messageID, sessionID int64) (*model.ChatMessage, error)
 	FindMessagesBySession(ctx context.Context, sessionID int64) ([]model.ChatMessage, error)
 	UpdateFeedback(ctx context.Context, id int64, feedback int16) error
+	UpdateMessageFeedback(ctx context.Context, messageID int64, feedback int16) error
+	FindFeedbackSamples(ctx context.Context, limitDays int) ([]model.FeedbackSample, error)
 	UpdateSession(ctx context.Context, session *model.ChatSession) error
 	ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
 	DeleteSession(ctx context.Context, id, userID int64) error
@@ -70,10 +74,17 @@ type ChatService struct {
 	knowledgeRepo chatKnowledgeRepo
 	chatRepo      chatSessionRepo
 	llmService    *LLMService
+	auditRepo     auditLogWriter // 审计日志写入接口（反馈事件记录）
+}
+
+
+// auditLogWriter ChatService 需要的审计日志最小接口。
+type auditLogWriter interface {
+	Create(ctx context.Context, log any) error
 }
 
 // NewChatService 创建 ChatService 实例。
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader) *ChatService {
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter) *ChatService {
 	if ragDefaults.TopK <= 0 {
 		ragDefaults.TopK = 5
 	}
@@ -83,6 +94,7 @@ func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, l
 		llmService:    llmService,
 		ragDefaults:   ragDefaults,
 		configReader:  configReader,
+		auditRepo:     auditRepo,
 	}
 }
 
@@ -200,12 +212,13 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 					slog.Error("StreamChat 更新会话失败", "session_id", sessionID, "err", err)
 				}
 
-				// 持久化消息（user + assistant）
-				if err := s.chatRepo.CreateBatch(ctx, []model.ChatMessage{
+				// 持久化消息（user + assistant），GORM Create 会回填 ID
+				msgs := []model.ChatMessage{
 					{Role: "user", Content: question, SessionID: sessionID},
 					{Role: "assistant", Content: evt.Metadata.Answer, SessionID: sessionID,
 						Sources: srcJSON, Confidence: evt.Metadata.Confidence, PipelineMetrics: pipelineJSON},
-				}); err != nil {
+				}
+				if err := s.chatRepo.CreateBatch(ctx, msgs); err != nil {
 					slog.Error("StreamChat 持久化消息失败", "session_id", sessionID, "err", err)
 				}
 
@@ -213,6 +226,11 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 				evt.Metadata.Question = question
 				evt.Metadata.Feedback = 0
 				evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+				// 回传消息 DB ID 给前端，用于点赞/倒赞 API
+				if len(msgs) >= 2 {
+					evt.Metadata.UserMessageID = msgs[0].ID
+					evt.Metadata.AssistantMessageID = msgs[1].ID
+				}
 			}
 			if ok := sendOrCancel(ctx, outCh, evt); !ok {
 				return
@@ -226,6 +244,109 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 // =============================================================================
 // SubmitFeedback
 // =============================================================================
+
+// SubmitMessageFeedback 提交单条消息的显式反馈（用户主动点击 👍👎）。
+//
+// 与 SubmitFeedback（会话级）不同，本方法针对单条 assistant 消息进行反馈。
+// 校验：消息必须存在、属于指定会话、且角色为 assistant。
+// 反馈成功后写入审计日志。
+func (s *ChatService) SubmitMessageFeedback(ctx context.Context, messageID, sessionID, userID int64, feedback int16) error {
+	if s.chatRepo == nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	if feedback < 0 || feedback > 2 {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 0（取消）/1（有帮助）/2（无帮助）"}
+	}
+
+	// 校验会话归属
+	session, err := s.chatRepo.FindByID(ctx, sessionID)
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+	}
+	if session.UserID != userID {
+		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权操作该会话"}
+	}
+
+	// 校验消息存在
+	msg, err := s.chatRepo.FindMessageByID(ctx, messageID, sessionID)
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "消息不存在"}
+	}
+	if msg.Role != "assistant" {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "仅可对 AI 回答进行反馈"}
+	}
+
+	if err := s.chatRepo.UpdateMessageFeedback(ctx, messageID, feedback); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "反馈提交失败"}
+	}
+
+	// 审计日志
+	s.writeFeedbackAudit(ctx, userID, sessionID, messageID, feedback, "explicit")
+	return nil
+}
+
+// MarkLastAssistantUnhelpful 隐式反馈：将指定会话最后一条 assistant 消息标记为"无帮助"。
+//
+// 触发场景：用户在 AI 回答后提交了申告，意味着 AI 未能解决其问题。
+// 这是 FeedbackMarker 接口的实现，供 TicketService 调用。
+// 不返回错误（非关键路径），仅写审计日志。
+func (s *ChatService) MarkLastAssistantUnhelpful(ctx context.Context, sessionID int64) error {
+	if s.chatRepo == nil {
+		return nil
+	}
+
+	msgs, err := s.chatRepo.FindMessagesBySession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	// 从后往前找最后一条 assistant 消息
+	var lastAssistant *model.ChatMessage
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == "assistant" {
+			lastAssistant = &msgs[i]
+			break
+		}
+	}
+	if lastAssistant == nil {
+		return nil // 无 assistant 消息，无需标记
+	}
+	// 已有点赞的不覆盖（用户手动点赞说明回答有用）
+	if lastAssistant.Feedback == 1 {
+		return nil
+	}
+
+	if err := s.chatRepo.UpdateMessageFeedback(ctx, lastAssistant.ID, 2); err != nil {
+		return err
+	}
+
+	s.writeFeedbackAudit(ctx, 0, sessionID, lastAssistant.ID, 2, "implicit")
+	return nil
+}
+
+// writeFeedbackAudit 写入反馈审计日志（异步，不阻塞主流程）。
+func (s *ChatService) writeFeedbackAudit(ctx context.Context, userID, sessionID, messageID int64, feedback int16, source string) {
+	if s.auditRepo == nil {
+		return
+	}
+	detail, _ := json.Marshal(map[string]any{
+		"session_id": sessionID,
+		"message_id": messageID,
+		"feedback":   feedback,
+		"source":     source, // "explicit" | "implicit"
+	})
+	auditLog := &model.AuditLog{
+		OperatorID: userID,
+		Action:     "chat.feedback",
+		TargetType: "chat_message",
+		TargetID:   messageID,
+		Detail:     datatypes.JSON(detail),
+	}
+	// 审计写入失败不阻塞主流程
+	if err := s.auditRepo.Create(ctx, auditLog); err != nil {
+		slog.Warn("反馈审计日志写入失败", "message_id", messageID, "error", err)
+	}
+}
 
 // SubmitFeedback 提交问答反馈。
 //
@@ -294,6 +415,7 @@ func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID
 				Content:    m.Content,
 				Sources:    msgSources,
 				Confidence: m.Confidence,
+				Feedback:   m.Feedback,
 				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
@@ -404,6 +526,95 @@ func (s *ChatService) readBool(key string, fallback bool) bool {
 		return v
 	}
 	return fallback
+}
+
+
+// AnalyzeFeedback 调用 LLM 分析反馈数据，输出知识盲区报告。
+//
+// 查询最近 limitDays 天内的反馈样本，构建 prompt 让 LLM 分析：
+//   - 哪些方面回答得好（strong_areas）
+//   - 哪些方面需要补充知识（weak_areas）
+//   - 具体的改进建议（suggestions）
+//   - 一句话总结（summary）
+//
+// 返回 JSON 字符串，调用方自行解析。
+func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (string, error) {
+	if s.chatRepo == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	if s.llmService == nil {
+		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 服务未初始化"}
+	}
+
+	samples, err := s.chatRepo.FindFeedbackSamples(ctx, limitDays)
+	if err != nil {
+		return "", fmt.Errorf("查询反馈样本失败: %w", err)
+	}
+	if len(samples) == 0 {
+		return "{\"message\":\"暂无反馈数据可供分析，请先使用问答功能并提交反馈。\"}", nil
+	}
+
+	// 构建分析 prompt：按有帮助/无帮助分组，截断过长内容
+	var helpful, unhelpful strings.Builder
+	helpfulCount, unhelpfulCount := 0, 0
+	for _, s := range samples {
+		// 截断长文本避免超出 LLM 上下文
+		question := truncateRunes(s.Question, 200)
+		answer := truncateRunes(s.Answer, 300)
+		if s.Feedback == 1 {
+			helpfulCount++
+			helpful.WriteString(fmt.Sprintf("- Q: %s\n  A: %s\n", question, answer))
+		} else {
+			unhelpfulCount++
+			unhelpful.WriteString(fmt.Sprintf("- Q: %s\n  A: %s\n", question, answer))
+		}
+	}
+
+	prompt := fmt.Sprintf(`你是运维知识库的质量分析师。请根据以下用户反馈数据分析知识库的优缺点。
+
+## 用户标记为"有帮助"的回答（共 %d 条）：
+%s
+
+## 用户标记为"无帮助"的回答（共 %d 条）：
+%s
+
+请用 JSON 格式输出分析结果（只输出 JSON，不要其他内容）：
+{
+  "strong_areas": ["方面1", "方面2"],      // 回答得好的知识领域（根据"有帮助"的问题主题归纳，最多5个）
+  "weak_areas": ["方面1", "方面2"],        // 需要补充的知识领域（根据"无帮助"的问题主题归纳，最多5个）
+  "suggestions": ["建议1", "建议2"],       // 具体的知识库改进建议（最多5条）
+  "summary": "一句话总结（30字以内）"       // 整体评价
+}`, helpfulCount, helpful.String(), unhelpfulCount, unhelpful.String())
+
+	client := s.llmService.getLLMClient()
+	if client == nil {
+		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 客户端未初始化"}
+	}
+
+	model, maxTokens := s.llmService.getModelConfig()
+	resp, err := client.ChatCompletion(ctx, adapter.ChatRequest{
+		Messages: []adapter.ChatMessage{
+			{Role: "system", Content: "你是运维知识库质量分析师。只输出 JSON，不要任何解释。"},
+			{Role: "user", Content: prompt},
+		},
+		Model:       model,
+		MaxTokens:   maxTokens,
+		Temperature: 0.3,
+	})
+	if err != nil {
+		return "", fmt.Errorf("LLM 分析调用失败: %w", err)
+	}
+
+	return resp.Content, nil
+}
+
+// truncateRunes 按 rune 截断文本，超出加 "..."。
+func truncateRunes(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	return string(runes[:maxRunes]) + "..."
 }
 
 // truncateText 截断文本到 maxRunes 个字符，超出加 "..."

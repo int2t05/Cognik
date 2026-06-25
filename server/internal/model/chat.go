@@ -31,7 +31,21 @@ type ChatMessage struct {
 	Sources         datatypes.JSON `gorm:"type:jsonb" json:"sources"`
 	PipelineMetrics datatypes.JSON `gorm:"type:jsonb" json:"pipeline_metrics"` // RAG 管道各步骤耗时（JSONB）
 	Confidence      float64        `json:"confidence"`
+	Feedback        int16          `gorm:"default:0" json:"feedback"` // 0=未反馈, 1=有帮助, 2=无帮助
 	CreatedAt       time.Time      `gorm:"not null" json:"created_at"`
 }
 
 func (ChatMessage) TableName() string { return "chat_messages" }
+
+// FeedbackSample 反馈样本：一条有反馈的 AI 回答 + 对应的用户问题。
+// 用于 LLM 知识盲区分析。
+type FeedbackSample struct {
+	MessageID  int64   `json:"message_id"`
+	SessionID  int64   `json:"session_id"`
+	Question   string  `json:"question"`
+	Answer     string  `json:"answer"`
+	Feedback   int16   `json:"feedback"`
+	Confidence float64 `json:"confidence"`
+	CreatedAt  string  `json:"created_at"`
+}
+

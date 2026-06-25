@@ -1026,11 +1026,11 @@ curl -X POST http://localhost:8080/api/v1/admin/knowledge-bases/1/documents/uplo
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] `documents[0].article_id` 返回新文章 ID（记为 `doc_article_md`）
-- [ ] `documents[0].file_name` = "网络故障排查指南.md"
-- [ ] `documents[0].file_type` = "md"
-- [ ] `documents[0].process_status` = "pending"
+- [x] 返回 `code=0`
+- [x] `documents[0].article_id` 返回新文章 ID（记为 `doc_article_md`）
+- [x] `documents[0].file_name` = "网络故障排查指南.md"
+- [x] `documents[0].file_type` = "md"
+- [x] `documents[0].process_status` = "pending"
 
 ### 9.2 上传 TXT 文件
 
@@ -1053,9 +1053,9 @@ curl -X POST http://localhost:8080/api/v1/admin/knowledge-bases/2/documents/uplo
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] `documents` 数组包含 4 个元素，各有独立的 `article_id`
-- [ ] 4 个文件上传到知识库 2
+- [x] 返回 `code=0`
+- [x] `documents` 数组包含 4 个元素，各有独立的 `article_id`
+- [x] 4 个文件上传到知识库 2
 
 ### 9.4 查询文档处理状态
 
@@ -1068,9 +1068,9 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] 初始状态为 `pending`
-- [ ] 随后状态按 `pending → parsing → chunking → embedding → indexing → completed` 流转
-- [ ] 最终状态为 `completed`
+- [x] 初始状态为 `pending`
+- [x] 随后状态按 `pending → parsing → chunking → embedding → indexing → completed` 流转
+- [x] 最终状态为 `completed`
 
 > **预计处理时间：** 小文件（<50KB）约 5-30 秒，取决于 Embedding API 性能。
 
@@ -1083,12 +1083,12 @@ Authorization: Bearer <admin_token>
 
 **验证点：**
 
-- [ ] `process_status` = "completed"
-- [ ] `source_type` = 2（文档上传）
-- [ ] `content` 包含文档解析后的文本
-- [ ] `word_count` > 0
-- [ ] `file_type` = "md"
-- [ ] `minio_path` 非空（文件已存储到 MinIO）
+- [x] `process_status` = "completed"
+- [x] `source_type` = 2（文档上传）
+- [x] `content` 包含文档解析后的文本
+- [x] `word_count` > 0
+- [x] `file_type` = "md"
+- [x] `minio_path` 非空（文件已存储到 MinIO）
 
 ### 9.6 异常文件上传测试
 
@@ -1123,9 +1123,9 @@ Content-Type: application/json
 
 **验证点：**
 
-- [ ] 返回 `code=0`
-- [ ] `data.session_id` 返回会话 ID（记为 `session_id`）
-- [ ] `data.kb_id` = 1
+- [x] 返回 `code=0`
+- [x] `data.session_id` 返回会话 ID（记为 `session_id`）
+- [x] `data.kb_id` = 1
 
 ### 10.2 发送消息（SSE 流式）
 

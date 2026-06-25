@@ -118,6 +118,70 @@ func (h *ChatHandler) SubmitFeedback(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// SubmitMessageFeedback 提交单条消息的反馈（点赞/倒赞）。
+//
+// POST /api/v1/portal/chat-sessions/:id/messages/:msgId/feedback
+//
+// 与会话级反馈不同，本端点针对单条 AI 回答进行反馈，
+// 支持 0（取消）/1（有帮助）/2（无帮助）。
+func (h *ChatHandler) SubmitMessageFeedback(c *gin.Context) {
+	idStr := c.Param("id")
+	sessionID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的会话 ID")
+		return
+	}
+
+	msgIDStr := c.Param("msgId")
+	messageID, err := strconv.ParseInt(msgIDStr, 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的消息 ID")
+		return
+	}
+
+	var req request.SubmitFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+
+	userID, _ := getCurrentUserID(c)
+	if err := h.svc.SubmitMessageFeedback(c.Request.Context(), messageID, sessionID, userID, req.Feedback); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// AnalyzeFeedback 触发 LLM 分析反馈数据，输出知识盲区报告。
+//
+// POST /api/v1/admin/feedback/analyze
+// Body: {"days": 30} — 分析最近 N 天的反馈样本（默认 30，上限 365）。
+func (h *ChatHandler) AnalyzeFeedback(c *gin.Context) {
+	var req struct {
+		Days int `json:"days"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req.Days = 30
+	}
+	if req.Days <= 0 {
+		req.Days = 30
+	}
+	if req.Days > 365 {
+		response.Error(c, errcode.ErrParam, "天数不能超过365")
+		return
+	}
+
+	result, err := h.svc.AnalyzeFeedback(c.Request.Context(), req.Days)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"analysis": result})
+}
+
 // GetChatDetail 查询问答会话详情（含归属校验）。
 //
 // GET /api/v1/portal/chat-sessions/:id
@@ -206,7 +270,7 @@ func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 		}
 		writeSSEEvent(c.Writer, evt)
 		flusher.Flush()
-		// 每次写入后延长写超时，保证长 SSE 流不被 WriteTimeout 截断
-		rc.SetWriteDeadline(time.Now().Add(30 * time.Second))
+		// 每次写入后延长写超时（300s = 5 分钟），适应 llama.cpp CPU 推理的长等待场景
+		rc.SetWriteDeadline(time.Now().Add(300 * time.Second))
 	}
 }

@@ -20,6 +20,7 @@ func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.DELETE("/chat-sessions/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.DeleteSession }))
 	rg.POST("/chat-sessions/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.StreamChatMessage }))
 	rg.POST("/chat-sessions/:id/feedback", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.SubmitFeedback }))
+	rg.POST("/chat-sessions/:id/messages/:msgId/feedback", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.SubmitMessageFeedback }))
 
 	// 申告管理
 	rg.POST("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateTicket }))

@@ -109,8 +109,13 @@ services:
     networks:
       - opsmind
 
-  # LLM 推理（Qwen3-4B Q4_K_M, ~2.5GB, CPU-only, ctx=8192）
+  # LLM 推理（Qwen3-4B Q4_K_M, ~2.5GB, CPU-only）
   # 需先手动下载模型：make model-download
+  #
+  # 内存不足时调整方案：
+  #   1. 减 ctx-size：2048（省 ~500MB）→ 1024（省 ~1GB）
+  #   2. 换更小模型：Qwen3-1.7B-Q4_K_M（~1.1GB）
+  #   3. 关闭 flash-attn：去掉 --flash-attn（省 ~200MB）
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp
@@ -119,6 +124,7 @@ services:
       resources:
         limits:
           cpus: "4"
+          memory: 4g
     ports:
       - "8081:8081"
     volumes:
@@ -135,7 +141,7 @@ services:
       - "--threads"
       - "4"
       - "--ctx-size"
-      - "4096"
+      - "${OPSMIND_LLM_CTX_SIZE:-4096}"
       - "--flash-attn"
       - "on"
       - "--parallel"

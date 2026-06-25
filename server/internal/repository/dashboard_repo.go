@@ -49,6 +49,16 @@ func (r *DashboardRepo) AvgTodayConfidence(ctx context.Context) (float64, error)
 	return avg, err
 }
 
+// CountFeedbackByType 按反馈类型统计 chat_messages 表中的反馈数。
+// feedbackType: 1=有帮助, 2=无帮助。
+func (r *DashboardRepo) CountFeedbackByType(ctx context.Context, feedbackType int16) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(
+		"SELECT COUNT(*) FROM chat_messages WHERE feedback = ?", feedbackType,
+	).Scan(&count).Error
+	return count, err
+}
+
 func (r *DashboardRepo) CountKnowledgeArticles(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Raw("SELECT COUNT(*) FROM knowledge_articles").Scan(&count).Error

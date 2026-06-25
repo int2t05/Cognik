@@ -36,26 +36,44 @@ type KnowledgeCandidateSaver interface {
 	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error)
 }
 
+// FeedbackMarker 隐式反馈标记接口——申告创建后自动标记相关 AI 回答为"无帮助"。
+//
+// 为什么放在 TicketService 而非 ChatService：
+// "用户看完 AI 回答后提交申告"是申告上下文中的隐式反馈信号，
+// TicketService 拥有 ChatContext 信息，是最自然的触发点。
+type FeedbackMarker interface {
+	MarkLastAssistantUnhelpful(ctx context.Context, sessionID int64) error
+}
+
 // TicketService 申告管理服务。
 type TicketService struct {
-	repo              *repository.TicketRepo
-	txManager         TxManager
-	msgSvc            *MessageService
+	repo               *repository.TicketRepo
+	txManager          TxManager
+	msgSvc             *MessageService
 	knowledgeCandidate KnowledgeCandidateSaver
+	feedbackMarker     FeedbackMarker
 }
 
 // NewTicketService 创建 TicketService 实例。
 //
 // knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
+// feedbackMarker 为隐式反馈标记接口，ChatService 隐式满足该接口。
 // 所有依赖在构造时注入，对象始终处于有效状态。
-func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver) *TicketService {
-	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate}
+func NewTicketService(repo *repository.TicketRepo, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+	return &TicketService{repo: repo, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
 }
 
 // SetKnowledgeCandidate 延迟注入知识候选保存接口。
 // 仅用于集成测试等需要两阶段构造的场景。
 func (s *TicketService) SetKnowledgeCandidate(kc KnowledgeCandidateSaver) {
 	s.knowledgeCandidate = kc
+}
+
+// SetFeedbackMarker 延迟注入隐式反馈标记接口。
+// ChatService 创建在 TicketService 之后（因依赖 LLMService），
+// 通过 Setter 解决构造顺序问题。
+func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
+	s.feedbackMarker = fm
 }
 
 // =============================================================================
@@ -123,7 +141,20 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		Source:          model.TicketSourcePortal,
 	}
 
-	return s.repo.Create(ctx, ticket)
+	if err := s.repo.Create(ctx, ticket); err != nil {
+		return err
+	}
+
+	// 隐式反馈：用户提交申告意味着 AI 回答未能解决其问题，
+// 若带有 ChatContext 则自动标记对应会话的最后一条 AI 消息为"无帮助"。
+// 失败不影响申告创建（非关键路径），仅记录日志。
+if req.ChatContext != nil && req.ChatContext.SessionID > 0 && s.feedbackMarker != nil {
+	if err := s.feedbackMarker.MarkLastAssistantUnhelpful(ctx, req.ChatContext.SessionID); err != nil {
+		slog.Warn("隐式反馈标记失败（申告已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
+	}
+}
+
+return nil
 }
 
 // =============================================================================

@@ -270,7 +270,7 @@ func wireApp() (*app, error) {
 
 	// TicketService 依赖 KnowledgeService 的 CreateArticle（知识候选），
 	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
-	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, knowledgeService)
+	ticketService := service.NewTicketService(ticketRepo, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
 	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
@@ -307,8 +307,11 @@ func wireApp() (*app, error) {
 		MultiRoute:   cfg.AI.RAGMultiRoute,
 		Hybrid:       cfg.AI.RAGHybrid,
 		Rerank:       cfg.AI.RAGRerank,
-	}, configService)
+	}, configService, auditRepo)
 	slog.Info("ChatService 已初始化")
+
+	// 将 ChatService 作为隐式反馈标记器注入 TicketService（申告创建 → AI 回答自动标记）
+	ticketService.SetFeedbackMarker(chatService)
 
 	auditService := service.NewAuditService(auditRepo)
 
