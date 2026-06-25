@@ -82,3 +82,4 @@ web/playwright-report/
 
 # === 重排序模型（cross-encoder ~80MB，已入库以便开箱即用） ===
 # 模型文件随 download.py 一起提交，首次 clone 即可运行 rerank_server.py
+__pycache__/

@@ -83,11 +83,12 @@ func NewOpenAIClient(baseURL, apiKey string, timeout time.Duration) (*OpenAIClie
 // =============================================================================
 
 type openAICompletionRequest struct {
-	Model       string        `json:"model"`
-	Messages    []ChatMessage `json:"messages"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	Temperature float64       `json:"temperature,omitempty"`
-	Stream      bool          `json:"stream"`
+	Model              string         `json:"model"`
+	Messages           []ChatMessage  `json:"messages"`
+	MaxTokens          int            `json:"max_tokens,omitempty"`
+	Temperature        float64        `json:"temperature,omitempty"`
+	Stream             bool           `json:"stream"`
+	ChatTemplateKwargs map[string]any `json:"chat_template_kwargs,omitempty"`
 }
 
 type openAICompletionResponse struct {
@@ -113,6 +114,10 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 	body := openAICompletionRequest{
 		Model: req.Model, Messages: req.Messages, MaxTokens: req.MaxTokens,
 		Temperature: req.Temperature, Stream: false,
+		// 禁用思考模式：llama.cpp 的 Qwen3 模型默认输出推理链（"好的，首先..."），
+		// 污染查询改写/多路检索等管道步骤。chat_template_kwargs 是 llama.cpp 特有参数，
+		// OpenAI/DeepSeek 等 API 会忽略此字段。
+		ChatTemplateKwargs: map[string]any{"enable_thinking": false},
 	}
 
 	respBody, err := c.doRequest(ctx, "/chat/completions", body)
@@ -129,24 +134,14 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 		return nil, fmt.Errorf("LLM 返回空 choices")
 	}
 
-	// 思考模型（Qwen3/DeepSeek-R1）的响应字段语义：
-	//   reasoning_content = 模型的思考/推理过程（"好的，用户问的是..."）
-	//   content           = 实际回答（改写后的查询语句）
-	//
-	// 为什么优先 reasoning_content：
-	// Qwen3 等模型启用思考模式时，llama.cpp 将推理链放在 content 字段，
-	// 将实际回答放在 reasoning_content 字段（与 OpenAI 命名惯例相反）。
-	// 当 reasoning_content 非空时优先取它——这是模型的"最终回答"。
-	// 当 reasoning_content 为空时取 content（非思考模式或旧版模型），
-	// 并依赖上层的 stripThinkingPrefix 做后处理。
+	// 思考模式已通过 chat_template_kwargs 禁用，content 即为实际回答。
+	// reasoning_content 作为兜底：部分旧版 llama.cpp 可能将回答放在此处。
 	content := apiResp.Choices[0].Message.Content
-	reasoning := apiResp.Choices[0].Message.ReasoningContent
-	if reasoning != "" {
-		content = reasoning
+	if content == "" {
+		content = apiResp.Choices[0].Message.ReasoningContent
 	}
 	slog.Info("LLM 同步调用完成", "model", req.Model, "tokens", apiResp.Usage.TotalTokens,
-		"latency_ms", time.Since(start).Milliseconds(),
-		"content_len", len(content), "reasoning_len", len(reasoning))
+		"latency_ms", time.Since(start).Milliseconds(), "content_len", len(content))
 	return &ChatResponse{
 		Content:      content,
 		FinishReason: apiResp.Choices[0].FinishReason,
