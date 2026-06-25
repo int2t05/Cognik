@@ -41,7 +41,7 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, query string, count 
 	}
 
 	systemMsg := fmt.Sprintf(
-		"从不同角度将用户问题扩展为 %d 个互补的子查询。输出格式：JSON 字符串数组。不要输出任何其他内容。",
+		"你是运维场景的查询扩展助手。将用户问题从不同角度拆解为 %d 个互补子查询。\n\n规则：\n1. 每个子查询覆盖不同运维维度（操作步骤、错误排查、配置方法、权限问题）\n2. 子查询之间互补而非重复\n3. 只输出 JSON 字符串数组，例：[\"查询1\",\"查询2\"]",
 		count,
 	)
 	userMsg := fmt.Sprintf("原始查询：%s", query)

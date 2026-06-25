@@ -232,29 +232,24 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		}
 
 		// 判断是否需要发送降级提示
-ragDisabled := opts.DisableRetrieval
-		ragEmpty := len(chunks) == 0
-		if ragDisabled || ragEmpty {
-			notice := ragNoResultNotice
-			if ragDisabled {
-				notice = ragDisabledNotice
+			ragDisabled := opts.DisableRetrieval
+			ragEmpty := len(chunks) == 0
+			if ragDisabled || ragEmpty {
+				var notice string
+				if ragDisabled {
+					notice = ragDisabledNotice
+				} else {
+					notice = ragNoResultNotice
+				}
+				s.sendNoticeToken(ctx, eventCh, notice)
+				sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+					Answer:          "当前未找到足够匹配的知识，无法生成回答。",
+					Confidence:      0,
+					CanSubmitTicket: true,
+					DurationMS:      int(time.Since(start).Milliseconds()),
+				}})
+				return
 			}
-			s.sendNoticeToken(ctx, eventCh, notice)
-			s.sendNoticeToken(ctx, eventCh, notice)
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-				Answer:          "当前未找到足够匹配的知识，无法生成回答。",
-				Confidence:      0,
-				CanSubmitTicket: true,
-				DurationMS:      int(time.Since(start).Milliseconds()),
-			}})
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-				Answer:          "当前未找到足够匹配的知识，无法生成回答。",
-				Confidence:      0,
-				CanSubmitTicket: true,
-				DurationMS:      int(time.Since(start).Milliseconds()),
-			}})
-			return
-		}
 
 		// Step 2: LLM 流式生成
 		if s.getLLMClient() == nil {
@@ -399,7 +394,7 @@ func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64
 // history 按滑动窗口截断（maxHistoryMessages 控制），避免长对话超出上下文窗口。
 // 系统提示词优先使用 LLM 配置中的 SystemPrompt，为空时回退到默认提示词。
 func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string, history []adapter.ChatMessage) []adapter.ChatMessage {
-	systemPrompt := "你是一个运维知识助手。根据以下知识库内容回答用户问题。如果知识库中没有相关信息，请如实说明。回答时引用知识库内容必须使用 [编号] 标注来源，例如 [1]、[2]。"
+	systemPrompt := "你是企业运维知识助手，仅根据下方「知识库内容」回答用户问题。\n\n规则：\n1. 引用知识时必须用 [编号] 标注来源，例如 [1]、[2]\n2. 知识库中有答案 → 基于原文回答，不要编造细节\n3. 知识库中无相关信息 → 回复「当前知识库未收录此问题，建议提交申告由运维人员处理」\n4. 回答简洁，优先列表/步骤形式，不要闲聊"
 	if s.configMgr != nil {
 		if cfg := s.configMgr.GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
 			systemPrompt = cfg.SystemPrompt

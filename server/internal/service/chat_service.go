@@ -594,7 +594,7 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
 	model, maxTokens := s.llmService.getModelConfig()
 	resp, err := client.ChatCompletion(ctx, adapter.ChatRequest{
 		Messages: []adapter.ChatMessage{
-			{Role: "system", Content: "你是运维知识库质量分析师。只输出 JSON，不要任何解释。"},
+			{Role: "system", Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
 			{Role: "user", Content: prompt},
 		},
 		Model:       model,
