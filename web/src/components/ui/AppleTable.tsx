@@ -36,7 +36,7 @@ export function AppleTable<T extends Record<string, any>>({
 
   return (
     <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] overflow-x-auto">
-      <table className="w-full border-collapse text-body">
+      <table className="w-full border-collapse text-callout">
         <thead>
           <tr>
             {columns.map((col) => (
@@ -73,7 +73,7 @@ export function AppleTable<T extends Record<string, any>>({
             data.map((row) => (
               <tr key={getKey(row)} className="hover:bg-[var(--color-pearl)] transition-colors duration-150">
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-body">
+                  <td key={col.key} className="px-4 py-3 border-b border-[var(--color-divider-soft)] text-[var(--color-ink)] text-callout">
                     {col.render ? col.render(row) : String(row[col.key] ?? '')}
                   </td>
                 ))}

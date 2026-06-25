@@ -14,7 +14,7 @@ export function InlineError({ message = '加载失败，请刷新重试', onRetr
       {onRetry && (
         <button
           onClick={onRetry}
-          className="underline cursor-pointer border-0 bg-transparent text-[var(--color-error)] hover:opacity-70 transition"
+          className="underline cursor-pointer border-0 bg-transparent text-[var(--color-error)] hover:opacity-70 transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] rounded"
         >
           重试
         </button>

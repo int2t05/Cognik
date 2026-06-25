@@ -30,37 +30,38 @@ interface AppleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 // ── 变体样式映射 ──────────────────────────────────────────────
-// 大按钮（pill / pillOutline / danger）：17px body / 11×22px padding / 18px icon
-// 小按钮（ghost / utility）：14px caption / 7×15px padding / 16px icon
+// 大按钮（pill / pillOutline / danger）：17px body / 12×24px padding / 18px icon — 44px 最小触摸目标
+// 小按钮（ghost / utility）：14px caption / 8×16px padding / 16px icon
+// menu：15px callout / 10×20px padding / 18px icon — 确保导航栏触摸目标 ≥ 44px
 
 const variantMeta: Record<ButtonVariant, {
   base: string;
   iconSize: number;
 }> = {
   pill: {
-    base: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-pill)] text-body py-[11px] px-[22px]',
+    base: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-pill)] text-body py-3 px-6',
     iconSize: 18,
   },
   pillOutline: {
-    base: 'bg-transparent text-[var(--color-accent)] rounded-[var(--radius-pill)] text-body py-[11px] px-[22px] border border-[var(--color-accent)]',
+    base: 'bg-transparent text-[var(--color-accent)] rounded-[var(--radius-pill)] text-body py-3 px-6 border border-[var(--color-accent)]',
     iconSize: 18,
   },
   danger: {
-    base: 'bg-[var(--color-error)] text-white rounded-[var(--radius-pill)] text-body py-[11px] px-[22px]',
+    base: 'bg-[var(--color-error)] text-white rounded-[var(--radius-pill)] text-body py-3 px-6',
     iconSize: 18,
   },
   ghost: {
-    base: 'bg-transparent text-[var(--color-accent)] rounded-[var(--radius-pill)] text-caption py-[7px] px-[15px]',
+    base: 'bg-transparent text-[var(--color-accent)] rounded-[var(--radius-pill)] text-caption py-2 px-4',
     iconSize: 16,
   },
   menu: {
     // 菜单/导航 chrome 专用：无色（不抢眼），文字为 ink 而非 accent blue。
-    // 比 ghost 更大的尺寸，确保侧栏和顶栏导航触控区域充裕。
-    base: 'bg-transparent text-[var(--color-ink)] rounded-[var(--radius-pill)] text-callout py-[9px] px-[18px]',
+    // touch target: icon 18px + padding 10×2 = 38px + 文字行高 ≈ 44px+
+    base: 'bg-transparent text-[var(--color-ink)] rounded-[var(--radius-pill)] text-callout py-[10px] px-5',
     iconSize: 18,
   },
   utility: {
-    base: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] rounded-[var(--radius-pill)] text-caption py-[7px] px-[15px] border border-[var(--color-divider-soft)]',
+    base: 'bg-[var(--color-pearl)] text-[var(--color-text-muted-80)] rounded-[var(--radius-pill)] text-caption py-2 px-4 border border-[var(--color-divider-soft)]',
     iconSize: 16,
   },
 };
@@ -80,13 +81,13 @@ export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
     const classes = [
       // 公共基础：flex 居中、无衬线、不可选中、过渡动画、微交互、焦点环、禁用态
       'inline-flex items-center justify-center font-sans font-normal whitespace-nowrap select-none',
-      'transition-all duration-150 active:scale-95',
+      'transition-[transform,opacity,background-color,color,box-shadow] duration-150 active:scale-95',
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]',
       'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100',
       // 按文本/纯图标自动适配间距
       hasChildren ? 'gap-2' : '',
-      // 纯图标模式：44×44px 最小触摸目标
-      isIconOnly ? 'p-[13px]' : '',
+      // 纯图标模式：最小 44×44px 触摸目标（Apple HIG）
+      isIconOnly ? 'p-[14px]' : '',
       meta.base,
       className,
     ].filter(Boolean).join(' ');

@@ -72,7 +72,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
             <p className="text-fine text-[var(--color-text-muted-48)]">切换账号</p>
           </div>
 
-          <div className="max-h-[280px] overflow-y-auto">
+          <div className="max-h-[280px] overflow-y-auto overscroll-behavior-contain">
             {accounts.length === 0 ? (
               <p className="px-4 py-6 text-caption text-[var(--color-text-muted-48)] text-center">
                 暂无历史账号
@@ -84,7 +84,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                   <button
                     key={a.username}
                     onClick={() => handleSwitch(a)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption ${expired ? 'opacity-50' : ''}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] ${expired ? 'opacity-50' : ''}`}
                   >
                     <span className="w-8 h-8 rounded-full bg-[var(--color-accent)]/10 flex items-center justify-center text-caption font-semibold text-[var(--color-accent)] shrink-0">
                       {a.realName?.[0] || a.username?.[0] || '?'}
@@ -95,19 +95,16 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                         {a.username}{expired ? ' · 已过期' : ''}
                       </span>
                     </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         removeAccount(a.username);
                       }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); removeAccount(a.username); } }}
                       aria-label={`移除 ${a.username}`}
-                      className="p-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition"
+                      className="p-1 border-0 bg-transparent cursor-pointer text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] rounded-full"
                     >
                       <Trash2 size={14} />
-                    </span>
+                    </button>
                   </button>
                 );
               })

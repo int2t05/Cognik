@@ -35,16 +35,13 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[var(--color-parchment)]">
       <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
         <div className="flex items-center gap-8">
-          <span
-            role="button"
-            tabIndex={0}
+          <button
             aria-label="返回首页"
             onClick={() => router.push('/portal/chat')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/portal/chat'); } }}
-            className="text-headline font-semibold text-[var(--color-ink)] cursor-pointer border-0 bg-transparent"
+            className="text-headline font-semibold text-[var(--color-ink)] cursor-pointer border-0 bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] rounded active:scale-95 transition-transform"
           >
             {appName || 'OpsMind'}
-          </span>
+          </button>
           <nav className="flex gap-2">
             {NAV_ITEMS.map((item) => {
               // 严格匹配：/portal/tickets 匹配自身和 /portal/tickets/123，但不匹配 /portal/tickets/new
@@ -63,7 +60,9 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                     variant="menu"
                     icon={item.icon}
                     onClick={() => router.push(item.path)}
+                    spanClassName="hidden lg:inline"
                     className={active ? '!bg-[var(--color-divider-soft)] font-semibold' : ''}
+                    aria-current={active ? 'page' : undefined}
                   >
                     {item.label}
                   </AppleButton>

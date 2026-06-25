@@ -42,7 +42,7 @@ export function AppleDialog({
             animation: `${open ? 'dialog-in' : 'dialog-out'} 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
           } as React.CSSProperties}
         >
-          <Dialog.Title className="px-6 pt-5 pb-2 text-title font-semibold text-[var(--color-ink)]">
+          <Dialog.Title className="px-6 pt-5 pb-2 text-body font-semibold text-[var(--color-ink)]">
             {title}
           </Dialog.Title>
           {description && (

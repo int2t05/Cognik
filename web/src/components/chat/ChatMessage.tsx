@@ -208,7 +208,7 @@ export function ChatMessage({
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
               disabled={feedbackLoading}
               aria-label={feedback === 1 ? '取消有帮助' : '有帮助'}
-              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
+              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition active:scale-95 ${
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
@@ -220,7 +220,7 @@ export function ChatMessage({
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
               disabled={feedbackLoading}
               aria-label={feedback === 2 ? '取消无帮助' : '无帮助'}
-              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
+              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition active:scale-95 ${
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'

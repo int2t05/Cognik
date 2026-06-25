@@ -148,15 +148,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-[var(--color-parchment)]">
       <aside
-        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] shadow-[var(--shadow-sidebar)] transition-[width] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="flex flex-col fixed left-0 top-0 bottom-0 z-[var(--z-nav)] bg-[var(--color-canvas)] border-r border-[var(--color-hairline)] transition-[width] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ width: sidebarWidth }}
       >
         <div className={`flex items-center gap-3 px-4 py-4 border-b border-[var(--color-divider-soft)] overflow-hidden ${collapsed ? 'justify-center' : ''}`}>
           <Image src="/icon.svg" alt="" width={28} height={28} className="shrink-0" />
-          {!collapsed && <span className="text-headline font-semibold text-[var(--color-ink)] truncate">{appName || 'OpsMind'}</span>}
+          {!collapsed && <span className="text-title font-semibold text-[var(--color-ink)] truncate">{appName || 'OpsMind'}</span>}
         </div>
 
-        <nav className="flex-1 py-2 overflow-y-auto">
+        <nav className="flex-1 py-2 overflow-y-auto overscroll-behavior-contain" aria-label="主导航">
           {mounted ? menuTree.map((m) => renderMenuItem(m)) : (
             <div className="flex justify-center py-6">
               <div className="w-5 h-5 border-2 border-[var(--color-divider-soft)] border-t-[var(--color-accent)] rounded-full animate-spin" />

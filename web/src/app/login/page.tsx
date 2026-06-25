@@ -88,7 +88,7 @@ export default function LoginPage() {
           <div className="mb-5">
             <Image src="/icon.svg" alt={displayName} width={56} height={56} className="mx-auto" priority />
           </div>
-          <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-2">
+          <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">
             {displayName}
           </h1>
           <p className="text-title text-[var(--color-text-muted-48)]">

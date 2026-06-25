@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: `${getAppName()} — 运维数字员工`,
   description: 'AI 驱动的企业运维智能助手',
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  other: { 'viewport': 'width=device-width, initial-scale=1, viewport-fit=cover' },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&display=swap"
           rel="stylesheet"
         />
       </head>

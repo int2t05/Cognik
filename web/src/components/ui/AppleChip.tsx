@@ -29,13 +29,13 @@ interface AppleChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const sizeMeta: Record<'sm' | 'md', { base: string; iconSize: number }> = {
   sm: {
-    // 对齐 AppleButton ghost 的 padding/字号，用于表单内密集排列的角色/权限芯片
-    base: 'text-caption py-[7px] px-[15px] gap-1.5',
+    // 对齐 AppleButton ghost 的 padding/字号，8px 网格 + 44px 最小触摸目标
+    base: 'text-caption py-2 px-4 gap-1.5',
     iconSize: 14,
   },
   md: {
-    // 对齐 AppleButton pill 的 padding/字号，用于筛选栏/预设按钮
-    base: 'text-body py-[11px] px-[22px] gap-2',
+    // 对齐 AppleButton pill 的 padding/字号，12×24px 内边距
+    base: 'text-body py-3 px-6 gap-2',
     iconSize: 16,
   },
 };

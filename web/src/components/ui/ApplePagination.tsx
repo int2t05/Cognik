@@ -27,7 +27,7 @@ export function ApplePagination({
     <div className="flex items-center justify-between py-4 text-caption text-[var(--color-text-muted-48)]">
       <span>共 {total} 条</span>
 
-      <div className="flex items-center bg-foreground rounded-md p-2 gap-2">
+      <div className="flex items-center bg-[var(--color-canvas)] rounded-[var(--radius-md)] p-2 gap-2">
         <PageBtn disabled={page <= 1} onClick={() => onChange(page - 1, pageSize)} aria-label="上一页">
           <ChevronLeft size={16} />
         </PageBtn>
@@ -87,7 +87,8 @@ function PageBtn({
       onClick={onClick}
       disabled={disabled}
       {...rest}
-      className={`px-4 h-8 flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition active:scale-95 ${
+      aria-current={active ? 'page' : undefined}
+      className={`px-4 min-h-[44px] flex items-center justify-center text-caption rounded-[var(--radius-pill)] border-0 font-sans cursor-pointer transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] ${
         active
           ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
           : 'text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)]'

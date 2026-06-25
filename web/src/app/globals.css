@@ -2,23 +2,29 @@
 
 /* ===== Tailwind v4 Theme — 统一设计 Token ===== */
 @theme {
-  /* 字号层级 — 对齐 Apple HIG：正文 17px 是 Apple 品牌阅读节奏的核心 */
-  --font-size-hero: 48px;
-  --font-size-display: 40px;
-  --font-size-headline: 28px;
-  --font-size-title: 21px;
-  --font-size-body: 17px;
-  --font-size-callout: 15px;
-  --font-size-caption: 14px;
-  --font-size-fine: 12px;
+  /* 字号层级 — 对齐 Apple HIG：正文 17px 是 Apple 品牌阅读节奏的核心。
+     使用 rem 单位以响应用户浏览器默认字号设置（WCAG 1.4.4 / Apple Dynamic Type）。 */
+  --font-size-hero: 3.5rem;
+  --font-size-display: 2.5rem;
+  --font-size-display-md: 2.125rem;
+  --font-size-headline: 1.75rem;
+  --font-size-lead-airy: 1.5rem;
+  --font-size-title: 1.3125rem;
+  --font-size-body: 1.0625rem;
+  --font-size-callout: 0.9375rem;
+  --font-size-caption: 0.875rem;
+  --font-size-fine: 0.75rem;
+  --font-size-micro: 0.625rem;
 
   /* 指标卡数值专用 — 介于 headline 和 title 之间 */
-  --font-size-metric: 32px;
+  --font-size-metric: 2rem;
 
   /* 行高 — 严格对齐 Apple HIG */
   --line-height-hero: 1.07;
   --line-height-display: 1.10;
+  --line-height-display-md: 1.12;
   --line-height-headline: 1.14;
+  --line-height-lead-airy: 1.18;
   --line-height-title: 1.19;
   --line-height-body: 1.47;
   --line-height-callout: 1.4;
@@ -34,12 +40,10 @@
   --spacing-xxl: 48px;
 
   /* 内容区最大宽度 */
-  --max-w-wide: 1600px;
+  --max-w-wide: 1200px;
   --max-w-content: 800px;
   --max-w-form: 640px;
 
-  /* 语义色 — 对齐 shadcn/ui 配色方案 */
-  --color-foreground: var(--color-canvas);
 }
 
 /* ===== OpsMind Apple Design Tokens ===== */
@@ -95,7 +99,7 @@
   --focus-ring: 0 0 0 3px rgba(0, 102, 204, 0.12);
 
   /* 布局尺寸 */
-  --header-height: 48px;
+  --header-height: 44px;
 
   /* 圆角 */
   --radius-sm: 8px;
@@ -103,10 +107,8 @@
   --radius-lg: 18px;
   --radius-pill: 9999px;
 
-  /* 阴影 */
+  /* 阴影 — Apple HIG 仅保留产品级阴影，不给卡片/按钮/侧栏加阴影 */
   --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.15);
-  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover: 0 2px 12px rgba(0, 0, 0, 0.08);
 
   /* z-index 层级 — 统一散落的 z-40/50/100/1000/9999 */
   --z-nav: 50;
@@ -132,9 +134,9 @@
   --color-ink: #f5f5f7;
   --color-text-body: #f5f5f7;
   --color-text-muted-80: #cccccc;
-  --color-text-muted-48: #999999; /* WCAG AA 4.5:1 on #1d1d1f */
+  --color-text-muted-48: #a0a0a0; /* WCAG AA ~4.8:1 on #1d1d1f，较浅色主题略亮以补偿暗色环境对比度感知 */
   --color-divider-soft: rgba(255, 255, 255, 0.08);
-  --color-hairline: rgba(255, 255, 255, 0.12);
+  --color-hairline: rgba(255, 255, 255, 0.15);
 
   /* 徽章语义色 — 暗色主题 */
   --badge-success-bg: rgba(52, 199, 89, 0.15);
@@ -151,8 +153,6 @@
   /* 聚焦环 — 暗色主题用更亮的辉光，确保对比度 */
   --focus-ring: 0 0 0 3px rgba(41, 151, 255, 0.35);
   --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.4);
-  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.2);
-  --shadow-card-hover: 0 2px 12px rgba(0, 0, 0, 0.25);
 
   /* 叠加层遮罩色 */
   --color-overlay: rgba(0, 0, 0, 0.5);
@@ -169,6 +169,11 @@ body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 安全区域 — iOS Safari 刘海屏 / 底栏适配 */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* ===== Apple 签名：标题负 letter-spacing ===== */
@@ -181,11 +186,6 @@ h3, .text-headline { letter-spacing: -0.01em; }
 *:focus-visible {
   outline: 2px solid var(--color-accent-focus);
   outline-offset: 2px;
-}
-
-/* ===== 按钮 active 微交互 ===== */
-button:active:not(:disabled) {
-  transform: scale(0.95);
 }
 
 /* ===== input/select/textarea 基础 ===== */
@@ -261,7 +261,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-.skeleton {
+.skeleton-shimmer {
   background: linear-gradient(
     90deg,
     var(--color-divider-soft) 25%,
@@ -270,5 +270,4 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-lg);
 }
