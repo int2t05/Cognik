@@ -55,8 +55,9 @@
   --color-parchment: #f5f5f7;
   --color-pearl: #fafafc;
 
-  /* 暗色瓦片 */
-  --color-tile-1: #272729;
+  /* 瓦片色 — 浅色主题：介于画布和羊皮纸之间的微妙层次 */
+  --color-tile-1: #f0f0f2;
+  --color-tile-2: #e5e5ea;
 
   /* 文字 */
   --color-ink: #1d1d1f;
@@ -126,7 +127,8 @@
   --color-canvas: #1d1d1f;
   --color-parchment: #1c1c1e;
   --color-pearl: #2a2a2c;
-  --color-tile-1: #222223;
+  --color-tile-1: #2a2a2c;
+  --color-tile-2: #333336;
   --color-ink: #f5f5f7;
   --color-text-body: #f5f5f7;
   --color-text-muted-80: #cccccc;

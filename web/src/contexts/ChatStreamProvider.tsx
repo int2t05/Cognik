@@ -83,7 +83,20 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
         let skip = false;
         patch(id, s => { if (evt.seq <= s.lastSeq) { skip = true; return s; } return { ...s, lastSeq: evt.seq }; });
         if (skip) continue;
-        if (evt.type === 'step') { ensureAssistant(); patch(id, s => ({ ...s, currentStep: evt.label, pipelineSteps: [...s.pipelineSteps, { id: evt.id, label: evt.label }] })); }
+        if (evt.type === 'step') {
+          ensureAssistant();
+          patch(id, s => ({
+            ...s,
+            currentStep: evt.label,
+            pipelineSteps: [
+              ...s.pipelineSteps.map((step, i) =>
+                // 上一步完成 → 标记为成功（流式中实时着色）
+                i === s.pipelineSteps.length - 1 ? { ...step, success: true } : step
+              ),
+              { id: evt.id, label: evt.label },
+            ],
+          }));
+        }
         else if (evt.type === 'token') {
           // token 先写入内存缓冲区 acc，通过 rAF 批处理合并为一次 React 渲染。
           // 每个 rAF 周期内多次 setState 合并为一次，消除逐 token 渲染的性能灾难。

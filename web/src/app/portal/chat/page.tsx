@@ -330,7 +330,7 @@ export default function ChatPage() {
               <div className="grid gap-2 w-full max-w-[480px]">
                 {SUGGESTIONS.map((s, i) => (
                   <button key={i} onClick={() => handleSend(s.text)}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-tile-1)] rounded-xl hover:bg-[var(--color-tile-2)] active:scale-[0.98] transition cursor-pointer">
+                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] rounded-xl hover:bg-[var(--color-tile-1)] active:scale-[0.98] transition cursor-pointer">
                     <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
                     {s.text}
                   </button>
