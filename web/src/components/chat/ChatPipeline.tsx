@@ -51,13 +51,13 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
             const s = stepsMap.get(id);
             const isLast = i === arr.length - 1;
 
-            // 颜色：成功=绿 / 失败=红 / 当前=蓝 / 未知=灰
+            // 颜色统一蓝色系：成功=蓝 / 失败=红 / 当前=蓝+spinner / 未知=灰
             let bg = 'bg-[var(--color-text-muted-48)]/40';
             let textColor = 'text-[var(--color-text-muted-48)]';
             let icon: React.ReactNode = null;
             if (s?.success === true) {
-              bg = 'bg-[var(--color-success)]/20';
-              textColor = 'text-[var(--color-success)]';
+              bg = 'bg-[var(--color-accent)]/15';
+              textColor = 'text-[var(--color-accent)]';
               icon = <Check size={10} />;
             } else if (s?.success === false) {
               bg = 'bg-[var(--color-error)]/20';

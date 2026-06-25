@@ -160,10 +160,13 @@ export function useChatStream(
               switch (evt.type) {
                 case 'step':
                   setCurrentStep(evt.label);
-                  setPipelineSteps((prev) => [
-                    ...prev,
-                    { id: evt.id, label: evt.label },
-                  ]);
+                  setPipelineSteps((prev) => {
+                    // 上一步完成 → 标记为成功（流式中实时着色）
+                    const updated = prev.map((s, i) =>
+                      i === prev.length - 1 ? { ...s, success: true as const } : s
+                    );
+                    return [...updated, { id: evt.id, label: evt.label }];
+                  });
                   break;
 
                 case 'token':
