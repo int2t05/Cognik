@@ -98,7 +98,7 @@ export const AppleButton = forwardRef<HTMLButtonElement, AppleButtonProps>(
         {/* 非 loading 态：显示 icon（如有） */}
         {!loading && sizedIcon}
         {/* 文字内容：loading 时降低透明度给出视觉反馈 */}
-        {hasChildren && <span className={loading ? 'opacity-70' : '' + spanClassName}>{children}</span>}
+        {hasChildren && <span className={[loading ? 'opacity-70' : '', spanClassName].filter(Boolean).join(' ')}>{children}</span>}
       </button>
     );
   },

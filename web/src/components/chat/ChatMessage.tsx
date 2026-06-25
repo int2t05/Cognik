@@ -35,8 +35,8 @@ function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
       role="button" tabIndex={0}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onClick(); } }}
-      title={`查看来源 [${n}]`}
-      className="inline-flex items-center justify-center w-5 h-5 mx-0.5 text-fine font-semibold rounded-full bg-[var(--color-accent)]/12 text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/25 transition align-middle border-0"
+      title={`查看来源 ${n}`}
+      className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1 mx-0.5 text-fine font-semibold rounded-full bg-[var(--color-accent)]/10 text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/20 active:scale-95 transition align-middle border-0"
     >
       {n}
     </span>
@@ -100,7 +100,7 @@ export function ChatMessage({
         {/* 召回来源 — 与 LLM 上下文 [N] 编号 1:1 对应 */}
         {sources && sources.length > 0 && (
           <div className={`mt-2 pt-2 border-t ${isUser ? 'border-[var(--color-on-accent)]/20' : 'border-[var(--color-divider-soft)]'}`}>
-            <div className={`text-fine font-semibold mb-1.5 ${isUser ? 'text-[var(--color-on-accent)]/60' : 'text-[var(--color-text-muted-48)]'}`}>📎 参考资料</div>
+            <div className={`text-fine font-medium mb-1.5 ${isUser ? 'text-[var(--color-on-accent)]/60' : 'text-[var(--color-text-muted-48)]'}`}>来源</div>
             {sources.map((s, i) => (
               <details key={i} className="mb-1 group" ref={(el) => { sourceRefs.current[i] = el; }}>
                 <summary className={`flex items-center gap-1 text-fine cursor-pointer ${isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-48)]'} hover:text-[var(--color-ink)]`}>
@@ -129,34 +129,30 @@ export function ChatMessage({
         )}
 
         {isAi && !isStreaming && !!sessionId && !!onFeedback && (
-          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--color-divider-soft)]">
+          <div className="flex items-center gap-0.5 mt-3">
             <button
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
               disabled={feedbackLoading}
               aria-label={feedback === 1 ? '取消有帮助' : '有帮助'}
-              title={feedback === 1 ? '取消' : '回答有帮助'}
               className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsUp size={12} />
-              <span className="hidden sm:inline">有帮助</span>
+              <ThumbsUp size={14} />
             </button>
             <button
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
               disabled={feedbackLoading}
               aria-label={feedback === 2 ? '取消无帮助' : '无帮助'}
-              title={feedback === 2 ? '取消' : '回答没有帮助'}
               className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition ${
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
               } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
             >
-              <ThumbsDown size={12} />
-              <span className="hidden sm:inline">无帮助</span>
+              <ThumbsDown size={14} />
             </button>
           </div>
         )}

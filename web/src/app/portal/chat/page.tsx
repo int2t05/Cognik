@@ -258,8 +258,8 @@ export default function ChatPage() {
                         role="button" tabIndex={0}
                         onClick={() => handleSelectSession(s.id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectSession(s.id); } }}
-                        className={`w-full text-left px-2 py-2.5 rounded-[var(--radius-pill)] text-caption transition-colors cursor-pointer ${
-                          isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-divider-soft)]'
+                        className={`w-full text-left px-2 py-2.5 rounded-xl text-caption transition cursor-pointer ${
+                          isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
                         }`}
                       >
                         <div className="flex items-start gap-2">
@@ -299,7 +299,7 @@ export default function ChatPage() {
       {/* 主区域 */}
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
         {/* 精简顶栏：侧栏切换 + 居中标题 */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-divider-soft)] bg-[var(--color-canvas)]">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'}
             className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] text-[var(--color-text-muted-48)] transition shrink-0 border-0 bg-transparent cursor-pointer">
             {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
@@ -330,7 +330,7 @@ export default function ChatPage() {
               <div className="grid gap-2 w-full max-w-[480px]">
                 {SUGGESTIONS.map((s, i) => (
                   <button key={i} onClick={() => handleSend(s.text)}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-pill)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 transition cursor-pointer">
+                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-tile-1)] rounded-xl hover:bg-[var(--color-tile-2)] active:scale-[0.98] transition cursor-pointer">
                     <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
                     {s.text}
                   </button>

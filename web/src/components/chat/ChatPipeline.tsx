@@ -79,10 +79,9 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
           return (
             <div key={id} className="flex items-stretch gap-2.5">
               {/* 圆点 + 竖线 */}
-              <div className="flex flex-col items-center shrink-0" style={{ width: 20 }}>
+              <div className="flex flex-col items-center shrink-0 w-5">
                 <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-500 ${dotBg}`}
-                  style={{ marginTop: 1 }}
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-500 mt-px ${dotBg}`}
                 >
                   {dotContent}
                 </div>

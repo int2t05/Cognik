@@ -46,9 +46,9 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             <button
               onClick={onStop}
               aria-label="停止生成"
-              className="flex items-center justify-center w-11 h-11 rounded-[var(--radius-pill)] bg-[var(--color-error)] text-[var(--color-on-accent)] border-0 cursor-pointer transition hover:opacity-90 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)]"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-text-muted-48)]/15 text-[var(--color-text-muted-48)] border-0 cursor-pointer transition hover:bg-[var(--color-text-muted-48)]/25 active:scale-95"
             >
-              <Square size={16} fill="currentColor" />
+              <Square size={14} fill="currentColor" />
             </button>
           ) : (
             <AppleButton

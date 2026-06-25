@@ -36,9 +36,9 @@ export function AppleDialog({
         />
         {/* 内容：缩放+淡入组合 */}
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)]"
+          className={`fixed left-1/2 top-1/2 z-[calc(var(--z-dialog)+1)] max-h-[85vh] max-w-[90vw] overflow-y-auto rounded-[var(--radius-lg)] bg-[var(--color-canvas)] shadow-[var(--shadow-dialog)] ${width ? '' : 'w-[calc(100vw-32px)] sm:w-[440px]'}`}
           style={{
-            width,
+            width: width || undefined,
             animation: `${open ? 'dialog-in' : 'dialog-out'} 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
           } as React.CSSProperties}
         >
