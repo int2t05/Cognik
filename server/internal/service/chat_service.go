@@ -229,7 +229,8 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 func (s *ChatService) runGeneration(gctx context.Context, sessionID, msgID int64, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) {
 	defer s.hub.Finish(sessionID)
 
-	llmEvents, err := s.llmService.StreamChat(gctx, question, kbID, opts, history)
+	enableThinking := s.readBool("ai.enable_thinking", false)
+	llmEvents, err := s.llmService.StreamChat(gctx, question, kbID, opts, history, enableThinking)
 	if err != nil {
 		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: err.Error()})
 		s.failAssistant(msgID)

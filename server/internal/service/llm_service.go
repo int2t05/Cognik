@@ -214,7 +214,7 @@ const (
 //  3. LLM 不可用 → 返回固定降级语句
 //
 // history 为多轮对话历史，在 RAG 上下文前注入。
-func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) (<-chan StreamEvent, error) {
+func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage, enableThinking bool) (<-chan StreamEvent, error) {
 	eventCh := make(chan StreamEvent, 100)
 
 	go func() {
@@ -263,10 +263,11 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 		messages := s.buildMessages(chunks, question, history)
 		model, maxTokens := s.getModelConfig()
 		tokenCh, llmErr := s.getLLMClient().ChatCompletionStream(ctx, adapter.ChatRequest{
-			Messages:    messages,
-			Model:       model,
-			MaxTokens:   maxTokens,
-			Temperature: 0.3,
+			Messages:       messages,
+			Model:          model,
+			MaxTokens:      maxTokens,
+			Temperature:    0.3,
+			EnableThinking: enableThinking,
 		})
 		if llmErr != nil {
 			// LLM 不可用 → 降级固定回复

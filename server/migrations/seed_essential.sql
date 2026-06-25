@@ -90,7 +90,8 @@ INSERT INTO system_configs (key, value, description, updated_by, updated_at) VAL
 ('ai.rag_query_rewrite',    'true',      'RAG 查询改写开关',                    1, NOW()),
 ('ai.rag_multi_route',      'true',      'RAG 多路检索开关',                    1, NOW()),
 ('ai.rag_hybrid',           'true',      'RAG BM25 混合检索开关',               1, NOW()),
-('ai.rag_rerank',           'true',      'RAG 重排序开关',                      1, NOW());
+('ai.rag_rerank',           'true',      'RAG 重排序开关',                      1, NOW()),
+('ai.enable_thinking',      'false',     '流式回答启用思考模式（推理链提升质量但延迟 5-10x）', 1, NOW());
 
 -- =============================================================================
 -- LLM 配置

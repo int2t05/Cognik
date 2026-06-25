@@ -25,10 +25,11 @@ type LLMClient interface {
 
 // ChatRequest 对话请求。
 type ChatRequest struct {
-	Model       string        `json:"model"`
-	Messages    []ChatMessage `json:"messages"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	Temperature float64       `json:"temperature,omitempty"`
+	Model          string        `json:"model"`
+	Messages       []ChatMessage `json:"messages"`
+	MaxTokens      int           `json:"max_tokens,omitempty"`
+	Temperature    float64       `json:"temperature,omitempty"`
+	EnableThinking bool          `json:"-"` // 流式回答是否启用思考模式（同步调用始终关闭）
 }
 
 // ChatMessage 对话消息。
@@ -166,13 +167,19 @@ func (c *OpenAIClient) ChatCompletionStream(ctx context.Context, req ChatRequest
 		Model: req.Model, Messages: req.Messages, MaxTokens: req.MaxTokens,
 		Temperature: req.Temperature, Stream: true,
 	}
+	// 流式调用根据请求决定是否启用思考；默认关闭
+	if req.EnableThinking {
+		body.ChatTemplateKwargs = nil // 不传 = 使用模型默认（启用思考）
+	} else {
+		body.ChatTemplateKwargs = map[string]any{"enable_thinking": false}
+	}
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("序列化流式请求失败: %w", err)
 	}
 
-	slog.Info("LLM 流式调用开始", "model", req.Model)
+	slog.Info("LLM 流式调用开始", "model", req.Model, "enable_thinking", req.EnableThinking)
 
 	// 流式请求支持 429/503 重试
 	var resp *http.Response

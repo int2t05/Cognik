@@ -19,6 +19,7 @@ const CONFIG_KEYS = [
   'ai.rag_multi_route',
   'ai.rag_hybrid',
   'ai.rag_rerank',
+  'ai.enable_thinking',
 ];
 
 type ConfigRowProps = { label: string; configKey: string; value: unknown; type?: 'text' | 'bool'; onSaved: () => void };
@@ -99,6 +100,9 @@ export default function SystemConfigPage() {
         <ConfigRow label="多路检索" configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
         <ConfigRow label="BM25 混合检索" configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
         <ConfigRow label="重排序" configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
+
+        <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
+        <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
       </AppleCard>
     </div>
   );

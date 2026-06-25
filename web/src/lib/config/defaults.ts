@@ -15,6 +15,7 @@ export const SYSTEM_CONFIG_DEFAULTS = {
   'ai.rag_multi_route': true,
   'ai.rag_hybrid': true,
   'ai.rag_rerank': true,
+  'ai.enable_thinking': false,
 } as const;
 
 export type SystemConfigKey = keyof typeof SYSTEM_CONFIG_DEFAULTS;
