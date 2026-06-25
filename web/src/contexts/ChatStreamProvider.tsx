@@ -33,6 +33,8 @@ interface Store {
        onError: (m: string) => void): Promise<number | null>;
   resume(id: number, since: number, token: string): void;
   cancel(id: number): Promise<void>;
+  /** 设置当前认证 token — send/resume 在 token 为空时回退到此值 */
+  setToken: (t: string | null) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -51,6 +53,8 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   const rafRefs = useRef<Record<number, number | null>>({});
   // reasoning 和 token 需要独立 rAF 槽位——共用会导致互相覆盖
   const reasoningRafRefs = useRef<Record<number, number | null>>({});
+  // token ref — 外部可通过 setToken 设置，send/resume 自动读取，免除调用方逐次传递
+  const tokenRef = useRef<string | null>(null);
 
   const patch = useCallback((id: number, f: (s: SessionStream) => SessionStream) => {
     setStreams((prev) => {
@@ -157,24 +161,26 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => patch(id, s => ({ ...s, messages: msgs, lastSeq: -1 })), [patch]);
 
   const send: Store['send'] = useCallback(async (sessionId, kbId, question, token, onError) => {
+    const authToken = token || tokenRef.current;
     let sid = sessionId;
     if (!sid) { const r = await createSession(kbId, question.slice(0, 50)); sid = r.session_id; }
     patch(sid, s => ({ ...s, lastSeq: -1, pipelineSteps: [], messages: [...s.messages, { id: `u-${Date.now()}`, role: 'user', content: question, createdAt: new Date().toISOString() }] }));
     const ctrl = new AbortController(); controllers.current[sid] = ctrl;
     try {
-      const resp = await fetch(streamUrl(sid), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ question }), signal: ctrl.signal });
+      const resp = await fetch(streamUrl(sid), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ question }), signal: ctrl.signal });
       await consume(sid, resp, onError);
     } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { onError(e.message || '请求失败'); patch(sid!, s => ({ ...s, status: 'error' })); } }
     return sid;
   }, [patch, consume]);
 
   const resume: Store['resume'] = useCallback(async (id, since, token) => {
+    const authToken = token || tokenRef.current;
     const ctrl = new AbortController(); controllers.current[id] = ctrl;
     try {
-      const resp = await fetch(resumeUrl(id, since), { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
-      if (resp.status === 404) return; // 无活跃生成
+      const resp = await fetch(resumeUrl(id, since), { headers: { Authorization: `Bearer ${authToken}` }, signal: ctrl.signal });
+      if (resp.status === 404) return;
       await consume(id, resp);
-    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { /* 续传失败静默，详情已有完整消息 */ } }
+    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { /* 续传失败静默 */ } }
   }, [consume]);
 
   const cancel: Store['cancel'] = useCallback(async (id) => {
@@ -192,5 +198,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
     });
   }, [patch]);
 
-  return <Ctx.Provider value={{ getStream, setMessages, send, resume, cancel }}>{children}</Ctx.Provider>;
+  const setToken = useCallback((t: string | null) => { tokenRef.current = t; }, []);
+
+  return <Ctx.Provider value={{ getStream, setMessages, send, resume, cancel, setToken }}>{children}</Ctx.Provider>;
 }

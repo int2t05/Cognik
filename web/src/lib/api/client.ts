@@ -1,6 +1,7 @@
 /** API 客户端 — fetch 封装 + 统一错误处理 + 类型安全响应解包。 */
 
 import type { ApiResponse, PageResponse } from './types';
+import { defaultTokenGetter, clearAuth } from '@/lib/token-store';
 
 // 开发模式直接连后端（绕过 Next.js rewrite，避免 Turbopack POST 代理 500）
 // 生产模式通过 NEXT_PUBLIC_API_URL 配置
@@ -8,16 +9,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (
   typeof window !== 'undefined' ? 'http://localhost:8080' : ''
 );
 
-// 模块级 token getter，默认从 localStorage 直接读取。
-// AuthProvider 仍可通过 setTokenGetter 覆盖（如 login/logout 后立即生效），
-// 但默认行为不依赖 AuthProvider 调用时序，避免 HMR 模块重置导致丢失。
-let _tokenGetter: () => string | null = () => {
-  try {
-    const stored = localStorage.getItem('auth');
-    if (stored) return JSON.parse(stored).token || null;
-  } catch { /* SSR / permission denied */ }
-  return null;
-};
+// 模块级 token getter — 默认通过 token-store 读取 localStorage，
+// AuthProvider 挂载后可通过 setTokenGetter 切换为 React state 驱动。
+let _tokenGetter: () => string | null = defaultTokenGetter;
 
 /**
  * setTokenGetter 设置用于自动附加 Authorization header 的 token getter。
@@ -94,7 +88,7 @@ async function rawApiRequest(url: string, options?: RequestInit): Promise<Record
   if (json.code !== 0) {
     // token 过期或无效 → 清除认证状态，跳转登录（避免在 login 页重定向循环）
     if (json.code === 10001 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      localStorage.removeItem('auth');
+      clearAuth();
       document.cookie = 'access_token=; path=/; max-age=0';
       document.cookie = 'refresh_token=; path=/; max-age=0';
       window.location.href = '/login';

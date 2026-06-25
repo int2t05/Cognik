@@ -4,9 +4,9 @@
  * 与 useAccountSwitcher hook 共享同一 localStorage key 和过期策略。
  */
 
-const STORAGE_KEY = 'opsmind-accounts';
-const MAX_ACCOUNTS = 5;
-const EXPIRE_MS = 7 * 24 * 3600 * 1000; // 7 天
+export const STORAGE_KEY = 'opsmind-accounts';
+export const MAX_ACCOUNTS = 5;
+export const EXPIRE_MS = 7 * 24 * 3600 * 1000; // 7 天
 
 export interface SavedAccount {
   username: string;

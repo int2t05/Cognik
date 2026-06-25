@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from 'react';
 import { setTokenGetter } from '@/lib/api/client';
+import { readAuth, writeAuth } from '@/lib/token-store';
+import type { StoredAuth } from '@/lib/token-store';
 
 interface User {
   id: number;
@@ -52,20 +54,15 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function loadAuthState(): AuthState {
-  if (typeof window === 'undefined') {
-    return { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false };
+  const stored = readAuth();
+  if (stored) {
+    return { ...stored, menus: (stored.menus || []) as Menu[], isLoggedIn: !!stored.token };
   }
-  try {
-    const stored = localStorage.getItem('auth');
-    if (stored) return JSON.parse(stored);
-  } catch { /* ignore */ }
   return { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false };
 }
 
 function persistAuth(state: AuthState) {
-  try {
-    localStorage.setItem('auth', JSON.stringify(state));
-  } catch { /* ignore */ }
+  writeAuth(state as StoredAuth);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -5,6 +5,7 @@ import { PageTitle } from '@/components/shared/PageTitle';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
@@ -13,9 +14,10 @@ import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { useToast } from '@/hooks/useToast';
 import { formatDate } from '@/lib/date';
-import { UserPlus, Pencil, Lock, Unlock, Trash2, X } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -23,39 +25,22 @@ export default function UserListPage() {
   const debouncedKeyword = useDebounce(keyword, 300);
   const { data, error, mutate } = useSWR(`users-${page}-${debouncedKeyword}`, () => getUserList(page, debouncedKeyword));
   const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
+  const items = data?.items || [];
+
+  // 批量选择 — 使用共享 hook
+  const batch = useBatchSelection({
+    items,
+    batchDeleteFn: batchDeleteUsers,
+    onMutate: () => mutate(),
+    onError: (msg) => toast.error(msg),
+  });
+
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<{ id: number; real_name: string; phone: string; email: string } | null>(null);
   const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '', role_ids: [] as number[] });
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
   const toast = useToast();
-
-  // 批量选择
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const items = data?.items || [];
-  const toggleSelect = (id: number) => setSelectedIds((prev) => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-  const selectAll = () => {
-    if (selectedIds.size === items.length && items.length > 0) setSelectedIds(new Set());
-    else setSelectedIds(new Set(items.map((t) => t.id)));
-  };
-  const clearSelection = () => setSelectedIds(new Set());
-  const handleBatchDelete = async () => {
-    setDeleting(true);
-    try {
-      await batchDeleteUsers([...selectedIds]);
-      toast.success(`已删除 ${selectedIds.size} 个用户`);
-      clearSelection();
-      mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
-    finally { setDeleting(false); setConfirmDelete(false); }
-  };
-
   const roles = rolesData?.items || [];
 
   const handleSave = async () => {
@@ -86,23 +71,17 @@ export default function UserListPage() {
     setEditUser({ id: r.id, real_name: r.real_name, phone: r.phone, email: r.email });
     setForm({ username: '', password: '', real_name: r.real_name, phone: r.phone, email: r.email || '', role_ids: [] });
     setShowCreate(true);
-    // 异步获取用户详情中的角色列表，映射为 role_ids 回填表单
     try {
       const detail = await getUserDetail(r.id);
       const roleIds = detail.roles
         .map(name => roles.find(role => role.name === name)?.id)
         .filter((id): id is number => id !== undefined);
       setForm(prev => ({ ...prev, role_ids: roleIds }));
-    } catch { /* 角色列表预填失败时不阻塞编辑对话框 */ }
+    } catch { /* 角色预填失败不阻塞编辑 */ }
   };
 
   const toggleRole = (roleId: number) => {
-    setForm(prev => ({
-      ...prev,
-      role_ids: prev.role_ids.includes(roleId)
-        ? prev.role_ids.filter(id => id !== roleId)
-        : [...prev.role_ids, roleId],
-    }));
+    setForm(prev => ({ ...prev, role_ids: prev.role_ids.includes(roleId) ? prev.role_ids.filter(id => id !== roleId) : [...prev.role_ids, roleId] }));
   };
 
   return (
@@ -110,13 +89,7 @@ export default function UserListPage() {
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
           <PageTitle>用户管理</PageTitle>
-          {selectedIds.size > 0 && (
-            <span className="inline-flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--color-divider-soft)]">
-              <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong></span>
-              <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除</AppleButton>
-              <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
-            </span>
-          )}
+          <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
         <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
       </div>
@@ -124,13 +97,7 @@ export default function UserListPage() {
       <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
         columns={[
-          { key: '_check', title: (
-            <input type="checkbox" checked={items.length > 0 && selectedIds.size === items.length} onChange={selectAll}
-              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
-          ), render: (r) => (
-            <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)}
-              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
-          ), width: '44px' },
+          { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
           { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
           { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
@@ -141,7 +108,7 @@ export default function UserListPage() {
           </div> },
         ]}
         data={items} loading={!data && !error} rowKey="id"
-        emptyText={debouncedKeyword ? `未找到与“${debouncedKeyword}”匹配的用户` : '暂无用户'}
+        emptyText={debouncedKeyword ? `未找到与"${debouncedKeyword}"匹配的用户` : '暂无用户'}
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
@@ -155,16 +122,8 @@ export default function UserListPage() {
           <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
           <div className="flex flex-wrap gap-2">
             {roles.map(role => (
-              <AppleChip
-                key={role.id}
-                selected={form.role_ids.includes(role.id)}
-                onClick={() => toggleRole(role.id)}
-                role="checkbox"
-                aria-checked={form.role_ids.includes(role.id)}
-                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}
-              >
-                {role.name}
-              </AppleChip>
+              <AppleChip key={role.id} selected={form.role_ids.includes(role.id)} onClick={() => toggleRole(role.id)} role="checkbox" aria-checked={form.role_ids.includes(role.id)}
+                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}>{role.name}</AppleChip>
             ))}
           </div>
         </div>
@@ -175,10 +134,13 @@ export default function UserListPage() {
         message={confirmFreeze?.freeze ? `确定要冻结用户 ${confirmFreeze?.username} 吗？冻结后将无法登录。` : `确定要恢复用户 ${confirmFreeze?.username} 吗？`}
         onConfirm={handleFreeze} confirmLabel={confirmFreeze?.freeze ? '冻结' : '恢复'} danger={confirmFreeze?.freeze} />
 
-      <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete}
+      <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
         title="批量删除用户"
-        message={`确定要删除 ${selectedIds.size} 个用户吗？此操作不可撤销。`}
-        onConfirm={handleBatchDelete} loading={deleting} danger confirmLabel="删除" />
+        message={`确定要删除 ${batch.selectedIds.size} 个用户吗？此操作不可撤销。`}
+        onConfirm={async () => {
+          await batch.handleBatchDelete();
+          toast.success(`已删除用户`);
+        }} loading={batch.deleting} danger confirmLabel="删除" />
     </div>
   );
 }

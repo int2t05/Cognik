@@ -1,88 +1,81 @@
 /**
- * ChatPage — 智能问答：可折叠侧栏会话 + 居中对话区 + 建议卡片欢迎态。
+ * ChatPage — 智能问答：侧栏会话 + 对话区 + 建议卡片欢迎态。
+ *
+ * 重构后：编排层仅 ~160 行，会话管理委托给 useChatSessions，
+ * 滚动逻辑委托给 useAutoScroll，UI 委托给 ChatMessage/ChatInput/ChatPipeline 组件。
  */
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
-import { getSessionList, getChatDetail, deleteSession, submitMessageFeedback, createSession, updateSession } from '@/lib/api/chat';
+import { submitMessageFeedback, createSession } from '@/lib/api/chat';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useConfigValue } from '@/hooks/useAppConfig';
-import { useChatStreamStore, type ChatMessage as ChatMsg } from '@/contexts/ChatStreamProvider';
+import { useChatStreamStore } from '@/contexts/ChatStreamProvider';
 import { isTokenExpired } from '@/lib/auth';
+import { useChatSessions } from '@/hooks/useChatSessions';
+import type { ApiChatMessage } from '@/hooks/useChatSessions.types';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatPipeline } from '@/components/chat/ChatPipeline';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
-/** 建议问题卡片 */
 const SUGGESTIONS = [
   { icon: <Search size={16} />, text: '如何重置 VPN 密码？' },
   { icon: <Lightbulb size={16} />, text: 'Outlook 无法收发邮件怎么办？' },
   { icon: <FileQuestion size={16} />, text: '公司无线网络怎么连接？' },
 ];
 
-interface ApiChatMessage {
-  id: number;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  sources?: { doc_name: string; chunk_content: string; confidence: number }[];
-  confidence?: number; confidence_raw?: number; confidence_level?: string;
-  feedback?: number;
-  status?: string;
-  created_at: string;
-}
-
 export default function ChatPage() {
   const { token } = useAuth();
   const toast = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: kbs } = useSWR('portal-kbs', getPortalKBList);
-  const { data: sessionsPage, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR(
-    'chat-sessions',
-    () => getSessionList(1),
-  );
-  const sessions = sessionsPage?.items ?? [];
-
-  // URL 持久化：sessionId 写入 ?sid=X，刷新恢复
-  const [sessionId, setSessionIdState] = useState<number | null>(
-    // 直接从 URL 取初始值，消除「先外面再里面」的闪烁
-    () => { const s = searchParams.get('sid'); return s ? Number(s) : null; }
-  );
-
-  const setSessionId = useCallback((sid: number | null) => {
-    setSessionIdState(sid);
-    const params = new URLSearchParams(searchParams.toString());
-    if (sid) { params.set('sid', String(sid)); } else { params.delete('sid'); }
-    const url = `?${params.toString()}`;
-    if (typeof window !== 'undefined') { router.replace(url, { scroll: false }); }
-  }, [router, searchParams]);
-  const [input, setInput] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
-  const [editingSession, setEditingSession] = useState<{ id: number; title: string; kb_id: number } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [creating, setCreating] = useState(false);
-  // 新对话 KB 选择弹窗
-  const [showKBPicker, setShowKBPicker] = useState(false);
-  const [pendingKB, setPendingKB] = useState(0);
-  const [editTitle, setEditTitle] = useState('');
-  const [editKB, setEditKB] = useState(0);
-  const [saving, setSaving] = useState(false);
   const { value: appName } = useConfigValue('app_name');
   const { value: lowT } = useConfigValue('ai.confidence_threshold_low');
   const { value: highT } = useConfigValue('ai.confidence_threshold_high');
 
-  // 动态判定置信度等级（阈值从系统配置读取，管理员修改后所有消息即时生效）
+  // 会话管理 — 委托给专用 hook
+  const {
+    sessions, sessionsLoading, mutateSessions,
+    sessionId, setSessionId,
+    feedbackMap, setFeedbackMap,
+    selectSession, createNewSession, removeSession, editSession,
+  } = useChatSessions({ token });
+
+  const [input, setInput] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [showKBPicker, setShowKBPicker] = useState(false);
+  const [pendingKB, setPendingKB] = useState(0);
+  const [editingSession, setEditingSession] = useState<{ id: number; title: string; kb_id: number } | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editKB, setEditKB] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const defaultKB = (kbs && kbs.length > 0) ? kbs[0].id : 0;
+  const currentTitle = sessionId ? (sessions.find(s => s.id === sessionId)?.question || '对话') : null;
+
+  const store = useChatStreamStore();
+  // 同步 token 到 store，之后 send/resume 无需逐次传递
+  useEffect(() => { store.setToken(token); }, [token, store]);
+  const stream = sessionId ? store.getStream(sessionId) : undefined;
+  const messages = stream?.messages ?? [];
+  const streaming = stream?.status === 'streaming';
+  const pipelineSteps = stream?.pipelineSteps ?? [];
+  const currentStep = stream?.currentStep ?? null;
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
   const getConfLevel = useCallback((raw: number | null | undefined): string => {
     if (raw == null || !Number.isFinite(raw)) return '';
     const ht = Number(highT) || 0.70;
@@ -92,23 +85,7 @@ export default function ChatPage() {
     return 'low';
   }, [lowT, highT]);
 
-  // 默认知识库：列表第一个（建议卡片/直接输入时自动使用）
-  const defaultKB = (kbs && kbs.length > 0) ? kbs[0].id : 0;
-  const currentTitle = sessionId ? (sessions.find(s => s.id === sessionId)?.question || '对话') : null;
-
-  const store = useChatStreamStore();
-  const stream = sessionId ? store.getStream(sessionId) : undefined;
-  const messages = stream?.messages ?? [];
-  const streaming = stream?.status === "streaming";
-  const thinking = stream?.thinking ?? false;
-  const pipelineSteps = stream?.pipelineSteps ?? [];
-  const currentStep = stream?.currentStep ?? null;
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  // 流式对话通常 < 50 条消息，虚拟滚动只有开销没有收益。
-  // 仅在消息数量足够多时才启用虚拟化 — count=0 时虚拟器不执行任何计算。
+  // 虚拟滚动 + 自动滚动
   const enableVirtual = messages.length > 50;
   const rowVirtualizer = useVirtualizer({
     count: enableVirtual ? messages.length + (currentStep ? 1 : 0) : 0,
@@ -117,69 +94,39 @@ export default function ChatPage() {
     overscan: 5,
   });
 
-  useEffect(() => {
-    if (sessionId) inputRef.current?.focus();
-  }, [sessionId]);
+  const { resetScroll } = useAutoScroll({
+    containerRef: listRef,
+    streaming,
+    messageCount: messages.length,
+    currentStep,
+    enableVirtual,
+    rowVirtualizer: enableVirtual ? rowVirtualizer : undefined,
+  });
 
-  // 自动滚到底部：仅当用户已在底部附近（< 120px）或正在流式生成时才跟随。
-  const isNearBottom = useCallback(() => {
-    const el = listRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }, []);
+  useEffect(() => { if (sessionId) inputRef.current?.focus(); }, [sessionId]);
+  useEffect(() => { resetScroll(); }, [sessionId, resetScroll]);
 
-  // 首次加载后强制滚动到底部（刷新页面恢复会话时）。
-  // 后续仅在流式生成中或用户已在底部附近时才跟随。
-  const scrolledRef = useRef(false);
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const shouldScroll = streaming || isNearBottom();
-    if (!shouldScroll && !scrolledRef.current && messages.length > 0) {
-      // 首次加载：强制滚到底部
-      scrolledRef.current = true;
-      el.scrollTop = el.scrollHeight;
-      return;
-    }
-    if (!shouldScroll) return;
-    if (enableVirtual) {
-      if (rowVirtualizer.getTotalSize() > 0) {
-        rowVirtualizer.scrollToIndex(messages.length + (currentStep ? 1 : 0) - 1, { align: 'end' });
-      }
-    } else {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages.length, currentStep, enableVirtual, rowVirtualizer, streaming, isNearBottom]);
-
-  // 切换会话时重置首次滚动标记
-  useEffect(() => { scrolledRef.current = false; }, [sessionId]);
-
+  // 发送消息
   const handleSend = async (text?: string) => {
     const question = (text || input).trim();
     if (!question || !token || isTokenExpired(token)) return;
     setInput('');
 
-    // 无会话时先创建，再发送
     let sid = sessionId;
     if (!sid) {
       const kb = pendingKB || defaultKB;
       if (!kb) { toast.info('请先创建知识库'); return; }
       setCreating(true);
-      try {
-        const r = await createSession(kb, question);
-        sid = r.session_id;
-        setSessionId(sid);
-        setFeedbackMap({});
-        const now = new Date().toISOString();
-        mutateSessions((d) => d ? { ...d, items: [{ id: r.session_id, kb_id: kb, question, last_answer: '', message_count: 0, created_at: now, updated_at: now }, ...(d.items || [])] } : d, false);
-      } catch { toast.error('创建会话失败'); return; }
-      finally { setCreating(false); }
+      const newSid = await createNewSession(kb, question);
+      setCreating(false);
+      if (!newSid) return;
+      sid = newSid;
     }
 
     await store.send(sid, pendingKB || defaultKB || 0, question, token || '', (m) => toast.error(m));
   };
 
-  // 点击"新对话"→ 弹 KB 选择 → 创建空会话
+  // 新对话
   const handleNewChat = () => {
     setSessionId(null);
     setFeedbackMap({});
@@ -187,81 +134,21 @@ export default function ChatPage() {
     setShowKBPicker(true);
   };
 
-  const handleSelectSession = async (id: number) => {
-    if (id === sessionId) return;
-    const prevId = sessionId;
-    setSessionId(id);
-    setFeedbackMap({});
-    try {
-      const detail = await getChatDetail(id);
-      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map((m) => ({
-        id: String(m.id),
-        role: m.role,
-        content: m.content,
-        sources: m.sources,
-        confidence: m.confidence_raw ?? m.confidence,
-        confidence_raw: m.confidence_raw,
-        status: m.status,
-        createdAt: m.created_at,
-        dbId: m.id,
-      }));
-      store.setMessages(id, msgs);
-      const fbMap: Record<string, number> = {};
-      ((detail.messages ?? []) as ApiChatMessage[]).forEach((m) => {
-        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
-      });
-      setFeedbackMap(fbMap);
-      const last = msgs[msgs.length - 1];
-      if (last?.role === "assistant" && last.status === "generating" && token) {
-        store.resume(id, 0, token);
-      }
-    } catch {
-      toast.error('加载会话失败');
-      setSessionId(prevId);
-    }
-  };
-
-  // 页面加载时从 URL 恢复会话消息
-  useEffect(() => {
-    if (!sessionId || sessionsLoading || sessions.length === 0) return;
-    // 已有消息则跳过（store.send 已填充或 handleSelectSession 已加载过）——优先于列表检查
-    if (store.getStream(sessionId)?.messages.length) return;
-    // 会话不在列表中（已删除）→ 清除
-    if (!sessions.some(s => s.id === sessionId)) { setSessionId(null); return; }
-    // 从 API 加载消息
-    getChatDetail(sessionId).then(detail => {
-      const msgs: ChatMsg[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
-        id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence_raw ?? m.confidence, confidence_raw: m.confidence_raw, confidence_level: m.confidence_level,
-        status: m.status, createdAt: m.created_at, dbId: m.id,
-      }));
-      store.setMessages(sessionId, msgs);
-      const fbMap: Record<string, number> = {};
-      ((detail.messages ?? []) as ApiChatMessage[]).forEach(m => {
-        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
-      });
-      setFeedbackMap(fbMap);
-      const last = msgs[msgs.length - 1];
-      if (last?.role === 'assistant' && last.status === 'generating' && token) {
-        store.resume(sessionId, 0, token);
-      }
-    }).catch(() => { setSessionId(null); });
-  }, [sessionId, sessionsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // 删除会话
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteSession(deleteTarget);
-      if (sessionId === deleteTarget) { setSessionId(null); setFeedbackMap({}); }
-      mutateSessions();
+      await removeSession(deleteTarget);
       setDeleteTarget(null);
-      toast.success('会话已删除');
     } catch {
-      toast.error('删除失败');
-    } finally { setDeleting(false); }
+      // removeSession 已 toast 错误，保持对话框打开让用户重试
+    } finally {
+      setDeleting(false);
+    }
   };
 
+  // 反馈
   const handleFeedback = async (_msgId: string, dbId: number, value: number) => {
     if (!sessionId || feedbackLoading || !dbId) return;
     const key = String(dbId);
@@ -271,24 +158,24 @@ export default function ChatPage() {
     setFeedbackMap((m) => ({ ...m, [key]: newValue }));
     try {
       await submitMessageFeedback(sessionId, String(dbId), newValue);
-      // 首次提交弹 toast，取消/重复点击静默
       if (newValue !== 0) toast.success(newValue === 1 ? '感谢反馈' : '感谢反馈，我们会持续改进');
     } catch {
       setFeedbackMap((m) => ({ ...m, [key]: prev }));
     } finally { setFeedbackLoading(false); }
   };
 
+  // 编辑会话
   const handleSaveEdit = async () => {
     if (!editingSession) return;
     setSaving(true);
     try {
-      await updateSession(editingSession.id, { title: editTitle, kb_id: editKB });
-      toast.success('会话已更新');
+      await editSession(editingSession.id, editTitle, editKB);
       setEditingSession(null);
-      mutateSessions();
     } catch {
-      toast.error('更新失败');
-    } finally { setSaving(false); }
+      // editSession 已 toast 错误，保持对话框打开让用户修改重试
+    } finally {
+      setSaving(false);
+    }
   };
 
   const hasMessages = messages.length > 0;
@@ -296,16 +183,9 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
       {/* 侧边栏 */}
-      <aside
-        className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)] transition-all duration-200
-          ${sidebarOpen ? 'w-[240px]' : 'w-0 border-r-0'}
-        `}
-      >
+      <aside className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)] transition-all duration-200 ${sidebarOpen ? 'w-[240px]' : 'w-0 border-r-0'}`}>
         <div className="flex flex-col h-full p-3 w-[240px]">
-          <AppleButton variant="pill" icon={<Plus />} onClick={handleNewChat} className="w-full py-2 mb-2" aria-label="新对话">
-            新对话
-          </AppleButton>
-
+          <AppleButton variant="pill" icon={<Plus />} onClick={handleNewChat} className="w-full py-2 mb-2" aria-label="新对话">新对话</AppleButton>
           <div className="flex-1 overflow-y-auto">
             {sessionsLoading ? (
               <div className="flex justify-center py-6 text-caption text-[var(--color-text-muted-48)]">加载中...</div>
@@ -317,32 +197,16 @@ export default function ChatPage() {
                   const isActive = s.id === sessionId;
                   return (
                     <div key={s.id} className="flex items-center gap-1 group">
-                      <div
-                        role="button" tabIndex={0}
-                        onClick={() => handleSelectSession(s.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectSession(s.id); } }}
-                        className={`flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2 ${
-                          isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
-                        }`}
-                      >
+                      <div role="button" tabIndex={0} onClick={() => selectSession(s.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSession(s.id); } }}
+                        className={`flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2 ${isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'}`}>
                         <MessageSquare size={12} className={`shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
                         <span className="truncate leading-tight">{s.question}</span>
                       </div>
-                      {/* 固定按钮：编辑 + 删除 */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }}
-                        aria-label="编辑会话" title="编辑"
-                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }}
-                        aria-label="删除会话" title="删除"
-                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }} aria-label="编辑会话" title="编辑"
+                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"><Pencil size={12} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }} aria-label="删除会话" title="删除"
+                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"><Trash2 size={12} /></button>
                     </div>
                   );
                 })}
@@ -354,17 +218,12 @@ export default function ChatPage() {
 
       {/* 主区域 */}
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
-        {/* 精简顶栏：侧栏切换 + 居中标题 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-divider-soft)] bg-[var(--color-canvas)]">
           <AppleButton variant="menu" icon={sidebarOpen ? <PanelLeftClose /> : <PanelLeft />} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'} />
-          <span className="flex-1 text-center text-caption text-[var(--color-ink)] font-medium truncate">
-            {currentTitle || `${appName || 'OpsMind'} 智能问答`}
-          </span>
-          {/* 占位保持对称 */}
+          <span className="flex-1 text-center text-caption text-[var(--color-ink)] font-medium truncate">{currentTitle || `${appName || 'OpsMind'} 智能问答`}</span>
           <div className="w-8 h-8 shrink-0" />
         </div>
 
-        {/* 对话区域 */}
         <div ref={listRef} className="flex-1 overflow-y-auto" role="log" aria-live="polite" aria-label="对话消息">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4">
@@ -372,20 +231,14 @@ export default function ChatPage() {
                 <div className="w-16 h-16 rounded-[var(--radius-lg)] bg-[var(--color-accent)]/10 flex items-center justify-center mx-auto mb-5">
                   <Bot size={32} className="text-[var(--color-accent)]" />
                 </div>
-                <h1 className="text-headline font-semibold text-[var(--color-ink)] mb-2">
-                  {'有什么可以帮助你？'}
-                </h1>
-                <p className="text-caption text-[var(--color-text-muted-48)]">
-                  请从左侧发起新对话，或选择已有会话继续
-                </p>
+                <h1 className="text-headline font-semibold text-[var(--color-ink)] mb-2">{'有什么可以帮助你？'}</h1>
+                <p className="text-caption text-[var(--color-text-muted-48)]">请从左侧发起新对话，或选择已有会话继续</p>
               </div>
-
               <div className="grid gap-2 w-full max-w-[480px]">
                 {SUGGESTIONS.map((s, i) => (
                   <button key={i} onClick={() => handleSend(s.text)}
                     className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] rounded-xl hover:bg-[var(--color-tile-1)] active:scale-[0.98] transition cursor-pointer">
-                    <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>
-                    {s.text}
+                    <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>{s.text}
                   </button>
                 ))}
               </div>
@@ -393,41 +246,32 @@ export default function ChatPage() {
           ) : (
             <div className="max-w-[900px] mx-auto px-4 py-4 w-full">
               {enableVirtual ? (
-                /* 虚拟滚动模式（消息数量 > 50 时启用）*/
                 <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
                   {rowVirtualizer.getVirtualItems().map((virtualItem) => {
                     const msg = messages[virtualItem.index];
                     return (
                       <div key={msg.id} data-index={virtualItem.index} className="absolute top-0 left-0 w-full"
                         style={{ transform: `translateY(${virtualItem.start}px)` }} ref={rowVirtualizer.measureElement}>
-                        <ChatMessage
-                          id={msg.id} role={msg.role} content={msg.content}
-                          sources={msg.sources} chunks={msg.chunks} confidence={msg.confidence}
-                          confidence_raw={msg.confidence_raw} confidence_level={getConfLevel(msg.confidence_raw)}
-                          cancelled={msg.cancelled}
+                        <ChatMessage id={msg.id} role={msg.role} content={msg.content} sources={msg.sources} chunks={msg.chunks} confidence={msg.confidence}
+                          confidence_raw={msg.confidence_raw} confidence_level={getConfLevel(msg.confidence_raw)} cancelled={msg.cancelled}
                           isStreaming={msg.role === 'assistant' && streaming && virtualItem.index === messages.length - 1}
                           sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                        question={msg.role === 'assistant' ? (messages[virtualItem.index - 1]?.role === 'user' ? messages[virtualItem.index - 1].content : undefined) : undefined}
-                          onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
-                        />
+                          question={msg.role === 'assistant' ? (messages[virtualItem.index - 1]?.role === 'user' ? messages[virtualItem.index - 1].content : undefined) : undefined}
+                          onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading} />
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                /* 直接渲染模式（流式对话场景，无虚拟化开销）*/
                 <>
                   {messages.map((msg, idx) => (
-                    <ChatMessage
-                      key={msg.id} id={msg.id} role={msg.role} content={msg.content}
+                    <ChatMessage key={msg.id} id={msg.id} role={msg.role} content={msg.content}
                       reasoning={msg.reasoning} sources={msg.sources} chunks={msg.chunks}
                       confidence={msg.confidence} confidence_raw={msg.confidence_raw} confidence_level={getConfLevel(msg.confidence_raw)}
-                      cancelled={msg.cancelled}
-                      isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
+                      cancelled={msg.cancelled} isStreaming={msg.role === 'assistant' && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
-                        question={msg.role === 'assistant' ? (messages[idx - 1]?.role === 'user' ? messages[idx - 1].content : undefined) : undefined}
-                      onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading}
-                    />
+                      question={msg.role === 'assistant' ? (messages[idx - 1]?.role === 'user' ? messages[idx - 1].content : undefined) : undefined}
+                      onFeedback={(v) => handleFeedback(msg.id, msg.dbId || Number(msg.id), v)} feedbackLoading={feedbackLoading} />
                   ))}
                 </>
               )}
@@ -435,49 +279,23 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* RAG 管道步骤 — 固定在输入框下方 */}
         {currentStep && (
           <div className="shrink-0 bg-[var(--color-accent)]/4 border-t border-[var(--color-divider-soft)]">
-            <div className="max-w-[900px] mx-auto w-full">
-              <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />
-            </div>
+            <div className="max-w-[900px] mx-auto w-full"><ChatPipeline currentStep={currentStep} steps={pipelineSteps} /></div>
           </div>
         )}
 
-        {/* 输入栏 — 始终显示，无 KB 时 send 会提示选择 */}
-        <ChatInput
-            ref={inputRef}
-            value={input}
-            onChange={setInput}
-            onSend={() => handleSend()}
-            onStop={() => {
-            if (!sessionId) return;
-            const lastUser = [...messages].reverse().find(m => m.role === 'user');
-            if (lastUser) setInput(lastUser.content);
-            store.cancel(sessionId);
-          }}
-            disabled={streaming}
-            loading={false}
-            streaming={streaming}
-            placeholder="输入问题，按 Enter 发送..."
-          />
+        <ChatInput ref={inputRef} value={input} onChange={setInput} onSend={() => handleSend()}
+          onStop={() => { if (!sessionId) return; const lastUser = [...messages].reverse().find(m => m.role === 'user'); if (lastUser) setInput(lastUser.content); store.cancel(sessionId); }}
+          disabled={streaming} loading={false} streaming={streaming} placeholder="输入问题，按 Enter 发送..." />
       </div>
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="删除会话" message="确定要删除此会话吗？此操作不可撤销。"
-        confirmLabel="删除" onConfirm={handleDelete} loading={deleting} danger
-      />
+      {/* 删除确认 */}
+      <ConfirmDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="删除会话" message="确定要删除此会话吗？此操作不可撤销。" confirmLabel="删除" onConfirm={handleDelete} loading={deleting} danger />
 
-      {/* KB 选择弹窗（新对话时触发）*/}
-      <ConfirmDialog
-        open={showKBPicker}
-        onOpenChange={(open) => !open && setShowKBPicker(false)}
-        title="新建会话"
-        message="选择知识库以创建对话"
-        confirmLabel="创建会话"
-        loading={creating}
+      {/* KB 选择弹窗 */}
+      <ConfirmDialog open={showKBPicker} onOpenChange={(open) => !open && setShowKBPicker(false)} title="新建会话" message="选择知识库以创建对话" confirmLabel="创建会话" loading={creating}
         onConfirm={async () => {
           if (!pendingKB) { toast.info('请选择一个知识库'); return; }
           setCreating(true);
@@ -490,42 +308,21 @@ export default function ChatPage() {
             mutateSessions();
           } catch { toast.error('创建会话失败'); }
           finally { setCreating(false); }
-        }}
-      >
-        <select
-          value={pendingKB}
-          onChange={(e) => setPendingKB(Number(e.target.value))}
-          aria-label="选择知识库"
-          className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
-        >
+        }}>
+        <select value={pendingKB} onChange={(e) => setPendingKB(Number(e.target.value))} aria-label="选择知识库"
+          className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none">
           <option value={0}>请选择知识库...</option>
           {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
         </select>
       </ConfirmDialog>
 
       {/* 编辑会话对话框 */}
-      <ConfirmDialog
-        open={editingSession !== null}
-        onOpenChange={(open) => !open && setEditingSession(null)}
-        title="编辑会话"
-        confirmLabel="保存"
-        onConfirm={handleSaveEdit}
-        loading={saving}
-      >
+      <ConfirmDialog open={editingSession !== null} onOpenChange={(open) => !open && setEditingSession(null)} title="编辑会话" confirmLabel="保存" onConfirm={handleSaveEdit} loading={saving}>
         <div className="flex flex-col gap-3">
-          <input
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            aria-label="会话标题"
-            placeholder="会话标题"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
-          />
-          <select
-            value={editKB}
-            onChange={(e) => setEditKB(Number(e.target.value))}
-            aria-label="知识库"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none"
-          >
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} aria-label="会话标题" placeholder="会话标题"
+            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]" />
+          <select value={editKB} onChange={(e) => setEditKB(Number(e.target.value))} aria-label="知识库"
+            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none">
             <option value={0}>选择知识库...</option>
             {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
           </select>

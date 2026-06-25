@@ -9,21 +9,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from './useAuth';
 import { getUnreadCount } from '@/lib/api/message';
-
-const STORAGE_KEY = 'opsmind-accounts';
-const MAX_ACCOUNTS = 5;
-const EXPIRE_MS = 7 * 24 * 3600 * 1000; // 7 天
-
-export interface SavedAccount {
-  username: string;
-  realName: string;
-  token: string;
-  refreshToken: string;
-  roles: string[];
-  permissions: string[];
-  menus: unknown[];
-  savedAt: number;
-}
+import { STORAGE_KEY, MAX_ACCOUNTS, EXPIRE_MS, type SavedAccount } from '@/lib/account-store';
 
 function loadAccounts(): SavedAccount[] {
   if (typeof window === 'undefined') return [];

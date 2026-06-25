@@ -2,14 +2,16 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { listAllTickets, batchDeleteTickets } from '@/lib/api/ticket';
+import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, Trash2, X } from 'lucide-react';
+import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -32,38 +34,17 @@ export default function AdminTicketListPage() {
   const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}`, () => listAllTickets(page, status));
   const toast = useToast();
 
-  // 批量选择
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const toggleSelect = (id: number) => setSelectedIds((prev) => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-  const selectAll = () => {
-    if (selectedIds.size === items.length && items.length > 0) setSelectedIds(new Set());
-    else setSelectedIds(new Set(items.map((t) => t.id)));
-  };
-  const clearSelection = () => setSelectedIds(new Set());
-  const handleBatchDelete = async () => {
-    setDeleting(true);
-    try {
-      await batchDeleteTickets([...selectedIds]);
-      toast.success(`已删除 ${selectedIds.size} 条申告`);
-      clearSelection();
-      mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
-    finally { setDeleting(false); setConfirmDelete(false); }
-  };
-
-  // 客户端关键词过滤
   const items = (data?.items || []).filter((t: { title?: string; ticket_no?: string; submitter_name?: string }) => {
     if (!debouncedKeyword) return true;
     const kw = debouncedKeyword.toLowerCase();
-    return (t.title?.toLowerCase().includes(kw)) ||
-           (t.ticket_no?.toLowerCase().includes(kw)) ||
-           (t.submitter_name?.toLowerCase().includes(kw));
+    return (t.title?.toLowerCase().includes(kw)) || (t.ticket_no?.toLowerCase().includes(kw)) || (t.submitter_name?.toLowerCase().includes(kw));
+  });
+
+  const batch = useBatchSelection({
+    items,
+    batchDeleteFn: batchDeleteTickets,
+    onMutate: () => mutate(),
+    onError: (msg) => toast.error(msg),
   });
 
   return (
@@ -75,23 +56,11 @@ export default function AdminTicketListPage() {
       <div className="mb-4 flex gap-2 items-center flex-wrap">
         <SearchInput placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="min-w-[100px]" />
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
-        {selectedIds.size > 0 && (
-          <span className="inline-flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--color-divider-soft)]">
-            <span className="text-fine text-[var(--color-text-muted-80)]">已选 <strong>{selectedIds.size}</strong></span>
-            <AppleButton variant="ghost" icon={<Trash2 />} className="text-[var(--color-error)]" onClick={() => setConfirmDelete(true)}>删除</AppleButton>
-            <AppleButton variant="ghost" icon={<X />} onClick={clearSelection}>取消</AppleButton>
-          </span>
-        )}
+        <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
       <AppleTable
         columns={[
-          { key: '_check', title: (
-            <input type="checkbox" checked={items.length > 0 && selectedIds.size === items.length} onChange={selectAll}
-              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
-          ), render: (r) => (
-            <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)}
-              className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]" />
-          ), width: '44px' },
+          { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
           { key: 'ticket_no', title: '编号', render: (r) => <span className="font-[var(--font-mono)] text-fine">{r.ticket_no}</span> },
           { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
           { key: 'submitter_name', title: '提交人' },
@@ -99,15 +68,13 @@ export default function AdminTicketListPage() {
           { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
           { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },
         ]}
-        data={items}
-        loading={!data && !error}
-        rowKey="id"
+        data={items} loading={!data && !error} rowKey="id"
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
-      <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete}
+      <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
         title="批量删除申告"
-        message={`确定要删除 ${selectedIds.size} 条申告吗？此操作不可撤销。`}
-        onConfirm={handleBatchDelete} loading={deleting} danger confirmLabel="删除" />
+        message={`确定要删除 ${batch.selectedIds.size} 条申告吗？此操作不可撤销。`}
+        onConfirm={async () => { await batch.handleBatchDelete(); toast.success('已删除'); }} loading={batch.deleting} danger confirmLabel="删除" />
     </div>
   );
 }
