@@ -374,19 +374,13 @@ export default function ChatPage() {
                   {messages.map((msg, idx) => (
                     <ChatMessage
                       key={msg.id} id={msg.id} role={msg.role} content={msg.content}
-                      sources={msg.sources} confidence={msg.confidence}
+                      reasoning={msg.reasoning} sources={msg.sources} confidence={msg.confidence}
                       isStreaming={msg.role === "assistant" && streaming && idx === messages.length - 1}
                       sessionId={sessionId} feedback={feedbackMap[msg.id] || 0}
                       onFeedback={(v) => handleFeedback(msg.id, Number(msg.id), v)} feedbackLoading={feedbackLoading}
                     />
                   ))}
                   {currentStep && <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />}
-                  {thinking && !currentStep && (
-                    <div className="flex items-center gap-2 px-4 py-2 text-caption text-[var(--color-text-muted-48)]">
-                      <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                      思考中...
-                    </div>
-                  )}
                 </>
               )}
             </div>

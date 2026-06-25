@@ -14,6 +14,7 @@ interface ChatMessageProps {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoning?: string;
   sources?: SourceItem[];
   confidence?: number | null;
   isStreaming: boolean;
@@ -44,7 +45,7 @@ function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
 }
 
 export function ChatMessage({
-  id, role, content, sources, confidence, isStreaming,
+  id, role, content, reasoning, sources, confidence, isStreaming,
   sessionId, feedback = 0, onFeedback, feedbackLoading,
 }: ChatMessageProps) {
   const isUser = role === 'user';
@@ -96,6 +97,20 @@ export function ChatMessage({
           : 'bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       }`}>
         {renderContent()}
+
+        {/* 思考过程 — 可折叠展示 */}
+        {isAi && reasoning && (
+          <details className={`mt-2 group ${isStreaming ? 'open' : ''}`} open={isStreaming || undefined}>
+            <summary className={`text-fine cursor-pointer select-none ${isUser ? 'text-[var(--color-on-accent)]/60' : 'text-[var(--color-text-muted-48)]'} hover:text-[var(--color-ink)]`}>
+              思考过程
+            </summary>
+            <div className={`mt-1.5 pl-3 border-l-2 border-[var(--color-accent)]/20 text-fine leading-relaxed whitespace-pre-wrap ${
+              isUser ? 'text-[var(--color-on-accent)]/70' : 'text-[var(--color-text-muted-80)]'
+            }`}>
+              {reasoning}
+            </div>
+          </details>
+        )}
 
         {/* 召回来源 — 与 LLM 上下文 [N] 编号 1:1 对应 */}
         {sources && sources.length > 0 && (

@@ -12,6 +12,7 @@ import { streamUrl, resumeUrl, cancelGeneration, createSession } from '@/lib/api
 
 export interface ChatMessage {
   id: string; role: 'user' | 'assistant' | 'system'; content: string;
+  reasoning?: string; // 思考过程（思考模式开启时流式累积）
   sources?: { doc_name: string; chunk_content: string; confidence: number }[];
   confidence?: number; status?: string; createdAt: string;
 }
@@ -59,10 +60,13 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
     patch(id, s => ({ ...s, status: 'streaming' }));
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
-    let buf = ''; let acc = '';
+    let buf = ''; let acc = ''; let reasoningAcc = '';
     // flushAcc 将当前累积文本通过 rAF 内 patch 写入 store；无待处理时调用方自行安排。
     const flushAcc = () => {
-      patch(id, s => ({ ...s, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: acc } : m) }));
+      patch(id, s => ({ ...s, thinking: false, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: acc, reasoning: reasoningAcc || m.reasoning } : m) }));
+    };
+    const flushReasoning = () => {
+      patch(id, s => ({ ...s, thinking: true, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, reasoning: reasoningAcc } : m) }));
     };
     const ensureAssistant = () => patch(id, s => {
       const last = s.messages[s.messages.length - 1];
@@ -99,9 +103,15 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           }));
         }
         else if (evt.type === 'reasoning') {
-          // 思考模式内容 — 设置 thinking 状态，前端显示"思考中..."指示器
+          // 思考模式内容 — 流式累积到 reasoning 字段，rAF 批处理渲染
           ensureAssistant();
-          patch(id, s => ({ ...s, thinking: true }));
+          reasoningAcc += evt.content;
+          if (rafRefs.current[id] === null || rafRefs.current[id] === undefined) {
+            rafRefs.current[id] = requestAnimationFrame(() => {
+              rafRefs.current[id] = null;
+              flushReasoning();
+            });
+          }
         }
         else if (evt.type === 'token') {
           // token 先写入内存缓冲区 acc，通过 rAF 批处理合并为一次 React 渲染。
