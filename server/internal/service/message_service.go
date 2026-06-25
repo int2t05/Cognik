@@ -1,11 +1,9 @@
 // Package service 实现站内消息业务逻辑。
 //
-// MessageService 提供消息查询、标记已读、未读计数功能，以及
-// 被 TicketService 调用的 NotifySupplement 方法。
+// MessageService 提供消息查询、标记已读、未读计数功能，
+// 以及被 TicketService / KnowledgeService 调用的各类通知方法。
 //
-// 为什么 NotifySupplement 在 MessageService 而非 TicketService 中：
-// 消息的格式化和写入属于消息领域的职责，TicketService 只需调用
-// NotifySupplement 即可，无需关心消息内容。
+// 通知方法命名约定：Notify<触发事件>，由业务 Service 在处理完成后同步调用。
 package service
 
 import (
@@ -52,34 +50,53 @@ func NewMessageServiceWithCacheTTL(repo *repository.MessageRepo, ttl time.Durati
 }
 
 // =============================================================================
-// NotifySupplement（被 TicketService 调用）
+// 通知方法（被各业务 Service 调用）
 // =============================================================================
 
-// NotifySupplement 通知申告人补充信息。
-//
-// 当 TicketService 执行 request_info 操作时同步调用此方法，
-// 写入一条 type=ticket_supplement 的站内消息。
-// 为什么同步调用而非异步：消息写入是轻量操作（单条 INSERT），
-// 同步执行可保证事务一致性——如果消息创建失败，申告操作也告失败。
-func (s *MessageService) NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
-	content := "您的申告需要补充更多信息，请尽快登录系统查看并补充相关材料。"
-	if ticketTitle != "" {
-		content = fmt.Sprintf("您的申告「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
-	}
+func (s *MessageService) notify(ctx context.Context, userID int64, title, content, msgType, relatedType string, relatedID int64) error {
 	msg := &model.Message{
-		UserID:      userID,
-		Title:       "申告需补充信息",
-		Content:     content,
-		Type:        "ticket_supplement",
-		RelatedType: "ticket",
-		RelatedID:   ticketID,
-		IsRead:      false,
+		UserID: userID, Title: title, Content: content,
+		Type: msgType, RelatedType: relatedType, RelatedID: relatedID, IsRead: false,
 	}
 	if err := s.repo.Create(ctx, msg); err != nil {
 		return err
 	}
 	s.invalidateUnread(userID)
 	return nil
+}
+
+// NotifySupplement 通知申告人补充信息（TicketService.request_info 调用）。
+func (s *MessageService) NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
+	content := "您的申告需要补充更多信息，请尽快登录系统查看并补充相关材料。"
+	if ticketTitle != "" {
+		content = fmt.Sprintf("您的申告「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
+	}
+	return s.notify(ctx, userID, "申告需补充信息", content, "ticket_supplement", "ticket", ticketID)
+}
+
+// NotifyTicketResolved 通知申告人申告已解决（TicketService 状态变更为已解决时调用）。
+func (s *MessageService) NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
+	content := fmt.Sprintf("您的申告「%s」已被标记为已解决，如有疑问请联系运维人员。", ticketTitle)
+	return s.notify(ctx, userID, "申告已解决", content, "ticket_resolved", "ticket", ticketID)
+}
+
+// NotifyTicketClosed 通知申告人申告已关闭（TicketService 状态变更为已关闭时调用）。
+func (s *MessageService) NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
+	content := fmt.Sprintf("您的申告「%s」已被关闭，如有需要请重新提交申告。", ticketTitle)
+	return s.notify(ctx, userID, "申告已关闭", content, "ticket_closed", "ticket", ticketID)
+}
+
+// NotifyKnowledgeReviewed 通知文章作者审核结果（KnowledgeService.Review 调用）。
+func (s *MessageService) NotifyKnowledgeReviewed(ctx context.Context, articleID int64, articleTitle string, userID int64, approved bool, comment string) error {
+	if approved {
+		content := fmt.Sprintf("您的文章「%s」已通过审核，可前往发布。", articleTitle)
+		return s.notify(ctx, userID, "文章审核通过", content, "knowledge_approved", "knowledge_article", articleID)
+	}
+	content := fmt.Sprintf("您的文章「%s」已被驳回", articleTitle)
+	if comment != "" {
+		content += "，原因：" + comment
+	}
+	return s.notify(ctx, userID, "文章被驳回", content, "knowledge_rejected", "knowledge_article", articleID)
 }
 
 // =============================================================================
@@ -126,6 +143,19 @@ func (s *MessageService) MarkAsReadAndCount(ctx context.Context, id int64, userI
 	}
 	s.setCachedUnread(userID, count)
 	return count, nil
+}
+
+// MarkAllRead 将用户所有未读消息标记为已读，返回操作影响的条数。
+func (s *MessageService) MarkAllRead(ctx context.Context, userID int64) (int64, error) {
+	if userID <= 0 {
+		return 0, AppError{Code: errcode.ErrParam, Message: "无效的用户 ID"}
+	}
+	affected, err := s.repo.MarkAllRead(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	s.invalidateUnread(userID)
+	return affected, nil
 }
 
 // CountUnread 查询指定用户的未读消息数。

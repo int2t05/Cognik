@@ -354,9 +354,20 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 	}
 
 	// request_info 成功后同步通知申告人
-	if recordAction == model.TicketActionRequestInfo && s.msgSvc != nil {
-		if notifyErr := s.msgSvc.NotifySupplement(ctx, id, ticket.UserID, ticket.Title); notifyErr != nil {
-			slog.Warn("补充信息通知失败", "ticket_id", id, "user_id", ticket.UserID, "error", notifyErr)
+	if s.msgSvc != nil {
+		switch recordAction {
+		case model.TicketActionRequestInfo:
+			if err := s.msgSvc.NotifySupplement(ctx, id, ticket.UserID, ticket.Title); err != nil {
+				slog.Warn("补充信息通知失败", "ticket_id", id, "error", err)
+			}
+		case model.TicketActionResolve:
+			if err := s.msgSvc.NotifyTicketResolved(ctx, id, ticket.UserID, ticket.Title); err != nil {
+				slog.Warn("已解决通知失败", "ticket_id", id, "error", err)
+			}
+		case model.TicketActionClose:
+			if err := s.msgSvc.NotifyTicketClosed(ctx, id, ticket.UserID, ticket.Title); err != nil {
+				slog.Warn("已关闭通知失败", "ticket_id", id, "error", err)
+			}
 		}
 	}
 

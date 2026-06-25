@@ -99,6 +99,11 @@ type userNameResolver interface {
 	FindByIDs(ctx context.Context, ids []int64) ([]model.User, error)
 }
 
+// knowledgeMsgNotifier 知识库消息通知接口（MessageService 的子集）。
+type knowledgeMsgNotifier interface {
+	NotifyKnowledgeReviewed(ctx context.Context, articleID int64, articleTitle string, userID int64, approved bool, comment string) error
+}
+
 // KnowledgeService 知识库管理服务。
 //
 // 所有依赖使用接口类型，便于测试 mock。
@@ -114,6 +119,7 @@ type KnowledgeService struct {
 	auditRepo             *repository.AuditRepo
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string            // 当前默认嵌入模型名
+	msgSvc                knowledgeMsgNotifier
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -167,6 +173,11 @@ func WithOnKBChanged(fn func(kbID int64)) KnowledgeServiceOption {
 // WithDefaultEmbeddingModel 设置全局默认 embedding 模型（KB 未配置时回退使用）。
 func WithDefaultEmbeddingModel(model string) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.defaultEmbeddingModel = model }
+}
+
+// WithMessageNotifier 注入消息通知服务（审核结果通知文章作者）。
+func WithMessageNotifier(msg knowledgeMsgNotifier) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.msgSvc = msg }
 }
 
 // SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
@@ -464,12 +475,24 @@ func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int6
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅待审核状态可审核"}
 	}
 	if req.Approved {
-		return s.repo.UpdateArticleReview(ctx, id, int(model.ArticleStatusApproved), reviewerID, "")
+		if err := s.repo.UpdateArticleReview(ctx, id, int(model.ArticleStatusApproved), reviewerID, ""); err != nil {
+			return err
+		}
+		if s.msgSvc != nil {
+			_ = s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, true, "")
+		}
+		return nil
 	}
 	if strings.TrimSpace(req.ReviewComment) == "" {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "驳回时必须填写审核意见"}
 	}
-	return s.repo.UpdateArticleReview(ctx, id, int(model.ArticleStatusRejected), reviewerID, req.ReviewComment)
+	if err := s.repo.UpdateArticleReview(ctx, id, int(model.ArticleStatusRejected), reviewerID, req.ReviewComment); err != nil {
+		return err
+	}
+	if s.msgSvc != nil {
+		_ = s.msgSvc.NotifyKnowledgeReviewed(ctx, id, article.Title, article.CreatedBy, false, req.ReviewComment)
+	}
+	return nil
 }
 
 // =============================================================================

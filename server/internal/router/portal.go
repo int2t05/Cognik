@@ -34,6 +34,7 @@ func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 
 	// 站内消息
 	rg.GET("/messages", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.ListMessages }))
-	rg.PUT("/messages/:id/read", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.MarkAsRead }))
+	rg.PUT("/messages/read-all", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.MarkAllRead }))
+		rg.PUT("/messages/:id/read", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.MarkAsRead }))
 	rg.GET("/messages/unread-count", safeHandler(h, func() bool { return h.Message != nil }, func() gin.HandlerFunc { return h.Message.CountUnread }))
 }

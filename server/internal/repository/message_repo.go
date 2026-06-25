@@ -68,6 +68,13 @@ func (r *MessageRepo) MarkAsRead(ctx context.Context, id int64, userID int64) er
 	return nil
 }
 
+func (r *MessageRepo) MarkAllRead(ctx context.Context, userID int64) (int64, error) {
+	res := r.db.WithContext(ctx).Model(&model.Message{}).
+		Where("user_id = ? AND is_read = ?", userID, false).
+		Update("is_read", true)
+	return res.RowsAffected, res.Error
+}
+
 func (r *MessageRepo) CountUnread(ctx context.Context, userID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Message{}).

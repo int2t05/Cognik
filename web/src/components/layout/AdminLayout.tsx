@@ -165,15 +165,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-[var(--color-divider-soft)]">
-          <AppleButton variant="menu" icon={<MessageSquare />} onClick={() => router.push('/portal/messages')}
-            aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}
-            className={`w-full justify-start ${collapsed ? 'justify-center' : ''}`}>
-            {!collapsed && (
-              <span className="inline-flex items-center gap-3 flex-1">
-                <span className="flex-1 text-left">消息 {unreadCount > 0 && `(${unreadCount})`}</span>
+          <div className="relative">
+            <AppleButton variant="menu" icon={<MessageSquare />} onClick={() => router.push('/portal/messages')}
+              aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}
+              className={`w-full justify-start ${collapsed ? 'justify-center' : ''}`}>
+              {!collapsed && (
+                <span className="inline-flex items-center gap-3 flex-1">
+                  <span className="flex-1 text-left">消息</span>
+                </span>
+              )}
+            </AppleButton>
+            {unreadCount > 0 && (
+              <span className={`absolute bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold rounded-full flex items-center justify-center ${collapsed ? '-top-1 -right-1 w-5 h-5' : 'top-1 right-2 min-w-[20px] h-5 px-1'}`}>
+                {collapsed ? '' : unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
-          </AppleButton>
+          </div>
         </div>
 
       </aside>

@@ -76,6 +76,19 @@ func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 	response.Success(c, gin.H{"unread_count": count})
 }
 
+// MarkAllRead 标记当前用户所有消息为已读。
+//
+// PUT /api/v1/portal/messages/read-all
+func (h *MessageHandler) MarkAllRead(c *gin.Context) {
+	userID, _ := getCurrentUserID(c)
+	affected, err := h.svc.MarkAllRead(c.Request.Context(), userID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"affected": affected})
+}
+
 // CountUnread 查询未读消息数。
 //
 // GET /api/v1/portal/messages/unread-count

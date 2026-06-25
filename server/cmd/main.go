@@ -266,6 +266,7 @@ func wireApp() (*app, error) {
 			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
 			go rebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
 		}),
+		service.WithMessageNotifier(messageService),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
