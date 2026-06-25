@@ -1,13 +1,14 @@
 'use client';
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createArticle, uploadDocuments } from '@/lib/api/knowledge';
+import { createArticle, uploadDocuments, getKBList, type KB } from '@/lib/api/knowledge';
+import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { FilePlus, X } from 'lucide-react';
+import { FilePlus, X, AlertTriangle } from 'lucide-react';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -20,9 +21,30 @@ export default function NewArticlePage() {
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [configMismatch, setConfigMismatch] = useState<string | null>(null);
 
   /** 单文件最大 50MB */
   const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+  // 页面加载时校验 KB 绑定的 embedding 配置与当前默认是否一致
+  useEffect(() => {
+    (async () => {
+      try {
+        const [kbs, cfgs] = await Promise.all([getKBList(), getLLMConfigs()]);
+        const kb = kbs.find((k: KB) => k.id === Number(kbId));
+        const def = cfgs.find((c: LLMConfig) => c.is_default);
+        if (!kb || !def) return;
+        const issues: string[] = [];
+        if (kb.embedding_model && kb.embedding_model !== def.embedding_model) {
+          issues.push(`嵌入模型：KB 绑定 "${kb.embedding_model}"，当前默认 "${def.embedding_model}"`);
+        }
+        if (kb.vector_dimension > 0 && kb.vector_dimension !== def.vector_dimension) {
+          issues.push(`向量维度：KB 绑定 ${kb.vector_dimension}，当前默认 ${def.vector_dimension}`);
+        }
+        if (issues.length) setConfigMismatch(issues.join('；'));
+      } catch { /* 静默降级——不影响创建流程 */ }
+    })();
+  }, [kbId]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -73,6 +95,19 @@ export default function NewArticlePage() {
   return (
     <div className="max-w-form">
       <PageTitle>新建文章</PageTitle>
+
+      {configMismatch && (
+        <div className="mb-4 flex items-start gap-3 rounded-[var(--radius-apple)] border border-[var(--color-warning)] p-4 text-caption" style={{ background: 'var(--badge-warning-bg)' }}>
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--color-warning)]" />
+          <div>
+            <p className="font-semibold mb-1 text-[var(--badge-warning-text)]">Embedding 配置不一致</p>
+            <p className="text-[var(--color-ink)]">{configMismatch}</p>
+            <p className="mt-2 text-[var(--color-text-muted-48)]">
+              请前往 LLM 配置切换回 KB 绑定的模型与维度，或更新知识库配置后再创建文章。
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 文档上传 */}
       <AppleCard className="mb-4">

@@ -293,6 +293,7 @@ func wireApp() (*app, error) {
 		embedKey := newCfg.GetEmbeddingAPIKey()
 		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
 		embedder.SetClient(newEmbed)
+		knowledgeService.SetDefaultEmbeddingConfig(newCfg.EmbeddingModel)
 
 		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
 			"llm_base_url", newCfg.LLMBaseURL,

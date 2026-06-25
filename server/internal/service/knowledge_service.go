@@ -113,7 +113,7 @@ type KnowledgeService struct {
 	storage               adapter.StorageClient
 	auditRepo             *repository.AuditRepo
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
-	defaultEmbeddingModel string            // KB 未配置嵌入模型时的回退值
+	defaultEmbeddingModel string            // 当前默认嵌入模型名
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -169,6 +169,24 @@ func WithDefaultEmbeddingModel(model string) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.defaultEmbeddingModel = model }
 }
 
+// SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
+func (s *KnowledgeService) SetDefaultEmbeddingConfig(model string) {
+	s.defaultEmbeddingModel = model
+}
+
+// validateKBEmbeddingConfig 校验当前默认嵌入模型与 KB 绑定的模型是否一致。
+//
+// 维度固定 1024——所有 embedding 模型必须输出 1024 维向量。
+// 不一致则拒绝操作，提示用户切换回原模型或更新 KB 配置。
+func (s *KnowledgeService) validateKBEmbeddingConfig(kb *model.KnowledgeBase) error {
+	if kb.EmbeddingModel != "" && kb.EmbeddingModel != s.defaultEmbeddingModel {
+		return errcode.AppError{Code: errcode.ErrParam, Message: fmt.Sprintf(
+			"当前默认嵌入模型（%s）与知识库绑定的模型（%s）不一致，请切换回 %s 或更新知识库配置",
+			s.defaultEmbeddingModel, kb.EmbeddingModel, kb.EmbeddingModel)}
+	}
+	return nil
+}
+
 // effectiveEmbeddingModel 返回 KB 配置的模型，空则回退到全局默认。
 func (s *KnowledgeService) effectiveEmbeddingModel(kbModel string) string {
 	if kbModel != "" {
@@ -216,14 +234,19 @@ func (s *KnowledgeService) CreateKB(ctx context.Context, req request.CreateKBReq
 	if slug == "" {
 		slug = fmt.Sprintf("kb-%d", time.Now().UnixNano())
 	}
+	// 绑定当前默认嵌入模型名。向量维度固定 1024。
+	embModel := req.EmbeddingModel
+	if embModel == "" {
+		embModel = s.defaultEmbeddingModel
+	}
 	kb := &model.KnowledgeBase{
-		Name:            req.Name,
-		Description:     req.Description,
+		Name:             req.Name,
+		Description:      req.Description,
 		RAGWorkspaceSlug: slug,
-		EmbeddingModel:  s.effectiveEmbeddingModel(req.EmbeddingModel),
-		VectorDimension: req.VectorDimension,
-		LlmConfigID:     req.LlmConfigID,
-		CreatedBy:       userID,
+		EmbeddingModel:   embModel,
+		VectorDimension:  1024,
+		LlmConfigID:      req.LlmConfigID,
+		CreatedBy:        userID,
 	}
 	if err := s.repo.CreateKB(ctx, kb); err != nil {
 		if isPgUniqueViolation(err) {
@@ -350,12 +373,15 @@ func (s *KnowledgeService) findArticle(ctx context.Context, id int64) (*model.Kn
 
 // CreateArticle 创建知识文章（草稿状态），返回创建后的文章（含自动生成的 ID）。
 func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error) {
-	_, err := s.repo.FindKBByID(ctx, req.KBID)
+	kb, err := s.repo.FindKBByID(ctx, req.KBID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
 		}
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
+	}
+	if err := s.validateKBEmbeddingConfig(kb); err != nil {
+		return nil, err
 	}
 
 	if err := s.checkTitleUnique(ctx, req.KBID, req.Title, 0); err != nil {
@@ -488,6 +514,9 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	}
 	if s.processor == nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "异步处理器未初始化"}
+	}
+	if err := s.validateKBEmbeddingConfig(&article.KnowledgeBase); err != nil {
+		return err
 	}
 
 	id := article.ID

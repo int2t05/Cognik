@@ -11,50 +11,33 @@ import (
 
 // AutoMigrate 自动迁移所有数据模型和必要索引。
 //
-// 同时处理 GORM 无法覆盖的 pgvector 列：
-// knowledge_chunks.embedding (halfvec) — VectorStore 通过原始 SQL 直接写入，Go model 无对应字段。
-//
-// 索引使用 IF NOT EXISTS：首次部署创建，后续启动跳过。
+// 向量维度固定为 1024（pgvector halfvec 列 + HNSW 索引）。
+// 更换 embedding 模型时必须使用同为 1024 维的模型（如 bge-m3、bge-large-zh-v1.5）。
 func AutoMigrate(db *gorm.DB) error {
-	// 启用 pgvector 扩展（幂等——已存在不报错）
 	db.Exec("CREATE EXTENSION IF NOT EXISTS vector")
 
 	if err := db.AutoMigrate(
-		&model.User{},
-		&model.Role{},
-		&model.UserRole{},
-		&model.Menu{},
-		&model.RoleMenu{},
-		&model.Ticket{},
-		&model.TicketRecord{},
-		&model.KnowledgeBase{},
-		&model.KnowledgeArticle{},
-		&model.KnowledgeChunk{},
-		&model.LlmConfig{},
-		&model.ChatSession{},
-		&model.ChatMessage{},
-		&model.AuditLog{},
-		&model.SystemConfig{},
-		&model.Message{},
+		&model.User{}, &model.Role{}, &model.UserRole{}, &model.Menu{}, &model.RoleMenu{},
+		&model.Ticket{}, &model.TicketRecord{},
+		&model.KnowledgeBase{}, &model.KnowledgeArticle{}, &model.KnowledgeChunk{},
+		&model.LlmConfig{}, &model.ChatSession{}, &model.ChatMessage{},
+		&model.AuditLog{}, &model.SystemConfig{}, &model.Message{},
 	); err != nil {
 		return err
 	}
 
-	// 业务索引：首次部署创建，后续启动 IF NOT EXISTS 跳过
-	indexes := []string{
+	for _, sql := range []string{
 		"CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_chat_created_at ON chat_sessions(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at DESC)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_llm_configs_default ON llm_configs(is_default) WHERE is_default = true",
-	}
-	for _, sql := range indexes {
+	} {
 		if err := db.Exec(sql).Error; err != nil {
 			return err
 		}
 	}
 
-	// 确保 knowledge_chunks.embedding (halfvec) 列存在。
-	// GORM AutoMigrate 无法管理该列（Go model 无对应字段），VectorStore 通过原始 SQL 直接写入。
+	// halfvec(1024) 列：固定维度，支持 HNSW 索引
 	if err := db.Exec(`
 		DO $$ BEGIN
 			IF NOT EXISTS (
@@ -66,6 +49,14 @@ func AutoMigrate(db *gorm.DB) error {
 		END $$;
 	`).Error; err != nil {
 		return fmt.Errorf("添加 knowledge_chunks.embedding 列失败: %w", err)
+	}
+
+	if err := db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON knowledge_chunks
+			USING hnsw (embedding halfvec_cosine_ops)
+			WITH (m = 16, ef_construction = 200)
+	`).Error; err != nil {
+		return fmt.Errorf("创建 HNSW 索引失败: %w", err)
 	}
 
 	return nil

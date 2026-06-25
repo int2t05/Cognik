@@ -61,7 +61,7 @@ type KnowledgeChunk struct {
 	VectorDimension int       `gorm:"not null;column:vector_dimension" json:"vector_dimension"`
 	ChunkHash       string    `gorm:"type:varchar(64);column:chunk_hash" json:"chunk_hash"` // SHA256，与正文增量比对
 	CreatedAt       time.Time `gorm:"not null" json:"created_at"`
-	// embedding halfvec(1024) — 由 VectorStore 适配器通过 SQL 直接管理，不走 GORM
+	// embedding halfvec — 由 VectorStore 适配器通过 SQL 直接管理，不走 GORM
 }
 
 func (KnowledgeChunk) TableName() string { return "knowledge_chunks" }

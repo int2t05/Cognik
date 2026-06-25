@@ -1,15 +1,8 @@
-/** 全局 Toast 系统 — 统一消息通知，最多堆叠 3 条。 */
-/** Toast 消失时间按类型分级：error 5s，warning 4s，success/info 3s。 */
+/** 全局 Toast 系统 — 按类型分色 + 图标，最多堆叠 3 条，点击即关闭。 */
 
 'use client';
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -29,12 +22,14 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-/** 按类型分级消失时间（ms） */
-const TOAST_DURATION: Record<ToastType, number> = {
-  error: 5000,
-  warning: 4000,
-  success: 3000,
-  info: 3000,
+const TOAST_DURATION: Record<ToastType, number> = { error: 5000, warning: 4000, success: 3000, info: 3000 };
+
+/** 每种类型的色值 + 图标映射 */
+const TOAST_STYLE: Record<ToastType, { icon: ReactNode; bg: string; border: string; text: string }> = {
+  success: { icon: <CheckCircle className="h-4 w-4" />, bg: 'var(--badge-success-bg)', border: 'var(--color-success)', text: 'var(--badge-success-text)' },
+  error:   { icon: <XCircle className="h-4 w-4" />,     bg: 'var(--badge-error-bg)',   border: 'var(--color-error)',   text: 'var(--badge-error-text)' },
+  warning: { icon: <AlertTriangle className="h-4 w-4" />, bg: 'var(--badge-warning-bg)', border: 'var(--color-warning)', text: 'var(--badge-warning-text)' },
+  info:    { icon: <Info className="h-4 w-4" />,          bg: 'var(--color-tile-1)',     border: 'var(--color-info)',    text: 'var(--color-ink)' },
 };
 
 let nextId = 0;
@@ -44,10 +39,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const dismiss = useCallback((id: number) => {
-    // 清除自动消失定时器
     const t = timers.current.get(id);
     if (t) { clearTimeout(t); timers.current.delete(id); }
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const addToast = useCallback((type: ToastType, message: string) => {
@@ -57,22 +51,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [dismiss]);
 
   const success = useCallback((msg: string) => addToast('success', msg), [addToast]);
-  const error = useCallback((msg: string) => addToast('error', msg), [addToast]);
+  const error   = useCallback((msg: string) => addToast('error', msg),   [addToast]);
   const warning = useCallback((msg: string) => addToast('warning', msg), [addToast]);
-  const info = useCallback((msg: string) => addToast('info', msg), [addToast]);
+  const info    = useCallback((msg: string) => addToast('info', msg),    [addToast]);
 
   return (
     <ToastContext.Provider value={{ toasts, success, error, warning, info }}>
       {children}
-      {/* Toast 容器 — 右上角固定，最多堆叠 3 条 */}
       <div role="region" aria-label="通知" aria-live="polite"
         className="fixed top-4 right-4 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div key={t.id} role="alert" onClick={() => dismiss(t.id)}
-            className="px-5 py-3 text-caption font-normal rounded-[var(--radius-lg)] bg-[var(--color-parchment)] text-[var(--color-ink)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.25s_ease-out] cursor-pointer active:scale-95 transition">
-            {t.message}
-          </div>
-        ))}
+        {toasts.map((t) => {
+          const s = TOAST_STYLE[t.type];
+          return (
+            <div key={t.id} role="alert" onClick={() => dismiss(t.id)}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 text-caption rounded-[var(--radius-apple)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.2s_ease-out] cursor-pointer active:scale-[0.98] transition"
+              style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, borderLeft: `3px solid ${s.border}` }}>
+              <span className="flex-shrink-0" style={{ color: s.border }}>{s.icon}</span>
+              <span className="flex-1">{t.message}</span>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );
