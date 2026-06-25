@@ -75,6 +75,7 @@ export default function ChatPage() {
   const stream = sessionId ? store.getStream(sessionId) : undefined;
   const messages = stream?.messages ?? [];
   const streaming = stream?.status === "streaming";
+  const thinking = stream?.thinking ?? false;
   const pipelineSteps = stream?.pipelineSteps ?? [];
   const currentStep = stream?.currentStep ?? null;
 
@@ -380,6 +381,12 @@ export default function ChatPage() {
                     />
                   ))}
                   {currentStep && <ChatPipeline currentStep={currentStep} steps={pipelineSteps} />}
+                  {thinking && !currentStep && (
+                    <div className="flex items-center gap-2 px-4 py-2 text-caption text-[var(--color-text-muted-48)]">
+                      <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                      思考中...
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -299,6 +299,10 @@ func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64
 				}
 				return
 			}
+			if chunk.Reasoning != "" {
+				// 思考内容透传到前端（保持 SSE 连接活跃，前端显示"思考中..."）
+				sendOrCancel(ctx, eventCh, StreamEvent{Type: "reasoning", Content: chunk.Reasoning})
+			}
 			if chunk.Content != "" {
 				answerBuf.WriteString(chunk.Content)
 				if ok := sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: chunk.Content}); !ok {

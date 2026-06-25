@@ -19,6 +19,7 @@ interface PipelineStep { id: string; label: string; duration_ms?: number; }
 interface SessionStream {
   messages: ChatMessage[]; status: 'idle' | 'streaming' | 'error';
   lastSeq: number; pipelineSteps: PipelineStep[]; currentStep: string | null;
+  thinking: boolean; // 思考模式进行中
 }
 interface Store {
   getStream(id: number): SessionStream | undefined;
@@ -46,7 +47,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
 
   const patch = useCallback((id: number, f: (s: SessionStream) => SessionStream) => {
     setStreams((prev) => {
-      const cur = prev[id] ?? { messages: [], status: 'idle', lastSeq: -1, pipelineSteps: [], currentStep: null };
+      const cur = prev[id] ?? { messages: [], status: 'idle', lastSeq: -1, pipelineSteps: [], currentStep: null, thinking: false };
       return { ...prev, [id]: f(cur) };
     });
   }, []);
@@ -97,7 +98,14 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
             ],
           }));
         }
+        else if (evt.type === 'reasoning') {
+          // 思考模式内容 — 设置 thinking 状态，前端显示"思考中..."指示器
+          ensureAssistant();
+          patch(id, s => ({ ...s, thinking: true }));
+        }
         else if (evt.type === 'token') {
+          // 首个 token 到达时清除 thinking 状态
+          patch(id, s => s.thinking ? { ...s, thinking: false } : s);
           // token 先写入内存缓冲区 acc，通过 rAF 批处理合并为一次 React 渲染。
           // 每个 rAF 周期内多次 setState 合并为一次，消除逐 token 渲染的性能灾难。
           ensureAssistant();

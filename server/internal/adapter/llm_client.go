@@ -48,6 +48,7 @@ type ChatResponse struct {
 // StreamChunk SSE 流式的单个 token 块。
 type StreamChunk struct {
 	Content      string `json:"content"`
+	Reasoning    string `json:"-"` // 思考/推理内容（仅思考模式开启时非空）
 	FinishReason string `json:"finish_reason"`
 	Error        error  `json:"-"`
 }
@@ -158,7 +159,10 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 type openAIStreamChunk struct {
 	Choices []struct {
 		Index        int     `json:"index"`
-		Delta        struct{ Content string } `json:"delta"`
+		Delta        struct {
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
+		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
 }
@@ -258,9 +262,16 @@ func (c *OpenAIClient) readSSEStream(ctx context.Context, resp *http.Response, c
 
 		if len(chunk.Choices) > 0 {
 			content := chunk.Choices[0].Delta.Content
+			reasoning := chunk.Choices[0].Delta.ReasoningContent
 			var finishReason string
 			if chunk.Choices[0].FinishReason != nil {
 				finishReason = *chunk.Choices[0].FinishReason
+			}
+			// 思考内容也通过 channel 发送（保持 SSE 连接活跃）
+			if reasoning != "" {
+				if !sendChunk(ctx, ch, StreamChunk{Reasoning: reasoning}) {
+					return
+				}
 			}
 			if content != "" || finishReason != "" {
 				if !sendChunk(ctx, ch, StreamChunk{Content: content, FinishReason: finishReason}) {
