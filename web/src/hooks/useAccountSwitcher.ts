@@ -75,9 +75,16 @@ export function useAccountSwitcher() {
     saveAccounts(filtered);
   }, [user, token, refreshToken, roles, permissions, menus]);
 
-  /** 直接切换到已保存的会话（免密登录）。 */
+  /** 删除单条记录并立即刷新列表。 */
+  const removeAccount = useCallback((username: string) => {
+    const all = loadAccounts().filter((a) => a.username !== username);
+    saveAccounts(all);
+    bump();
+  }, [bump]);
+
+  /** 直接切换到已保存的会话（免密登录）。切换后立即验证 token，冻结账号自动登出。 */
   const switchTo = useCallback(
-    (account: SavedAccount) => {
+    async (account: SavedAccount) => {
       const now = Date.now();
       if (now - account.savedAt > EXPIRE_MS) {
         logout();
@@ -91,17 +98,24 @@ export function useAccountSwitcher() {
         email: '',
         first_login: false,
       }, account.roles, account.permissions, account.menus as never[]);
+      // 立即发一次请求验证 token——账号可能已被冻结，后台返回 10001
+      // client.ts 捕获 10001 后自动清除认证 + 跳转登录页
+      try {
+        const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+        const res = await fetch(`${BASE}/api/v1/portal/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${account.token}` },
+        });
+        const json = await res.json();
+        if (json.code === 10001) {
+          logout();
+          removeAccount(account.username);
+          return false;
+        }
+      } catch { /* 网络错误不处理，让后续 API 调用触发 */ }
       return true;
     },
-    [login, logout],
+    [login, logout, removeAccount],
   );
-
-  /** 删除单条记录并立即刷新列表。 */
-  const removeAccount = useCallback((username: string) => {
-    const all = loadAccounts().filter((a) => a.username !== username);
-    saveAccounts(all);
-    bump();
-  }, [bump]);
 
   return { accounts, saveCurrent, switchTo, removeAccount, logout };
 }

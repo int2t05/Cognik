@@ -33,8 +33,8 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const handleSwitch = (account: (typeof accounts)[0]) => {
-    const ok = switchTo(account);
+  const handleSwitch = async (account: (typeof accounts)[0]) => {
+    const ok = await switchTo(account);
     setOpen(false);
     if (ok) {
       router.push('/portal/chat');
