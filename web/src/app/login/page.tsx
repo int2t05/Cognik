@@ -105,6 +105,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
             autoComplete="username"
             autoFocus
           />
@@ -113,6 +114,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
             autoComplete="current-password"
           />
           <div className="mt-8">

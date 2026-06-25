@@ -97,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     (token: string, refreshToken: string, user: User, roles: string[], permissions: string[], menus: Menu[]) => {
       const newState: AuthState = { token, refreshToken, user, roles, permissions, menus, isLoggedIn: true };
+      // 同步写 cookie——router.push 触发中间件校验时必须能读到 token，
+      // 不能等 useEffect（它异步执行，晚于导航）。
+      document.cookie = `access_token=${token}; path=/; SameSite=Lax; max-age=604800`;
+      document.cookie = `refresh_token=${refreshToken}; path=/; SameSite=Lax; max-age=604800`;
       setState(newState);
       persistAuth(newState);
     },
@@ -105,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     const empty: AuthState = { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false };
+    document.cookie = 'access_token=; path=/; SameSite=Lax; max-age=0';
+    document.cookie = 'refresh_token=; path=/; SameSite=Lax; max-age=0';
     setState(empty);
     persistAuth(empty);
   }, []);
