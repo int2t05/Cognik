@@ -287,9 +287,10 @@ ENV OPSMIND_RERANK_PYTHON_PATH=python3
 ENV OPSMIND_RERANK_SCRIPT_PATH=/app/rerank_server.py
 ENV OPSMIND_RERANK_ENABLED=true
 ENV NEXT_PUBLIC_API_URL=http://localhost:8080
-ENV PORT=3000
+# PORT 由 Railway 自动注入，不硬编码
 ENV NODE_ENV=production
 
 # Railway 通过面板挂载卷，此处不声明 VOLUME
+# Railway 自动检测 PORT 变量确定转发端口
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
