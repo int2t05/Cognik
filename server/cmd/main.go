@@ -113,6 +113,11 @@ func wireApp() (*app, error) {
 			return nil, fmt.Errorf("数据库迁移失败: %w", err)
 		}
 		slog.Info("数据库迁移完成")
+
+		// AutoSeed：首次启动加载种子数据（之后跳过）
+		if err := database.AutoSeed(db); err != nil {
+			return nil, fmt.Errorf("种子数据加载失败: %w", err)
+		}
 	}
 
 	// 3. Adapter 层

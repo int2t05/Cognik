@@ -229,9 +229,6 @@ RUN printf '%s\n' \
     'PG_USER="${POSTGRES_USER:-opsmind}"' \
     'PG_PASS="${POSTGRES_PASSWORD:-opsmind_dev}"' \
     'PG_DB="${POSTGRES_DB:-opsmind}"' \
-    'INIT_SQL="/app/migrations/init.sql"' \
-    'SEED_SQL="/app/migrations/seed_essential.sql"' \
-    'SEED_MARKER="${PGDATA}/.seed_done"' \
     '' \
     'log() { echo "[entrypoint] $(date +%H:%M:%S) $*"; }' \
     '' \
@@ -254,27 +251,17 @@ RUN printf '%s\n' \
     '' \
     '# ---- init database ----' \
     'init_database() {' \
-    '  if [ -f "$SEED_MARKER" ]; then' \
-    '    log "Seed marker found, skip init"' \
-    '    return 0' \
-    '  fi' \
-    '  log "Starting temp PostgreSQL for init..."' \
+    '  log "Starting temp PostgreSQL..."' \
     '  su - postgres -c "${PG_BIN}/pg_ctl -D ${PGDATA} -l /tmp/pg-init.log start"' \
     '  for i in $(seq 1 30); do' \
     '    su - postgres -c "${PG_BIN}/pg_isready -q" 2>/dev/null && break' \
     '    sleep 1' \
     '  done' \
     '  echo "ALTER USER postgres PASSWORD '"'"'${PG_PASS}'"'"';" | su - postgres -c "${PG_BIN}/psql"' \
-    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname=${PG_USER};\"" | grep -q 1 || echo "CREATE USER ${PG_USER} WITH PASSWORD '"'"'${PG_PASS}'"'"' SUPERUSER;" | su - postgres -c "${PG_BIN}/psql"' \
-    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_database WHERE datname=${PG_DB};\"" | grep -q 1 || su - postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE ${PG_DB} OWNER ${PG_USER};\""' \
-    '  log "Running init.sql..."' \
-    '  su - postgres -c "${PG_BIN}/psql -d ${PG_DB} -f ${INIT_SQL}"' \
-    '  log "Running seed_essential.sql..."' \
-    '  su - postgres -c "${PG_BIN}/psql -d ${PG_DB} -f ${SEED_SQL}"' \
-    '  touch "$SEED_MARKER"' \
-    '  log "Seed data done"' \
+    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='"'"'${PG_USER}'"'"';\"" | grep -q 1 || echo "CREATE USER ${PG_USER} WITH PASSWORD '"'"'${PG_PASS}'"'"' SUPERUSER;" | su - postgres -c "${PG_BIN}/psql"' \
+    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_database WHERE datname='"'"'${PG_DB}'"'"';\"" | grep -q 1 || su - postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE ${PG_DB} OWNER ${PG_USER};\""' \
+    '  log "Database ready (seed data loads via AutoSeed on server start)"' \
     '  su - postgres -c "${PG_BIN}/pg_ctl -D ${PGDATA} stop"' \
-    '  log "Temp PostgreSQL stopped"' \
     '}' \
     '' \
     '# ---- main ----' \
