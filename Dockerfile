@@ -134,7 +134,7 @@ RUN printf '%s\n' \
     'supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface' \
     '' \
     '[program:postgres]' \
-    'command=/usr/lib/postgresql/18/bin/postgres -D $$PGDATA' \
+    'command=/usr/lib/postgresql/18/bin/postgres -D %(ENV_PGDATA)s' \
     'user=postgres' \
     'autostart=true' \
     'autorestart=true' \
@@ -145,7 +145,7 @@ RUN printf '%s\n' \
     'stopwaitsecs=60' \
     'stdout_logfile=/var/log/supervisor/postgres.log' \
     'stderr_logfile=/var/log/supervisor/postgres_err.log' \
-    'environment=PGDATA="$$PGDATA"' \
+    'environment=PGDATA="%(ENV_PGDATA)s"' \
     '' \
     '[program:minio]' \
     'command=/usr/local/bin/minio server /data/minio --console-address ":9001"' \
