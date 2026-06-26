@@ -71,8 +71,9 @@ RUN curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio \
     -o /usr/local/bin/minio && chmod +x /usr/local/bin/minio
 
 # ---- 应用目录 ----
+# /data 为 Railway Volume 挂载点，PG 和 MinIO 共用
 RUN mkdir -p /app/web /app/migrations /app/models/rerank \
-    /var/log/supervisor /data/minio
+    /var/log/supervisor /data/minio /data/postgresql
 
 WORKDIR /app
 
@@ -223,7 +224,7 @@ RUN printf '%s\n' \
     '#!/bin/bash' \
     'set -e' \
     '' \
-    'PGDATA="${PGDATA:-/var/lib/postgresql/data/pgdata}"' \
+    'PGDATA="${PGDATA:-/data/postgresql/pgdata}"' \
     'PG_BIN="/usr/lib/postgresql/18/bin"' \
     'PG_USER="${POSTGRES_USER:-opsmind}"' \
     'PG_PASS="${POSTGRES_PASSWORD:-opsmind_dev}"' \
@@ -299,6 +300,6 @@ ENV NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV PORT=3000
 ENV NODE_ENV=production
 
-VOLUME ["/var/lib/postgresql", "/data/minio"]
-EXPOSE 5432 9000 9001 8080 3000
+# Railway 通过面板挂载卷，此处不声明 VOLUME
+EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
