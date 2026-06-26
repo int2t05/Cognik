@@ -264,8 +264,8 @@ RUN printf '%s\n' \
     '    su - postgres -c "${PG_BIN}/pg_isready -q" 2>/dev/null && break' \
     '    sleep 1' \
     '  done' \
-    '  su - postgres -c "${PG_BIN}/psql -c \"ALTER USER postgres PASSWORD ${PG_PASS};\""' \
-    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname=${PG_USER};\"" | grep -q 1 || su - postgres -c "${PG_BIN}/psql -c \"CREATE USER ${PG_USER} WITH PASSWORD ${PG_PASS} SUPERUSER;\""' \
+    '  echo "ALTER USER postgres PASSWORD '"'"'${PG_PASS}'"'"';" | su - postgres -c "${PG_BIN}/psql"' \
+    '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname=${PG_USER};\"" | grep -q 1 || echo "CREATE USER ${PG_USER} WITH PASSWORD '"'"'${PG_PASS}'"'"' SUPERUSER;" | su - postgres -c "${PG_BIN}/psql"' \
     '  su - postgres -c "${PG_BIN}/psql -tAc \"SELECT 1 FROM pg_database WHERE datname=${PG_DB};\"" | grep -q 1 || su - postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE ${PG_DB} OWNER ${PG_USER};\""' \
     '  log "Running init.sql..."' \
     '  su - postgres -c "${PG_BIN}/psql -d ${PG_DB} -f ${INIT_SQL}"' \
@@ -290,6 +290,9 @@ RUN printf '%s\n' \
 # ===================================================================
 
 ENV TZ=Asia/Shanghai
+
+# 覆盖 pgvector 基础镜像的 PGDATA，指向 Railway Volume 挂载路径
+ENV PGDATA=/data/postgresql/pgdata
 
 ENV OPSMIND_DATABASE_HOST=localhost
 ENV OPSMIND_MINIO_ENDPOINT=localhost:9000
