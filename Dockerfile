@@ -102,7 +102,7 @@ ENV OPSMIND_RERANK_PYTHON_PATH=python3
 ENV OPSMIND_RERANK_SCRIPT_PATH=/app/rerank_server.py
 ENV OPSMIND_RERANK_ENABLED=true
 ENV NEXT_PUBLIC_API_URL=http://localhost:8080
-ENV PORT=3000
+# PORT 由 Railway 注入，Next.js 自动监听 Railway 分配的端口
 ENV NODE_ENV=production
 
 EXPOSE 3000
