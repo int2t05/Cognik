@@ -1,18 +1,21 @@
 """生成 OpsMind 验收测试用的 DOCX 和 PDF 知识文档。
 
+按知识库分类输出到对应目录：
+  - it-ops-knowledge/  → IT 运维知识库
+  - info-sec-knowledge/ → 信息安全规范库
+
 依赖：python-docx, fpdf2
 运行：python generate_docs.py
 """
 
 from pathlib import Path
-import json
 
 # ============================================================
-# 文档内容定义
+# 文档内容定义 — 按知识库组织
 # ============================================================
 
 DOCUMENTS = {
-    "docx": {
+    "info-sec-knowledge": {
         "邮件系统使用规范": {
             "title": "企业邮件系统使用规范",
             "paragraphs": [
@@ -99,7 +102,7 @@ DOCUMENTS = {
                 ("bullet", "机密：部门级敏感信息（财务报表、人事档案、客户合同等）。泄露可能导致重大损失。"),
                 ("bullet", "绝密：公司级战略信息（商业计划、并购方案、核心算法等）。泄露可能导致生存危机。"),
                 ("heading3", "1.2 存储和传输要求"),
-                ("para", "不同级别信息的存储和传输要求如下表："),
+                ("para", "不同级别信息的存储和传输要求如下："),
                 ("para", "公开/内部：可使用公司标准设备存储，可通过邮件/IM 内部分享。"),
                 ("para", "机密：必须加密存储（BitLocker 全盘加密），仅限「需要知晓」的人员访问。"
                          "传输须通过公司批准的加密通道。"),
@@ -145,12 +148,138 @@ DOCUMENTS = {
                 ("bullet", "设备或存储介质丢失/被盗"),
                 ("bullet", "发现系统漏洞或数据泄露"),
                 ("para", "安全事件响应流程："),
-                ("bullet", "1. 立即断网（拔网线/关 WiFi）以防扩散"),
+                ("bullet", "1. 立即断网（拔网线/关 WiFi）"),
                 ("bullet", "2. 报告信息安全组，保留现场"),
                 ("bullet", "3. 信息安全组启动应急响应（2 小时内给出初步评估）"),
                 ("bullet", "4. 重大事件 24 小时内上报管理层"),
                 ("para", ""),
                 ("para", "文档版本：v3.1 | 最后更新：2026-05-20 | 维护部门：信息安全组"),
+            ],
+        },
+    },
+    "it-ops-knowledge": {
+        "IT运维服务目录": {
+            "title": "IT 运维服务目录",
+            "paragraphs": [
+                ("heading1", "IT 运维服务目录"),
+                ("para", "本文档定义 IT 基础设施组提供的全部运维服务及其 SLA，"
+                         "作为各业务部门获取 IT 支持的服务契约。"),
+                ("heading2", "一、服务台 (Service Desk)"),
+                ("heading3", "1.1 服务范围"),
+                ("bullet", "员工 IT 设备故障报修（电脑、显示器、打印机、网络）"),
+                ("bullet", "账号与权限问题（域账号、邮箱、VPN、各业务系统权限）"),
+                ("bullet", "软件安装与许可证管理"),
+                ("bullet", "IT 设备领用与归还"),
+                ("bullet", "会议室设备支持"),
+                ("heading3", "1.2 服务时间与 SLA"),
+                ("bullet", "工作时间：周一至周五 9:00-18:00（法定节假日除外）"),
+                ("bullet", "非工作时间：紧急故障可通过值班电话 13800009999 联系"),
+                ("bullet", "响应时间：L1（一般）4 小时 / L2（紧急）1 小时 / L3（非常紧急）30 分钟"),
+                ("bullet", "解决时间：L1 8 小时 / L2 4 小时 / L3 2 小时"),
+                ("heading2", "二、基础设施运维"),
+                ("heading3", "2.1 服务器运维"),
+                ("bullet", "操作系统安装与配置（Linux/Windows Server）"),
+                ("bullet", "服务器监控、性能优化与故障处理"),
+                ("bullet", "定期安全补丁更新（月度维护窗口：每月第二周六 02:00-06:00）"),
+                ("bullet", "服务器上下架与资产管理"),
+                ("heading3", "2.2 网络运维"),
+                ("bullet", "网络设备配置与维护（交换机、路由器、防火墙、AP）"),
+                ("bullet", "网络故障排查（有线/WiFi/VPN）"),
+                ("bullet", "带宽监控与 QoS 策略调整"),
+                ("bullet", "网络扩容与架构优化"),
+                ("heading3", "2.3 存储与备份"),
+                ("bullet", "文件服务器管理与权限控制"),
+                ("bullet", "数据库备份与恢复（PostgreSQL / Redis）"),
+                ("bullet", "异地容灾备份同步"),
+                ("bullet", "备份恢复演练（每季度一次）"),
+                ("heading2", "三、应用运维"),
+                ("heading3", "3.1 内部应用"),
+                ("bullet", "OA/ERP/HR 系统的日常运维和问题处理"),
+                ("bullet", "GitLab/Confluence/Jira 等研发工具维护"),
+                ("bullet", "内部应用发布与部署"),
+                ("heading3", "3.2 邮件系统"),
+                ("bullet", "Exchange Online 管理（账号、邮箱、分发组）"),
+                ("bullet", "邮件流监控与反垃圾邮件策略"),
+                ("bullet", "邮件归档与合规保留"),
+                ("heading2", "四、安全管理"),
+                ("bullet", "终端安全（防病毒/EDR）策略管理"),
+                ("bullet", "漏洞扫描与修复跟踪"),
+                ("bullet", "安全事件应急响应（7×24）"),
+                ("bullet", "安全合规审计配合（ISO 27001 / 等保 2.0）"),
+                ("heading2", "五、变更管理"),
+                ("para", "所有生产环境变更须遵循以下流程："),
+                ("bullet", "1. 提交变更申请（说明变更内容、影响范围、回滚方案）"),
+                ("bullet", "2. 变更审批（低风险：运维经理审批；高风险：技术总监审批）"),
+                ("bullet", "3. 在维护窗口内执行变更"),
+                ("bullet", "4. 变更后验证（功能验证 + 监控确认）"),
+                ("bullet", "5. 变更记录归档"),
+                ("para", "紧急变更可先执行后补审批，但必须在变更后 24 小时内补齐。"),
+                ("heading2", "六、服务请求方式"),
+                ("bullet", "IT 服务台系统：https://itsm.company.com（推荐，可跟踪工单进度）"),
+                ("bullet", "电话：分机 8888（工作时间）/ 13800009999（7×24 紧急）"),
+                ("bullet", "邮件：itsm@company.com（自动创建工单）"),
+                ("bullet", "企业微信：搜索「IT 服务台」小程序"),
+                ("para", ""),
+                ("para", "文档版本：v3.0 | 最后更新：2026-06-01 | 维护部门：IT 基础设施组"),
+            ],
+        },
+        "服务器巡检操作手册": {
+            "title": "服务器巡检操作手册",
+            "paragraphs": [
+                ("heading1", "服务器巡检操作手册"),
+                ("para", "本文档定义运维人员每日、每周、每月的服务器巡检项目和操作标准，"
+                         "确保在问题影响业务之前发现隐患。"),
+                ("heading2", "一、每日巡检 (Daily Checklist)"),
+                ("heading3", "1.1 监控大盘检查"),
+                ("bullet", "登录 Grafana Dashboard 查看全局健康状态"),
+                ("bullet", "确认所有服务器 Node Exporter 在线（无断联）"),
+                ("bullet", "检查 Alertmanager 无未处理的 P0/P1 告警"),
+                ("heading3", "1.2 资源水位"),
+                ("bullet", "CPU 使用率：关注是否有服务器 > 80% 持续 30 分钟"),
+                ("bullet", "内存使用率：关注是否 > 85%（Java 应用需额外关注 GC 频率）"),
+                ("bullet", "磁盘使用率：标记所有 > 80% 的挂载点，安排清理或扩容"),
+                ("bullet", "网络流量：检查是否有异常流量峰值"),
+                ("heading3", "1.3 服务健康"),
+                ("bullet", "检查核心服务（opsmind-server / 数据库 / Redis）的健康检查端点"),
+                ("bullet", "确认备份任务已成功执行（检查 MinIO 中最新备份的时间戳）"),
+                ("bullet", "检查 SSL 证书到期时间（若有 < 30 天的通知运维组长安排续期）"),
+                ("heading2", "二、每周巡检 (Weekly Checklist)"),
+                ("heading3", "2.1 安全巡检"),
+                ("bullet", "检查是否有未安装的安全补丁（yum/apt check-update）"),
+                ("bullet", "审查本周所有新增/修改的防火墙规则"),
+                ("bullet", "检查是否有新增的本地账号或 sudo 权限变更"),
+                ("heading3", "2.2 性能巡检"),
+                ("bullet", "分析本周 CPU/内存/磁盘的长期趋势（关注持续增长趋势→潜在泄漏）"),
+                ("bullet", "检查数据库慢查询日志 Top 10（优化或增加索引）"),
+                ("bullet", "检查 Redis 内存使用率趋势和命中率"),
+                ("heading3", "2.3 日志巡检"),
+                ("bullet", "检查关键应用的 ERROR 日志数量趋势"),
+                ("bullet", "审查本周所有 P1/P2 告警记录，确认已闭环处理"),
+                ("heading2", "三、每月巡检 (Monthly Checklist)"),
+                ("heading3", "3.1 容量规划"),
+                ("bullet", "统计各服务器磁盘使用趋势，预测未来 3 个月是否需要扩容"),
+                ("bullet", "评估 CPU/内存负载趋势，给出扩容或优化建议"),
+                ("bullet", "审查备份存储空间是否充足（保留至少 20% 余量）"),
+                ("heading3", "3.2 合规检查"),
+                ("bullet", "确认所有生产服务器的 NTP 时间同步正常"),
+                ("bullet", "确认堡垒机审计日志正常记录"),
+                ("bullet", "确认监控系统告警规则未被异常修改或静默"),
+                ("bullet", "审查本月所有变更记录，确认无遗漏"),
+                ("heading3", "3.3 容灾验证"),
+                ("bullet", "从最新备份恢复一个测试表到测试环境验证可恢复性"),
+                ("bullet", "检查异地备份同步是否正常"),
+                ("bullet", "审查并更新巡检文档（根据本月发现的问题补充检查项）"),
+                ("heading2", "四、巡检报告"),
+                ("para", "每日巡检结果记录在运维日报中（自动生成 + 人工备注）。"),
+                ("para", "每周一发送上周巡检周报到运维 IM 群。"),
+                ("para", "每月末编写月度运维报告，包含："),
+                ("bullet", "服务可用性统计（SLA 达成率）"),
+                ("bullet", "本月告警统计与分类"),
+                ("bullet", "本月变更记录"),
+                ("bullet", "容量趋势与扩容计划"),
+                ("bullet", "下月重点工作和改进计划"),
+                ("para", ""),
+                ("para", "文档版本：v2.2 | 最后更新：2026-05-12 | 维护部门：IT 基础设施组"),
             ],
         },
     },
@@ -160,15 +289,12 @@ DOCUMENTS = {
 # DOCX 生成
 # ============================================================
 
-def generate_docx(output_dir: Path):
+def generate_docx(output_dir: Path, docs: dict):
     from docx import Document
-    from docx.shared import Pt, Inches, Cm
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt
 
-    for name, doc_def in DOCUMENTS["docx"].items():
+    for name, doc_def in docs.items():
         doc = Document()
-
-        # 设置默认字体
         style = doc.styles["Normal"]
         font = style.font
         font.name = "Microsoft YaHei"
@@ -176,11 +302,11 @@ def generate_docx(output_dir: Path):
 
         for ptype, text in doc_def["paragraphs"]:
             if ptype == "heading1":
-                h = doc.add_heading(text, level=1)
+                doc.add_heading(text, level=1)
             elif ptype == "heading2":
-                h = doc.add_heading(text, level=2)
+                doc.add_heading(text, level=2)
             elif ptype == "heading3":
-                h = doc.add_heading(text, level=3)
+                doc.add_heading(text, level=3)
             elif ptype == "bullet":
                 doc.add_paragraph(text, style="List Bullet")
             elif ptype == "para":
@@ -196,31 +322,10 @@ def generate_docx(output_dir: Path):
 # PDF 生成
 # ============================================================
 
-def generate_pdf(output_dir: Path):
+def generate_pdf(output_dir: Path, docs: dict, cn_font: str | None):
     from fpdf import FPDF
 
-    # 注册中文字体 - 使用系统自带字体或回退到内置
-    import sys
-    font_paths = [
-        # Windows
-        Path("C:/Windows/Fonts/msyh.ttc"),       # 微软雅黑
-        Path("C:/Windows/Fonts/simsun.ttc"),      # 宋体
-        Path("C:/Windows/Fonts/simhei.ttf"),      # 黑体
-    ]
-
-    cn_font = None
-    for fp in font_paths:
-        if fp.exists():
-            cn_font = str(fp)
-            print(f"  -> Using font: {fp.name}")
-            break
-
-    if cn_font is None:
-        print("  WARNING: No Chinese font found for PDF")
-        print("    Copy C:/Windows/Fonts/msyh.ttc to current dir if needed")
-
-    # 合并所有 docx 内容生成两个 PDF
-    for name, doc_def in DOCUMENTS["docx"].items():
+    for name, doc_def in docs.items():
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
 
@@ -262,28 +367,46 @@ def generate_pdf(output_dir: Path):
 
 
 # ============================================================
+# 字体查找
+# ============================================================
+
+def find_chinese_font():
+    import sys
+    font_paths = [
+        Path("C:/Windows/Fonts/msyh.ttc"),
+        Path("C:/Windows/Fonts/simsun.ttc"),
+        Path("C:/Windows/Fonts/simhei.ttf"),
+    ]
+    for fp in font_paths:
+        if fp.exists():
+            print(f"  -> Using font: {fp.name}")
+            return str(fp)
+    print("  WARNING: No Chinese font found for PDF")
+    return None
+
+
+# ============================================================
 # Main
 # ============================================================
 
 def main():
     base = Path(__file__).parent
 
-    docx_dir = base / "docx"
-    pdf_dir = base / "pdf"
-    docx_dir.mkdir(exist_ok=True)
-    pdf_dir.mkdir(exist_ok=True)
+    cn_font = find_chinese_font()
 
-    print("Generating DOCX files...")
-    generate_docx(docx_dir)
+    for kb_name, docs in DOCUMENTS.items():
+        kb_dir = base / kb_name
+        kb_dir.mkdir(exist_ok=True)
 
-    print()
-    print("Generating PDF files...")
-    generate_pdf(pdf_dir)
+        print(f"\n[{kb_name}] Generating DOCX files...")
+        generate_docx(kb_dir, docs)
 
-    print()
-    print("All test documents generated!")
-    print(f"  DOCX: {docx_dir}")
-    print(f"  PDF:  {pdf_dir}")
+        print(f"[{kb_name}] Generating PDF files...")
+        generate_pdf(kb_dir, docs, cn_font)
+
+    print("\nAll test documents generated!")
+    for kb_name in DOCUMENTS:
+        print(f"  {kb_name}/")
 
 
 if __name__ == "__main__":
