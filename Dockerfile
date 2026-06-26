@@ -91,6 +91,7 @@ RUN chmod +x /app/entrypoint.sh
 ENV TZ=Asia/Shanghai
 ENV PGDATA=/data/postgresql/pgdata
 ENV OPSMIND_DATABASE_HOST=localhost
+ENV OPSMIND_DATABASE_PASSWORD=opsmind_dev
 ENV OPSMIND_MINIO_ENDPOINT=localhost:9000
 ENV OPSMIND_RERANK_PYTHON_PATH=python3
 ENV OPSMIND_RERANK_SCRIPT_PATH=/app/rerank_server.py
