@@ -7,7 +7,7 @@
 <p align="center"><strong>私有部署的 AI 运维数字员工</strong><br>让每家企业拥有自己的智能运维助手</p>
 
 <p align="center">
-  <a href="https://github.com/int2t05/OpsMind/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs" alt="Next.js">
   <img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql" alt="PostgreSQL">
@@ -188,9 +188,40 @@ OpsMind/
 | [API](docs/API/README.md) | 9 份接口文档，覆盖全部端点 |
 | [测试流程](test/README.md) | 验收测试 — 9 大场景、完整步骤 |
 
+## 路线图
+
+> 完整改进清单见 [`docs/TODO.md`](docs/TODO.md)。以下为已规划的演进方向。
+
+### 2026 H2 — 产品能力
+
+| 方向 | 说明 |
+|------|------|
+| **本地 Agent** | 支持在线深度搜索，智能化收集运维数据 |
+| **知识库模板系统** | 常见运维场景（新员工入职、设备申领）一键创建知识库结构 |
+| **看板增强** | 自定义日期范围、数据导出 |
+| **申告满意度评价** | 闭环反馈机制 |
+
+### 架构演进
+
+| 方向 | 优先级 | 说明 |
+|------|--------|------|
+| **BM25 索引增量更新** | 🟡 P2 | 全量重建 → 增量更新，支撑大规模文档 |
+| **文档处理器重试 + 死信队列** | 🟡 P2 | embedding API 瞬时失败自动重试，持久失败入死信 |
+| **DOCX/PDF 流式解析** | 🟡 P2 | 替代全量读入内存，消除大文件 OOM 风险 |
+| **前端代码分割** | 🟡 P2 | `next/dynamic` 按路由懒加载，优化首屏加载 |
+| **上传上限配置化** | 🟡 P2 | 50MB 硬编码改为按 KB 粒度可配置 |
+
+### 2027 — 生态扩展
+
+| 方向 | 说明 |
+|------|------|
+| **外部 ITSM 对接** | Jira Service Management、ServiceNow 等 |
+| **自然语言转 SQL** | 非技术人员直接查询运维数据 |
+| **知识库覆盖度分析** | 识别高频未命中问题，指导知识补充 |
+
 ## 贡献
 
-欢迎提交 Issue 和 PR。
+欢迎提交 Issue 和 PR。详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
 1. 确保通过现有测试
 2. 遵循项目代码风格和注释规范
