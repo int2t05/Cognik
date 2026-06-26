@@ -91,6 +91,25 @@ Authorization: Bearer <token>
 | `config.update` | 更新系统配置 |
 | `llm_config.update` | 更新 LLM 配置 |
 
+### 批量删除审计日志
+
+```http
+POST /api/v1/admin/audit-logs/batch-delete
+Authorization: Bearer <token>
+```
+
+**请求体：**
+
+```json
+{ "ids": [1, 2, 3] }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-----------|------|
+| 10003 | 400 | 参数校验失败 |
+
 ---
 
 ## 系统配置管理
@@ -183,6 +202,26 @@ Content-Type: application/json
 | 10003 | 400 | 参数校验失败（key 为空、value 为 null 或格式错误） |
 | 10004 | 404 | 配置项不存在（更新不存在配置时创建新配置，通常不会返回此错误） |
 | 99999 | 500 | 服务器内部错误 |
+
+### 公开配置
+
+```http
+GET /api/v1/public/configs/:key
+```
+
+> 无需认证，供登录页等公开页面读取系统级配置（如应用名称）。
+
+**响应示例：**
+
+```json
+{ "code": 0, "message": "success", "data": { "value": "OpsMind" } }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-------------|------|
+| 10004 | 404 | 配置项不存在 |
 
 ---
 
@@ -311,6 +350,27 @@ Authorization: Bearer <token>
 | 错误码 | HTTP 状态 | 说明 |
 |--------|-------------|------|
 | 10003 | 400 | 参数校验失败 |
+| 99999 | 500 | 服务器内部错误 |
+
+### 全部标记已读
+
+```http
+PUT /api/v1/portal/messages/read-all
+Authorization: Bearer <token>
+```
+
+> 将当前用户所有未读消息标记为已读，请求体为空。
+
+**响应示例：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-------------|------|
 | 99999 | 500 | 服务器内部错误 |
 
 ---

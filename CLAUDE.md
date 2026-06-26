@@ -153,12 +153,12 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 
 | 目录/文件 | 职责 |
 | --- | --- |
-| `docs/` | 项目文档（PRD、TECH、API、设计系统、图表） |
+| `docs/` | 项目文档（PRD、TECH、TODO、API、FLOW） |
 | `docs/PRD.md` | 产品需求文档 — 自建 RAG 引擎、文档上传、统一文章模型 |
 | `docs/TECH.md` | 技术架构文档 — 模块接口、ADR、数据库 DDL、部署配置 |
 | `docs/API/` | API 文档 — 认证/问答/知识库/LLM配置/申告/用户/角色/看板/审计（9 份） |
-| `docs/diagrams/` | Mermaid 架构与业务流程图（13 个模块 + README，含全业务数据流总览） |
-| `docs/prompts/ui.md` | apple 系统约束 |
+| `docs/FLOW/` | 业务流程图（7 个模块 + README，含 Mermaid 与详细数据流） |
+| `docs/TECH.md §7` | Apple 设计系统（色彩、字体、组件），原 `docs/prompts/ui.md` 已合并 |
 | `server/cmd/main.go` | 后端入口，初始化配置、数据库、路由、RAG 模块、调度器 |
 | `server/internal/config/` | Viper 配置管理（config.go + config.yaml） |
 | `server/internal/middleware/` | Gin 中间件（JWT 认证、RBAC 权限、CORS、请求日志） |
@@ -283,7 +283,7 @@ func HashPassword(password string) (string, error) {
 | --- | --- |
 | `docs/PRD.md` | 产品需求文档 — 自建 RAG 引擎、文档上传解析、统一文章模型、SSE 流式输出 |
 | `docs/TECH.md` | 技术架构文档 — 模块接口定义、数据库 DDL、API 设计、部署配置 |
-| `docs/prompts/ui.md` | Apple Design 系统约束 — 双主题色值、字体配置、组件样式 |
+| `docs/TECH.md` §7 | 设计系统附录 — 色彩令牌、字体层级、核心组件规范 |
 | `docs/API/README.md` | API 文档索引 — 9 份接口文档，覆盖全部端点 |
 | `docs/API/chat.md` | 智能问答 API — SSE 流式 + RAG 管道步骤事件 + 降级规则 |
 | `docs/API/knowledge.md` | 知识库管理 API — KB/文章/审核/发布 + 文档上传/状态查询 + KB 删除 |
@@ -293,7 +293,7 @@ func HashPassword(password string) (string, error) {
 | `docs/API/roles.md` | 角色与菜单管理 API |
 | `docs/API/dashboard.md` | 数据看板 API — 统计 + 趋势 |
 | `docs/API/audit-log.md` | 审计日志 + 系统配置 + 站内消息 |
-| `docs/diagrams/README.md` | 架构与业务流程图索引 |
+| `docs/FLOW/README.md` | 业务流程图索引 — 7 大模块端到端数据流 |
 
 ### 外部依赖文档
 

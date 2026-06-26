@@ -249,7 +249,7 @@ func TestMessageService_ListMessages(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 10, repository.MessageFilter{})
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 10, service.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -276,7 +276,7 @@ func TestMessageService_ListMessages_Pagination(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 2, repository.MessageFilter{})
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 2, service.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

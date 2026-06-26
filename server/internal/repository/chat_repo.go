@@ -262,7 +262,7 @@ func (r *ChatRepo) FindFeedbackSamples(ctx context.Context, limitDays int) ([]mo
 			prev.content AS question,
 			cm.content AS answer,
 			cm.feedback,
-			COALESCE(cm.confidence_raw, cm.confidence) AS confidence,
+			cm.confidence_raw AS confidence,
 			TO_CHAR(cm.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
 		FROM chat_messages cm
 		CROSS JOIN LATERAL (

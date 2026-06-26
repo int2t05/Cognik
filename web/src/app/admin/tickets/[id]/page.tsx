@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   createKnowledgeCandidate,
@@ -17,7 +17,7 @@ import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { Play, CheckCircle, XCircle, MessageSquare, Sparkles } from 'lucide-react';
+import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
@@ -36,6 +36,7 @@ function actionLabel(action: string) {
 export default function AdminTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const ticketID = Number(id);
+  const router = useRouter();
   const toast = useToast();
   const { data: ticket, error, mutate } = useSWR<TicketDetail>(`admin-ticket-${id}`, () => getAdminTicketDetail(ticketID));
   const { data: kbs } = useSWR('kb-list', getKBList);
@@ -81,6 +82,7 @@ export default function AdminTicketDetailPage() {
 
   return (
     <div className="max-w-content">
+      <AppleButton variant="ghost" icon={<ChevronLeft size={18} />} aria-label="返回" onClick={() => router.push('/admin/tickets')} />
       <h1 className="mb-2 text-display font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />

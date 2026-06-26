@@ -8,7 +8,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ArrowLeft, Search } from 'lucide-react';
+import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search } from 'lucide-react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
@@ -32,7 +32,7 @@ export default function ArticleListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} aria-label="返回" icon={<ArrowLeft />} />
+          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} aria-label="返回" icon={<ChevronLeft />} />
           <PageTitle>知识文章</PageTitle>
         </div>
         <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章" icon={<FilePlus />} />

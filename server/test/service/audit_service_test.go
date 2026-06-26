@@ -64,7 +64,7 @@ func TestAuditService_List_All(t *testing.T) {
 	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone) VALUES (1, 'admin', '$2a$10$x', '测试用户', '13800000001') ON CONFLICT DO NOTHING`)
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_login", TargetType: "user", TargetID: 1, Detail: datatypes.JSON(`{"ip":"127.0.0.1"}`), IPAddress: "127.0.0.1"})
 
-	_, total, err := svc.List(ctx, repository.AuditFilter{Page: 1, PageSize: 10})
+	_, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestAuditService_List_ByAction(t *testing.T) {
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_action_a", TargetType: "user", TargetID: 1})
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_action_b", TargetType: "ticket", TargetID: 1})
 
-	_, total, err := svc.List(ctx, repository.AuditFilter{Action: "test_action_a", Page: 1, PageSize: 10})
+	_, total, err := svc.List(ctx, service.AuditFilter{Action: "test_action_a", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestAuditService_List_ByOperator(t *testing.T) {
 		testOpID)
 	repo.Create(ctx, &model.AuditLog{OperatorID: testOpID, Action: "test_op1", TargetType: "user", TargetID: 1})
 
-	items, _, err := svc.List(ctx, repository.AuditFilter{OperatorID: testOpID, Page: 1, PageSize: 10})
+	items, _, err := svc.List(ctx, service.AuditFilter{OperatorID: testOpID, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestAuditService_List_Pagination(t *testing.T) {
 		repo.Create(ctx, &model.AuditLog{OperatorID: 0, Action: "test_page", TargetType: "user", TargetID: 1})
 	}
 
-	items, total, err := svc.List(ctx, repository.AuditFilter{Page: 1, PageSize: 2})
+	items, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 2})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestAuditService_List_Empty(t *testing.T) {
 	svc := service.NewAuditService(repo)
 	ctx := context.Background()
 
-	items, total, err := svc.List(ctx, repository.AuditFilter{Page: 1, PageSize: 10})
+	items, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 空表: %v", err)
 	}

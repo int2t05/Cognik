@@ -316,6 +316,10 @@ func (r *cancelAwareDashboardRepo) CountKnowledgeArticles(ctx context.Context) (
 	return 0, r.waitForCancel(ctx)
 }
 
+func (r *cancelAwareDashboardRepo) CountFeedbackByType(ctx context.Context, feedbackType int16) (int64, error) {
+	return 0, r.waitForCancel(ctx)
+}
+
 func (r *cancelAwareDashboardRepo) GetTicketTrends(context.Context, string, string, string) ([]repository.TrendPoint, error) {
 	return nil, nil
 }

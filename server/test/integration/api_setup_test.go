@@ -99,24 +99,24 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 
 	// Service 层
 	authSvc := service.NewAuthService(userRepo, menuRepo, db, jwtCfg)
-	userSvc := service.NewUserService(userRepo, auditRepo, db, userCache)
-	roleSvc := service.NewRoleService(roleRepo, menuRepo, auditRepo, db)
+	userSvc := service.NewUserService(userRepo, service.NewAuditService(auditRepo), db, userCache)
+	roleSvc := service.NewRoleService(roleRepo, menuRepo, service.NewAuditService(auditRepo), db)
 	messageSvc := service.NewMessageService(messageRepo)
-	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), messageSvc, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
+	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
 	dashboardSvc := service.NewDashboardService(dashboardRepo)
-	configSvc := service.NewConfigService(configRepo, auditRepo)
+	configSvc := service.NewConfigService(configRepo, service.NewAuditService(auditRepo))
 	auditSvc := service.NewAuditService(auditRepo)
 
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditRepo)
+	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, service.NewAuditService(auditRepo))
 	require.NoError(t, err)
 
 	knowledgeSvc := service.NewKnowledgeService(knowledgeRepo,
-		service.WithUserNames(userRepo), service.WithAuditRepo(auditRepo))
+		service.WithUserNames(userRepo), service.WithAuditWriter(service.NewAuditService(auditRepo)))
 	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
 
 	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
-	}, nil)
+	}, nil, nil, nil)
 
 	// Handler → Router → HTTP Server
 	handlers := &router.Handlers{

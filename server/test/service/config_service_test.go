@@ -161,7 +161,7 @@ func setupConfigService(t *testing.T) *service.ConfigService {
 	db := setupTestDB(t)
 	repo := repository.NewConfigRepo(db)
 	auditRepo := repository.NewAuditRepo(db)
-	return service.NewConfigService(repo, auditRepo)
+	return service.NewConfigService(repo, service.NewAuditService(auditRepo))
 }
 
 // TestConfigService_GetConfig_Existing 验证获取已有配置返回正确的值。

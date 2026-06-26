@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
-import { ArrowLeft, Send, Pencil, X, Check } from 'lucide-react';
+import { ChevronLeft, Send, Pencil, X, Check } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -81,7 +81,7 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" icon={<ArrowLeft />} aria-label="返回" onClick={() => router.push('/portal/tickets')} />
+        <AppleButton variant="ghost" icon={<ChevronLeft />} aria-label="返回" onClick={() => router.push('/portal/tickets')} />
         {canEdit(ticket.status) && !editing && (
           <AppleButton variant="ghost" icon={<Pencil />} onClick={startEdit}>编辑</AppleButton>
         )}

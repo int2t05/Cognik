@@ -39,7 +39,7 @@ func setupRoleService(t *testing.T) *service.RoleService {
 	repo := repository.NewRoleRepo(roleSvcDB)
 	menuRepo := repository.NewMenuRepo(roleSvcDB)
 	auditRepo := repository.NewAuditRepo(roleSvcDB)
-	return service.NewRoleService(repo, menuRepo, auditRepo, roleSvcDB)
+	return service.NewRoleService(repo, menuRepo, service.NewAuditService(auditRepo), roleSvcDB)
 }
 
 func seedTestRole(t *testing.T, name string) *model.Role {

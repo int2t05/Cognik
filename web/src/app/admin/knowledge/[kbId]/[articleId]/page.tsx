@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { ArrowLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -79,7 +79,7 @@ export default function ArticleEditPage() {
   return (
     <div className="max-w-form">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回" icon={<ArrowLeft />} />
+        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回" icon={<ChevronLeft />} />
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>

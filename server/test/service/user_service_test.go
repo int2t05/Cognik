@@ -37,7 +37,7 @@ func setupUserService(t *testing.T) (*service.UserService, *model.User) {
 	t.Helper()
 	repo := repository.NewUserRepo(userSvcDB)
 	auditRepo := repository.NewAuditRepo(userSvcDB)
-	svc := service.NewUserService(repo, auditRepo, userSvcDB, nil)
+	svc := service.NewUserService(repo, service.NewAuditService(auditRepo), userSvcDB, nil)
 
 	// 创建测试用户
 	user := &model.User{

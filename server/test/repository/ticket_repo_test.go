@@ -116,8 +116,6 @@ func TestTicketRepo_Create(t *testing.T) {
 		UserID:       user.ID,
 		Title:        "网络连接异常",
 		Description:  "办公区网络频繁断开",
-		Urgency:      2,
-		ImpactScope:  1,
 		ContactPhone: "13800000001",
 		ContactEmail: "test@example.com",
 		Status:       1,
@@ -141,7 +139,7 @@ func TestTicketRepo_FindByID(t *testing.T) {
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-0002", UserID: user.ID, Title: "测试申告",
-		Description: "描述", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -190,7 +188,7 @@ func TestTicketRepo_Update(t *testing.T) {
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-0003", UserID: user.ID, Title: "旧标题",
-		Description: "旧描述", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "旧描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -216,7 +214,7 @@ func TestTicketRepo_UpdateStatus(t *testing.T) {
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-0004", UserID: user.ID, Title: "状态测试",
-		Description: "描述", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -243,7 +241,7 @@ func TestTicketRepo_IncrementSupplementCount(t *testing.T) {
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-0005", UserID: user.ID, Title: "补充计数",
-		Description: "描述", Urgency: 1, ContactPhone: "13800000001", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "13800000001", Status: 2, Source: 1,
 		SupplementCount: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -277,7 +275,7 @@ func TestTicketRepo_IncrementSupplementCount_Exceeded(t *testing.T) {
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-SUPP3", UserID: user.ID, Title: "超限测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 2, Source: 1,
 		SupplementCount: 3,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -307,7 +305,7 @@ func TestTicketRepo_ListByUser(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		ticket := &model.Ticket{
 			TicketNo: fmt.Sprintf("TK-20260609-001%d", i), UserID: user.ID,
-			Title: "申告", Description: "描述", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+			Title: "申告", Description: "描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 		}
 		requireNoErr(t, db.Create(ticket).Error)
 	}
@@ -332,16 +330,16 @@ func TestTicketRepo_ListAll(t *testing.T) {
 
 	// 创建不同状态和紧急程度的申告
 	tickets := []model.Ticket{
-		{TicketNo: "TK-20260609-0101", UserID: user.ID, Title: "待处理", Description: "d", Urgency: 2, ContactPhone: "x", Status: 1, Source: 1},
-		{TicketNo: "TK-20260609-0102", UserID: user.ID, Title: "处理中", Description: "d", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1},
-		{TicketNo: "TK-20260609-0103", UserID: user.ID, Title: "高紧急", Description: "d", Urgency: 3, ContactPhone: "x", Status: 1, Source: 1},
+		{TicketNo: "TK-20260609-0101", UserID: user.ID, Title: "待处理", Description: "d", ContactPhone: "x", Status: 1, Source: 1},
+		{TicketNo: "TK-20260609-0102", UserID: user.ID, Title: "处理中", Description: "d", ContactPhone: "x", Status: 2, Source: 1},
+		{TicketNo: "TK-20260609-0103", UserID: user.ID, Title: "高紧急", Description: "d", ContactPhone: "x", Status: 1, Source: 1},
 	}
 	for i := range tickets {
 		requireNoErr(t, db.Create(&tickets[i]).Error)
 	}
 
 	// 过滤 status=1
-	result, total, err := repo.ListAll(context.Background(), 1, 0, 1, 10)
+	result, total, err := repo.ListAll(context.Background(), 1, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -350,7 +348,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 	}
 
 	// 全查询
-	result, total, err = repo.ListAll(context.Background(), -1, 0, 1, 10)
+	result, total, err = repo.ListAll(context.Background(), -1, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -370,7 +368,7 @@ func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 	oldTime := time.Now().Add(-8 * 24 * time.Hour)
 	old := &model.Ticket{
 		TicketNo: "TK-20260601-0001", UserID: user.ID, Title: "旧申告",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 		CreatedAt: oldTime, UpdatedAt: oldTime,
 	}
 	requireNoErr(t, db.Create(&old).Error)
@@ -378,7 +376,7 @@ func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 	// 创建今天的申告
 	recent := &model.Ticket{
 		TicketNo: "TK-20260609-0001", UserID: user.ID, Title: "新申告",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(&recent).Error)
 
@@ -419,7 +417,7 @@ func TestTicketRepo_CreateRecord(t *testing.T) {
 	// 先创建申告（FK 约束：ticket_records.ticket_id → tickets.id）
 	ticket := &model.Ticket{
 		TicketNo: "TK-TEST-001", UserID: user.ID, Title: "测试", Description: "测试",
-		Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	require.NoError(t, db.Create(ticket).Error)
 
@@ -448,7 +446,7 @@ func TestTicketRepo_FindByTicketID(t *testing.T) {
 	user := createTestUser(t, db, "test_find_records")
 	ticket := &model.Ticket{
 		TicketNo: "TK-FIND-RECORDS", UserID: user.ID, Title: "记录查询测试",
-		Description: "测试", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "测试", ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 

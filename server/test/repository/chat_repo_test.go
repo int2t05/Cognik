@@ -265,7 +265,7 @@ func TestChatRepo_CreateBatch(t *testing.T) {
 
 	messages := []model.ChatMessage{
 		{SessionID: 1, Role: "user", Content: "如何重置密码？", CreatedAt: time.Now()},
-		{SessionID: 1, Role: "assistant", Content: "请前往设置页面修改密码。", Confidence: 0.85, CreatedAt: time.Now().Add(100 * time.Millisecond)},
+		{SessionID: 1, Role: "assistant", Content: "请前往设置页面修改密码。", ConfidenceRaw: 0.85, CreatedAt: time.Now().Add(100 * time.Millisecond)},
 	}
 
 	err := repo.CreateBatch(context.Background(), messages)

@@ -75,7 +75,7 @@ func setupSchedulerTest(t *testing.T) (*service.Scheduler, *model.User) {
 	}
 
 	ticketRepo := repository.NewTicketRepo(schedDB)
-	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(schedDB), nil, nil)
+	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(schedDB), nil, nil, nil)
 	scheduler := service.NewScheduler(ticketSvc)
 
 	return scheduler, user
@@ -93,7 +93,7 @@ func TestScheduler_RunAutoClose_ClosesOldTickets(t *testing.T) {
 	oldTicket := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-OLD-%d", time.Now().UnixNano()),
 		UserID: user.ID, Title: "旧申告", Description: "旧描述",
-		Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		ContactPhone: "13800000001", Status: 1, Source: 1,
 		CreatedAt: oldTime, UpdatedAt: oldTime,
 	}
 	if err := schedDB.Create(oldTicket).Error; err != nil {
@@ -125,7 +125,7 @@ func TestScheduler_RunAutoClose_SkipsRecentTickets(t *testing.T) {
 	recent := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-REC-%d", time.Now().UnixNano()),
 		UserID: user.ID, Title: "新申告", Description: "新描述",
-		Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		ContactPhone: "13800000001", Status: 1, Source: 1,
 		CreatedAt: recentTime, UpdatedAt: recentTime,
 	}
 	if err := schedDB.Create(recent).Error; err != nil {
@@ -157,7 +157,7 @@ func TestScheduler_RunAutoClose_SkipsResolvedStatus(t *testing.T) {
 	resolved := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-RES-%d", time.Now().UnixNano()),
 		UserID: user.ID, Title: "已解决", Description: "已解决",
-		Urgency: 1, ContactPhone: "13800000001", Status: 4, Source: 1,
+		ContactPhone: "13800000001", Status: 4, Source: 1,
 		CreatedAt: oldTime, UpdatedAt: oldTime,
 	}
 	if err := schedDB.Create(resolved).Error; err != nil {
@@ -189,7 +189,7 @@ func TestScheduler_RunAutoClose_OnlyPendingProcessingSupplement(t *testing.T) {
 		ticket := &model.Ticket{
 			TicketNo: fmt.Sprintf("TK-S%d-%d", status, time.Now().UnixNano()),
 			UserID: user.ID, Title: "待关闭", Description: "描述",
-			Urgency: 1, ContactPhone: "13800000001", Status: status, Source: 1,
+			ContactPhone: "13800000001", Status: status, Source: 1,
 			CreatedAt: oldTime, UpdatedAt: oldTime,
 		}
 		if err := schedDB.Create(ticket).Error; err != nil {

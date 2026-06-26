@@ -171,7 +171,7 @@ func TestConfigHandler_Get(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
+	configSvc := service.NewConfigService(repository.NewConfigRepo(db), service.NewAuditService(repository.NewAuditRepo(db)))
 	h := handler.NewConfigHandler(configSvc)
 
 	r.GET("/configs/:key", h.Get)
@@ -191,7 +191,7 @@ func TestConfigHandler_Update(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db), repository.NewAuditRepo(db))
+	configSvc := service.NewConfigService(repository.NewConfigRepo(db), service.NewAuditService(repository.NewAuditRepo(db)))
 	h := handler.NewConfigHandler(configSvc)
 
 	r.PUT("/configs/:key", h.Update)

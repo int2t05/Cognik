@@ -123,6 +123,15 @@ export default function ChatPage() {
       sid = newSid;
     }
 
+    // 现有会话第一条消息 → 直接改当前会话名称为问题文本
+    // 与 store.send 内部 session 创建互斥：sid 已存在时 store.send 不会调用 createSession
+    if (sid && messages.length === 0) {
+      mutateSessions((d) => d ? {
+        ...d,
+        items: d.items.map(s => s.id === sid ? { ...s, question: question.slice(0, 50) } : s),
+      } : d, false);
+    }
+
     await store.send(sid, pendingKB || defaultKB || 0, question, token || '', (m) => toast.error(m));
   };
 

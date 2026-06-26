@@ -10,58 +10,58 @@
 
 services:
   # Go 后端
-  opsmind-server:
-    build:
-      context: ./server
-    container_name: opsmind-server
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    environment:
-      # 容器内地址覆写（.env 中是 localhost → 容器间 service name）
-      OPSMIND_DATABASE_HOST: postgres
-      OPSMIND_MINIO_ENDPOINT: minio:9000
-      # 重排序（MiniLM-L-4-v2 ~80MB，需先 cd server && python models/rerank/download.py）
-      OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-true}"
-      OPSMIND_RERANK_PYTHON_PATH: python3
-      OPSMIND_RERANK_SCRIPT_PATH: /app/rerank_server.py
-      RERANK_MODEL: /app/models/rerank
-      TZ: Asia/Shanghai
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - opsmind
+  # opsmind-server:
+  #   build:
+  #     context: ./server
+  #   container_name: opsmind-server
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:8080"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     # 容器内地址覆写（.env 中是 localhost → 容器间 service name）
+  #     OPSMIND_DATABASE_HOST: postgres
+  #     OPSMIND_MINIO_ENDPOINT: minio:9000
+  #     # 重排序（MiniLM-L-4-v2 ~80MB，需先 cd server && python models/rerank/download.py）
+  #     OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-true}"
+  #     OPSMIND_RERANK_PYTHON_PATH: python3
+  #     OPSMIND_RERANK_SCRIPT_PATH: /app/rerank_server.py
+  #     RERANK_MODEL: /app/models/rerank
+  #     TZ: Asia/Shanghai
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_started
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   networks:
+  #     - opsmind
 
-  # Next.js 前端
-  opsmind-web:
-    build:
-      context: ./web
-    container_name: opsmind-web
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    depends_on:
-      opsmind-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - opsmind
+  # # Next.js 前端
+  # opsmind-web:
+  #   build:
+  #     context: ./web
+  #   container_name: opsmind-web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     opsmind-server:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://localhost:3000"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 15s
+  #   networks:
+  #     - opsmind
 
   # PostgreSQL + pgvector
   postgres:
@@ -120,11 +120,6 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 4g
     ports:
       - "8081:8081"
     volumes:
@@ -157,10 +152,6 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: opsmind-llama-cpp-emb
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "12"
     ports:
       - "8082:8082"
     volumes:

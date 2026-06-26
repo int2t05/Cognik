@@ -164,11 +164,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="p-3 border-t border-[var(--color-divider-soft)]">
+        <div className="border-t border-[var(--color-divider-soft)]">
           <div className="relative">
             <AppleButton variant="menu" icon={<MessageSquare />} onClick={() => router.push('/portal/messages')}
               aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}
-              className={`w-full justify-start ${collapsed ? 'justify-center' : ''}`}>
+              aria-current={isActivePath('/portal/messages', pathname) ? 'page' : undefined}
+              className={`w-full justify-start ${collapsed ? 'justify-center' : ''} ${isActivePath('/portal/messages', pathname) ? '!bg-[var(--color-divider-soft)] font-semibold' : ''}`}>
               {!collapsed && (
                 <span className="inline-flex items-center gap-3 flex-1">
                   <span className="flex-1 text-left">消息</span>
@@ -176,7 +177,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               )}
             </AppleButton>
             {unreadCount > 0 && (
-              <span className={`absolute bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold rounded-full flex items-center justify-center ${collapsed ? '-top-1 -right-1 w-5 h-5' : 'top-1 right-2 min-w-[20px] h-5 px-1'}`}>
+              <span className={`absolute bg-[var(--color-error)] text-[var(--color-canvas)] rounded-full flex items-center justify-center ${collapsed ? '-top-0.5 -right-0.5 w-3 h-3' : 'top-1 right-2 min-w-[14px] h-3.5 px-1 text-[10px] leading-none'}`}>
                 {collapsed ? '' : unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}

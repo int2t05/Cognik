@@ -102,14 +102,12 @@ func TestTicketService_CreateTicket(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_create")
 
 	req := request.CreateTicketRequest{
 		Title:        "网络连接异常",
 		Description:  "办公区网络频繁断开",
-		Urgency:      2,
-		ImpactScope:  1,
 		ContactPhone: "13800000001",
 		ContactEmail: "test@example.com",
 	}
@@ -148,12 +146,12 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_val")
 
 	// 标题为空
 	err := svc.CreateTicket(bgCtx, request.CreateTicketRequest{
-		Title: "", Description: "描述", Urgency: 1, ContactPhone: "13800000001",
+		Title: "", Description: "描述", ContactPhone: "13800000001",
 	}, user.ID)
 	if err == nil {
 		t.Fatal("标题为空应返回错误")
@@ -161,7 +159,7 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 
 	// 紧急程度无效
 	err = svc.CreateTicket(bgCtx, request.CreateTicketRequest{
-		Title: "测试", Description: "描述", Urgency: 5, ContactPhone: "13800000001",
+		Title: "测试", Description: "描述", ContactPhone: "13800000001",
 	}, user.ID)
 	if err == nil {
 		t.Fatal("紧急程度无效应返回错误")
@@ -169,7 +167,7 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 
 	// 手机号为空
 	err = svc.CreateTicket(bgCtx, request.CreateTicketRequest{
-		Title: "测试", Description: "描述", Urgency: 1, ContactPhone: "",
+		Title: "测试", Description: "描述", ContactPhone: "",
 	}, user.ID)
 	if err == nil {
 		t.Fatal("手机号为空应返回错误")
@@ -184,13 +182,13 @@ func TestTicketService_SupplementTicket(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_supp")
 
 	// 创建申告并设置为"需补充信息"状态
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-S001", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 3, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 3, Source: 1,
 		SupplementCount: 0,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -226,13 +224,13 @@ func TestTicketService_SupplementTicket_WrongStatus(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_supp_ws")
 
 	// 创建待处理状态的申告（不是"需补充信息"）
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-S002", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -248,13 +246,13 @@ func TestTicketService_SupplementTicket_NotOwner(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	owner := createTestUserForService(t, db, "tsvc_supp_owner")
 	other := createTestUserForService(t, db, "tsvc_supp_other")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-S003", UserID: owner.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 3, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 3, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -274,13 +272,13 @@ func TestTicketService_UpdateStatus_Start(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_start")
 	operator := createTestUserForService(t, db, "tsvc_start_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M001", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -311,13 +309,13 @@ func TestTicketService_UpdateStatus_RequestInfo(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_reqinfo")
 	operator := createTestUserForService(t, db, "tsvc_reqinfo_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M002", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 2, Source: 1,
 		SupplementCount: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -343,14 +341,14 @@ func TestTicketService_UpdateStatus_RequestInfoExceeded(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_exceed")
 	operator := createTestUserForService(t, db, "tsvc_exceed_op")
 
 	// 已达 3 次补充上限
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M003", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 2, Source: 1,
 		SupplementCount: 3,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -373,7 +371,7 @@ func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_atomic")
 	operator := createTestUserForService(t, db, "tsvc_atomic_op")
 
@@ -381,7 +379,6 @@ func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 	ticket := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-ATOM-%d", time.Now().UnixNano()),
 		UserID: user.ID, Title: "原子检查测试", Description: "描述",
-		Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
 		SupplementCount: 3,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
@@ -409,13 +406,13 @@ func TestTicketService_UpdateStatus_Resolve(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_resolve")
 	operator := createTestUserForService(t, db, "tsvc_resolve_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M004", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 2, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -437,13 +434,13 @@ func TestTicketService_UpdateStatus_Close(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_close")
 	operator := createTestUserForService(t, db, "tsvc_close_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M005", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -465,13 +462,13 @@ func TestTicketService_UpdateStatus_InvalidAction(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_invact")
 	operator := createTestUserForService(t, db, "tsvc_invact_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M006", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -487,14 +484,14 @@ func TestTicketService_UpdateStatus_WrongPreStatus(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_wps")
 	operator := createTestUserForService(t, db, "tsvc_wps_op")
 
 	// 已关闭的申告不能 start
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-M007", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 5, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 5, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -514,13 +511,13 @@ func TestTicketService_AddRecord(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_record")
 	operator := createTestUserForService(t, db, "tsvc_record_op")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-R001", UserID: user.ID, Title: "测试",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 2, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 
@@ -554,13 +551,13 @@ func TestTicketService_ListByUser(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_listbyuser")
 
 	for i := 0; i < 3; i++ {
 		ticket := &model.Ticket{
 			TicketNo: fmt.Sprintf("TK-20260609-L%03d", i), UserID: user.ID,
-			Title: "申告", Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+			Title: "申告", Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 		}
 		requireNoErr(t, db.Create(ticket).Error)
 	}
@@ -581,20 +578,20 @@ func TestTicketService_ListAll(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_listall")
 
 	tickets := []model.Ticket{
-		{TicketNo: "TK-20260609-A01", UserID: user.ID, Title: "待处理", Description: "d", Urgency: 2, ContactPhone: "x", Status: 1, Source: 1},
-		{TicketNo: "TK-20260609-A02", UserID: user.ID, Title: "处理中", Description: "d", Urgency: 1, ContactPhone: "x", Status: 2, Source: 1},
-		{TicketNo: "TK-20260609-A03", UserID: user.ID, Title: "高紧急", Description: "d", Urgency: 3, ContactPhone: "x", Status: 1, Source: 1},
+		{TicketNo: "TK-20260609-A01", UserID: user.ID, Title: "待处理", Description: "d", ContactPhone: "x", Status: 1, Source: 1},
+		{TicketNo: "TK-20260609-A02", UserID: user.ID, Title: "处理中", Description: "d", ContactPhone: "x", Status: 2, Source: 1},
+		{TicketNo: "TK-20260609-A03", UserID: user.ID, Title: "高紧急", Description: "d", ContactPhone: "x", Status: 1, Source: 1},
 	}
 	for i := range tickets {
 		requireNoErr(t, db.Create(&tickets[i]).Error)
 	}
 
 	// 按 status=1 筛选
-	result, err := svc.ListAll(bgCtx, 1, 0, 1, 10)
+	result, err := svc.ListAll(bgCtx, 1, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -603,7 +600,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 urgency=3 筛选
-	result, err = svc.ListAll(bgCtx, -1, 3, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -612,7 +609,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 全部
-	result, err = svc.ListAll(bgCtx, -1, 0, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -629,12 +626,12 @@ func TestTicketService_GetDetail(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
 	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, service.NewGormTxManager(db), nil, nil)
+	svc := service.NewTicketService(repo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_detail")
 
 	ticket := &model.Ticket{
 		TicketNo: "TK-20260609-D001", UserID: user.ID, Title: "详情测试",
-		Description: "详细描述", Urgency: 2, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "详细描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 	}
 	requireNoErr(t, db.Create(ticket).Error)
 

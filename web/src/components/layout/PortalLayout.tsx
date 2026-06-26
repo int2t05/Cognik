@@ -67,7 +67,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                     {item.label}
                   </AppleButton>
                   {item.label === '消息' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-[var(--color-error)] text-[var(--color-canvas)] text-fine font-semibold w-5 h-5 rounded-full flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 bg-[var(--color-error)] text-[var(--color-canvas)] w-3 h-3 rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
                     </span>
                   )}
@@ -80,7 +80,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           <AppleButton variant="menu" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggleTheme}
             aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} />
           {mounted && isAdmin && (
-            <AppleButton variant="utility" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
+            <AppleButton variant="menu" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
           )}
           {mounted && <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name}</span>}
           {mounted && <AccountSwitcher />}

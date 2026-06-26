@@ -58,7 +58,7 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
       const detail = await getChatDetail(id);
       const msgs: ChatMessage[] = ((detail.messages ?? []) as ApiChatMessage[]).map((m) => ({
         id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence_raw ?? m.confidence,
+        sources: m.sources, confidence: m.confidence_raw,
         confidence_raw: m.confidence_raw, status: m.status, createdAt: m.created_at, dbId: m.id,
       }));
       store.setMessages(id, msgs);
@@ -140,7 +140,7 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
       if (sessionIdRef.current !== sessionId) return;
       const msgs: ChatMessage[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
         id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence_raw ?? m.confidence, confidence_raw: m.confidence_raw,
+        sources: m.sources, confidence: m.confidence_raw, confidence_raw: m.confidence_raw,
         confidence_level: m.confidence_level, status: m.status, createdAt: m.created_at, dbId: m.id,
       }));
       store.setMessages(sessionId, msgs);

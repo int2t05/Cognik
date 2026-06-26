@@ -98,7 +98,7 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 	chatRepo := repository.NewChatRepo(db)
 	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
 		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
-	}, nil)
+	}, nil, nil, nil)
 	chatH := handler.NewChatHandler(chatSvc)
 
 	// 路由

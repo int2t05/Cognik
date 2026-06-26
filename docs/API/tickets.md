@@ -164,6 +164,34 @@ Authorization: Bearer <token>
 | 10003 | 400 | 无效的申告 ID |
 | 10004 | 404 | 申告不存在 |
 
+### 3a. 更新申告（门户）
+
+```http
+PATCH /api/v1/portal/tickets/:id
+Authorization: Bearer <token>
+```
+
+> 报障人可更新标题、描述、联系方式等字段。
+
+**请求体：**
+
+```json
+{
+  "title": "更新后的标题",
+  "description": "更新后的描述",
+  "tags": "网络,邮箱",
+  "contact_phone": "13800000000",
+  "contact_email": "user@example.com"
+}
+```
+
+**错误码：**
+
+| code | HTTP | 说明 |
+|------|------|------|
+| 10003 | 400 | 参数校验失败 |
+| 10004 | 404 | 申告不存在 |
+
 ### 4. 补充信息
 
 ```http
@@ -328,3 +356,22 @@ Authorization: Bearer <token>
 |--------|-----------|------|
 | 10003 | 400 | 参数校验失败（kb_id 必填） |
 | 10004 | 404 | 申告不存在 |
+
+### 9. 批量删除申告
+
+```http
+POST /api/v1/admin/tickets/batch-delete
+Authorization: Bearer <token>
+```
+
+**请求体：**
+
+```json
+{ "ids": [1, 2, 3] }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-----------|------|
+| 10003 | 400 | 参数校验失败 |

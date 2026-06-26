@@ -79,7 +79,7 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 		ON CONFLICT (id) DO NOTHING`)
 
 	ticketRepo := repository.NewTicketRepo(db)
-	ticketSvc := service.NewTicketService(ticketRepo, service.NewGormTxManager(db), nil, nil)
+	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(db), nil, nil, nil)
 	ticketH := handler.NewTicketHandler(ticketSvc)
 
 	r := gin.New()
@@ -98,7 +98,7 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 	admin := r.Group("/api/v1/admin")
 	{
 		admin.GET("/tickets", ticketH.ListAll)
-		admin.GET("/tickets/:id", ticketH.GetDetail)
+		admin.GET("/tickets/:id", ticketH.GetDetailAdmin)
 		admin.PATCH("/tickets/:id/status", ticketH.UpdateStatus)
 		admin.POST("/tickets/:id/records", ticketH.AddRecord)
 		admin.POST("/tickets/:id/knowledge-candidate", ticketH.CreateKnowledgeCandidate)
@@ -108,7 +108,7 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 	{
 		portal.POST("/tickets", ticketH.CreateTicket)
 		portal.GET("/tickets", ticketH.ListByUser)
-		portal.GET("/tickets/:id", ticketH.GetDetail)
+		portal.GET("/tickets/:id", ticketH.GetDetailPortal)
 		portal.PATCH("/tickets/:id/supplement", ticketH.SupplementTicket)
 	}
 
@@ -171,8 +171,6 @@ func TestTicketHandler_CreateTicket(t *testing.T) {
 	body := request.CreateTicketRequest{
 		Title:        "网络连接异常",
 		Description:  "办公区网络频繁断开",
-		Urgency:      2,
-		ImpactScope:  1,
 		ContactPhone: "13800000001",
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -199,7 +197,7 @@ func TestTicketHandler_CreateTicket_InvalidParam(t *testing.T) {
 
 	// 空标题
 	body := request.CreateTicketRequest{
-		Title: "", Description: "描述", Urgency: 1, ContactPhone: "13800000001",
+		Title: "", Description: "描述", ContactPhone: "13800000001",
 	}
 	jsonBody, _ := json.Marshal(body)
 
@@ -225,7 +223,7 @@ func TestTicketHandler_ListAll(t *testing.T) {
 
 	createHandlerTicket(t, env.db, &model.Ticket{
 		TicketNo: "TK-20260609-H001", UserID: 1, Title: "测试申告1",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	})
 
 	req := httptest.NewRequest("GET", "/api/v1/admin/tickets?page=1&page_size=10", nil)
@@ -247,7 +245,7 @@ func TestTicketHandler_UpdateStatus(t *testing.T) {
 
 	id := createHandlerTicket(t, env.db, &model.Ticket{
 		TicketNo: "TK-20260609-H002", UserID: 1, Title: "测试申告",
-		Description: "描述", Urgency: 1, ContactPhone: "x", Status: 1, Source: 1,
+		Description: "描述", ContactPhone: "x", Status: 1, Source: 1,
 	})
 
 	body := request.UpdateTicketStatusRequest{
@@ -277,7 +275,7 @@ func TestTicketHandler_GetDetail(t *testing.T) {
 	createHandlerUser(t, env.db, "htest_detail")
 	id := createHandlerTicket(t, env.db, &model.Ticket{
 		TicketNo: "TK-20260609-H003", UserID: 1, Title: "详情测试",
-		Description: "详细描述", Urgency: 2, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "详细描述", ContactPhone: "13800000001", Status: 1, Source: 1,
 	})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/admin/tickets/%d", id), nil)
@@ -313,7 +311,7 @@ func TestTicketHandler_CreateKnowledgeCandidate(t *testing.T) {
 
 	id := createHandlerTicket(t, env.db, &model.Ticket{
 		TicketNo: "TK-20260609-H010", UserID: 1, Title: "测试申告标题",
-		Description: "测试申告描述内容", Urgency: 1, ContactPhone: "13800000001", Status: 1, Source: 1,
+		Description: "测试申告描述内容", ContactPhone: "13800000001", Status: 1, Source: 1,
 	})
 
 	bodyJSON, _ := json.Marshal(map[string]interface{}{"kb_id": 1, "title": "测试候选"})

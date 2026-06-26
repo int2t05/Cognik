@@ -8,7 +8,7 @@
 // 使用 rAF 合并多个 token 为一次 React 渲染，降至浏览器帧率（≤60fps），
 // 消除 React reconciliation 和虚拟滚动重算的累积卡顿。
 import { createContext, useContext, useRef, useState, useCallback } from 'react';
-import { streamUrl, resumeUrl, cancelGeneration, createSession } from '@/lib/api/chat';
+import { streamUrl, resumeUrl, cancelGeneration } from '@/lib/api/chat';
 
 export interface ChunkDisplay { id: number; score: number; source: string }
 export interface ChatMessage {
@@ -143,7 +143,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
           if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
           const meta = evt.metadata;
-          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw ?? meta.confidence, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed', dbId: meta.assistant_message_id } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
+          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed', dbId: meta.assistant_message_id } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
         }
         else if (evt.type === 'error') {
           if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
@@ -160,17 +160,18 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   const getStream = useCallback((id: number) => streams[id], [streams]);
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => patch(id, s => ({ ...s, messages: msgs, lastSeq: -1 })), [patch]);
 
+  // send 只负责向已有会话发送消息，会话创建由调用方（handleSend）统一处理。
+  // 移除内部 createSession 回退——双重创建点导致新对话首条消息时产生重复会话。
   const send: Store['send'] = useCallback(async (sessionId, kbId, question, token, onError) => {
     const authToken = token || tokenRef.current;
-    let sid = sessionId;
-    if (!sid) { const r = await createSession(kbId, question.slice(0, 50)); sid = r.session_id; }
-    patch(sid, s => ({ ...s, lastSeq: -1, pipelineSteps: [], messages: [...s.messages, { id: `u-${Date.now()}`, role: 'user', content: question, createdAt: new Date().toISOString() }] }));
-    const ctrl = new AbortController(); controllers.current[sid] = ctrl;
+    if (!sessionId) { onError('会话不存在'); return null; }
+    patch(sessionId, s => ({ ...s, lastSeq: -1, pipelineSteps: [], messages: [...s.messages, { id: `u-${Date.now()}`, role: 'user', content: question, createdAt: new Date().toISOString() }] }));
+    const ctrl = new AbortController(); controllers.current[sessionId] = ctrl;
     try {
-      const resp = await fetch(streamUrl(sid), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ question }), signal: ctrl.signal });
-      await consume(sid, resp, onError);
-    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { onError(e.message || '请求失败'); patch(sid!, s => ({ ...s, status: 'error' })); } }
-    return sid;
+      const resp = await fetch(streamUrl(sessionId), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ question }), signal: ctrl.signal });
+      await consume(sessionId, resp, onError);
+    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { onError(e.message || '请求失败'); patch(sessionId, s => ({ ...s, status: 'error' })); } }
+    return sessionId;
   }, [patch, consume]);
 
   const resume: Store['resume'] = useCallback(async (id, since, token) => {

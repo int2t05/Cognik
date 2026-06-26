@@ -410,6 +410,89 @@ Authorization: Bearer <token>
 
 ---
 
+## 7. 逐消息反馈
+
+```http
+POST /api/v1/portal/chat-sessions/:id/messages/:msgId/feedback
+Authorization: Bearer <token>
+```
+
+**请求体：**
+
+```json
+{ "feedback": 1 }
+```
+
+| 值 | 说明 |
+|----|------|
+| 1 | 已解决 |
+| 2 | 未解决 |
+
+**错误响应：**
+
+| code | HTTP 状态 | 说明 |
+|------|-----------|------|
+| 10003 | 400 | 反馈值无效 |
+| 10004 | 404 | 消息或会话不存在 |
+| 99999 | 500 | 服务未初始化 |
+
+---
+
+## 8. 取消生成
+
+```http
+POST /api/v1/portal/chat-sessions/:id/cancel
+Authorization: Bearer <token>
+```
+
+取消当前会话中正在进行的 SSE 生成任务。请求体为空。
+
+**错误响应：**
+
+| code | HTTP 状态 | 说明 |
+|------|-----------|------|
+| 10004 | 404 | 会话不存在 |
+| 99999 | 500 | 服务未初始化 |
+
+---
+
+## 9. 恢复流式输出
+
+```http
+GET /api/v1/portal/chat-sessions/:id/stream
+Authorization: Bearer <token>
+```
+
+恢复被中断的 SSE 流式输出，返回格式同 [§2 流式问答](#2-流式问答)。
+
+---
+
+## 10. 更新会话元信息
+
+```http
+PATCH /api/v1/portal/chat-sessions/:id
+Authorization: Bearer <token>
+```
+
+**请求体：**
+
+```json
+{
+  "question": "更新后的标题",
+  "kb_id": 1
+}
+```
+
+**错误响应：**
+
+| code | HTTP 状态 | 说明 |
+|------|-----------|------|
+| 10003 | 400 | 参数校验失败 |
+| 10004 | 404 | 会话不存在 |
+| 99999 | 500 | 服务未初始化 |
+
+---
+
 ## 降级规则
 
 RAG 管道的降级策略：单步骤失败不阻塞后续步骤：
