@@ -94,7 +94,7 @@ graph TB
 
 ```bash
 git clone https://github.com/int2t05/OpsMind.git && cd OpsMind
-cp .env.example .env
+copy .env.example .env
 # 编辑 .env：设置 JWT_SECRET（必填）和 LLM 配置
 docker compose up -d --build
 ```
@@ -106,10 +106,26 @@ docker compose up -d --build
 | 前端 | http://localhost:3000 |
 | 后端 API | http://localhost:8080 |
 
+
+### 本地 AI（可选）
+
+```bash
+# 下载 GGUF 模型到 ./models/ 目录（魔塔 ModelScope，~3 GB）
+pip install modelscope
+python -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-4B-GGUF', allow_patterns='*Q4_K_M*', local_dir='./models')"
+python -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-Embedding-0.6B-GGUF', allow_patterns='*Q8_0*', local_dir='./models')"
+docker compose --profile ai-local up -d --build
+```
+
+| 模型 | 用途 | 大小 |
+|------|------|------|
+| Qwen3-4B-Q4_K_M | 对话（LLM） | ~2.4 GB |
+| Qwen3-Embedding-0.6B-Q8_0 | 向量（Embedding） | ~0.6 GB |
+
+
 初始化数据库并加载种子数据：
 
 ```bash
-docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/init.sql     # DDL 增强（HNSW 索引）
 docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql  # 角色 + 用户 + LLM 配置
 ```
 
@@ -121,21 +137,6 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 | `operator1` | `OpsMind@123` | 运维人员 |
 | `knowledge` | `Knowledge@123` | 知识库管理员 |
 | `reporter1` | `Reporter@123` | 报障人 |
-
-### 本地 AI（可选）
-
-```bash
-# 下载 GGUF 模型到 ./models/ 目录 (~3 GB)
-pip install huggingface_hub
-huggingface-cli download bartowski/Qwen3-4B-Instruct-2507-GGUF --include "*Q4_K_M*" --local-dir ./models/
-huggingface-cli download bartowski/Qwen3-Embedding-0.6B-GGUF --include "*Q8_0*" --local-dir ./models/
-docker compose --profile ai-local up -d --build
-```
-
-| 模型 | 用途 | 大小 |
-|------|------|------|
-| Qwen3-4B-Q4_K_M | 对话（LLM） | ~2.4 GB |
-| Qwen3-Embedding-0.6B-Q8_0 | 向量（Embedding） | ~0.6 GB |
 
 > 也支持 OpenAI / DeepSeek 等任何 OpenAI-compatible API。LLM 与 Embedding 可独立配置不同服务商，热替换即时生效。
 
