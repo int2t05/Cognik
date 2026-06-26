@@ -35,6 +35,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=
 RUN npm run build
 
 # ===================================================================
@@ -101,7 +102,6 @@ ENV OPSMIND_MINIO_ENDPOINT=localhost:9000
 ENV OPSMIND_RERANK_PYTHON_PATH=python3
 ENV OPSMIND_RERANK_SCRIPT_PATH=/app/rerank_server.py
 ENV OPSMIND_RERANK_ENABLED=true
-ENV NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NODE_ENV=production

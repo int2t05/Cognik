@@ -24,8 +24,8 @@ export function analyzeFeedback(days: number) {
   return apiFetch<{ analysis: string }>('/api/v1/admin/feedback/analyze', { method: 'POST', body: JSON.stringify({ days }) });
 }
 
-// SSE 流式端点直连后端（绕过 Next.js rewrite，避免 Turbopack POST 代理问题）
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// SSE 流式端点：生产环境通过 Next.js rewrite 代理
+const API = process.env.NEXT_PUBLIC_API_URL || '';
 export const streamUrl = (id: number) => `${API}/api/v1/portal/chat-sessions/${id}/stream`;
 export const resumeUrl = (id: number, since: number) => `${streamUrl(id)}?since=${since}`;
 export function cancelGeneration(id: number) {

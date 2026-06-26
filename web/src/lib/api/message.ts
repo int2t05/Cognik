@@ -18,7 +18,7 @@ export function markAllRead() { return apiFetch<{ affected: number }>(MESSAGE_PA
 /** getUnreadCount 查询未读消息数。可传入可选 token 用于跨账号验证（useAccountSwitcher）。 */
 export async function getUnreadCount(token?: string): Promise<{ count: number }> {
   if (!token) return apiFetch<{ count: number }>(MESSAGE_PATHS.unreadCount);
-  const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const BASE = process.env.NEXT_PUBLIC_API_URL || '';
   const res = await fetch(`${BASE}${MESSAGE_PATHS.unreadCount}`, {
     headers: { Authorization: `Bearer ${token}` },
   });

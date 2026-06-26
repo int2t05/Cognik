@@ -3,11 +3,9 @@
 import type { ApiResponse, PageResponse } from './types';
 import { defaultTokenGetter, clearAuth } from '@/lib/token-store';
 
-// 开发模式直接连后端（绕过 Next.js rewrite，避免 Turbopack POST 代理 500）
-// 生产模式通过 NEXT_PUBLIC_API_URL 配置
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (
-  typeof window !== 'undefined' ? 'http://localhost:8080' : ''
-);
+// 默认空字符串 = 相对路径，通过 Next.js rewrite 代理到后端
+// 开发时设 NEXT_PUBLIC_API_URL=http://localhost:8080 可直接连后端（绕过 Turbopack 代理问题）
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // 模块级 token getter — 默认通过 token-store 读取 localStorage，
 // AuthProvider 挂载后可通过 setTokenGetter 切换为 React state 驱动。
