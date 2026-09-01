@@ -142,7 +142,7 @@ export function useAuth(): AuthContextValue {
     if (typeof window === 'undefined') {
       return { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false, login: () => {}, logout: () => {}, hasPermission: () => false, setTokens: () => {} };
     }
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error('useAuth 必须在 AuthProvider 内');
   }
   return ctx;
 }

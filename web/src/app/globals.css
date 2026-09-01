@@ -7,6 +7,10 @@
 /* ===== Tailwind v4 Theme — 统一设计 Token =====
    字号体系对齐专业工具产品（Linear / Vercel / GitHub）：正文 13px，高信息密度。 */
 @theme {
+  /* 字体映射 — 使 Tailwind font-sans / font-mono utility 自动解析到项目变量 */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
+
   --font-size-hero: 1.75rem;
   --font-size-display: 1.5rem;
   --font-size-display-md: 1.25rem;
@@ -70,13 +74,13 @@
 
 /* ===== OpsMind Design Tokens — 专业工具风格（Linear / Vercel） ===== */
 :root {
-  /* 品牌强调色 — 克制的靛蓝，非 Apple 亮蓝 */
+  /* 品牌强调色 — 克制靛蓝 */
   --color-accent: #5b5bd6;
   --color-accent-hover: #4a4ac9;
   --color-accent-focus: #6363f1;
   --color-on-accent: #ffffff;
 
-  /* 画布 — 中性灰白，非 Apple 暖灰 */
+  /* 画布 — 中性灰白 */
   --color-canvas: #ffffff;
   --color-parchment: #fafafa;
   --color-pearl: #f9f9fb;
@@ -95,7 +99,7 @@
   --color-divider-soft: rgba(0, 0, 0, 0.05);
   --color-hairline: #e4e4e7;
 
-  /* 语义色 — 中性专业，非 Apple 饱和色 */
+  /* 语义色 — 中性专业 */
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-error: #dc2626;

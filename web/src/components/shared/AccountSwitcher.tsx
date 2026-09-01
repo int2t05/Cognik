@@ -1,6 +1,6 @@
 /**
  * AccountSwitcher — 切换账号弹出框。基于 shadcn DropdownMenu（Radix 处理 overlay/escape/portal/focus），
- * 替代原手写 useState + outside-click。列出历史登录会话，有效会话点击切换，过期/新增跳登录页。
+ * 列出历史登录会话，有效会话点击切换，过期/新增跳登录页。
  */
 'use client';
 
