@@ -205,7 +205,7 @@ volumes:
 | `server/internal/config/config.go` | 新增 StorageConfig / LocalStorageConfig / BucketConfig |
 | `server/internal/config/config.yaml` | 新增 storage 配置块 |
 | `server/cmd/main.go` | 按 driver 选择创建 LocalStorageClient 或 MinIOClient；bucket 从 config 读取 |
-| `server/internal/service/knowledge_service.go` | bucket 从 config 读取（删包级常量） |
+| `server/internal/service/knowledge_service.go` | bucket 从 config 读取（删包级常量）；`articleContentKey` 改为 `.md` 后缀；`formatArticleText` contentType 改为 `text/markdown` |
 | `docker-compose.yml` | MinIO 加 profile；server 加本地存储卷 |
 | `.env.example` | 新增 `OPSMIND_STORAGE_DRIVER` / `OPSMIND_STORAGE_LOCAL_BASE_DIR` |
 | `docs/TECH.md` | 同步存储架构（接口 4 方法、双实现、可选 MinIO） |

@@ -6,7 +6,7 @@
 
 ### 1.1 现状
 
-V1.0 的文件存储硬绑定 MinIO（S3-compatible），是部署拓扑中的必选独立服务。对于单机/小规模部署，MinIO 增加了运维复杂度（独立容器 + 凭证 + 健康检查 + 卷管理），而实际存储需求仅为知识库文档的 `.txt` 正文（解析后格式化文本，非原始二进制）。
+V1.0 的文件存储硬绑定 MinIO（S3-compatible），是部署拓扑中的必选独立服务。对于单机/小规模部署，MinIO 增加了运维复杂度（独立容器 + 凭证 + 健康检查 + 卷管理），而实际存储需求仅为知识库文档的解析后正文（格式化 Markdown，非原始二进制）。
 
 ### 1.2 目标
 
@@ -14,10 +14,11 @@ V1.0 的文件存储硬绑定 MinIO（S3-compatible），是部署拓扑中的�
 - **默认本地**——配置 `storage.driver=local` 时无需 MinIO 容器，文档存本地磁盘；`storage.driver=minio` 时保留 S3 语义。
 - **配置收敛**——bucket/目录配置从散落三处（`main.go` 字面量、`knowledge_service.go` 常量、`storage_client.go` 注释）收敛到 config 层单一来源。
 - **部署简化**——本地模式下 docker-compose 的 MinIO 服务改为可选（`storage` profile），默认不启动。
+- **存储格式升级**——文档解析后统一存储为 `.md`（Markdown），替代 `.txt`。`formatArticleText` 生成的 `# {title}\n\n{content}` 本就是 Markdown，扩展名改为 `.md`，contentType 改为 `text/markdown`。
 
 ### 1.3 非目标
 
-- 不改变存储的内容语义（仍存解析后 `.txt`，不存原始二进制）
+- 不改变存储的内容语义（仍存解析后格式化文本，不存原始二进制）
 - 不实现申告附件上传（`opsmind-attachments` 桶功能留待后续版本）
 - 不改变文档上传/发布管道的业务逻辑
 
@@ -49,9 +50,9 @@ storage:
 ```
 {base_dir}/
   opsmind-documents/      ← 对应 bucket=documents
-    {title}.txt
+    {title}.md
   opsmind-published/       ← 对应 bucket=published
-    {title}.txt
+    {title}.md
 ```
 
 - 目录名 = bucket 名，文件名 = key（与 MinIO 的 bucket/key 语义对齐）
@@ -128,4 +129,5 @@ flowchart TD
 - [ ] `driver=minio` 时行为与 V1.0 完全一致（回归无破坏）
 - [ ] bucket/目录配置来自 config 单一来源，代码中无硬编码
 - [ ] docker-compose 默认不启动 MinIO，`--profile storage` 可启用
+- [ ] 文档存储格式为 `.md`（contentType `text/markdown`），非 `.txt`
 - [ ] TECH.md 同步更新存储架构
