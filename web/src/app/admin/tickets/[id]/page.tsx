@@ -13,11 +13,10 @@ import { getKBList } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft } from 'lucide-react';
+import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
@@ -77,7 +76,7 @@ export default function AdminTicketDetailPage() {
     return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   }
   if (!ticket) {
-    return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+    return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
   }
 
   return (

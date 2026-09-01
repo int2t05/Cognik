@@ -6,12 +6,11 @@ import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle,
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
-import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -74,7 +73,7 @@ export default function ArticleEditPage() {
   const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
-  if (!article) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+  if (!article) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-form">

@@ -8,12 +8,11 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
-import { BookPlus, Pencil, Trash2, BookOpen } from 'lucide-react';
+import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -73,7 +72,7 @@ export default function KnowledgeListPage() {
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       <div className="grid gap-3">
-        {error ? null : !kbs ? <AppleSpinner /> : kbs.length === 0 ? (
+        {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
           <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
           <AppleCard

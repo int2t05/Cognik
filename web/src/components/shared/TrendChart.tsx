@@ -2,10 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
-import { Calendar } from 'lucide-react';
+import { Calendar, Loader2 } from 'lucide-react';
 
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
 
@@ -106,7 +105,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
       {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}
 
       {loading ? (
-        <div className="flex justify-center py-16"><AppleSpinner /></div>
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin" /></div>
       ) : error ? (
         <div className="py-16 text-center text-[var(--color-error)] text-caption">加载趋势数据失败</div>
       ) : !data || data.length === 0 ? (

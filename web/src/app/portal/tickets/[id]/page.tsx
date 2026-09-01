@@ -5,12 +5,11 @@ import { getTicketDetail, supplementTicket, updateTicket } from '@/lib/api/ticke
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
 import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
-import { ChevronLeft, Send, Pencil, X, Check } from 'lucide-react';
+import { ChevronLeft, Send, Pencil, X, Check, Loader2 } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -76,7 +75,7 @@ export default function TicketDetailPage() {
   };
 
   if (error) return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
-  if (!ticket) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+  if (!ticket) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-content">

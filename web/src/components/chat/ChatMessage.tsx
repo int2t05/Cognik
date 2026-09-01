@@ -6,8 +6,7 @@
  */
 import { useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink } from 'lucide-react';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink, Loader2 } from 'lucide-react';
 import type { ChunkDisplay } from '@/contexts/ChatStreamProvider';
 
 interface SourceItem { doc_name: string; chunk_content: string; confidence: number; }
@@ -73,7 +72,7 @@ export function ChatMessage({
 
   // 将 AI 回复文本按 [N] 正则拆分为文本段 + 可点击徽章
   const renderContent = () => {
-    if (!content) return isStreaming ? <AppleSpinner size={16} /> : null;
+    if (!content) return isStreaming ? <Loader2 size={16} className="animate-spin" /> : null;
     // 流式中不渲染引用徽章（token 片段可能不完整）
     if (isStreaming) return <>{content}</>;
 

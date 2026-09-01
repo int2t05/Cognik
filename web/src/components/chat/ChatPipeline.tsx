@@ -4,8 +4,7 @@
  * 横向排列 + 箭头连接，大幅压缩垂直空间。
  * 已完成 → 蓝色对勾  进行中 → 脉冲圆点  等待 → 空心圆  失败 → 红色叉
  */
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { Check, X, ChevronRight } from 'lucide-react';
+import { Check, X, ChevronRight, Loader2 } from 'lucide-react';
 
 interface PipelineStep { id: string; label: string; duration_ms?: number; success?: boolean; }
 
@@ -64,7 +63,7 @@ export function ChatPipeline({ currentStep, steps }: ChatPipelineProps) {
               }`}>
                 {done ? <Check size={7} strokeWidth={2.5} className="text-[var(--color-accent)]" /> :
                  failed ? <X size={7} strokeWidth={2.5} className="text-[var(--color-error)]" /> :
-                 isCurrent ? <AppleSpinner size={7} /> :
+                 isCurrent ? <Loader2 size={7} className="animate-spin" /> :
                  null}
               </span>
               {STEP_LABELS[id] || s?.label || id}

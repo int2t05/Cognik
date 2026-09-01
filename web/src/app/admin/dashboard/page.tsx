@@ -9,8 +9,7 @@ import { formatPercent } from '@/lib/format';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
@@ -131,7 +130,7 @@ export default function DashboardPage() {
             disabled={analyzing}
             aria-label="分析反馈数据"
           >
-            {analyzing ? <span className="flex items-center gap-2"><AppleSpinner size={14} />分析中...</span> : 'AI 分析反馈'}
+            {analyzing ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />分析中...</span> : 'AI 分析反馈'}
           </AppleButton>
         </div>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">

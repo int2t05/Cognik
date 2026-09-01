@@ -14,12 +14,11 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Cpu, Pencil, Trash2, Star } from 'lucide-react';
+import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
 
@@ -166,7 +165,7 @@ export default function LLMConfigPage() {
 
       <div className="grid gap-3">
         {!configs ? (
-          <AppleSpinner />
+          <Loader2 className="animate-spin" />
         ) : configs.length === 0 ? (
           <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
         ) : (
