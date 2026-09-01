@@ -1,6 +1,6 @@
 "use client"
 
-// toggle.tsx — 切换按钮。基于 Radix Toggle，扩展 pill variant 复刻 Apple segmented-control 视觉。
+// toggle.tsx — 切换按钮。基于 Radix Toggle，扩展 pill variant 用于 segmented control。
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Toggle as TogglePrimitive } from "radix-ui"
@@ -12,10 +12,10 @@ const toggleVariants = cva(
   {
     variants: {
       variant: {
-        default: "rounded-md bg-transparent text-sm font-medium hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
+        default: "rounded-[var(--radius-md)] bg-transparent text-sm font-medium hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
         outline:
-          "rounded-md border border-input bg-transparent shadow-xs text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-        // pill — Apple segmented-control 风格：pill 圆角 + hairline border，选中态品牌色填充
+          "rounded-[var(--radius-md)] border border-input bg-transparent shadow-xs text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+        // pill — pill 圆角 + hairline border，选中态品牌色填充
         pill: "rounded-full border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)] data-[state=on]:bg-[var(--color-accent)] data-[state=on]:border-[var(--color-accent)] data-[state=on]:text-[var(--color-on-accent)] data-[state=on]:hover:bg-[var(--color-accent-hover)] active:scale-95",
       },
       size: {
