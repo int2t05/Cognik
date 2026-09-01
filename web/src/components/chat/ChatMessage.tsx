@@ -7,6 +7,8 @@
 import { useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { ChunkDisplay } from '@/contexts/ChatStreamProvider';
 
 interface SourceItem { doc_name: string; chunk_content: string; confidence: number; }
@@ -38,15 +40,17 @@ interface ChatMessageProps {
  */
 function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
   return (
-    <span
-      role="button" tabIndex={0}
+    <Badge
+      variant="info"
+      role="button"
+      tabIndex={0}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onClick(); } }}
       title={`查看来源 ${n}`}
-      className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1 mx-0.5 text-fine font-semibold rounded-full bg-[var(--color-accent)]/10 text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/20 active:scale-95 transition align-middle border-0"
+      className="min-w-[22px] h-[22px] px-1 mx-0.5 text-fine font-semibold cursor-pointer hover:bg-[var(--color-accent)]/20 active:scale-95 align-middle border-0"
     >
       {n}
-    </span>
+    </Badge>
   );
 }
 
@@ -203,30 +207,34 @@ export function ChatMessage({
 
         {isAi && !isStreaming && !!sessionId && !!onFeedback && !cancelled && (
           <div className="flex items-center gap-0.5 mt-3">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => onFeedback(feedback === 1 ? 0 : 1)}
               disabled={feedbackLoading}
               aria-label={feedback === 1 ? '取消有帮助' : '有帮助'}
-              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition active:scale-95 ${
+              className={`rounded-[var(--radius-pill)] ${
                 feedback === 1
                   ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
-              } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
+              }`}
             >
               <ThumbsUp size={14} />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => onFeedback(feedback === 2 ? 0 : 2)}
               disabled={feedbackLoading}
               aria-label={feedback === 2 ? '取消无帮助' : '无帮助'}
-              className={`flex items-center gap-1 text-fine px-2 py-1 rounded-[var(--radius-pill)] transition active:scale-95 ${
+              className={`rounded-[var(--radius-pill)] ${
                 feedback === 2
                   ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
                   : 'text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] hover:bg-[var(--color-tile-1)]'
-              } cursor-pointer border-0 bg-transparent disabled:opacity-40`}
+              }`}
             >
               <ThumbsDown size={14} />
-            </button>
+            </Button>
             {/* 用户点击"无帮助"后显示转申告入口 */}
             {feedback === 2 && question && (
               <Link

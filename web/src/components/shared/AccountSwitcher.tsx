@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
@@ -64,10 +65,10 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
             accounts.map((a) => {
               const expired = Date.now() - a.savedAt > 7 * 24 * 3600 * 1000;
               return (
-                <button
+                <DropdownMenuItem
                   key={a.username}
-                  onClick={() => handleSwitch(a)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left border-0 bg-transparent cursor-pointer transition hover:bg-[var(--color-divider-soft)] text-caption focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] ${expired ? 'opacity-50' : ''}`}
+                  onSelect={() => handleSwitch(a)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-caption ${expired ? 'opacity-50' : ''}`}
                 >
                   <span className="w-8 h-8 rounded-full bg-[var(--color-accent)]/10 flex items-center justify-center text-caption font-semibold text-[var(--color-accent)] shrink-0">
                     {a.realName?.[0] || a.username?.[0] || '?'}
@@ -78,17 +79,17 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                       {a.username}{expired ? ' · 已过期' : ''}
                     </span>
                   </span>
-                  <span
-                    role="button"
-                    tabIndex={0}
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={(e) => { e.stopPropagation(); removeAccount(a.username); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); removeAccount(a.username); } }}
+                    onPointerDown={(e) => e.stopPropagation()}
                     aria-label={`移除 ${a.username}`}
-                    className="p-1 text-[var(--color-text-muted-48)] hover:text-[var(--color-error)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] rounded-full"
+                    className="shrink-0 rounded-full text-[var(--color-text-muted-48)] hover:text-[var(--color-error)]"
                   >
                     <Trash2 size={14} />
-                  </span>
-                </button>
+                  </Button>
+                </DropdownMenuItem>
               );
             })
           )}

@@ -57,9 +57,9 @@ export default function AdminTicketListPage() {
           <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
           <Input placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="h-11 rounded-[var(--radius-pill)] pl-10 pr-10 min-w-[100px]" />
           {keyword && (
-            <button type="button" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
+            <Button type="button" variant="ghost" size="icon" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-1 top-1/2 -translate-y-1/2 size-7 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
               <X size={12} />
-            </button>
+            </Button>
           )}
         </div>
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
