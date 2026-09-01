@@ -10,7 +10,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { getSessionList, getChatDetail, deleteSession, createSession, updateSession } from '@/lib/api/chat';
 import { useChatStreamStore, type ChatMessage } from '@/contexts/ChatStreamProvider';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import type { ApiChatMessage, ChatSession } from './useChatSessions.types';
 
 export type { ApiChatMessage, ChatSession };
@@ -20,7 +20,6 @@ interface UseChatSessionsOptions {
 }
 
 export function useChatSessions({ token }: UseChatSessionsOptions) {
-  const toast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useChatStreamStore();

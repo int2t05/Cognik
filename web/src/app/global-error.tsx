@@ -1,6 +1,6 @@
 'use client';
 
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   return (
@@ -10,7 +10,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
           <div className="text-center max-w-[400px]">
             <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-3">系统错误</h1>
             <p className="text-body text-[var(--color-text-muted-48)] mb-5">{error.message}</p>
-            <AppleButton onClick={reset}>重试</AppleButton>
+            <Button size="lg" onClick={reset}>重试</Button>
           </div>
         </div>
       </body>

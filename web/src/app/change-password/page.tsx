@@ -3,10 +3,11 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { changePassword } from '@/lib/api/auth';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
-import { useToast } from '@/hooks/useToast';
-import { Key } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
+import { toast } from 'sonner';
+import { Key, Loader2 } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState('');
@@ -14,7 +15,6 @@ export default function ChangePasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const toast = useToast();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,11 +38,11 @@ export default function ChangePasswordPage() {
       <div className="w-full max-w-form p-8 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]">
         <h1 className="text-headline font-semibold text-[var(--color-ink)] text-center mb-5">修改密码</h1>
         <form onSubmit={handleSubmit}>
-          <AppleInput label="旧密码" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" disabled={loading} />
-          <AppleInput label="新密码" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} />
-          <AppleInput label="确认新密码" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} />
+          <Field label="旧密码"><Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} autoComplete="current-password" disabled={loading} /></Field>
+          <Field label="新密码"><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
+          <Field label="确认新密码"><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
           <div className="mt-6">
-            <AppleButton type="submit" icon={<Key />} loading={loading} className="w-full">修改密码</AppleButton>
+            <Button size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <Key size={18} />}修改密码</Button>
           </div>
         </form>
       </div>

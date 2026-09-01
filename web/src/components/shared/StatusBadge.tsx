@@ -1,7 +1,17 @@
-/** StatusBadge — 领域状态标签。将领域状态码映射为 AppleBadge 语义变体。 */
-import { AppleBadge } from '@/components/ui/AppleBadge';
+/** StatusBadge — 领域状态标签。将领域状态码映射为 Badge 语义变体，图标+颜色双重编码。 */
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, AlertTriangle, XCircle, Info, Minus } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+
+const BADGE_ICONS: Record<BadgeVariant, ReactNode> = {
+  success: <CheckCircle size={12} />,
+  warning: <AlertTriangle size={12} />,
+  error: <XCircle size={12} />,
+  info: <Info size={12} />,
+  neutral: <Minus size={12} />,
+};
 
 const TICKET_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
   1: { label: '待处理', variant: 'warning' },
@@ -46,7 +56,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
   // 后端返回 status_text 时优先使用
-  if (statusText) return <AppleBadge variant="neutral" label={statusText} />;
+  if (statusText) return <Badge variant="neutral">{statusText}</Badge>;
 
   let entry: { label: string; variant: BadgeVariant } | undefined;
   switch (type) {
@@ -56,7 +66,12 @@ export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
     case 'process': entry = PROCESS_STATUS[status as string]; break;
   }
 
-  if (!entry) return <AppleBadge variant="neutral" label={String(status)} />;
+  if (!entry) return <Badge variant="neutral">{String(status)}</Badge>;
 
-  return <AppleBadge variant={entry.variant} label={entry.label} />;
+  return (
+    <Badge variant={entry.variant}>
+      {BADGE_ICONS[entry.variant]}
+      {entry.label}
+    </Badge>
+  );
 }

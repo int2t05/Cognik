@@ -1,6 +1,6 @@
 /** FilterBar — 筛选按钮组。每个选项带 icon+文字，激活态高亮。 */
 import type { ReactNode } from 'react';
-import { AppleChip } from '@/components/ui/AppleChip';
+import { Toggle } from '@/components/ui/toggle';
 
 export interface FilterOption<V extends string | number> {
   value: V;
@@ -19,16 +19,17 @@ export function FilterBar<V extends string | number>({ options, value, onChange,
   return (
     <div className={`mb-4 flex gap-2 flex-wrap ${className}`}>
       {options.map((o) => (
-        <AppleChip
+        <Toggle
           key={String(o.value)}
-          size="md"
-          selected={value === o.value}
-          onClick={() => onChange(o.value)}
-          icon={o.icon}
+          variant="pill"
+          size="pill-md"
+          pressed={value === o.value}
+          onPressedChange={() => onChange(o.value)}
           aria-label={o.label}
         >
+          {o.icon}
           {o.label}
-        </AppleChip>
+        </Toggle>
       ))}
     </div>
   );

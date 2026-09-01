@@ -3,20 +3,20 @@ import useSWR from 'swr';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
-import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
   const router = useRouter();
-  const toast = useToast();
   const { data: article, error, mutate } = useSWR(`article-${articleId}`, () => getArticle(Number(articleId)));
   // 上传后 ?edit=1 → 自动进入编辑模式
   useEffect(() => {
@@ -74,12 +74,12 @@ export default function ArticleEditPage() {
   const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
 
   if (error) return <p className="text-[var(--color-error)] text-center text-caption py-10">加载失败</p>;
-  if (!article) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+  if (!article) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-form">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回" icon={<ChevronLeft />} />
+        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回"><ChevronLeft /></Button>
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
@@ -91,35 +91,35 @@ export default function ArticleEditPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {article.status === 1 && <AppleButton icon={<Send />} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')} loading={processing}>提交审核</AppleButton>}
-          {article.status === 2 && <><AppleButton icon={<CheckCircle />} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')} loading={processing}>通过</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }} loading={processing}>驳回</AppleButton></>}
-          {article.status === 3 && <><AppleButton icon={<Rocket />} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '已发布')} loading={processing}>发布</AppleButton>{article.process_status === 'failed' && <AppleButton variant="ghost" icon={<RotateCw />} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '正在重试发布')} loading={processing}>重试发布</AppleButton>}</>}
-          {article.status === 4 && <AppleButton variant="utility" icon={<Pause />} onClick={() => setDisableConfirm(true)} loading={processing}>停用</AppleButton>}
-          {article.status === 0 && <AppleButton icon={<Play />} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); startPolling(); }, '已启用')} loading={processing}>启用</AppleButton>}
-          {(article.status === 0 || article.status === 1 || article.status === 5) && <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />}
-          <AppleButton variant="danger" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(true)} />
+          {article.status === 1 && <Button size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交审核</Button>}
+          {article.status === 2 && <><Button size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}通过</Button><Button variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}驳回</Button></>}
+          {article.status === 3 && <><Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '已发布')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}发布</Button>{article.process_status === 'failed' && <Button variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); startPolling(); }, '正在重试发布')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}重试发布</Button>}</>}
+          {article.status === 4 && <Button variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}停用</Button>}
+          {article.status === 0 && <Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); startPolling(); }, '已启用')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}启用</Button>}
+          {(article.status === 0 || article.status === 1 || article.status === 5) && <Button variant="ghost" size="icon" aria-label="编辑" onClick={startEdit}><Pencil /></Button>}
+          <Button variant="destructive" size="icon" aria-label="删除" onClick={() => setDeleteTarget(true)}><Trash2 /></Button>
         </div>
       </div>
 
-      {article.status === 2 && <AppleCard className="mb-4"><AppleInput label="驳回理由（驳回时必填）" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></AppleCard>}
+      {article.status === 2 && <Card className="mb-4"><Field label="驳回理由（驳回时必填）"><Input value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></Field></Card>}
 
       {editing ? (
-        <AppleCard className="mb-4">
-          <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <AppleInput label="标签（逗号分隔）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
-          <div className="flex gap-2"><AppleButton icon={<CheckCircle />} onClick={handleSave} loading={editSaving}>保存</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => setEditing(false)}>取消</AppleButton></div>
-        </AppleCard>
+        <Card className="mb-4">
+          <Field label="标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label="正文"><Textarea rows={15} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
+          <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
+          <div className="flex gap-2"><Button size="lg" disabled={editSaving} onClick={handleSave}>{editSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}保存</Button><Button variant="ghost" size="sm" onClick={() => setEditing(false)}><XCircle size={16} />取消</Button></div>
+        </Card>
       ) : (
-        <AppleCard className="mb-4">
+        <Card className="mb-4">
           <h2 className="text-headline font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
           <div className="text-body leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <span key={t} className="px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
-        </AppleCard>
+        </Card>
       )}
 
       {article.process_status === 'failed' && (
-        <AppleCard className="border border-[var(--color-error)] mb-4">
+        <Card className="border border-[var(--color-error)] mb-4">
           <div className="flex items-start gap-3">
             <XCircle size={18} className="text-[var(--color-error)] shrink-0 mt-0.5" />
             <div>
@@ -130,7 +130,7 @@ export default function ArticleEditPage() {
               )}
             </div>
           </div>
-        </AppleCard>
+        </Card>
       )}
 
       <ConfirmDialog

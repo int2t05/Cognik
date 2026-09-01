@@ -1,10 +1,10 @@
 'use client';
 import useSWR from 'swr';
 import { getMyTickets } from '@/lib/api/ticket';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { formatDate } from '@/lib/date';
@@ -36,13 +36,13 @@ export default function TicketQueryPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>我的申告</PageTitle>
-        <AppleButton icon={<TicketPlus />} aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')} />
+        <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       <div className="mb-4">
-        <AppleInput pill placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
+        <Input className="rounded-[var(--radius-pill)]" placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
       </div>
 
       {isEmpty ? (
@@ -54,19 +54,18 @@ export default function TicketQueryPage() {
         />
       ) : (
         <>
-          <AppleTable
+          <DataTable
             columns={[
-              { key: 'ticket_no', title: '编号', render: (r) => <span className="font-[var(--font-mono)] text-fine">{r.ticket_no}</span> },
-              { key: 'title', title: '标题', render: (r) => <a href={`/portal/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
-              { key: 'tags', title: '标签', render: (r) => (r.tags || []).join(', ') || '—' },
-              { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
-              { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },
+              { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+              { accessorKey: 'title', header: '标题', cell: ({ row }) => <a href={`/portal/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</a> },
+              { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
+              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={tickets}
             loading={!data && !error}
-            rowKey="id"
           />
-          {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
         </>
       )}
     </div>

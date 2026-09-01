@@ -1,4 +1,4 @@
-import { Skeleton } from '@/components/ui/AppleSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PortalLoading() {
   return (

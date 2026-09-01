@@ -3,9 +3,9 @@ import useSWR from 'swr';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticleList } from '@/lib/api/knowledge';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search } from 'lucide-react';
@@ -32,10 +32,10 @@ export default function ArticleListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} aria-label="返回" icon={<ChevronLeft />} />
+          <Button variant="ghost" size="icon" onClick={() => router.push('/admin/knowledge')} aria-label="返回"><ChevronLeft /></Button>
           <PageTitle>知识文章</PageTitle>
         </div>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章" icon={<FilePlus />} />
+        <Button size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章"><FilePlus /></Button>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -51,19 +51,18 @@ export default function ArticleListPage() {
           />
         </div>
       </div>
-      <AppleTable
+      <DataTable
         columns={[
-          { key: 'title', title: '标题', render: (r) => <a href={`/admin/knowledge/${kbId}/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
-          { key: 'source_type_text', title: '来源', render: (r) => <span className="text-fine">{r.source_type === 1 ? '手动' : '上传'}</span> },
-          { key: 'status', title: '状态', render: (r) => <StatusBadge type="article" status={r.status} /> },
-          { key: 'process_status', title: '处理', render: (r) => r.process_status ? <StatusBadge type="process" status={r.process_status} /> : '—' },
-          { key: 'created_at', title: '更新时间', render: (r) => formatDate(r.updated_at) },
+          { accessorKey: 'title', header: '标题', cell: ({ row }) => <a href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</a> },
+          { id: 'source_type_text', header: '来源', cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
+          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
+          { accessorKey: 'process_status', header: '处理', cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },
+          { id: 'created_at', header: '更新时间', cell: ({ row }) => formatDate(row.original.updated_at) },
         ]}
         data={data?.items || []}
         loading={!data && !error}
-        rowKey="id"
       />
-      {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
     </div>
   );
 }

@@ -6,18 +6,19 @@ import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserD
 import { getRoleList } from '@/lib/api/role';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleChip } from '@/components/ui/AppleChip';
-import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
+import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { formatDate } from '@/lib/date';
-import { UserPlus, Pencil, Lock, Unlock } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock, Loader2 } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -40,7 +41,6 @@ export default function UserListPage() {
   const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '', role_ids: [] as number[] });
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
-  const toast = useToast();
   const roles = rolesData?.items || [];
 
   const handleSave = async () => {
@@ -91,43 +91,50 @@ export default function UserListPage() {
           <PageTitle>用户管理</PageTitle>
           <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
-        <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
+        <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
-      <AppleTable
+      <div className="mb-4"><Input className="rounded-[var(--radius-pill)]" placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
+      <DataTable
         columns={[
-          { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
-          { key: 'username', title: '用户名' }, { key: 'real_name', title: '姓名' }, { key: 'phone', title: '手机' },
-          { key: 'status', title: '状态', render: (r) => <StatusBadge type="user" status={r.status} /> },
-          { key: 'created_at', title: '创建时间', render: (r) => formatDate(r.created_at) },
-          { key: 'actions', title: '操作', render: (r) => <div className="flex gap-2">
-            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(r)} />
-            {r.status === 1 ? <AppleButton variant="utility" icon={<Lock />} aria-label="冻结" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: true })} />
-              : <AppleButton variant="utility" icon={<Unlock />} aria-label="恢复" onClick={() => setConfirmFreeze({ id: r.id, username: r.username, freeze: false })} />}
+          { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+          { accessorKey: 'username', header: '用户名' }, { accessorKey: 'real_name', header: '姓名' }, { accessorKey: 'phone', header: '手机' },
+          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
+          { accessorKey: 'created_at', header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
+          { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
+            <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(row.original)}><Pencil /></Button>
+            {row.original.status === 1 ? <Button variant="secondary" size="icon" aria-label="冻结" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></Button>
+              : <Button variant="secondary" size="icon" aria-label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></Button>}
           </div> },
         ]}
-        data={items} loading={!data && !error} rowKey="id"
+        data={items} loading={!data && !error}
         emptyText={debouncedKeyword ? `未找到与"${debouncedKeyword}"匹配的用户` : '暂无用户'}
       />
-      {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
-      <AppleDialog open={showCreate} onOpenChange={setShowCreate} title={editUser ? '编辑用户' : '新建用户'} description={editUser ? '' : '密码需8-32位，含大小写字母和数字'}
-        footer={<><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
-        {!editUser && <><AppleInput label="用户名" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /><AppleInput label="密码" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></>}
-        <AppleInput label="姓名" value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} />
-        <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <div className="mt-4">
-          <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
-          <div className="flex flex-wrap gap-2">
-            {roles.map(role => (
-              <AppleChip key={role.id} selected={form.role_ids.includes(role.id)} onClick={() => toggleRole(role.id)} role="checkbox" aria-checked={form.role_ids.includes(role.id)}
-                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}>{role.name}</AppleChip>
-            ))}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
+            {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
+          </DialogHeader>
+          {!editUser && <><Field label="用户名"><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码"><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
+          <Field label="姓名"><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
+          <Field label="手机"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="邮箱"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+          <div className="mt-4">
+            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
+            <div className="flex flex-wrap gap-2">
+              {roles.map(role => (
+                <Toggle key={role.id} variant="pill" size="pill-sm"
+                  pressed={form.role_ids.includes(role.id)}
+                  onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
+              ))}
+            </div>
           </div>
-        </div>
-      </AppleDialog>
+          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog open={!!confirmFreeze} onOpenChange={() => setConfirmFreeze(null)}
         title={confirmFreeze?.freeze ? '冻结用户' : '恢复用户'}

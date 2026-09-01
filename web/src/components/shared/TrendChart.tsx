@@ -2,10 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleChip } from '@/components/ui/AppleChip';
-import { Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
+import { Calendar, Loader2 } from 'lucide-react';
 
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
 
@@ -73,14 +72,15 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
         <h3 className="text-title font-semibold text-[var(--color-ink)]">趋势图</h3>
         <div className="flex items-center gap-2 flex-wrap">
           {PRESETS.map((p) => (
-            <AppleChip
+            <Toggle
               key={p.days}
-              size="md"
-              selected={activePreset === p.days}
-              onClick={() => applyPreset(p.days)}
+              variant="pill"
+              size="pill-md"
+              pressed={activePreset === p.days}
+              onPressedChange={() => applyPreset(p.days)}
             >
               {p.label}
-            </AppleChip>
+            </Toggle>
           ))}
           <span className="text-[var(--color-hairline)]">|</span>
           <Calendar size={12} className="text-[var(--color-text-muted-48)] shrink-0" />
@@ -99,13 +99,13 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             className="h-8 px-2 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
-          <AppleButton variant="ghost" onClick={applyCustom}>查询</AppleButton>
+          <Button variant="ghost" size="sm" onClick={applyCustom}>查询</Button>
         </div>
       </div>
       {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}
 
       {loading ? (
-        <div className="flex justify-center py-16"><AppleSpinner /></div>
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin" /></div>
       ) : error ? (
         <div className="py-16 text-center text-[var(--color-error)] text-caption">加载趋势数据失败</div>
       ) : !data || data.length === 0 ? (

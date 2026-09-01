@@ -6,16 +6,17 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import useSWR from 'swr';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { getAppName } from '@/lib/config/defaults';
 import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
 import { hasAdminAccess } from '@/lib/roles';
 import { saveLoginAccount } from '@/lib/account-store';
-import { LogIn } from 'lucide-react';
+import { LogIn, Loader2 } from 'lucide-react';
 
 interface LoginResponse {
   access_token: string;
@@ -39,7 +40,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
-  const toast = useToast();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,27 +100,27 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <AppleInput
-            label="用户名"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
-            autoComplete="username"
-            autoFocus
-          />
-          <AppleInput
-            label="密码"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
-            autoComplete="current-password"
-          />
+          <Field label="用户名">
+            <Input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
+              autoComplete="username"
+              autoFocus
+            />
+          </Field>
+          <Field label="密码">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
+              autoComplete="current-password"
+            />
+          </Field>
           <div className="mt-8">
-            <AppleButton type="submit" loading={loading} className="w-full" icon={<LogIn />}>
-              登录
-            </AppleButton>
+            <Button size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}登录</Button>
           </div>
         </form>
       </div>

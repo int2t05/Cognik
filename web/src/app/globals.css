@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
+
+/* 暗色模式 — 项目用 data-theme 属性（非 shadcn 默认 .dark class），需覆盖 dark 变体 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ===== Tailwind v4 Theme — 统一设计 Token ===== */
 @theme {
@@ -41,7 +45,32 @@
   --max-w-wide: 1200px;
   --max-w-content: 800px;
   --max-w-form: 640px;
+}
 
+/* ===== shadcn 语义色 → Tailwind utility 暴露 =====
+   放在 :root 之前：:root 的项目品牌 --color-accent 会覆盖此处 --color-accent，
+   故 bg-accent 运行时解析为品牌色（Apple 风格 hover 淡蓝），而非 shadcn 默认静音灰。
+   其余 shadcn 语义色（primary/background/card/border 等）正常暴露为 utility。 */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 /* ===== OpsMind Apple Design Tokens ===== */
@@ -116,6 +145,29 @@
 
   /* 叠加层遮罩色 — 浅色/暗色分别定义，避免硬编码 */
   --color-overlay: rgba(0, 0, 0, 0.4);
+
+  /* ===== shadcn 语义 Token → 映射到 Apple Design Tokens =====
+     primary = 品牌色（bg-primary 即品牌蓝）；accent = 静音 hover bg（瓦片色）。
+     注：--color-accent 被 :root 品牌色覆盖，故 shadcn bg-accent 运行时为品牌色。 */
+  --background: var(--color-parchment);
+  --foreground: var(--color-ink);
+  --card: var(--color-canvas);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-canvas);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-on-accent);
+  --secondary: var(--color-tile-1);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-tile-1);
+  --muted-foreground: var(--color-text-muted-48);
+  --accent: var(--color-tile-1);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--color-hairline);
+  --input: var(--color-hairline);
+  --ring: var(--color-accent-focus);
 }
 
 /* ===== 暗色主题 ===== */
@@ -154,6 +206,34 @@
 
   /* 叠加层遮罩色 */
   --color-overlay: rgba(0, 0, 0, 0.5);
+
+  /* ===== shadcn 语义 Token — 暗色（映射到 Apple dark tokens）===== */
+  --background: var(--color-parchment);
+  --foreground: var(--color-ink);
+  --card: var(--color-canvas);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-canvas);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-on-accent);
+  --secondary: var(--color-tile-1);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-tile-1);
+  --muted-foreground: var(--color-text-muted-48);
+  --accent: var(--color-tile-1);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--color-hairline);
+  --input: var(--color-hairline);
+  --ring: var(--color-accent-focus);
+}
+
+/* ===== shadcn 基础层 — 默认边框/轮廓绑定到语义 token ===== */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 }
 
 /* ===== 基础样式 ===== */

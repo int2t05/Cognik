@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { ToastProvider } from '@/hooks/useToast';
+import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SWRConfig } from 'swr';
 
@@ -12,9 +12,8 @@ export function Providers({ children }: { children: ReactNode }) {
     <SWRConfig value={{ revalidateOnFocus: false, dedupingInterval: 5000 }}>
       <AuthProvider>
         <ThemeProvider>
-          <ToastProvider>
-            <ErrorBoundary>{children}</ErrorBoundary>
-          </ToastProvider>
+          <ErrorBoundary>{children}</ErrorBoundary>
+          <Toaster />
         </ThemeProvider>
       </AuthProvider>
     </SWRConfig>

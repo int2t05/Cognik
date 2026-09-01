@@ -10,14 +10,14 @@ import {
   type TicketDetail,
 } from '@/lib/api/ticket';
 import { getKBList } from '@/lib/api/knowledge';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
-import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
@@ -37,7 +37,6 @@ export default function AdminTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const ticketID = Number(id);
   const router = useRouter();
-  const toast = useToast();
   const { data: ticket, error, mutate } = useSWR<TicketDetail>(`admin-ticket-${id}`, () => getAdminTicketDetail(ticketID));
   const { data: kbs } = useSWR('kb-list', getKBList);
   const [actionResult, setActionResult] = useState('');
@@ -77,12 +76,12 @@ export default function AdminTicketDetailPage() {
     return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
   }
   if (!ticket) {
-    return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+    return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
   }
 
   return (
     <div className="max-w-content">
-      <AppleButton variant="ghost" icon={<ChevronLeft size={18} />} aria-label="返回" onClick={() => router.push('/admin/tickets')} />
+      <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
       <h1 className="mb-2 text-display font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
@@ -98,46 +97,39 @@ export default function AdminTicketDetailPage() {
         )}
       </div>
 
-      <AppleCard className="mb-4">
+      <Card className="mb-4">
         <p className="whitespace-pre-wrap">{ticket.description}</p>
-      </AppleCard>
+      </Card>
 
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
-          <AppleButton icon={<Play />} onClick={() => handleAction('start')} loading={processing}>
-            开始处理
-          </AppleButton>
+          <Button size="lg" disabled={processing} onClick={() => handleAction('start')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}开始处理</Button>
         )}
         {ticket.status === 2 && (
           <>
-            <AppleButton icon={<CheckCircle />} onClick={() => handleAction('resolve')} loading={processing}>
-              标记解决
-            </AppleButton>
-            <AppleButton variant="ghost" icon={<MessageSquare />} onClick={() => handleAction('request_info')} loading={processing}>
-              索要补充
-            </AppleButton>
+            <Button size="lg" disabled={processing} onClick={() => handleAction('resolve')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}标记解决</Button>
+            <Button variant="ghost" size="sm" disabled={processing} onClick={() => handleAction('request_info')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <MessageSquare size={16} />}索要补充</Button>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
-          <AppleButton variant="danger" icon={<XCircle />} onClick={() => handleAction('close')} loading={processing}>
-            关闭申告
-          </AppleButton>
+          <Button variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭申告</Button>
         )}
       </div>
 
       {ticket.status === 2 && (
-        <AppleCard className="mb-4">
-          <AppleTextarea
-            label="处理说明"
-            value={actionResult}
-            onChange={(e) => setActionResult(e.target.value)}
-            rows={2}
-            placeholder="可选：填写处理结果；索要补充时必填"
-          />
-        </AppleCard>
+        <Card className="mb-4">
+          <Field label="处理说明">
+            <Textarea
+              value={actionResult}
+              onChange={(e) => setActionResult(e.target.value)}
+              rows={2}
+              placeholder="可选：填写处理结果；索要补充时必填"
+            />
+          </Field>
+        </Card>
       )}
 
-      <AppleCard className="mb-5">
+      <Card className="mb-5">
         <h2 className="mb-3 text-title font-semibold">生成知识候选</h2>
         <div className="flex items-end gap-3">
           <select
@@ -153,14 +145,12 @@ export default function AdminTicketDetailPage() {
               </option>
             ))}
           </select>
-          <AppleButton variant="ghost" icon={<Sparkles />} disabled={!kbId} onClick={handleCreateKnowledgeCandidate}>
-            生成
-          </AppleButton>
+          <Button variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />生成</Button>
         </div>
-      </AppleCard>
+      </Card>
 
       {ticket.records && ticket.records.length > 0 && (
-        <AppleCard>
+        <Card>
           <h2 className="mb-3 text-title font-semibold">处理记录</h2>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
@@ -169,7 +159,7 @@ export default function AdminTicketDetailPage() {
               <p className="mt-1 text-caption">{record.content}</p>
             </div>
           ))}
-        </AppleCard>
+        </Card>
       )}
     </div>
   );

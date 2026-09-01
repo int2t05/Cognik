@@ -6,11 +6,10 @@ import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
 import { StatCard } from '@/components/shared/StatCard';
 import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { useToast } from '@/hooks/useToast';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
-import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
@@ -39,7 +38,6 @@ function calcDelta(points: TrendPoint[] | undefined, key: 'ticket' | 'chat'): nu
 }
 
 export default function DashboardPage() {
-  const toast = useToast();
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
   const [dateRange, setDateRange] = useState({ start: daysAgoStr(7), end: todayStr() });
   const { data: trends, error: trendsErr, isLoading: trendsLoading, mutate: refreshTrends } = useSWR(
@@ -97,7 +95,7 @@ export default function DashboardPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>数据看板</PageTitle>
-        <AppleButton variant="ghost" icon={<RotateCw />} aria-label="刷新" onClick={handleRefresh} />
+        <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
 
@@ -125,14 +123,14 @@ export default function DashboardPage() {
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
-          <AppleButton
-            variant="pill"
+          <Button
+            size="lg"
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"
           >
-            {analyzing ? <span className="flex items-center gap-2"><AppleSpinner size={14} />分析中...</span> : 'AI 分析反馈'}
-          </AppleButton>
+            {analyzing ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />分析中...</span> : 'AI 分析反馈'}
+          </Button>
         </div>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">
           基于近 30 天的用户反馈，由 LLM 自动分析知识库的优势与待补充领域。

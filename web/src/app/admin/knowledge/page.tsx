@@ -4,16 +4,16 @@ import { useState, useMemo } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { BookPlus, Pencil, Trash2, BookOpen } from 'lucide-react';
+import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
@@ -31,7 +31,6 @@ export default function KnowledgeListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const toast = useToast();
   const router = useRouter();
 
   const handleSave = async () => {
@@ -67,18 +66,18 @@ export default function KnowledgeListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>知识库管理</PageTitle>
-        <AppleButton icon={<BookPlus />} aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }} />
+        <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
 
       <div className="grid gap-3">
-        {error ? null : !kbs ? <AppleSpinner /> : kbs.length === 0 ? (
+        {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
           <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
-          <AppleCard
+          <Card
             key={kb.id}
-            className="flex justify-between items-center cursor-pointer"
+            className="flex justify-between items-center cursor-pointer hover:bg-[var(--color-tile-1)] hover:-translate-y-px transition-[transform,background-color] focus-visible:shadow-[var(--focus-ring)]"
             role="button"
             tabIndex={0}
             aria-label={`打开知识库 ${kb.name}`}
@@ -90,28 +89,33 @@ export default function KnowledgeListPage() {
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章{kb.embedding_model ? ` · ${kb.embedding_model}` : ''}</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(kb)} />
-              <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(kb.id)} />
+              <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil /></Button>
+              <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 /></Button>
             </div>
-          </AppleCard>
+          </Card>
         ))}
       </div>
 
-      <AppleDialog open={showCreate} onOpenChange={setShowCreate} title={editId ? '编辑知识库' : '新建知识库'}
-        footer={<><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
-        <AppleInput label="名称" value={kbName} onChange={(e) => setKbName(e.target.value)} />
-        <AppleInput label="描述" value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} />
-        <div>
-          <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
-          <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
-            <option value="">默认（跟随系统配置）</option>
-            {embeddingOptions.map((c) => (
-              <option key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</option>
-            ))}
-          </select>
-        </div>
-      </AppleDialog>
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editId ? '编辑知识库' : '新建知识库'}</DialogTitle>
+          </DialogHeader>
+          <Field label="名称"><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
+          <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
+          <div>
+            <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
+            <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"
+              className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
+              <option value="">默认（跟随系统配置）</option>
+              {embeddingOptions.map((c) => (
+                <option key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}
