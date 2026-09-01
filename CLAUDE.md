@@ -32,27 +32,33 @@ Architecture: modular monolith, Handler → Service → Repository. RAG engine (
 
 ```
 server/
-├── cmd/main.go              # entry: config → DB → RAG → Service → Handler → Router → Scheduler
+├── cmd/main.go              # entry: config → DB → RAG → domain → router → runtime
 ├── internal/
-│   ├── adapter/             # LLMClient / EmbeddingClient / VectorStore(pgvector) / Reranker
-│   ├── storage/             # StorageClient 接口 + MinIO / Local 双实现（目录式存储）
-│   ├── cache/               # in-memory cache
-│   ├── config/              # Viper config
-│   ├── database/            # AutoMigrate + connection management
-│   ├── dto/                 # request/ + response/
-│   ├── handler/             # 11 Handlers (auth/user/role/chat/ticket/knowledge/llm_config/dashboard/config/audit/message)
-│   ├── log/                 # structured logging
-│   ├── middleware/          # JWT / RBAC / CORS / Logger
-│   ├── model/               # GORM models + enums
-│   ├── rag/                 # self-built RAG engine (pipeline/query_rewrite/multi_route/hybrid/bm25/rerank/chunker/embedder/retriever/processor/types)
-│   ├── repository/          # 11 Repositories
-│   ├── router/              # route registration + safeHandler
-│   ├── service/             # 11 业务 Services
-│   ├── runtime/            # scheduler / tx_manager / generation_hub（运行时基础设施）
-│   └── pkg/                 # jwt / hash / crypto / response / errcode
+│   ├── domain/              # 业务领域（每领域 handler + service + repository 三文件）
+│   │   ├── chat/           # 聊天/AI 问答（chat + llm + llm_config）
+│   │   ├── knowledge/      # 知识库
+│   │   ├── system/         # 系统管理（audit + config + dashboard + message）
+│   │   ├── ticket/         # 工单
+│   │   └── user/           # 用户/权限（auth + role + user）
+│   ├── infra/              # 基础设施
+│   │   ├── adapter/        # LLMClient / EmbeddingClient / VectorStore / Reranker
+│   │   ├── cache/          # 用户状态缓存
+│   │   ├── config/         # Viper 配置
+│   │   ├── database/       # AutoMigrate + 连接管理
+│   │   ├── log/            # 结构化日志
+│   │   ├── middleware/     # JWT / RBAC / CORS / Logger
+│   │   ├── runtime/        # scheduler / tx_manager / generation_hub
+│   │   └── storage/        # StorageClient 接口 + MinIO / Local 双实现（目录式）
+│   ├── rag/                # 自建 RAG 引擎（pipeline/bm25/hybrid/rerank/chunker/embedder/processor）
+│   ├── router/             # 路由注册 + safeHandler
+│   └── shared/             # 共享类型和工具
+│       ├── dto/            # request/ + response/
+│       ├── handler/        # 共享 handler 工具
+│       ├── model/          # GORM models + enums
+│       └── pkg/            # jwt / hash / crypto / response / errcode
 ├── migrations/              # DDL + seed data
 ├── models/                  # rerank model files
-├── test/                    # external test packages (config/database/model/service/handler/middleware/adapter/rag/repository/router/e2e/integration)
+├── test/                    # 外部测试包（domain/infra/rag/shared/router/e2e/integration）
 └── rerank_server.py         # Python cross-encoder rerank service
 
 web/src/

@@ -10,28 +10,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/handler"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
 
 	"github.com/gin-gonic/gin"
 )
 
 // setupLLMConfigHandler 使用真实 DB 创建 LLMConfigHandler。
-func setupLLMConfigHandler(t *testing.T) *handler.LLMConfigHandler {
+func setupLLMConfigHandler(t *testing.T) *chat.LLMConfigHandler {
 	t.Helper()
 	// 每次测试前清空表，避免默认配置唯一索引冲突
 	knowledgeHandlerDB.Exec("DELETE FROM llm_configs")
-	repo := repository.NewLlmConfigRepo(knowledgeHandlerDB)
-	svc, err := service.NewLLMConfigService(repo, knowledgeHandlerDB, nil)
+	repo := chat.NewLlmConfigRepo(knowledgeHandlerDB)
+	svc, err := chat.NewLLMConfigService(repo, knowledgeHandlerDB, nil)
 	if err != nil {
 		t.Fatalf("创建 LLMConfigService 失败: %v", err)
 	}
-	return handler.NewLLMConfigHandler(svc)
+	return chat.NewLLMConfigHandler(svc)
 }
 
-func setupLLMTestRouter(h *handler.LLMConfigHandler) *gin.Engine {
+func setupLLMTestRouter(h *chat.LLMConfigHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/api/v1/admin/llm-configs", h.ListConfigs)
@@ -62,7 +60,7 @@ func TestLLMConfigHandler_ListConfigs(t *testing.T) {
 
 	var resp struct {
 		Code int                       `json:"code"`
-		Data []service.LlmConfigResponse `json:"data"`
+		Data []chat.LlmConfigResponse `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp.Code != 0 {

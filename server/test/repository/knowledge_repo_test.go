@@ -15,7 +15,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/knowledge"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,7 +114,7 @@ func cleanKnowledgeTables(t *testing.T, db *gorm.DB) {
 func TestKnowledgeRepo_CreateKB(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -145,7 +145,7 @@ func TestKnowledgeRepo_CreateKB(t *testing.T) {
 // TestKnowledgeRepo_FindKBByID_NotFound 查询不存在的知识库
 func TestKnowledgeRepo_FindKBByID_NotFound(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	got, err := repo.FindKBByID(context.Background(), 999999)
 	assert.Error(t, err)
@@ -157,7 +157,7 @@ func TestKnowledgeRepo_FindKBByID_NotFound(t *testing.T) {
 func TestKnowledgeRepo_UpdateKB(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -189,7 +189,7 @@ func TestKnowledgeRepo_UpdateKB(t *testing.T) {
 func TestKnowledgeRepo_ListKBs(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb1 := &model.KnowledgeBase{
@@ -217,7 +217,7 @@ func TestKnowledgeRepo_ListKBs(t *testing.T) {
 func TestKnowledgeRepo_ListKBs_Empty(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	kbs, err := repo.ListKBs(context.Background(), )
 	require.NoError(t, err)
@@ -232,7 +232,7 @@ func TestKnowledgeRepo_ListKBs_Empty(t *testing.T) {
 func TestKnowledgeRepo_CreateArticle(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -274,7 +274,7 @@ func TestKnowledgeRepo_CreateArticle(t *testing.T) {
 // TestKnowledgeRepo_FindArticleByID_NotFound 查询不存在的文章
 func TestKnowledgeRepo_FindArticleByID_NotFound(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	got, err := repo.FindArticleByID(context.Background(), 999999)
 	assert.Error(t, err)
@@ -286,7 +286,7 @@ func TestKnowledgeRepo_FindArticleByID_NotFound(t *testing.T) {
 func TestKnowledgeRepo_UpdateArticle(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -325,7 +325,7 @@ func TestKnowledgeRepo_UpdateArticle(t *testing.T) {
 func TestKnowledgeRepo_ListArticles(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -385,7 +385,7 @@ func TestKnowledgeRepo_ListArticles(t *testing.T) {
 func TestKnowledgeRepo_ListArticles_Pagination(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -435,7 +435,7 @@ func TestKnowledgeRepo_ListArticles_Pagination(t *testing.T) {
 func TestKnowledgeRepo_ListArticles_PreloadKnowledgeBase(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -476,7 +476,7 @@ func TestKnowledgeRepo_ListArticles_PreloadKnowledgeBase(t *testing.T) {
 func TestKnowledgeRepo_UpdateArticleStatus(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	now := time.Now()
 	kb := &model.KnowledgeBase{
@@ -516,7 +516,7 @@ func TestKnowledgeRepo_UpdateArticleStatus(t *testing.T) {
 func TestKnowledgeRepo_FindChunksByArticleID_Empty(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
-	repo := repository.NewKnowledgeRepo(db)
+	repo := knowledge.NewKnowledgeRepo(db)
 
 	got, err := repo.FindChunksByArticleID(context.Background(), 999999)
 	require.NoError(t, err)

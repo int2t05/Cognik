@@ -27,12 +27,14 @@ import (
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
-	"opsmind/internal/repository"
 	"opsmind/internal/router"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
 	"opsmind/internal/shared/pkg/hash"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/ticket"
+	"opsmind/internal/domain/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -57,7 +59,7 @@ type apiTestServer struct {
 	ReporterID    int64
 	OperatorToken string
 	OperatorID    int64
-	authSvc       *service.AuthService
+	authSvc       *user.AuthService
 }
 
 // startAPITestServer 启动完整的 API 测试服务器。
@@ -88,45 +90,45 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	}
 
 	// Repository 层
-	userRepo, roleRepo, menuRepo := repository.NewUserRepo(db), repository.NewRoleRepo(db), repository.NewMenuRepo(db)
-	ticketRepo := repository.NewTicketRepo(db)
-	knowledgeRepo := repository.NewKnowledgeRepo(db)
-	chatRepo, messageRepo := repository.NewChatRepo(db), repository.NewMessageRepo(db)
-	auditRepo, dashboardRepo := repository.NewAuditRepo(db), repository.NewDashboardRepo(db)
-	configRepo, llmConfigRepo := repository.NewConfigRepo(db), repository.NewLlmConfigRepo(db)
+	userRepo, roleRepo, menuRepo := user.NewUserRepo(db), user.NewRoleRepo(db), user.NewMenuRepo(db)
+	ticketRepo := ticket.NewTicketRepo(db)
+	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
+	chatRepo, messageRepo := chat.NewChatRepo(db), chat.NewMessageRepo(db)
+	auditRepo, dashboardRepo := system.NewAuditRepo(db), system.NewDashboardRepo(db)
+	configRepo, llmConfigRepo := system.NewConfigRepo(db), chat.NewLlmConfigRepo(db)
 
 	// 缓存
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
 
 	// Service 层
-	authSvc := service.NewAuthService(userRepo, menuRepo, db, jwtCfg)
-	userSvc := service.NewUserService(userRepo, service.NewAuditService(auditRepo), db, userCache)
-	roleSvc := service.NewRoleService(roleRepo, menuRepo, service.NewAuditService(auditRepo), db)
-	messageSvc := service.NewMessageService(messageRepo)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
-	dashboardSvc := service.NewDashboardService(dashboardRepo)
-	configSvc := service.NewConfigService(configRepo, service.NewAuditService(auditRepo))
-	auditSvc := service.NewAuditService(auditRepo)
+	authSvc := user.NewAuthService(userRepo, menuRepo, db, jwtCfg)
+	userSvc := user.NewUserService(userRepo, system.NewAuditService(auditRepo), db, userCache)
+	roleSvc := user.NewRoleService(roleRepo, menuRepo, system.NewAuditService(auditRepo), db)
+	messageSvc := system.NewMessageService(messageRepo)
+	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
+	dashboardSvc := system.NewDashboardService(dashboardRepo)
+	configSvc := system.NewConfigService(configRepo, system.NewAuditService(auditRepo))
+	auditSvc := system.NewAuditService(auditRepo)
 
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, service.NewAuditService(auditRepo))
+	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, db, system.NewAuditService(auditRepo))
 	require.NoError(t, err)
 
-	knowledgeSvc := service.NewKnowledgeService(knowledgeRepo,
-		service.WithUserNames(userRepo), service.WithAuditWriter(service.NewAuditService(auditRepo)))
+	knowledgeSvc := knowledge.NewKnowledgeService(knowledgeRepo,
+		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(system.NewAuditService(auditRepo)))
 	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
 
-	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
 	}, nil, nil, nil)
 
 	// Handler → Router → HTTP Server
 	handlers := &router.Handlers{
-		Auth: handler.NewAuthHandler(authSvc), User: handler.NewUserHandler(userSvc),
-		Role: handler.NewRoleHandler(roleSvc), Ticket: handler.NewTicketHandler(ticketSvc),
-		Knowledge: handler.NewKnowledgeHandler(knowledgeSvc), Chat: handler.NewChatHandler(chatSvc),
-		Message: handler.NewMessageHandler(messageSvc), Dashboard: handler.NewDashboardHandler(dashboardSvc),
-		Audit: handler.NewAuditHandler(auditSvc), Config: handler.NewConfigHandler(configSvc),
-		LLMConfig: handler.NewLLMConfigHandler(llmConfigSvc),
+		Auth: user.NewAuthHandler(authSvc), User: user.NewUserHandler(userSvc),
+		Role: user.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
+		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc), Chat: chat.NewChatHandler(chatSvc),
+		Message: system.NewMessageHandler(messageSvc), Dashboard: system.NewDashboardHandler(dashboardSvc),
+		Audit: system.NewAuditHandler(auditSvc), Config: system.NewConfigHandler(configSvc),
+		LLMConfig: chat.NewLLMConfigHandler(llmConfigSvc),
 	}
 
 	r := router.Setup(&config.AppConfig{

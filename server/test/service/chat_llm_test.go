@@ -12,8 +12,8 @@ import (
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/knowledge"
 )
 
 // TestLLMClient_ChatCompletion 验证 LLM 客户端可正常调用 llama.cpp。
@@ -107,8 +107,8 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
 
 	// 创建 LLM 配置
-	llmConfigRepo := repository.NewLlmConfigRepo(knowledgeSvcDB)
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
+	llmConfigRepo := chat.NewLlmConfigRepo(knowledgeSvcDB)
+	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}
@@ -215,9 +215,9 @@ func TestChatService_SessionFlow(t *testing.T) {
 	}
 
 	// 创建 ChatService
-	knowledgeRepo := repository.NewKnowledgeRepo(knowledgeSvcDB)
-	chatRepo := repository.NewChatRepo(knowledgeSvcDB)
-	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{TopK: 3}, nil, nil, nil)
+	knowledgeRepo := knowledge.NewKnowledgeRepo(knowledgeSvcDB)
+	chatRepo := chat.NewChatRepo(knowledgeSvcDB)
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{TopK: 3}, nil, nil, nil)
 
 	// 创建会话
 	session, err := chatSvc.CreateSession(bgCtx, request.CreateSessionRequest{

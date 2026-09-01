@@ -14,7 +14,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/user"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +77,7 @@ func cleanUsers(t *testing.T, db *gorm.DB) {
 func TestUserRepo_GetByID_Existing(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user := &model.User{
@@ -108,7 +108,7 @@ func TestUserRepo_GetByID_Existing(t *testing.T) {
 // TestUserRepo_GetByID_NotFound 按 ID 查询不存在的用户
 func TestUserRepo_GetByID_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	got, err := repo.GetByID(context.Background(), 999999)
 	assert.Error(t, err)
@@ -120,7 +120,7 @@ func TestUserRepo_GetByID_NotFound(t *testing.T) {
 func TestUserRepo_GetByUsername_Existing(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user := &model.User{
@@ -144,7 +144,7 @@ func TestUserRepo_GetByUsername_Existing(t *testing.T) {
 // TestUserRepo_GetByUsername_NotFound 按用户名查询不存在的用户
 func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	got, err := repo.GetByUsername(context.Background(), "nonexistent_user_xyz")
 	assert.Error(t, err)
@@ -156,7 +156,7 @@ func TestUserRepo_GetByUsername_NotFound(t *testing.T) {
 func TestUserRepo_GetByPhone_Existing(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user := &model.User{
@@ -180,7 +180,7 @@ func TestUserRepo_GetByPhone_Existing(t *testing.T) {
 // TestUserRepo_GetByPhone_NotFound 按手机号查询不存在的用户
 func TestUserRepo_GetByPhone_NotFound(t *testing.T) {
 	db := setupUserTestDB(t)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	got, err := repo.GetByPhone(context.Background(), "99999999999")
 	assert.Error(t, err)
@@ -192,7 +192,7 @@ func TestUserRepo_GetByPhone_NotFound(t *testing.T) {
 func TestUserRepo_ExistsByPhone_True(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user := &model.User{
@@ -215,7 +215,7 @@ func TestUserRepo_ExistsByPhone_True(t *testing.T) {
 // TestUserRepo_ExistsByPhone_False 手机号不存在时返回 false
 func TestUserRepo_ExistsByPhone_False(t *testing.T) {
 	db := setupUserTestDB(t)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	exists, err := repo.ExistsByPhone(context.Background(), "99999999999")
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func TestUserRepo_ExistsByPhone_False(t *testing.T) {
 func TestUserRepo_Create(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user := &model.User{
@@ -258,7 +258,7 @@ func TestUserRepo_Create(t *testing.T) {
 func TestUserRepo_Create_DuplicateUsername(t *testing.T) {
 	db := setupUserTestDB(t)
 	cleanUsers(t, db)
-	repo := repository.NewUserRepo(db)
+	repo := user.NewUserRepo(db)
 
 	now := time.Now()
 	user1 := &model.User{

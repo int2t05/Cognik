@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
 )
 
 // newTestHub 构造带 Seq 对齐回调的测试 Hub（复刻运行时 Publish 内 Seq 赋值行为）。
-func newTestHub() *runtime.GenerationHub[service.StreamEvent] {
-	return runtime.NewGenerationHub[service.StreamEvent](func(e service.StreamEvent, seq int) service.StreamEvent {
+func newTestHub() *runtime.GenerationHub[chat.StreamEvent] {
+	return runtime.NewGenerationHub[chat.StreamEvent](func(e chat.StreamEvent, seq int) chat.StreamEvent {
 		e.Seq = seq
 		return e
 	})
 }
 
-func drain(ch <-chan service.StreamEvent, n int, d time.Duration) []service.StreamEvent {
-	out := []service.StreamEvent{}
+func drain(ch <-chan chat.StreamEvent, n int, d time.Duration) []chat.StreamEvent {
+	out := []chat.StreamEvent{}
 	timeout := time.After(d)
 	for len(out) < n {
 		select {
@@ -43,7 +43,7 @@ func TestHub_ReplayThenLiveNoGap(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	for i := 0; i < 3; i++ {
-		h.Publish(1, service.StreamEvent{Type: "token", Content: "x"})
+		h.Publish(1, chat.StreamEvent{Type: "token", Content: "x"})
 	}
 	replay, ch, unsub, ok := h.Subscribe(1, 2)
 	if !ok {
@@ -53,7 +53,7 @@ func TestHub_ReplayThenLiveNoGap(t *testing.T) {
 	if len(replay) != 1 || replay[0].Seq != 2 {
 		t.Fatalf("回放应为 [seq=2]，得到 %+v", replay)
 	}
-	h.Publish(1, service.StreamEvent{Type: "token", Content: "y"})
+	h.Publish(1, chat.StreamEvent{Type: "token", Content: "y"})
 	live := drain(ch, 1, time.Second)
 	if len(live) != 1 || live[0].Seq != 3 {
 		t.Fatalf("实时应为 seq=3，得到 %+v", live)
@@ -68,7 +68,7 @@ func TestHub_MultipleSubscribers(t *testing.T) {
 	_, chB, ub, _ := h.Subscribe(2, 0)
 	defer ua()
 	defer ub()
-	h.Publish(2, service.StreamEvent{Type: "token", Content: "a"})
+	h.Publish(2, chat.StreamEvent{Type: "token", Content: "a"})
 	if a := drain(chA, 1, time.Second); len(a) != 1 {
 		t.Fatal("A 应收到事件")
 	}
@@ -86,7 +86,7 @@ func TestHub_SlowSubscriberNotBlocking(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := 0; i < 1000; i++ {
-			h.Publish(3, service.StreamEvent{Type: "token", Content: "x"})
+			h.Publish(3, chat.StreamEvent{Type: "token", Content: "x"})
 		}
 		close(done)
 	}()
@@ -146,7 +146,7 @@ func TestHub_ConcurrentRace(t *testing.T) {
 		}()
 	}
 	for i := 0; i < 200; i++ {
-		h.Publish(6, service.StreamEvent{Type: "token"})
+		h.Publish(6, chat.StreamEvent{Type: "token"})
 	}
 	wg.Wait()
 	h.Finish(6)
@@ -156,8 +156,8 @@ func TestHub_ConcurrentRace(t *testing.T) {
 func TestHub_SubscribeAfterFinish(t *testing.T) {
 	h := newTestHub()
 	_ = h.Start(7, func() {})
-	h.Publish(7, service.StreamEvent{Type: "token", Content: "a"})
-	h.Publish(7, service.StreamEvent{Type: "done"})
+	h.Publish(7, chat.StreamEvent{Type: "token", Content: "a"})
+	h.Publish(7, chat.StreamEvent{Type: "done"})
 	h.Finish(7)
 
 	replay, ch, unsub, ok := h.Subscribe(7, 0)

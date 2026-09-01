@@ -15,9 +15,9 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
 	"opsmind/internal/shared/pkg/hash"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/domain/user"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,8 +102,8 @@ func seedTestUser(t *testing.T, db *gorm.DB, username, password, phone string, s
 // TestAuthService_Login_Success 验证正常登录。
 func TestAuthService_Login_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_login", "Test@1234", "13800001001", 1)
 
@@ -119,48 +119,48 @@ func TestAuthService_Login_Success(t *testing.T) {
 // TestAuthService_Login_WrongPassword 验证密码错误。
 func TestAuthService_Login_WrongPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_wrong", "Test@1234", "13800001002", 1)
 
 	resp, err := svc.Login(bgCtx, "test_auth_wrong", "WrongPassword@1")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, 10003, err.(service.AppError).Code, "密码错误应返回 10003")
+	assert.Equal(t, 10003, err.(errcode.AppError).Code, "密码错误应返回 10003")
 }
 
 // TestAuthService_Login_FrozenAccount 验证冻结账号登录。
 func TestAuthService_Login_FrozenAccount(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_frozen", "Test@1234", "13800001003", 2) // status=2 冻结
 
 	resp, err := svc.Login(bgCtx, "test_auth_frozen", "Test@1234")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, 10002, err.(service.AppError).Code, "冻结账号应返回 10002")
+	assert.Equal(t, 10002, err.(errcode.AppError).Code, "冻结账号应返回 10002")
 }
 
 // TestAuthService_Login_UserNotFound 验证用户不存在。
 func TestAuthService_Login_UserNotFound(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	resp, err := svc.Login(bgCtx, "nonexistent_xyz", "Test@1234")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, 10003, err.(service.AppError).Code)
+	assert.Equal(t, 10003, err.(errcode.AppError).Code)
 }
 
 // TestAuthService_RefreshToken_Success 验证刷新令牌。
 func TestAuthService_RefreshToken_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	seedTestUser(t, db, "test_auth_refresh", "Test@1234", "13800001004", 1)
 
@@ -179,20 +179,20 @@ func TestAuthService_RefreshToken_Success(t *testing.T) {
 // TestAuthService_RefreshToken_InvalidToken 验证无效刷新令牌。
 func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	resp, err := svc.RefreshToken(bgCtx, "invalid_token_xyz")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, 10001, err.(service.AppError).Code)
+	assert.Equal(t, 10001, err.(errcode.AppError).Code)
 }
 
 // TestAuthService_ChangePassword_Success 验证正常修改密码。
 func TestAuthService_ChangePassword_Success(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd", "Test@1234", "13800001005", 1)
 
@@ -208,25 +208,25 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 // TestAuthService_ChangePassword_WrongOldPassword 验证旧密码错误。
 func TestAuthService_ChangePassword_WrongOldPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd_old", "Test@1234", "13800001006", 1)
 
 	err := svc.ChangePassword(bgCtx,user.ID, "WrongOld@123", "NewPass@123")
 	assert.Error(t, err)
-	assert.Equal(t, 10003, err.(service.AppError).Code, "旧密码错误应返回 10003")
+	assert.Equal(t, 10003, err.(errcode.AppError).Code, "旧密码错误应返回 10003")
 }
 
 // TestAuthService_ChangePassword_WeakNewPassword 验证新密码不符合策略。
 func TestAuthService_ChangePassword_WeakNewPassword(t *testing.T) {
 	db := setupAuthTestDB(t)
-	repo := repository.NewUserRepo(db)
-	svc := service.NewAuthService(repo, nil, db, testJWTConfig())
+	repo := user.NewUserRepo(db)
+	svc := user.NewAuthService(repo, nil, db, testJWTConfig())
 
 	user := seedTestUser(t, db, "test_auth_chpwd_weak", "Test@1234", "13800001007", 1)
 
 	err := svc.ChangePassword(bgCtx,user.ID, "Test@1234", "weak")
 	assert.Error(t, err)
-	assert.Equal(t, 10003, err.(service.AppError).Code, "弱密码应返回 10003")
+	assert.Equal(t, 10003, err.(errcode.AppError).Code, "弱密码应返回 10003")
 }

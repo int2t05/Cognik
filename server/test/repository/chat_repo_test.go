@@ -15,7 +15,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/chat"
 
 	"gorm.io/gorm"
 )
@@ -101,7 +101,7 @@ func createTestKB(t *testing.T, db *gorm.DB) *model.KnowledgeBase {
 func TestChatRepo_CreateSession(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 	user := createTestUser(t, db, "test_chat_create")
 	kb := createTestKB(t, db)
 
@@ -126,7 +126,7 @@ func TestChatRepo_CreateSession(t *testing.T) {
 func TestChatRepo_FindByID(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 	user := createTestUser(t, db, "test_chat_find")
 	kb := createTestKB(t, db)
 
@@ -150,7 +150,7 @@ func TestChatRepo_FindByID(t *testing.T) {
 
 func TestChatRepo_FindByID_NotFound(t *testing.T) {
 	db := setupChatTestDB(t)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 
 	got, err := repo.FindByID(context.Background(), 999999)
 	if err == nil {
@@ -167,7 +167,7 @@ func TestChatRepo_FindByID_NotFound(t *testing.T) {
 func TestChatRepo_UpdateFeedback(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 	user := createTestUser(t, db, "test_chat_feedback")
 	kb := createTestKB(t, db)
 
@@ -192,7 +192,7 @@ func TestChatRepo_UpdateFeedback(t *testing.T) {
 func TestChatRepo_ListByUser(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 	user := createTestUser(t, db, "test_chat_list")
 	kb := createTestKB(t, db)
 
@@ -219,7 +219,7 @@ func TestChatRepo_ListByUser(t *testing.T) {
 func TestChatRepo_ListByUser_Pagination(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 	user := createTestUser(t, db, "test_chat_page")
 	kb := createTestKB(t, db)
 
@@ -261,7 +261,7 @@ func TestChatRepo_ListByUser_Pagination(t *testing.T) {
 func TestChatRepo_CreateBatch(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 
 	messages := []model.ChatMessage{
 		{SessionID: 1, Role: "user", Content: "如何重置密码？", CreatedAt: time.Now()},
@@ -292,7 +292,7 @@ func TestChatRepo_CreateBatch(t *testing.T) {
 func TestChatRepo_CreateBatch_Empty(t *testing.T) {
 	db := setupChatTestDB(t)
 	cleanChatTables(t, db)
-	repo := repository.NewChatRepo(db)
+	repo := chat.NewChatRepo(db)
 
 	// 空切片不应报错
 	err := repo.CreateBatch(context.Background(), []model.ChatMessage{})

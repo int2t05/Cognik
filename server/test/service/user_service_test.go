@@ -9,8 +9,9 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/user"
 
 	"gorm.io/gorm"
 )
@@ -33,11 +34,11 @@ func init() {
 	userSvcDB = db
 }
 
-func setupUserService(t *testing.T) (*service.UserService, *model.User) {
+func setupUserService(t *testing.T) (*user.UserService, *model.User) {
 	t.Helper()
-	repo := repository.NewUserRepo(userSvcDB)
-	auditRepo := repository.NewAuditRepo(userSvcDB)
-	svc := service.NewUserService(repo, service.NewAuditService(auditRepo), userSvcDB, nil)
+	repo := user.NewUserRepo(userSvcDB)
+	auditRepo := system.NewAuditRepo(userSvcDB)
+	svc := user.NewUserService(repo, system.NewAuditService(auditRepo), userSvcDB, nil)
 
 	// 创建测试用户
 	user := &model.User{
@@ -71,7 +72,7 @@ func TestUserService_GetByID_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
-	if code := err.(service.AppError).Code; code != 10004 {
+	if code := err.(errcode.AppError).Code; code != 10004 {
 		t.Errorf("期望错误码 10004, got %d", code)
 	}
 }
@@ -126,7 +127,7 @@ func TestUserService_Freeze_AlreadyFrozen(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
-	if code := err.(service.AppError).Code; code != 10006 {
+	if code := err.(errcode.AppError).Code; code != 10006 {
 		t.Errorf("期望错误码 10006, got %d", code)
 	}
 }
@@ -163,7 +164,7 @@ func TestUserService_Restore_AlreadyActive(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
-	if code := err.(service.AppError).Code; code != 10007 {
+	if code := err.(errcode.AppError).Code; code != 10007 {
 		t.Errorf("期望错误码 10007, got %d", code)
 	}
 }

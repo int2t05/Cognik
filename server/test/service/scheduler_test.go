@@ -14,9 +14,8 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/ticket"
 
 	"gorm.io/gorm"
 )
@@ -75,8 +74,8 @@ func setupSchedulerTest(t *testing.T) (*runtime.Scheduler, *model.User) {
 		t.Fatalf("创建测试用户失败: %v", err)
 	}
 
-	ticketRepo := repository.NewTicketRepo(schedDB)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(schedDB), nil, nil, nil)
+	ticketRepo := ticket.NewTicketRepo(schedDB)
+	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(schedDB), nil, nil, nil)
 	scheduler := runtime.NewScheduler(ticketSvc)
 
 	return scheduler, user

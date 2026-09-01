@@ -16,12 +16,10 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/handler"
 	"opsmind/internal/infra/middleware"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/ticket"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -31,7 +29,7 @@ import (
 type handlerTestEnv struct {
 	r    *gin.Engine
 	db   *gorm.DB
-	repo *repository.TicketRepo
+	repo *ticket.TicketRepo
 }
 
 func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
@@ -79,9 +77,9 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 		VALUES (1, '_th_test', '$2a$10$hash', 'Test', '13800000001', 1, true, NOW(), NOW())
 		ON CONFLICT (id) DO NOTHING`)
 
-	ticketRepo := repository.NewTicketRepo(db)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
-	ticketH := handler.NewTicketHandler(ticketSvc)
+	ticketRepo := ticket.NewTicketRepo(db)
+	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	ticketH := ticket.NewTicketHandler(ticketSvc)
 
 	r := gin.New()
 	r.Use(middleware.RequestID())

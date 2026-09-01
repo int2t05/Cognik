@@ -16,7 +16,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/ticket"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -108,7 +108,7 @@ func hashToPhone(s string) string {
 func TestTicketRepo_Create(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_ticket_user")
 
 	ticket := &model.Ticket{
@@ -134,7 +134,7 @@ func TestTicketRepo_Create(t *testing.T) {
 func TestTicketRepo_FindByID(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_find_ticket")
 
 	ticket := &model.Ticket{
@@ -166,7 +166,7 @@ func TestTicketRepo_FindByID(t *testing.T) {
 
 func TestTicketRepo_FindByID_NotFound(t *testing.T) {
 	db := setupTicketTestDB(t)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 
 	got, err := repo.FindByID(context.Background(), 999999)
 	if err == nil {
@@ -183,7 +183,7 @@ func TestTicketRepo_FindByID_NotFound(t *testing.T) {
 func TestTicketRepo_Update(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_update_ticket")
 
 	ticket := &model.Ticket{
@@ -209,7 +209,7 @@ func TestTicketRepo_Update(t *testing.T) {
 func TestTicketRepo_UpdateStatus(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_status_ticket")
 
 	ticket := &model.Ticket{
@@ -236,7 +236,7 @@ func TestTicketRepo_UpdateStatus(t *testing.T) {
 func TestTicketRepo_IncrementSupplementCount(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_supp_ticket")
 
 	ticket := &model.Ticket{
@@ -270,7 +270,7 @@ func TestTicketRepo_IncrementSupplementCount(t *testing.T) {
 func TestTicketRepo_IncrementSupplementCount_Exceeded(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_supp_exceeded")
 
 	ticket := &model.Ticket{
@@ -299,7 +299,7 @@ func TestTicketRepo_IncrementSupplementCount_Exceeded(t *testing.T) {
 func TestTicketRepo_ListByUser(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_listbyuser")
 
 	for i := 0; i < 3; i++ {
@@ -325,7 +325,7 @@ func TestTicketRepo_ListByUser(t *testing.T) {
 func TestTicketRepo_ListAll(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_listall")
 
 	// 创建不同状态和紧急程度的申告
@@ -361,7 +361,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_autoclose")
 
 	// 创建 8 天前的申告
@@ -411,7 +411,7 @@ func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 func TestTicketRepo_CreateRecord(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 	user := createTestUser(t, db, "test_record")
 
 	// 先创建申告（FK 约束：ticket_records.ticket_id → tickets.id）
@@ -440,7 +440,7 @@ func TestTicketRepo_CreateRecord(t *testing.T) {
 func TestTicketRepo_FindByTicketID(t *testing.T) {
 	db := setupTicketTestDB(t)
 	cleanTicketTables(t, db)
-	repo := repository.NewTicketRepo(db)
+	repo := ticket.NewTicketRepo(db)
 
 	// 先创建用户和申告（FK 约束）
 	user := createTestUser(t, db, "test_find_records")

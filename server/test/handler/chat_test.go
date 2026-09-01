@@ -19,11 +19,10 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	respDto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/handler"
 	"opsmind/internal/infra/middleware"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/knowledge"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -94,12 +93,12 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 	}
 
 	// 组装依赖链
-	knowledgeRepo := repository.NewKnowledgeRepo(db)
-	chatRepo := repository.NewChatRepo(db)
-	chatSvc := service.NewChatService(knowledgeRepo, chatRepo, nil, service.RAGDefaults{
+	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
+	chatRepo := chat.NewChatRepo(db)
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{
 		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
 	}, nil, nil, nil)
-	chatH := handler.NewChatHandler(chatSvc)
+	chatH := chat.NewChatHandler(chatSvc)
 
 	// 路由
 	r := gin.New()

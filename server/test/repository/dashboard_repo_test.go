@@ -10,7 +10,7 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/system"
 
 	"gorm.io/gorm"
 )
@@ -57,7 +57,7 @@ func setupDashboardRepoTestDB(t *testing.T) *gorm.DB {
 
 func TestDashboardRepo_CountTodayTickets(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	// urgency 和 updated_at 在真实表中可能没有 DEFAULT，显式指定以避免 NOT NULL 约束冲突
@@ -76,7 +76,7 @@ func TestDashboardRepo_CountTodayTickets(t *testing.T) {
 
 func TestDashboardRepo_CountByStatus(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at) VALUES
@@ -103,7 +103,7 @@ func TestDashboardRepo_CountByStatus(t *testing.T) {
 
 func TestDashboardRepo_CountTodayChats(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence, created_at)
@@ -120,7 +120,7 @@ func TestDashboardRepo_CountTodayChats(t *testing.T) {
 
 func TestDashboardRepo_AvgTodayConfidence(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, confidence, created_at)
@@ -137,7 +137,7 @@ func TestDashboardRepo_AvgTodayConfidence(t *testing.T) {
 
 func TestDashboardRepo_CountKnowledgeArticles(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO knowledge_articles (kb_id, title, content, status)
@@ -154,7 +154,7 @@ func TestDashboardRepo_CountKnowledgeArticles(t *testing.T) {
 
 func TestDashboardRepo_GetTicketTrends(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at)
@@ -172,7 +172,7 @@ func TestDashboardRepo_GetTicketTrends(t *testing.T) {
 
 func TestDashboardRepo_GetChatTrends(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO chat_sessions (user_id, question, answer, created_at)
@@ -190,7 +190,7 @@ func TestDashboardRepo_GetChatTrends(t *testing.T) {
 
 func TestDashboardRepo_GetTicketTrends_Week(t *testing.T) {
 	db := setupDashboardRepoTestDB(t)
-	repo := repository.NewDashboardRepo(db)
+	repo := system.NewDashboardRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO tickets (ticket_no, user_id, title, description, contact_phone, urgency, status, created_at, updated_at)

@@ -16,9 +16,8 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/ticket"
 
 	"gorm.io/gorm"
 )
@@ -102,8 +101,8 @@ func createTestUserForService(t *testing.T, db *gorm.DB, username string) *model
 func TestTicketService_CreateTicket(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_create")
 
 	req := request.CreateTicketRequest{
@@ -146,8 +145,8 @@ func TestTicketService_CreateTicket(t *testing.T) {
 func TestTicketService_CreateTicket_Validation(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_val")
 
 	// 标题为空
@@ -182,8 +181,8 @@ func TestTicketService_CreateTicket_Validation(t *testing.T) {
 func TestTicketService_SupplementTicket(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_supp")
 
 	// 创建申告并设置为"需补充信息"状态
@@ -224,8 +223,8 @@ func TestTicketService_SupplementTicket(t *testing.T) {
 func TestTicketService_SupplementTicket_WrongStatus(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_supp_ws")
 
 	// 创建待处理状态的申告（不是"需补充信息"）
@@ -246,8 +245,8 @@ func TestTicketService_SupplementTicket_WrongStatus(t *testing.T) {
 func TestTicketService_SupplementTicket_NotOwner(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	owner := createTestUserForService(t, db, "tsvc_supp_owner")
 	other := createTestUserForService(t, db, "tsvc_supp_other")
 
@@ -272,8 +271,8 @@ func TestTicketService_SupplementTicket_NotOwner(t *testing.T) {
 func TestTicketService_UpdateStatus_Start(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_start")
 	operator := createTestUserForService(t, db, "tsvc_start_op")
 
@@ -309,8 +308,8 @@ func TestTicketService_UpdateStatus_Start(t *testing.T) {
 func TestTicketService_UpdateStatus_RequestInfo(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_reqinfo")
 	operator := createTestUserForService(t, db, "tsvc_reqinfo_op")
 
@@ -341,8 +340,8 @@ func TestTicketService_UpdateStatus_RequestInfo(t *testing.T) {
 func TestTicketService_UpdateStatus_RequestInfoExceeded(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_exceed")
 	operator := createTestUserForService(t, db, "tsvc_exceed_op")
 
@@ -371,8 +370,8 @@ func TestTicketService_UpdateStatus_RequestInfoExceeded(t *testing.T) {
 func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_atomic")
 	operator := createTestUserForService(t, db, "tsvc_atomic_op")
 
@@ -406,8 +405,8 @@ func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 func TestTicketService_UpdateStatus_Resolve(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_resolve")
 	operator := createTestUserForService(t, db, "tsvc_resolve_op")
 
@@ -434,8 +433,8 @@ func TestTicketService_UpdateStatus_Resolve(t *testing.T) {
 func TestTicketService_UpdateStatus_Close(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_close")
 	operator := createTestUserForService(t, db, "tsvc_close_op")
 
@@ -462,8 +461,8 @@ func TestTicketService_UpdateStatus_Close(t *testing.T) {
 func TestTicketService_UpdateStatus_InvalidAction(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_invact")
 	operator := createTestUserForService(t, db, "tsvc_invact_op")
 
@@ -484,8 +483,8 @@ func TestTicketService_UpdateStatus_InvalidAction(t *testing.T) {
 func TestTicketService_UpdateStatus_WrongPreStatus(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_wps")
 	operator := createTestUserForService(t, db, "tsvc_wps_op")
 
@@ -511,8 +510,8 @@ func TestTicketService_UpdateStatus_WrongPreStatus(t *testing.T) {
 func TestTicketService_AddRecord(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_record")
 	operator := createTestUserForService(t, db, "tsvc_record_op")
 
@@ -551,8 +550,8 @@ func TestTicketService_AddRecord(t *testing.T) {
 func TestTicketService_ListByUser(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_listbyuser")
 
 	for i := 0; i < 3; i++ {
@@ -578,8 +577,8 @@ func TestTicketService_ListByUser(t *testing.T) {
 func TestTicketService_ListAll(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_listall")
 
 	tickets := []model.Ticket{
@@ -626,8 +625,8 @@ func TestTicketService_ListAll(t *testing.T) {
 func TestTicketService_GetDetail(t *testing.T) {
 	db := setupTicketServiceDB(t)
 	cleanTicketServiceTables(t, db)
-	repo := repository.NewTicketRepo(db)
-	svc := service.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	user := createTestUserForService(t, db, "tsvc_detail")
 
 	ticket := &model.Ticket{
