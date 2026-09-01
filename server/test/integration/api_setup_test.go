@@ -30,8 +30,9 @@ import (
 	"opsmind/internal/handler"
 	"opsmind/internal/repository"
 	"opsmind/internal/router"
+	"opsmind/internal/runtime"
 	"opsmind/internal/service"
-	"opsmind/pkg/hash"
+	"opsmind/internal/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -102,7 +103,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	userSvc := service.NewUserService(userRepo, service.NewAuditService(auditRepo), db, userCache)
 	roleSvc := service.NewRoleService(roleRepo, menuRepo, service.NewAuditService(auditRepo), db)
 	messageSvc := service.NewMessageService(messageRepo)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
+	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
 	dashboardSvc := service.NewDashboardService(dashboardRepo)
 	configSvc := service.NewConfigService(configRepo, service.NewAuditService(auditRepo))
 	auditSvc := service.NewAuditService(auditRepo)

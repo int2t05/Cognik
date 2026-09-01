@@ -8,8 +8,8 @@ package handler
 import (
 	"strconv"
 
-	"opsmind/pkg/errcode"
-	"opsmind/pkg/response"
+	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

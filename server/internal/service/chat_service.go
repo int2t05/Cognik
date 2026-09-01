@@ -17,7 +17,8 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/rag"
-	"opsmind/pkg/errcode"
+	"opsmind/internal/runtime"
+	"opsmind/internal/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -80,7 +81,7 @@ type ChatService struct {
 	chatRepo      chatSessionRepo
 	llmService    *LLMService
 	auditRepo     auditLogWriter // 审计日志写入接口（反馈事件记录）
-	hub           *GenerationHub
+	hub           *runtime.GenerationHub[StreamEvent]
 }
 
 
@@ -90,7 +91,7 @@ type auditLogWriter interface {
 }
 
 // NewChatService 创建 ChatService 实例。
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter, hub *GenerationHub) *ChatService {
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter, hub *runtime.GenerationHub[StreamEvent]) *ChatService {
 	if ragDefaults.TopK <= 0 {
 		ragDefaults.TopK = 5
 	}

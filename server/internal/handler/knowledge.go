@@ -16,8 +16,8 @@ import (
 	"opsmind/internal/dto/request"
 	dto "opsmind/internal/dto/response"
 	"opsmind/internal/service"
-	"opsmind/pkg/errcode"
-	"opsmind/pkg/response"
+	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

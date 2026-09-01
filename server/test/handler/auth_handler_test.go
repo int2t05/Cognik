@@ -20,7 +20,7 @@ import (
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
-	"opsmind/pkg/hash"
+	"opsmind/internal/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

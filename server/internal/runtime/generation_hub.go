@@ -1,8 +1,13 @@
-// Package service —— GenerationHub 接管「进行中」的流式生成所有权。
+// Package runtime —— GenerationHub 接管「进行中」的流式生成所有权。
 //
 // 生成与 HTTP 请求 ctx 解耦，客户端断开（导航/刷新）不影响生成，确保结果落库。
 // 重连可凭 since 回放缓冲实现断点续传。单实例内存实现，不依赖外部中间件。
-package service
+//
+// 泛型化事件类型 T：Hub 是纯扇出缓冲原语，与具体事件类型解耦，
+// 由调用方实例化（如 runtime.NewGenerationHub[service.StreamEvent](setSeq)）。
+// setSeq 回调在 Publish 内对齐事件 Seq 与缓冲下标——保留「锁内赋值」不变性的同时，
+// 避免 runtime 反向依赖 service 层的事件字段。
+package runtime
 
 import (
 	"context"
@@ -21,38 +26,42 @@ const generationGracePeriod = 30 * time.Second
 // 保证生成本身永不被订阅者阻塞。
 const subChanBuffer = 256
 
-type generation struct {
+type generation[T any] struct {
 	mu        sync.Mutex
-	buffer    []StreamEvent
+	buffer    []T
 	finished  bool
-	subs      map[int]chan StreamEvent
+	subs      map[int]chan T
 	nextSubID int
 	cancel    context.CancelFunc
 }
 
-// GenerationHub 按 sessionID 管理所有进行中的生成。
-type GenerationHub struct {
-	mu  sync.RWMutex
-	gen map[int64]*generation
+// GenerationHub 按 sessionID 管理所有进行中的生成。T 为流式事件类型。
+type GenerationHub[T any] struct {
+	mu     sync.RWMutex
+	gen    map[int64]*generation[T]
+	setSeq func(evt T, seq int) T
 }
 
 // NewGenerationHub 创建 GenerationHub 实例。
+// setSeq 在 Publish 内将事件的序号对齐到缓冲下标，保证回放与实时事件 Seq 严格同步；
+// 由调用方注入（因 runtime 不感知 T 的具体字段）。
+//
 // 为什么不用 sync.Map：需要原子性「读 + 写」操作（检查是否存在再插入），
 // RWMutex + map 比 sync.Map 在这种模式下更清晰、更易推理。
-func NewGenerationHub() *GenerationHub {
-	return &GenerationHub{gen: make(map[int64]*generation)}
+func NewGenerationHub[T any](setSeq func(evt T, seq int) T) *GenerationHub[T] {
+	return &GenerationHub[T]{gen: make(map[int64]*generation[T]), setSeq: setSeq}
 }
 
 // Start 登记一个新生成；若该会话已有未完成的生成则拒绝。
-func (h *GenerationHub) Start(sessionID int64, cancel context.CancelFunc) error {
+func (h *GenerationHub[T]) Start(sessionID int64, cancel context.CancelFunc) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if g, ok := h.gen[sessionID]; ok && !g.finished {
 		return ErrGenerationInProgress
 	}
-	h.gen[sessionID] = &generation{
-		buffer: make([]StreamEvent, 0, 64),
-		subs:   make(map[int]chan StreamEvent),
+	h.gen[sessionID] = &generation[T]{
+		buffer: make([]T, 0, 64),
+		subs:   make(map[int]chan T),
 		cancel: cancel,
 	}
 	return nil
@@ -61,14 +70,14 @@ func (h *GenerationHub) Start(sessionID int64, cancel context.CancelFunc) error 
 // Publish 追加事件到缓冲并扇出给所有订阅者（非阻塞）。Seq 由缓冲下标决定。
 // 为什么用 buffer 下标而非外部计数器：Seq 必须和回放位置完全对齐，用 len(buffer)
 // 赋值再 append 可保证两者严格同步，不存在竞态下的偏移。
-func (h *GenerationHub) Publish(sessionID int64, evt StreamEvent) {
+func (h *GenerationHub[T]) Publish(sessionID int64, evt T) {
 	g := h.get(sessionID)
 	if g == nil {
 		return
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	evt.Seq = len(g.buffer)
+	evt = h.setSeq(evt, len(g.buffer))
 	g.buffer = append(g.buffer, evt)
 	for id, ch := range g.subs {
 		select {
@@ -87,7 +96,7 @@ func (h *GenerationHub) Publish(sessionID int64, evt StreamEvent) {
 // 为什么回放和注册必须在同一把锁内完成：
 // 若先读完 buffer 再释放锁再注册，中间窗口内 Publish 的事件会同时写入 buffer
 // 和旧订阅者列表，新订阅者既回放不到（snapshot 已旧）又接不到实时推送，造成漏事件。
-func (h *GenerationHub) Subscribe(sessionID int64, since int) (replay []StreamEvent, ch <-chan StreamEvent, unsub func(), ok bool) {
+func (h *GenerationHub[T]) Subscribe(sessionID int64, since int) (replay []T, ch <-chan T, unsub func(), ok bool) {
 	g := h.get(sessionID)
 	if g == nil {
 		return nil, nil, nil, false
@@ -100,14 +109,14 @@ func (h *GenerationHub) Subscribe(sessionID int64, since int) (replay []StreamEv
 	if since > len(g.buffer) {
 		since = len(g.buffer)
 	}
-	replay = append([]StreamEvent(nil), g.buffer[since:]...)
+	replay = append([]T(nil), g.buffer[since:]...)
 	// 已结束的生成：只回放，不注册通道，返回一个已关闭的空通道。
 	if g.finished {
-		closed := make(chan StreamEvent)
+		closed := make(chan T)
 		close(closed)
 		return replay, closed, func() {}, true
 	}
-	out := make(chan StreamEvent, subChanBuffer)
+	out := make(chan T, subChanBuffer)
 	id := g.nextSubID
 	g.nextSubID++
 	g.subs[id] = out
@@ -126,7 +135,7 @@ func (h *GenerationHub) Subscribe(sessionID int64, since int) (replay []StreamEv
 // 为什么用 time.AfterFunc 而非立即删除：
 // 客户端刚好在生成完成那一刻断线时，宽限期内重连仍可回放完整内容；
 // 立即删除会导致这类客户端拿不到结尾的 done 事件。
-func (h *GenerationHub) Finish(sessionID int64) {
+func (h *GenerationHub[T]) Finish(sessionID int64) {
 	g := h.get(sessionID)
 	if g == nil {
 		return
@@ -151,7 +160,7 @@ func (h *GenerationHub) Finish(sessionID int64) {
 // Cancel 调用生成的 cancel()，使其 goroutine 经 gctx.Done() 退出。
 // 为什么不在 Cancel 中调用 Finish：生成 goroutine 感知到 ctx 取消后会自行调用
 // Finish 并写入 error 事件；Cancel 只负责触发信号，保持单一职责。
-func (h *GenerationHub) Cancel(sessionID int64) bool {
+func (h *GenerationHub[T]) Cancel(sessionID int64) bool {
 	g := h.get(sessionID)
 	if g == nil {
 		return false
@@ -168,7 +177,7 @@ func (h *GenerationHub) Cancel(sessionID int64) bool {
 }
 
 // Active 报告该会话是否有未结束的生成（前端进入会话时判断是否续传）。
-func (h *GenerationHub) Active(sessionID int64) bool {
+func (h *GenerationHub[T]) Active(sessionID int64) bool {
 	g := h.get(sessionID)
 	if g == nil {
 		return false
@@ -179,7 +188,7 @@ func (h *GenerationHub) Active(sessionID int64) bool {
 }
 
 // get 线程安全地获取 generation（只读锁，允许并发订阅）。
-func (h *GenerationHub) get(sessionID int64) *generation {
+func (h *GenerationHub[T]) get(sessionID int64) *generation[T] {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.gen[sessionID]

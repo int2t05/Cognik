@@ -1,8 +1,8 @@
-// Package service 实现后台调度器。
+// Package runtime 提供后台调度器等运行时基础设施。
 //
 // Scheduler 提供定时任务管理功能，当前包含：
 // - TicketAutoCloseJob：每小时检查，关闭超过 7 天的申告
-package service
+package runtime
 
 import (
 	"context"

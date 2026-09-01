@@ -17,7 +17,7 @@ import (
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
-	"opsmind/pkg/hash"
+	"opsmind/internal/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

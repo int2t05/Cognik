@@ -30,6 +30,7 @@ import (
 	"opsmind/internal/rag"
 	"opsmind/internal/repository"
 	"opsmind/internal/router"
+	"opsmind/internal/runtime"
 	"opsmind/internal/service"
 )
 
@@ -42,7 +43,7 @@ type app struct {
 	reranker      adapter.Reranker
 	vectorStore   adapter.VectorStore
 	storageClient storage.StorageClient
-	scheduler     *service.Scheduler
+	scheduler     *runtime.Scheduler
 	authService   *service.AuthService
 	server        *http.Server
 }
@@ -210,7 +211,7 @@ func wireApp() (*app, error) {
 	dashboardRepo := repository.NewDashboardRepo(db)
 
 	// 5. Service 层（无 RAG 依赖的部分）
-	txManager := service.NewGormTxManager(db)
+	txManager := runtime.NewGormTxManager(db)
 	menuRepo := repository.NewMenuRepo(db)
 
 	// 用户状态缓存（减少每个 API 请求的 DB 查询）
@@ -320,7 +321,10 @@ func wireApp() (*app, error) {
 		)
 	})
 
-	genHub := service.NewGenerationHub()
+	genHub := runtime.NewGenerationHub[service.StreamEvent](func(e service.StreamEvent, seq int) service.StreamEvent {
+		e.Seq = seq
+		return e
+	})
 	slog.Info("GenerationHub 已初始化")
 
 	chatService := service.NewChatService(knowledgeRepo, chatRepo, llmService, service.RAGDefaults{
@@ -357,7 +361,7 @@ func wireApp() (*app, error) {
 	}
 
 	// 7. 调度器
-	a.scheduler = service.NewScheduler(ticketService)
+	a.scheduler = runtime.NewScheduler(ticketService)
 	slog.Info("后台调度器已创建")
 
 	// 8. HTTP Server

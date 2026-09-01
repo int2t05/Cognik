@@ -34,7 +34,8 @@ Architecture: modular monolith, Handler → Service → Repository. RAG engine (
 server/
 ├── cmd/main.go              # entry: config → DB → RAG → Service → Handler → Router → Scheduler
 ├── internal/
-│   ├── adapter/             # LLMClient / EmbeddingClient / VectorStore(pgvector) / StorageClient(MinIO)
+│   ├── adapter/             # LLMClient / EmbeddingClient / VectorStore(pgvector) / Reranker
+│   ├── storage/             # StorageClient 接口 + MinIO / Local 双实现（目录式存储）
 │   ├── cache/               # in-memory cache
 │   ├── config/              # Viper config
 │   ├── database/            # AutoMigrate + connection management
@@ -46,8 +47,8 @@ server/
 │   ├── rag/                 # self-built RAG engine (pipeline/query_rewrite/multi_route/hybrid/bm25/rerank/chunker/embedder/retriever/processor/types)
 │   ├── repository/          # 11 Repositories
 │   ├── router/              # route registration + safeHandler
-│   └── service/             # 12 Services + scheduler + tx_manager + generation_hub
-├── pkg/                     # jwt / hash / crypto / response / errcode
+│   ├── service/             # 12 Services + scheduler + tx_manager + generation_hub
+│   └── pkg/                 # jwt / hash / crypto / response / errcode
 ├── migrations/              # DDL + seed data
 ├── models/                  # rerank model files
 ├── test/                    # external test packages (config/database/model/service/handler/middleware/adapter/rag/repository/router/e2e/integration)
@@ -90,12 +91,12 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 ## 6. Project Conventions
 
 - **Three-layer architecture:** Handler (param validation, response format) → Service (business logic, transactions) → Repository (data access). No cross-layer calls. RAG (`rag/`) does not depend on Handler/Service/Repository.
-- **External calls via adapters only:** LLM, Embedding, VectorStore, StorageClient are accessed exclusively through interfaces in `server/internal/adapter/`. No direct HTTP calls to LLM/MinIO/pgvector from Service/Handler.
+- **External calls via adapters only:** LLM, Embedding, VectorStore are accessed exclusively through interfaces in `server/internal/adapter/`. StorageClient is in `server/internal/storage/`. No direct HTTP calls to LLM/MinIO/pgvector from Service/Handler.
 - **Chinese comments:** file-header comment per file (why the module exists), function comment per key function (why, not what).
 - **Tests:** in `server/test/` using external test packages (`_test`); no mocks — tests run against real PostgreSQL + pgvector + MinIO. Use `-p 1` for integration tests to avoid cross-package DB contention.
-- **Unified response envelope:** `{"code": 0, "message": "success", "data": {...}}` via `pkg/response`; error codes in `pkg/errcode`.
+- **Unified response envelope:** `{"code": 0, "message": "success", "data": {...}}` via `internal/pkg/response`; error codes in `internal/pkg/errcode`.
 - **RBAC:** admin endpoints require JWT middleware + RBAC permission-code middleware.
-- **Password validation:** `pkg/hash.ValidatePassword` enforces `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$`.
+- **Password validation:** `internal/pkg/hash.ValidatePassword` enforces `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$`.
 - **Audit logs:** user/knowledge/ticket management operations write to `audit_logs`.
 - **LLM config hot-swap:** `atomic.Value` in `LLMConfigManager` — config changes take effect without restart.
 - **Apple Design:** light/dark dual-theme CSS variables; Action Blue `#006cc`; Inter Variable font; borderless flat cards; 17px body; pill-radius primary buttons. Tokens in `web/src/app/globals.css`.
@@ -104,7 +105,7 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 
 **Always:**
 - Read `docs/PRD.md` + `docs/TECH.md` before changing any interface or data model; confirm whether TECH.md needs sync after implementation.
-- Handle external-service failures (timeout, unreachable, error return) for all LLMClient / EmbeddingClient / VectorStore / StorageClient calls.
+- Handle external-service failures (timeout, unreachable, error return) for all LLMClient / EmbeddingClient / VectorStore / StorageClient calls. StorageClient is in `server/internal/storage/`.
 - Enforce state machines in Service (ticket status transitions, knowledge article status transitions) — never `UPDATE status` directly.
 - Use Docker-internal hostnames: `postgres:5432`, `minio:9000`, `http://llama-cpp:8080/v1` — never `localhost` for inter-container calls.
 

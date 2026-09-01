@@ -22,7 +22,8 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
-	"opsmind/pkg/errcode"
+	"opsmind/internal/runtime"
+	"opsmind/internal/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -49,7 +50,7 @@ type FeedbackMarker interface {
 type TicketService struct {
 	repo               *repository.TicketRepo
 	auditWriter        AuditWriter
-	txManager          TxManager
+	txManager          runtime.TxManager
 	msgSvc             *MessageService
 	knowledgeCandidate KnowledgeCandidateSaver
 	feedbackMarker     FeedbackMarker
@@ -60,7 +61,7 @@ type TicketService struct {
 // knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
 // feedbackMarker 为隐式反馈标记接口，ChatService 隐式满足该接口。
 // 所有依赖在构造时注入，对象始终处于有效状态。
-func NewTicketService(repo *repository.TicketRepo, auditWriter AuditWriter, txManager TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+func NewTicketService(repo *repository.TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
 	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
 }
 
