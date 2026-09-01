@@ -1,6 +1,6 @@
 /** Field — 表单字段容器。组合 Label + children + error。
  *  用 useId 生成 id，通过 cloneElement 注入到子 Input/Textarea，保持 label-input-error 的 a11y 关联
- *  （aria-invalid / aria-describedby / aria-required），替代原 AppleInput 的内聚行为。 */
+ *  （aria-invalid / aria-describedby / aria-required）。 */
 import { useId, cloneElement, isValidElement, type ReactNode, type ReactElement } from 'react';
 import { Label } from '@/components/ui/label';
 

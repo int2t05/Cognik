@@ -9,6 +9,7 @@ import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { InlineError } from '@/components/shared/InlineError';
 import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
@@ -97,7 +98,7 @@ export default function DashboardPage() {
         <PageTitle>数据看板</PageTitle>
         <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
       </div>
-      {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
+      {statsErr && <InlineError />}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[var(--spacing-md-plus)] mb-6">
         {STAT_CARDS.map((c) => (

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
@@ -40,7 +41,7 @@ export default function TicketQueryPage() {
         <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
       </div>
 
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
 
       <div className="mb-4">
         <Input className="rounded-[var(--radius-pill)]" placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />

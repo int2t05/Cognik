@@ -1,7 +1,6 @@
 /**
  * BatchSelectCheckbox — 批量选择复选框（列头 + 行）。
- *
- * 配合 useBatchSelection hook 使用，减少 4 个页面中重复的 checkbox JSX。
+ * 配合 useBatchSelection hook 使用。
  */
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';

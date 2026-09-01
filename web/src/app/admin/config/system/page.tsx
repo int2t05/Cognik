@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
 
@@ -145,7 +146,7 @@ export default function SystemConfigPage() {
   return (
     <div>
       <PageTitle>系统配置</PageTitle>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       <Card className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />

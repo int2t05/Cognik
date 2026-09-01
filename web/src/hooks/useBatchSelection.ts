@@ -1,7 +1,5 @@
 /**
  * useBatchSelection — 批量选择与删除的通用 hook。
- *
- * 从 users/tickets/audit/knowledge 4 个页面中提取，消除 ~270 行逐字重复。
  */
 
 import { useState, useCallback } from 'react';

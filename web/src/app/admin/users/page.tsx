@@ -15,6 +15,7 @@ import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { InlineError } from '@/components/shared/InlineError';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/date';
@@ -93,7 +94,7 @@ export default function UserListPage() {
         </div>
         <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
       </div>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       <div className="mb-4"><Input className="rounded-[var(--radius-pill)]" placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <DataTable
         columns={[

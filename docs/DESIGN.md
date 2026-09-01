@@ -65,7 +65,7 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 
 ## 5. Toast
 
-`sonner` 替换手写 `ToastProvider`（84 行 context+定时器+堆叠）。`Toaster` 在 Providers 渲染，调用方 `import { toast } from 'sonner'` 直接调用（success/error/warning/info API 一致）。
+`sonner` 替换手写 `ToastProvider`。`Toaster` 在 Providers 渲染，调用方 `import { toast } from 'sonner'` 直接调用（success/error/warning/info API 一致）。
 
 ## 6. 行为契约（Chat 5 条，重构中严格保留）
 
@@ -75,22 +75,35 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 4. 条件虚拟化（`messages.length > 50` 阈值）+ 双渲染路径。
 5. cookie 预读主题（root layout 服务端，防 FOUC）。
 
-## 7. 迁移总结
+## 7. 组件清单
 
-原 11 个手写 `Apple*` 组件全部删除，替换为 shadcn/ui：
+UI 层全部基于 shadcn/ui，按功能分类：
 
-| 原 Apple* | 替换为 | 消费方数 |
-|---|---|---|
-| AppleBadge | Badge（+5 语义 variant） | 1 |
-| AppleSkeleton | Skeleton（shimmer） | 2 |
-| AppleChip | Toggle（pill variant） | 4 |
-| AppleSpinner | lucide Loader2 + animate-spin | 9 |
-| AppleDialog | Dialog compound | 5 |
-| AppleCard | Card（Apple 等价） | 8 |
-| AppleInput/Textarea | Input/Textarea + Field | 12 |
-| AppleTable | DataTable（TanStack v9） | 7 |
-| ApplePagination | DataTablePagination | 7 |
-| AppleButton | Button（+menu variant, rounded-full） | 28 |
-| SearchInput | inline Input + icon + clear | 1 |
+### 表单类
+- `Input` / `Textarea` + `Field`（Label + error + aria 统一包裹）
+- `Select`（Radix，替代原生 select）
+- `Checkbox`（Radix，替代原生 checkbox）
+- `Label`
 
-净删除 ~1000 行手写组件代码。全部路由 build + tsc 通过，零 `Apple*` 引用残留。
+### 数据展示类
+- `DataTable`（shadcn Table + TanStack Table v9，内置 skeleton/empty 态）
+- `DataTablePagination`（shadcn Pagination + Select 页大小）
+- `Badge` / `StatusBadge`（5 语义 variant，颜色+图标双编码）
+- `Card`（Apple Design 风格：10px radius + hairline border + canvas bg）
+
+### 反馈类
+- `Dialog` / `ConfirmDialog`（compound，Radix 焦点陷阱/escape/scroll-lock）
+- `Toaster`（sonner，替代手写 ToastProvider）
+- `Skeleton`（shimmer 扫光动画）
+- `InlineError`（inline / full-page 双模式，统一错误提示）
+- `EmptyState` / `ErrorFallback`
+
+### 导航/布局类
+- `Button`（default/outline/destructive/ghost/secondary/link/menu variant + icon/sm/lg/icon-sm 尺寸）
+- `Toggle`（pill variant 用于 segmented control / 筛选）
+- `Tabs`（状态切换，带计数）
+- `DropdownMenu`（AccountSwitcher / 账号切换）
+- `CommandDialog`（⌘K，预留）
+- `AppShell`（方向 C 统一 Shell：顶栏+侧栏+main）
+
+全部路由 build + tsc 通过。UI 层无手写组件，统一由 shadcn/ui + 定制 variant 构成。

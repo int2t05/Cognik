@@ -1,9 +1,6 @@
 /**
  * EmptyState — 空状态占位，引导用户下一步操作。
- *
- * 为什么独立为组件：审计发现各页面空状态不统一——
- * 有的仅有文本，有的图标+文本+CTA，缺乏一致性。
- * 统一后所有空状态遵循"图标→标题→描述→可选操作"的信息层级。
+ * 所有空状态遵循"图标→标题→描述→可选操作"的信息层级。
  */
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';

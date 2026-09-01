@@ -1,9 +1,9 @@
 "use client"
 
-// sonner.tsx — Toast 容器。基于 sonner 库，替代项目原手写的 ToastProvider。
+// sonner.tsx — Toast 容器。基于 sonner 库。
 // 主题：不依赖 next-themes（项目用自定义 ThemeProvider + data-theme 属性），
 // 直接读取 @/hooks/useTheme 的 theme（'light' | 'dark'）驱动 sonner 明暗。
-// 默认配置对齐原 Toast 行为：右上角、富色、可关闭、最多 3 条。
+// 默认配置：右上角、富色、可关闭、最多 3 条。
 import {
   CircleCheckIcon,
   InfoIcon,

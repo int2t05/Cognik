@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
@@ -74,7 +75,7 @@ export default function AdminTicketDetailPage() {
   };
 
   if (error) {
-    return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
+    return <InlineError fullPage />;
   }
   if (!ticket) {
     return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;

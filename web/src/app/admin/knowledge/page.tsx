@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
@@ -70,7 +71,7 @@ export default function KnowledgeListPage() {
         <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
       </div>
 
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
 
       <div className="grid gap-3">
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (

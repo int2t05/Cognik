@@ -1,5 +1,3 @@
-/** 日期格式化工具 */
-
 /** 格式化 YYYY-MM-DD HH:MM:SS 或 ISO 字符串为可读格式 */
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';

@@ -1,6 +1,5 @@
 'use client';
-// DataTablePagination — 分页器 + 页大小选择。保留原 ApplePagination 的可见页码计算逻辑，
-// 底层换为 shadcn Pagination + Select（Radix，键盘可达）。
+// DataTablePagination — 分页器 + 页大小选择，基于 shadcn Pagination + Select（Radix，键盘可达）。
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

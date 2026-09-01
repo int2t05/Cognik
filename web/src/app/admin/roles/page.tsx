@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { ShieldPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
 
@@ -100,7 +101,7 @@ export default function RoleManagePage() {
         <PageTitle>角色管理</PageTitle>
         <Button size="icon" onClick={openCreate} aria-label="新建角色"><ShieldPlus /></Button>
       </div>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       <DataTable
         columns={[
           { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },

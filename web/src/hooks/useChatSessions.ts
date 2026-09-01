@@ -1,7 +1,6 @@
 /**
  * useChatSessions — 会话列表 CRUD + URL 同步。
- *
- * 从 ChatPage (537 行) 中提取，封装会话的创建、选择、删除、编辑、
+ * 封装会话的创建、选择、删除、编辑，
  * 以及 sessionId ↔ ?sid=X URL 参数双向同步。
  */
 

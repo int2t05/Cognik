@@ -1,4 +1,4 @@
-/** PortalLayout — 统一 Shell（方向 C）。用户菜单 + 管理员可见的管理分区（来自 useAuth().menus）。 */
+/** PortalLayout — 统一 Shell。用户菜单 + 管理员可见的管理分区（来自 useAuth().menus）。 */
 
 'use client';
 

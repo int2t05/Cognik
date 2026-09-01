@@ -7,6 +7,7 @@ import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
@@ -16,6 +17,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
+import { InlineError } from '@/components/shared/InlineError';
 
 const TICKET_FILTERS: FilterOption<number>[] = [
   { value: -1, label: '全部', icon: <ListFilter size={16} /> },
@@ -51,7 +53,7 @@ export default function AdminTicketListPage() {
       <div className="flex justify-between items-center mb-5">
         <PageTitle>申告管理</PageTitle>
       </div>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       <div className="mb-4 flex gap-2 items-center flex-wrap">
         <div className="relative">
           <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />

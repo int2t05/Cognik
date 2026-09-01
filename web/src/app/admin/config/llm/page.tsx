@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
@@ -154,7 +155,7 @@ export default function LLMConfigPage() {
   };
 
   if (error) {
-    return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
+    return <InlineError fullPage />;
   }
 
   return (

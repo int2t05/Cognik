@@ -1,6 +1,5 @@
 'use client';
-// ChatStreamProvider —— 把流式状态从聊天页面提升到 portal 布局层。
-// 为什么：原状态在页面内 hook，导航离开即卸载丢失。提升到布局层后跨路由保活，
+// ChatStreamProvider —— 把流式状态提升到 portal 布局层，跨路由保活，
 // 配合后端续传，实现「离开/刷新不丢、多会话并行」。
 //
 // token 批处理策略：
