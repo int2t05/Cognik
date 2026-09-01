@@ -3,8 +3,8 @@ import useSWR from 'swr';
 import { useState, useMemo } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenus, updateRoleMenus, type Menu } from '@/lib/api/role';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
 import { Input } from '@/components/ui/input';
@@ -101,18 +101,18 @@ export default function RoleManagePage() {
         <AppleButton onClick={openCreate} icon={<ShieldPlus />} aria-label="新建角色" />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <AppleTable
+      <DataTable
         columns={[
-          { key: 'name', title: '角色名' }, { key: 'description', title: '描述' },
-          { key: 'permissions', title: '权限', render: (r) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(r.permissions as string[]).join(', ') || '—'}</span> },
-          { key: 'actions', title: '操作', render: (r) => <div className="flex gap-2">
-            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit({ id: r.id as number, name: r.name as string, description: r.description as string, permissions: r.permissions as string[] })} />
-            <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteId(r.id as number)} />
+          { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
+          { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
+          { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
+            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })} />
+            <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteId(row.original.id as number)} />
           </div> },
         ]}
-        data={data?.items || []} loading={!data && !error} rowKey="id"
+        data={data?.items || []} loading={!data && !error}
       />
-      {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>

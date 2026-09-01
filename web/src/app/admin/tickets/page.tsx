@@ -3,8 +3,8 @@ import useSWR from 'swr';
 import { useState } from 'react';
 import { listAllTickets, batchDeleteTickets } from '@/lib/api/ticket';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -58,19 +58,19 @@ export default function AdminTicketListPage() {
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
-      <AppleTable
+      <DataTable
         columns={[
-          { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
-          { key: 'ticket_no', title: '编号', render: (r) => <span className="font-[var(--font-mono)] text-fine">{r.ticket_no}</span> },
-          { key: 'title', title: '标题', render: (r) => <a href={`/admin/tickets/${r.id}`} className="text-[var(--color-accent)]">{r.title}</a> },
-          { key: 'submitter_name', title: '提交人' },
-          { key: 'tags', title: '标签', render: (r) => (r.tags || []).join(', ') || '-' },
-          { key: 'status', title: '状态', render: (r) => <StatusBadge type="ticket" status={r.status} /> },
-          { key: 'created_at', title: '提交时间', render: (r) => formatDate(r.created_at) },
+          { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+          { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+          { accessorKey: 'title', header: '标题', cell: ({ row }) => <a href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</a> },
+          { accessorKey: 'submitter_name', header: '提交人' },
+          { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
+          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+          { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
         ]}
-        data={items} loading={!data && !error} rowKey="id"
+        data={items} loading={!data && !error}
       />
-      {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
         title="批量删除申告"
         message={`确定要删除 ${batch.selectedIds.size} 条申告吗？此操作不可撤销。`}

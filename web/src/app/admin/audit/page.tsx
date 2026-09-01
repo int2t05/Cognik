@@ -4,8 +4,8 @@ import { useState, useId } from 'react';
 import { getAuditLogs, batchDeleteAuditLogs } from '@/lib/api/audit';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
@@ -59,18 +59,18 @@ export default function AuditLogPage() {
         <EmptyState icon={<ScrollText size={40} />} title="暂无审计日志" description="系统操作记录将显示在这里" />
       ) : (
         <>
-          <AppleTable
+          <DataTable
             columns={[
-              { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
-              { key: 'operator_name', title: '操作人' },
-              { key: 'action', title: '操作', render: (r) => <span className="text-caption">{r.action}</span> },
-              { key: 'target_type', title: '对象类型' },
-              { key: 'ip_address', title: 'IP' },
-              { key: 'created_at', title: '时间', render: (r) => formatDate(r.created_at) },
+              { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+              { accessorKey: 'operator_name', header: '操作人' },
+              { accessorKey: 'action', header: '操作', cell: ({ row }) => <span className="text-caption">{row.original.action}</span> },
+              { accessorKey: 'target_type', header: '对象类型' },
+              { accessorKey: 'ip_address', header: 'IP' },
+              { accessorKey: 'created_at', header: '时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
-            data={items} loading={!data && !error} rowKey="id"
+            data={items} loading={!data && !error}
           />
-          {data && <ApplePagination page={Number(params.page)} pageSize={10} total={data.total} onChange={changePage} />}
+          {data && <DataTablePagination page={Number(params.page)} pageSize={10} total={data.total} onChange={changePage} />}
         </>
       )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
