@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
 import { ADMIN_ROLES } from '@/lib/roles';
 import { decodeJwtPayload, isTokenExpired } from '@/lib/auth';
 
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = ['/login', '/preview'];
 const ADMIN_PATH = '/admin';
 
 async function refreshAccessToken(refreshToken: string, requestUrl: string): Promise<string | null> {
