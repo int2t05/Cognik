@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 
 interface Props {
   /** 触发按钮的 className（由调用方控制样式）。 */
@@ -25,7 +25,6 @@ interface Props {
 export function AccountSwitcher({ className, iconOnly }: Props) {
   const { accounts, switchTo, removeAccount, logout } = useAccountSwitcher();
   const router = useRouter();
-  const toast = useToast();
 
   const handleSwitch = async (account: (typeof accounts)[0]) => {
     const ok = await switchTo(account);

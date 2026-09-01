@@ -12,7 +12,7 @@ import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/compone
 import { formatDate } from '@/lib/date';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, Search, X } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
@@ -31,7 +31,6 @@ export default function AdminTicketListPage() {
   const [keyword, setKeyword] = useState('');
   const debouncedKeyword = useDebounce(keyword, 300);
   const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}`, () => listAllTickets(page, status));
-  const toast = useToast();
 
   const items = (data?.items || []).filter((t: { title?: string; ticket_no?: string; submitter_name?: string }) => {
     if (!debouncedKeyword) return true;

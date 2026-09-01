@@ -8,14 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilePlus, X, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
   const router = useRouter();
-  const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');

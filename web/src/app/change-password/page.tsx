@@ -6,7 +6,7 @@ import { changePassword } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { Key, Loader2 } from 'lucide-react';
 
 export default function ChangePasswordPage() {
@@ -15,7 +15,6 @@ export default function ChangePasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const toast = useToast();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

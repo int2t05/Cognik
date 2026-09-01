@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { getAppName } from '@/lib/config/defaults';
 import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
@@ -40,7 +40,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
-  const toast = useToast();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

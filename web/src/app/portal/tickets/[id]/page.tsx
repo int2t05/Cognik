@@ -9,7 +9,7 @@ import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { ChevronLeft, Send, Pencil, X, Check, Loader2 } from 'lucide-react';
 
@@ -31,7 +31,6 @@ export default function TicketDetailPage() {
   const [editTags, setEditTags] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const toast = useToast();
 
   const handleSupplement = async () => {
     if (!supplement.trim()) return;

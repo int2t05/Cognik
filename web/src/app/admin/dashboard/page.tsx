@@ -7,7 +7,7 @@ import { StatCard } from '@/components/shared/StatCard';
 import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 
@@ -38,7 +38,6 @@ function calcDelta(points: TrendPoint[] | undefined, key: 'ticket' | 'chat'): nu
 }
 
 export default function DashboardPage() {
-  const toast = useToast();
   const { data: stats, error: statsErr, mutate: refreshStats } = useSWR('dashboard-stats', getStats);
   const [dateRange, setDateRange] = useState({ start: daysAgoStr(7), end: todayStr() });
   const { data: trends, error: trendsErr, isLoading: trendsLoading, mutate: refreshTrends } = useSWR(

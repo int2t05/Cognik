@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { ShieldPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
@@ -33,7 +33,6 @@ export default function RoleManagePage() {
   const [menuIds, setMenuIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const toast = useToast();
 
   // 从已有角色中提取所有已知权限（动态，而非硬编码）
   const knownPermissions = useMemo(() => {

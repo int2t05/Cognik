@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
@@ -31,7 +31,6 @@ export default function KnowledgeListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const toast = useToast();
   const router = useRouter();
 
   const handleSave = async () => {

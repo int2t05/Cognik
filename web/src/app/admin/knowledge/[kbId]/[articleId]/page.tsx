@@ -11,13 +11,12 @@ import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
   const router = useRouter();
-  const toast = useToast();
   const { data: article, error, mutate } = useSWR(`article-${articleId}`, () => getArticle(Number(articleId)));
   // 上传后 ?edit=1 → 自动进入编辑模式
   useEffect(() => {

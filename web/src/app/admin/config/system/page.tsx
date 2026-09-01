@@ -5,7 +5,7 @@ import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResu
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
 
 const CONFIG_KEYS = [
@@ -28,7 +28,6 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
   const [val, setVal] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const toast = useToast();
 
   const displayVal = editing ? val : formatDisplay(value, type);
   const startEdit = () => { setVal(formatEdit(value, type)); setEditing(true); };
@@ -84,7 +83,6 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
   const [computing, setComputing] = useState(false);
   const [result, setResult] = useState<ComputeThresholdsResult | null>(null);
   const [applying, setApplying] = useState(false);
-  const toast = useToast();
 
   const handleCompute = async () => {
     setComputing(true); setResult(null);

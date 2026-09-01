@@ -14,7 +14,7 @@ import { getPortalKBList } from '@/lib/api/knowledge';
 import { submitMessageFeedback, createSession } from '@/lib/api/chat';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { useConfigValue } from '@/hooks/useAppConfig';
 import { useChatStreamStore } from '@/contexts/ChatStreamProvider';
 import { isTokenExpired } from '@/lib/auth';
@@ -34,7 +34,6 @@ const SUGGESTIONS = [
 
 export default function ChatPage() {
   const { token } = useAuth();
-  const toast = useToast();
   const { data: kbs } = useSWR('portal-kbs', getPortalKBList);
   const { value: appName } = useConfigValue('app_name');
   const { value: lowT } = useConfigValue('ai.confidence_threshold_low');

@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
 
@@ -48,7 +48,6 @@ export default function LLMConfigPage() {
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const systemPromptId = useId();
-  const toast = useToast();
 
   const openCreate = () => {
     setEditId(null);

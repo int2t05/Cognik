@@ -16,7 +16,7 @@ import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
@@ -37,7 +37,6 @@ export default function AdminTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const ticketID = Number(id);
   const router = useRouter();
-  const toast = useToast();
   const { data: ticket, error, mutate } = useSWR<TicketDetail>(`admin-ticket-${id}`, () => getAdminTicketDetail(ticketID));
   const { data: kbs } = useSWR('kb-list', getKBList);
   const [actionResult, setActionResult] = useState('');

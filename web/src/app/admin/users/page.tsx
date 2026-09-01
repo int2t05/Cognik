@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { formatDate } from '@/lib/date';
 import { UserPlus, Pencil, Lock, Unlock, Loader2 } from 'lucide-react';
 
@@ -41,7 +41,6 @@ export default function UserListPage() {
   const [form, setForm] = useState({ username: '', password: '', real_name: '', phone: '', email: '', role_ids: [] as number[] });
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
-  const toast = useToast();
   const roles = rolesData?.items || [];
 
   const handleSave = async () => {

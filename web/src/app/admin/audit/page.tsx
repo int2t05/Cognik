@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ScrollText } from 'lucide-react';
 
@@ -18,7 +18,6 @@ export default function AuditLogPage() {
   const [params, setParams] = useState<Record<string, string | number>>({ page: 1, page_size: 10 });
   const debouncedParams = useDebounce(params, 300);
   const { data, error, mutate } = useSWR(`audit-${JSON.stringify(debouncedParams)}`, () => getAuditLogs(debouncedParams));
-  const toast = useToast();
   const idOp = useId();
   const idAct = useId();
   const idType = useId();
