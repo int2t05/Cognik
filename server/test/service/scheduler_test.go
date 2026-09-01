@@ -15,6 +15,7 @@ import (
 	"opsmind/internal/database"
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
+	"opsmind/internal/runtime"
 	"opsmind/internal/service"
 
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ func init() {
 	schedDB = db
 }
 
-func setupSchedulerTest(t *testing.T) (*service.Scheduler, *model.User) {
+func setupSchedulerTest(t *testing.T) (*runtime.Scheduler, *model.User) {
 	t.Helper()
 
 	schedDB.Exec(`CREATE TABLE IF NOT EXISTS users (
@@ -75,8 +76,8 @@ func setupSchedulerTest(t *testing.T) (*service.Scheduler, *model.User) {
 	}
 
 	ticketRepo := repository.NewTicketRepo(schedDB)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(schedDB), nil, nil, nil)
-	scheduler := service.NewScheduler(ticketSvc)
+	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(schedDB), nil, nil, nil)
+	scheduler := runtime.NewScheduler(ticketSvc)
 
 	return scheduler, user
 }

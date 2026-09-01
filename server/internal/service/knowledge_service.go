@@ -20,7 +20,7 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/rag"
-	"opsmind/pkg/errcode"
+	"opsmind/internal/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

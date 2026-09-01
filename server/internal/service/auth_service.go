@@ -1,7 +1,7 @@
 // Package service 实现认证业务逻辑。
 //
 // AuthService 处理登录、刷新令牌、修改密码等认证相关操作。
-// 依赖 UserRepo 进行用户数据访问，依赖 pkg/jwt 生成令牌。
+// 依赖 UserRepo 进行用户数据访问，依赖 internal/pkg/jwt 生成令牌。
 package service
 
 import (
@@ -16,9 +16,9 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
-	"opsmind/pkg/errcode"
-	"opsmind/pkg/hash"
-	"opsmind/pkg/jwt"
+	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/pkg/hash"
+	"opsmind/internal/pkg/jwt"
 
 	"gorm.io/gorm"
 )

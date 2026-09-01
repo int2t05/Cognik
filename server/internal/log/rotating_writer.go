@@ -4,7 +4,6 @@
 //
 //	cleanup, _ := log.Init("../logs")
 //	defer cleanup()
-//	// 之后所有模块直接用 slog.Info/Warn/Error 即可
 //
 // Init 一次性完成全局 slog 配置：
 //   - JSON 格式输出到 stdout + 日志文件

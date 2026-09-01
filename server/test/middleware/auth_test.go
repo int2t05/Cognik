@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"opsmind/internal/middleware"
-	pkgjwt "opsmind/pkg/jwt"
+	pkgjwt "opsmind/internal/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"opsmind/internal/cache"
-	"opsmind/pkg/errcode"
-	"opsmind/pkg/jwt"
-	"opsmind/pkg/response"
+	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/pkg/jwt"
+	"opsmind/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

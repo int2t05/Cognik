@@ -12,7 +12,7 @@ import (
 	"opsmind/internal/model"
 	"opsmind/internal/adapter"
 	"opsmind/internal/repository"
-	"opsmind/pkg/errcode"
+	"opsmind/internal/pkg/errcode"
 
 	"fmt"
 	"time"

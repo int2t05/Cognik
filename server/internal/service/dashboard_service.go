@@ -13,7 +13,7 @@ import (
 	"opsmind/internal/dto/request"
 	"opsmind/internal/dto/response"
 	"opsmind/internal/repository"
-	"opsmind/pkg/errcode"
+	"opsmind/internal/pkg/errcode"
 )
 
 const maxTrendDays = 90

@@ -20,6 +20,7 @@ import (
 	"opsmind/internal/middleware"
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
+	"opsmind/internal/runtime"
 	"opsmind/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -79,7 +80,7 @@ func setupTicketHandlerTest(t *testing.T) *handlerTestEnv {
 		ON CONFLICT (id) DO NOTHING`)
 
 	ticketRepo := repository.NewTicketRepo(db)
-	ticketSvc := service.NewTicketService(ticketRepo, nil, service.NewGormTxManager(db), nil, nil, nil)
+	ticketSvc := service.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
 	ticketH := handler.NewTicketHandler(ticketSvc)
 
 	r := gin.New()

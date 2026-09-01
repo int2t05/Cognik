@@ -16,8 +16,8 @@ import (
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
 	"opsmind/internal/repository"
-	"opsmind/pkg/errcode"
-	"opsmind/pkg/hash"
+	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/pkg/hash"
 
 	"gorm.io/gorm"
 )
