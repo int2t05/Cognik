@@ -9,7 +9,7 @@
 `LLMConfigManager` (service/llm_config_service.go) 使用 `atomic.Value` 无锁读写:
 
 ```
-LLMConfigManager.SetConfig (service/llm_config_service.go 内部)
+LLMConfigManager.store (service/llm_config_service.go 内部)
   → current.Store(config) — atomic 写入, 纳秒级
   → if onChange != nil: onChange() — 触发回调
 
@@ -80,7 +80,7 @@ LLMConfigHandler.CreateConfig (handler/llm_config.go:64)
     │     ├─ LlmConfigRepo.Create (repository/llm_config_repo.go:33)
     │     │   → BeforeSave: AES-GCM 加密 APIKey → INSERT
     │     ├─ LlmConfigRepo.FindByID → AfterFind 解密 → 热配置
-    │     └─ LLMConfigManager.SetConfig → 触发热重载 → OnChange 回调
+    │     └─ LLMConfigManager.store → 触发热重载 → OnChange 回调
     │
     └─ is_default=false: LlmConfigRepo.Create → 直接插入（不触发重载）
 ```
@@ -104,7 +104,7 @@ LLMConfigHandler.UpdateConfig (handler/llm_config.go:101)
     ├─ APIKey 空值: BeforeSave 跳过 → 保留已存密文
     │
     └─ is_default 变更:
-        Transaction → ClearDefault → Update → FindByID → SetConfig → 热重载
+        Transaction → ClearDefault → Update → FindByID → store → 热重载
 ```
 
 ### DELETE /api/v1/admin/llm-configs/:id &emsp; 删除 &emsp; [PermSystemConfig]
@@ -117,7 +117,7 @@ LLMConfigHandler.DeleteConfig (handler/llm_config.go:140)
     │   → SELECT COUNT(*) FROM knowledge_bases WHERE llm_config_id=?
     │   → count>0 → 拒绝 (存在关联知识库)
     ├─ LlmConfigRepo.Delete → DELETE FROM llm_configs WHERE id=?
-    └─ 若为默认 → configMgr.SetConfig(nil) → OnChange → 重建空客户端 → 降级到 config.yaml
+    └─ 若为默认 → configMgr.store(nil) → OnChange → 重建空客户端 → 降级到 config.yaml
 ```
 
 ---
@@ -146,7 +146,7 @@ CRUD 操作 →
       LlmConfigRepo (BeforeSave 加密/AfterFind 解密) →
         PostgreSQL llm_configs
       └─ is_default=true →
-        LLMConfigManager.SetConfig (atomic.Value) →
+        LLMConfigManager.store (atomic.Value) →
           OnChange 回调 →
             NewOpenAIClient → LLMService.SetLLMClient
             NewOpenAIEmbeddingClient → Embedder.SetClient

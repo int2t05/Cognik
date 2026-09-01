@@ -157,7 +157,7 @@ Authorization: Bearer <token>
 | email | string | | 邮箱（可选） |
 | role_ids | int64[] | | 重新分配的角色 ID 列表（全量替换） |
 
-> 仅更新基本信息，不修改密码。密码修改走 `/api/v1/auth/change-password`。
+> 仅更新基本信息，不修改密码。密码修改走 `/api/v1/auth/me/change-password`。
 >
 > 角色分配采用全量替换策略：传入 `role_ids` 将覆盖用户现有的角色关联。
 

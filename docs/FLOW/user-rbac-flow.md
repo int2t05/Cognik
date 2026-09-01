@@ -205,7 +205,7 @@ RoleHandler.UpdateRoleMenus (handler/role.go:127)
 
 ## 权限常量
 
-定义于 `router/permissions.go:6-19`：
+定义于 `router/permissions.go:10-22`：
 
 ```
 user:manage       — 用户与角色管理

@@ -50,7 +50,7 @@ flowchart TB
     end
 
     Client --> Router --> MW --> Handler --> Service --> RAG --> Adapter
-    Adapter --> Infra["PostgreSQL 18 + pgvector / MinIO / llama.cpp"]
+    Adapter --> Infra["PostgreSQL + pgvector / MinIO / llama.cpp"]
 ```
 
 ### 1.2 请求生命周期
@@ -161,7 +161,7 @@ classDiagram
 
 - `LLMClient` / `EmbeddingClient`：OpenAI-compatible 实现，指数退避重试（maxRetries=3，429/503 可重试）
 - `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验
-- `StorageClient`：MinIO 实现，两桶模型（`opsmind-documents` 临时 + `opsmind-published` 已发布）
+- `StorageClient`：MinIO 实现，两桶模型（`opsmind-attachments` 申告附件 + `opsmind-documents` 知识文档）
 
 ## 3. 前端架构
 
@@ -212,7 +212,7 @@ flowchart TD
 ```
 
 - AuthProvider 使用 `useLayoutEffect` 设置 token getter，确保 SWR 首次请求携带 token
-- 客户端 fetch 直连后端（`NEXT_PUBLIC_API_URL`），绕过 Next.js rewrite 避免 Turbopack POST 代理 500
+- 客户端 fetch 默认走相对路径，通过 Next.js rewrite 代理到后端；开发时可设 `NEXT_PUBLIC_API_URL` 直连后端
 
 ### 3.4 API 模块速查
 
@@ -237,7 +237,12 @@ flowchart TD
 | `useAuth()` | 全局认证（login/logout/hasPermission），React Context |
 | `useTheme()` | 双主题切换（light/dark），localStorage + cookie + data-theme |
 | `useToast()` | Toast 通知，分级消失时间 |
+| `useAppConfig()` | 从后端读取系统配置，非管理员页面 401 时静默回落默认值 |
+| `useChatSessions()` | 会话列表 CRUD + `?sid=` URL 参数双向同步 |
 | `useChatStream()` | SSE 流式问答状态管理，ReadableStream 解析 + AbortController |
+| `useAutoScroll()` | 对话区自动滚动（流式跟随、非流式仅底部附近跟随） |
+| `useBatchSelection()` | 批量选择与删除（users/tickets/audit/knowledge 复用） |
+| `useAccountSwitcher()` | 历史登录会话管理，7 天过期，过期需重新输入密码 |
 | `useDebounce()` | 搜索防抖，300ms 默认 |
 | `useUnreadCount()` | 消息未读数轮询，30s 间隔 |
 
@@ -359,7 +364,7 @@ flowchart TD
 
 - `S_retrieval`：Top-K chunk 得分加权聚合
 - `S_qa`：问题-答案 embedding 余弦相似度校验
-- 阈值通过分位数动态计算（P30/P70），带完整性检查（P30≥0.3, P70≥0.6 不满足则回退硬编码）
+- 阈值通过分位数动态计算（P30/P70），带完整性检查（p30 下限 0.10，p70 上限 0.95，p70-p30 最小间距 0.10）；无数据时回退默认值 P30=0.40 / P70=0.70
 
 ### 5.3 外部服务重试策略
 
@@ -465,24 +470,32 @@ flowchart LR
 ```
 server/cmd/main.go           入口：配置→DB→RAG→Service→Handler→Router→Scheduler
 server/internal/
-├── config/                   Viper 配置
-├── middleware/               JWT / RBAC / CORS / Logger
-├── router/                   路由注册 + safeHandler
-├── handler/                  11 个 Handler
-├── service/                  11 个 Service + scheduler + tx_manager
-├── repository/               9 个 Repository
-├── model/                    GORM 模型 + 枚举
-├── rag/                      自建 RAG 引擎（12 文件）
 ├── adapter/                  LLM / Embedding / VectorStore / StorageClient
+├── cache/                    内存缓存
+├── config/                   Viper 配置
+├── database/                 AutoMigrate + 连接管理
 ├── dto/                      request/ + response/
-server/pkg/                   jwt / hash / response / errcode
+├── handler/                  11 个 Handler
+├── log/                      结构化日志
+├── middleware/               JWT / RBAC / CORS / Logger
+├── model/                    GORM 模型 + 枚举
+├── rag/                      自建 RAG 引擎
+├── repository/               11 个 Repository
+├── router/                   路由注册 + safeHandler
+├── service/                  12 个 Service + scheduler + tx_manager + generation_hub
+server/pkg/                   jwt / hash / crypto / response / errcode
+server/migrations/            DDL + 种子数据
+server/models/                rerank 模型文件
+server/test/                  外部测试包（config/database/model/service/handler/...）
+server/rerank_server.py       Python 重排序服务
 web/src/
-├── app/                      Next.js App Router（login/portal/admin）
+├── app/                      Next.js App Router + globals.css（Apple Design Tokens）
 ├── components/ui/            Apple Design 组件
 ├── components/layout/        AdminLayout / PortalLayout
 ├── components/shared/        StatusBadge / ConfirmDialog / StatCard
 ├── components/chat/          ChatInput / ChatMessage / ChatPipeline
-├── lib/api/                  10 个 API 客户端模块
-├── hooks/                    6 个自定义 Hooks
-└── styles/                   Apple Design Tokens + 双主题 CSS
+├── contexts/                 ChatStreamProvider
+├── hooks/                    11 个自定义 Hooks
+├── lib/api/                  11 个 API 客户端模块
+└── __tests__/                前端单元测试
 ```

@@ -1,6 +1,6 @@
 # Chat RAG SSE 数据流 — 每个 API 端点
 
-> 涉及文件: `handler/chat.go`, `service/chat_service.go`, `service/llm_service.go`, `repository/chat_repo.go`, `rag/pipeline.go`, `rag/query_rewrite.go`, `rag/multi_route.go`, `rag/hybrid.go`, `rag/bm25.go`, `rag/rrerank.go`, `rag/embedder.go`, `rag/retriever.go`, `rag/types.go`, `adapter/llm_client.go`, `adapter/embedding_client.go`, `adapter/vector_store.go`, `model/chat.go`
+> 涉及文件: `handler/chat.go`, `service/chat_service.go`, `service/llm_service.go`, `repository/chat_repo.go`, `rag/pipeline.go`, `rag/query_rewrite.go`, `rag/multi_route.go`, `rag/hybrid.go`, `rag/bm25.go`, `rag/rerank.go`, `rag/embedder.go`, `rag/retriever.go`, `rag/types.go`, `adapter/llm_client.go`, `adapter/embedding_client.go`, `adapter/vector_store.go`, `model/chat.go`
 
 ---
 
@@ -80,8 +80,8 @@ LLMService.StreamChat (service/llm_service.go:188) — goroutine:
   │       │    │   → GseSegmenter.Segment → BM25 评分 (k1=1.5,b=0.75)
   │       │    └─ HybridFuse (rag/hybrid.go:35)
   │       │        → RRF 融合 (k=60) → 降序排列 → 去重
-  │       └─ Step 4: Rerank (rag/rrerank.go:35)
-  │            → Reranker.Rerank (adapter/rerank_client.go:200)
+  │       └─ Step 4: Rerank (rag/rerank.go:38)
+  │            → Reranker.Rerank (adapter/rerank_client.go:209)
   │            → cross-encoder 重排; 失败 → 保持原序
   │
   ├─ buildMessages (service/llm_service.go 内部)
