@@ -190,6 +190,7 @@ OpsMind/
 
 | 文档 | 说明 |
 |------|------|
+| [路线图](docs/ROADMAP.md) | 战略方向、里程碑、技术决策记录 |
 | [PRD](docs/PRD.md) | 产品需求 — 功能定义、业务规则 |
 | [TECH](docs/TECH.md) | 技术架构 — 分层设计、DDL、ADR |
 | [API](docs/API/README.md) | 9 份接口文档，覆盖全部端点 |
