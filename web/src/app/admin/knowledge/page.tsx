@@ -6,7 +6,7 @@ import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -96,21 +96,26 @@ export default function KnowledgeListPage() {
         ))}
       </div>
 
-      <AppleDialog open={showCreate} onOpenChange={setShowCreate} title={editId ? '编辑知识库' : '新建知识库'}
-        footer={<><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
-        <AppleInput label="名称" value={kbName} onChange={(e) => setKbName(e.target.value)} />
-        <AppleInput label="描述" value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} />
-        <div>
-          <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
-          <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
-            <option value="">默认（跟随系统配置）</option>
-            {embeddingOptions.map((c) => (
-              <option key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</option>
-            ))}
-          </select>
-        </div>
-      </AppleDialog>
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editId ? '编辑知识库' : '新建知识库'}</DialogTitle>
+          </DialogHeader>
+          <AppleInput label="名称" value={kbName} onChange={(e) => setKbName(e.target.value)} />
+          <AppleInput label="描述" value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} />
+          <div>
+            <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
+            <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"
+              className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
+              <option value="">默认（跟随系统配置）</option>
+              {embeddingOptions.map((c) => (
+                <option key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}

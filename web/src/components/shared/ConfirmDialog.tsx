@@ -1,5 +1,5 @@
-/** ConfirmDialog — 危险操作二次确认 */
-import { AppleDialog } from '@/components/ui/AppleDialog';
+/** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound，外部 API 不变。 */
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AppleButton } from '@/components/ui/AppleButton';
 
 interface ConfirmDialogProps {
@@ -26,13 +26,14 @@ export function ConfirmDialog({
   children,
 }: ConfirmDialogProps) {
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={message ?? ''}
-      footer={
-        <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {message && <DialogDescription>{message}</DialogDescription>}
+        </DialogHeader>
+        {children ?? <div />}
+        <DialogFooter>
           <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>
             取消
           </AppleButton>
@@ -43,10 +44,8 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </AppleButton>
-        </>
-      }
-    >
-      {children ?? <div />}
-    </AppleDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

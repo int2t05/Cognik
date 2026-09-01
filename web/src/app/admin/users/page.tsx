@@ -11,7 +11,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
 import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
@@ -112,23 +112,29 @@ export default function UserListPage() {
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
-      <AppleDialog open={showCreate} onOpenChange={setShowCreate} title={editUser ? '编辑用户' : '新建用户'} description={editUser ? '' : '密码需8-32位，含大小写字母和数字'}
-        footer={<><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
-        {!editUser && <><AppleInput label="用户名" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /><AppleInput label="密码" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></>}
-        <AppleInput label="姓名" value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} />
-        <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <div className="mt-4">
-          <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
-          <div className="flex flex-wrap gap-2">
-            {roles.map(role => (
-              <Toggle key={role.id} variant="pill" size="pill-sm"
-                pressed={form.role_ids.includes(role.id)}
-                onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
-            ))}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
+            {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
+          </DialogHeader>
+          {!editUser && <><AppleInput label="用户名" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /><AppleInput label="密码" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></>}
+          <AppleInput label="姓名" value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} />
+          <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <div className="mt-4">
+            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
+            <div className="flex flex-wrap gap-2">
+              {roles.map(role => (
+                <Toggle key={role.id} variant="pill" size="pill-sm"
+                  pressed={form.role_ids.includes(role.id)}
+                  onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
+              ))}
+            </div>
           </div>
-        </div>
-      </AppleDialog>
+          <DialogFooter><AppleButton variant="ghost" onClick={() => setShowCreate(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog open={!!confirmFreeze} onOpenChange={() => setConfirmFreeze(null)}
         title={confirmFreeze?.freeze ? '冻结用户' : '恢复用户'}

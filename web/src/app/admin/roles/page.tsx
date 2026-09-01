@@ -8,7 +8,7 @@ import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
 import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { ShieldPlus, Pencil, Trash2 } from 'lucide-react';
@@ -113,45 +113,50 @@ export default function RoleManagePage() {
       />
       {data && <ApplePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
 
-      <AppleDialog open={showDialog} onOpenChange={setShowDialog} title={editId ? '编辑角色' : '新建角色'}
-        footer={<><AppleButton variant="ghost" onClick={() => setShowDialog(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></>}>
-        <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
-        <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
-        <div className="mt-2">
-          <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
-          <div className="flex flex-wrap gap-1.5">
-            {knownPermissions.map((p) => (
-              <Toggle key={p} variant="pill" size="pill-sm"
-                pressed={perms.includes(p)}
-                onPressedChange={() => togglePerm(p)}
-              >
-                {p}
-              </Toggle>
-            ))}
-          </div>
-        </div>
-        {menus && menus.length > 0 && (
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editId ? '编辑角色' : '新建角色'}</DialogTitle>
+          </DialogHeader>
+          <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
+          <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
           <div className="mt-2">
-            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">菜单权限</label>
-            <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
-              {topMenus.map((parent) => (
-                <div key={parent.id}>
-                  <label className="flex items-center gap-2 cursor-pointer py-1 text-caption text-[var(--color-ink)]">
-                    <input type="checkbox" checked={menuIds.includes(parent.id)} onChange={() => toggleMenu(parent.id)} className="accent-[var(--color-accent)]" />
-                    {parent.name}
-                  </label>
-                  {getChildren(parent.id).map((child) => (
-                    <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-caption text-[var(--color-text-muted-48)]">
-                      <input type="checkbox" checked={menuIds.includes(child.id)} onChange={() => toggleMenu(child.id)} className="accent-[var(--color-accent)]" />
-                      {child.name}
-                    </label>
-                  ))}
-                </div>
+            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
+            <div className="flex flex-wrap gap-1.5">
+              {knownPermissions.map((p) => (
+                <Toggle key={p} variant="pill" size="pill-sm"
+                  pressed={perms.includes(p)}
+                  onPressedChange={() => togglePerm(p)}
+                >
+                  {p}
+                </Toggle>
               ))}
             </div>
           </div>
-        )}
-      </AppleDialog>
+          {menus && menus.length > 0 && (
+            <div className="mt-2">
+              <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">菜单权限</label>
+              <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
+                {topMenus.map((parent) => (
+                  <div key={parent.id}>
+                    <label className="flex items-center gap-2 cursor-pointer py-1 text-caption text-[var(--color-ink)]">
+                      <input type="checkbox" checked={menuIds.includes(parent.id)} onChange={() => toggleMenu(parent.id)} className="accent-[var(--color-accent)]" />
+                      {parent.name}
+                    </label>
+                    {getChildren(parent.id).map((child) => (
+                      <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-caption text-[var(--color-text-muted-48)]">
+                        <input type="checkbox" checked={menuIds.includes(child.id)} onChange={() => toggleMenu(child.id)} className="accent-[var(--color-accent)]" />
+                        {child.name}
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter><AppleButton variant="ghost" onClick={() => setShowDialog(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="删除角色" message="确定要删除此角色吗？" onConfirm={handleDelete} confirmLabel="删除" danger />
     </div>

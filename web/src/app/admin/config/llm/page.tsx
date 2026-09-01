@@ -12,7 +12,7 @@ import {
 } from '@/lib/api/llm_config';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppleCard } from '@/components/ui/AppleCard';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -196,13 +196,78 @@ export default function LLMConfigPage() {
         )}
       </div>
 
-      <AppleDialog
-        open={showDialog}
-        onOpenChange={setShowDialog}
-        title={editId ? '编辑 LLM 配置' : '新建 LLM 配置'}
-        width="560px"
-        footer={
-          <>
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>{editId ? '编辑 LLM 配置' : '新建 LLM 配置'}</DialogTitle>
+          </DialogHeader>
+          <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+
+          <AppleInput
+            label="LLM Base URL"
+            value={String(form.llm_base_url || '')}
+            onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
+          />
+          <AppleInput
+            label="LLM API Key"
+            type="password"
+            value={String(form.llm_api_key || '')}
+            onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
+            placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
+          />
+          <AppleInput
+            label="Embedding Base URL"
+            placeholder="留空则使用 LLM Base URL"
+            value={String(form.embedding_base_url || '')}
+            onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
+          />
+          <AppleInput
+            label="Embedding API Key"
+            type="password"
+            value={String(form.embedding_api_key || '')}
+            onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
+            placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
+          />
+          <AppleInput
+            label="LLM 模型"
+            value={String(form.llm_model || '')}
+            onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
+          />
+          <AppleInput
+            label="Embedding 模型"
+            value={String(form.embedding_model || '')}
+            onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
+          />
+          <AppleInput
+            label="最大 Token"
+            type="number"
+            value={String(form.max_tokens || '')}
+            onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
+          />
+          <AppleInput
+            label="向量维度"
+            type="number"
+            value={String(form.vector_dimension || '')}
+            onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
+          />
+
+          <div className="mb-4">
+            <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
+            <textarea
+              id={systemPromptId}
+              className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+              placeholder="自定义系统提示词，可选"
+              value={String(form.system_prompt || '')}
+              onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
+            />
+          </div>
+
+          {testResult && (
+            <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              {testResult.message}
+            </p>
+          )}
+          <DialogFooter>
             {editId && (
               <AppleButton variant="utility" onClick={handleTest} loading={testing}>
                 测试连接
@@ -215,76 +280,9 @@ export default function LLMConfigPage() {
             <AppleButton onClick={handleSave} loading={saving}>
               保存
             </AppleButton>
-          </>
-        }
-      >
-        <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-
-        <AppleInput
-          label="LLM Base URL"
-          value={String(form.llm_base_url || '')}
-          onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
-        />
-        <AppleInput
-          label="LLM API Key"
-          type="password"
-          value={String(form.llm_api_key || '')}
-          onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
-          placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
-        />
-        <AppleInput
-          label="Embedding Base URL"
-          placeholder="留空则使用 LLM Base URL"
-          value={String(form.embedding_base_url || '')}
-          onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
-        />
-        <AppleInput
-          label="Embedding API Key"
-          type="password"
-          value={String(form.embedding_api_key || '')}
-          onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
-          placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
-        />
-        <AppleInput
-          label="LLM 模型"
-          value={String(form.llm_model || '')}
-          onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
-        />
-        <AppleInput
-          label="Embedding 模型"
-          value={String(form.embedding_model || '')}
-          onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
-        />
-        <AppleInput
-          label="最大 Token"
-          type="number"
-          value={String(form.max_tokens || '')}
-          onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
-        />
-        <AppleInput
-          label="向量维度"
-          type="number"
-          value={String(form.vector_dimension || '')}
-          onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
-        />
-
-        <div className="mb-4">
-          <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
-          <textarea
-            id={systemPromptId}
-            className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
-            placeholder="自定义系统提示词，可选"
-            value={String(form.system_prompt || '')}
-            onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
-          />
-        </div>
-
-        {testResult && (
-          <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-            {testResult.message}
-          </p>
-        )}
-      </AppleDialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}
