@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilePlus, X, AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -71,7 +72,7 @@ export default function NewArticlePage() {
         return;
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '上传失败');
+      toast.error(errorMessage(err, '上传失败'));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -89,7 +90,7 @@ export default function NewArticlePage() {
       const res = await createArticle(Number(kbId), { title: title.trim(), content, source_type: 1, tags: tagList });
       toast.success('创建成功');
       router.push(`/admin/knowledge/${kbId}/${res.id}`);
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '创建失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '创建失败')); }
     finally { setSaving(false); }
   };
 

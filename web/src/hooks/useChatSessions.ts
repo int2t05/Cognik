@@ -10,6 +10,7 @@ import useSWR from 'swr';
 import { getSessionList, getChatDetail, deleteSession, createSession, updateSession } from '@/lib/api/chat';
 import { useChatStreamStore, type ChatMessage } from '@/contexts/ChatStreamProvider';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import type { ApiChatMessage, ChatSession } from './useChatSessions.types';
 
 export type { ApiChatMessage, ChatSession };
@@ -101,8 +102,8 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
       if (sessionId === id) { setSessionId(null); setFeedbackMap({}); }
       mutateSessions();
       toast.success('会话已删除');
-    } catch (err) {
-      toast.error('删除失败');
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, '删除失败'));
       throw err;
     }
   }, [sessionId, setSessionId, mutateSessions, toast]);
@@ -113,8 +114,8 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
       await updateSession(id, { title, kb_id: kbId });
       toast.success('会话已更新');
       mutateSessions();
-    } catch (err) {
-      toast.error('更新失败');
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, '更新失败'));
       throw err;
     }
   }, [mutateSessions, toast]);

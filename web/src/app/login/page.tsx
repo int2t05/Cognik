@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { getAppName } from '@/lib/config/defaults';
 import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
@@ -72,10 +73,7 @@ export default function LoginPage() {
       const isAdmin = hasAdminAccess(data.permissions);
       router.push(isAdmin ? '/admin/dashboard' : '/portal/chat');
     } catch (err: unknown) {
-      // 直接提取后端 message
-      const message =
-        err instanceof Error ? err.message : '登录失败，请重试';
-      toast.error(message);
+      toast.error(errorMessage(err, '登录失败，请重试'));
     } finally {
       setLoading(false);
     }

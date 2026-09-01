@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/card';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
 
 const CONFIG_KEYS = [
@@ -41,7 +42,7 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
       const parsed = type === 'bool' ? val === 'true' : (isNaN(Number(val)) ? val : Number(val));
       await setConfig(configKey, parsed);
       toast.success('已保存'); onSaved(); setEditing(false);
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
     finally { setSaving(false); }
   };
 

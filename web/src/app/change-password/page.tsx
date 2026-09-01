@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { Key, Loader2 } from 'lucide-react';
 
 export default function ChangePasswordPage() {
@@ -27,7 +28,7 @@ export default function ChangePasswordPage() {
       toast.success('密码修改成功');
       setTimeout(() => router.push('/portal/chat'), 1000);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '修改失败');
+      toast.error(errorMessage(err, '修改失败'));
     } finally {
       setLoading(false);
     }

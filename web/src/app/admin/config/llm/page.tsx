@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
 
@@ -92,7 +93,7 @@ export default function LLMConfigPage() {
       setShowDialog(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '保存失败');
+      toast.error(errorMessage(err, '保存失败'));
     } finally {
       setSaving(false);
     }
@@ -109,7 +110,7 @@ export default function LLMConfigPage() {
         message: `连接成功 (${result.latency_ms}ms, ${result.tokens_used} tokens, ${result.model})`,
       });
     } catch (err: unknown) {
-      setTestResult({ success: false, message: err instanceof Error ? err.message : '连接失败' });
+      setTestResult({ success: false, message: errorMessage(err, '连接失败') });
     } finally {
       setTesting(false);
     }
@@ -124,7 +125,7 @@ export default function LLMConfigPage() {
       setDeleteTarget(null);
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '删除失败');
+      toast.error(errorMessage(err, '删除失败'));
     } finally {
       setDeleting(false);
     }
@@ -150,7 +151,7 @@ export default function LLMConfigPage() {
       toast.success('已设为默认');
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '设置失败');
+      toast.error(errorMessage(err, '设置失败'));
     }
   };
 

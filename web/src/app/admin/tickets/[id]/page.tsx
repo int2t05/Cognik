@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
@@ -58,7 +59,7 @@ export default function AdminTicketDetailPage() {
       setActionResult('');
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '操作失败');
+      toast.error(errorMessage(err, '操作失败'));
     } finally {
       setProcessing(false);
     }
@@ -70,7 +71,7 @@ export default function AdminTicketDetailPage() {
       await createKnowledgeCandidate(ticketID, kbId);
       toast.success('已生成知识候选');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '生成失败');
+      toast.error(errorMessage(err, '生成失败'));
     }
   };
 

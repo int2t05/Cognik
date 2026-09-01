@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 export default function ArticleEditPage() {
@@ -71,8 +72,8 @@ export default function ArticleEditPage() {
   const [editSaving, setEditSaving] = useState(false);
 
   const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setTags((article.tags || []).join(',')); setEditing(true); } };
-  const handleSave = async () => { setEditSaving(true); try { const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean); await updateArticle(Number(articleId), { title, content, tags: tagList }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '更新失败'); } finally { setEditSaving(false); } };
-  const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); } finally { setProcessing(false); } };
+  const handleSave = async () => { setEditSaving(true); try { const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean); await updateArticle(Number(articleId), { title, content, tags: tagList }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '更新失败')); } finally { setEditSaving(false); } };
+  const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); } finally { setProcessing(false); } };
 
   if (error) return <InlineError fullPage />;
   if (!article) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
