@@ -102,7 +102,7 @@ export default function TicketDetailPage() {
         </Card>
       ) : (
         <>
-          <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+          <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
           <div className="flex gap-3 mb-5 items-center flex-wrap">
             <StatusBadge type="ticket" status={ticket.status} />
             <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>

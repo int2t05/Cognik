@@ -7,6 +7,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -140,12 +141,12 @@ export default function RoleManagePage() {
                 {topMenus.map((parent) => (
                   <div key={parent.id}>
                     <label className="flex items-center gap-2 cursor-pointer py-1 text-caption text-[var(--color-ink)]">
-                      <input type="checkbox" checked={menuIds.includes(parent.id)} onChange={() => toggleMenu(parent.id)} className="accent-[var(--color-accent)]" />
+                      <Checkbox checked={menuIds.includes(parent.id)} onCheckedChange={() => toggleMenu(parent.id)} />
                       {parent.name}
                     </label>
                     {getChildren(parent.id).map((child) => (
                       <label key={child.id} className="flex items-center gap-2 cursor-pointer py-1 pl-6 text-caption text-[var(--color-text-muted-48)]">
-                        <input type="checkbox" checked={menuIds.includes(child.id)} onChange={() => toggleMenu(child.id)} className="accent-[var(--color-accent)]" />
+                        <Checkbox checked={menuIds.includes(child.id)} onCheckedChange={() => toggleMenu(child.id)} />
                         {child.name}
                       </label>
                     ))}

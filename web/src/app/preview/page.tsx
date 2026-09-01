@@ -9,7 +9,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Toggle } from '@/components/ui/toggle';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Separator } from '@/components/ui/separator';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import {
@@ -48,12 +49,11 @@ export default function PreviewPage() {
   return (
     <AppShell
       nav={NAV}
+      padded={false}
       crossLink={{ label: '后台管理', path: '/preview?p=dashboard', icon: <LayoutDashboard size={18} /> }}
-      hideSidebar={page === 'chat'}
       subbar={
         page === 'chat' ? (
           <>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/preview?p=dashboard')}><ChevronLeft size={16} /> 返回</Button>
             <span className="text-callout text-[var(--color-text-muted-48)]"><b className="text-[var(--color-ink)] font-medium">VPN 错误 691</b></span>
             <div className="flex-1" />
             <Button variant="ghost" size="sm"><Search size={14} /> 检索详情</Button>
@@ -82,13 +82,13 @@ function Dashboard() {
     { d: '四', t: 52, c: 65 }, { d: '五', t: 48, c: 58 }, { d: '六', t: 30, c: 40 }, { d: '今', t: 72, c: 85 },
   ];
   return (
-    <div className="p-8">
+    <div className="h-full overflow-y-auto p-6">
       <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-5">工作台 · 概览</h1>
       <div className="grid grid-cols-4 gap-3.5 mb-4">
         {stats.map((s) => (
           <Card key={s.label} className="!p-4">
             <span className="text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide font-medium">{s.label}</span>
-            <div className="text-metric font-semibold text-[var(--color-ink)] mt-1.5" style={{ fontSize: '2rem', letterSpacing: '-0.015em' }}>{s.value}</div>
+            <div className="font-semibold text-[var(--color-ink)] mt-1.5" style={{ fontSize: 'var(--font-size-metric)', letterSpacing: '-0.015em' }}>{s.value}</div>
             <span className={`text-fine font-medium inline-flex items-center gap-1 mt-1 ${s.delta === 'up' ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted-48)]'}`}>
               {s.delta === 'up' ? <TrendingUp size={13} /> : <Minus size={13} />}{s.pct}
             </span>
@@ -120,11 +120,11 @@ function Dashboard() {
           <h3 className="text-title font-semibold text-[var(--color-ink)] mb-3">AI 反馈</h3>
           <div className="grid grid-cols-2 gap-2.5 mb-3">
             <div className="text-center py-2.5 rounded-[var(--radius-md)] bg-[var(--badge-success-bg)]">
-              <div className="font-semibold text-[var(--badge-success-text)]" style={{ fontSize: '2rem', letterSpacing: '-0.015em' }}>142</div>
+              <div className="font-semibold text-[var(--badge-success-text)]" style={{ fontSize: 'var(--font-size-metric)', letterSpacing: '-0.015em' }}>142</div>
               <div className="text-fine text-[var(--color-text-muted-48)]">点赞</div>
             </div>
             <div className="text-center py-2.5 rounded-[var(--radius-md)] bg-[var(--badge-error-bg)]">
-              <div className="font-semibold text-[var(--badge-error-text)]" style={{ fontSize: '2rem', letterSpacing: '-0.015em' }}>18</div>
+              <div className="font-semibold text-[var(--badge-error-text)]" style={{ fontSize: 'var(--font-size-metric)', letterSpacing: '-0.015em' }}>18</div>
               <div className="text-fine text-[var(--color-text-muted-48)]">点踩</div>
             </div>
           </div>
@@ -139,7 +139,7 @@ function Dashboard() {
 function Chat() {
   const [showDrawer, setShowDrawer] = useState(true);
   return (
-    <div className="flex h-[calc(100vh-88px)]">
+    <div className="flex h-full">
       {/* 会话列表 */}
       <div className="w-64 shrink-0 border-r border-[var(--color-hairline)] bg-[var(--color-canvas)] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-hairline)]">
@@ -242,154 +242,224 @@ function Chat() {
   );
 }
 
-// ============ Tickets (master-detail) ============
+// ============ Tickets (GitHub Issues 模式：单列行列表 + 点击跳详情页) ============
 function Tickets() {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [statusTab, setStatusTab] = useState('all');
+  const [page, setPage] = useState(1);
+  const tickets = [
+    { no: 'T-2609-012', t: 'VPN 连接错误 691', s: 2, p: '高' as const, time: '09-01 10:23', assignee: '王工', desc: 'VPN 客户端提示错误 691，已重试两次仍无法连接，账号密码确认未改动，期望尽快排查。' },
+    { no: 'T-2609-011', t: '邮箱配额已满无法收件', s: 3, p: '中' as const, time: '08-31 16:40', assignee: '', desc: '邮箱提示配额已满，无法接收新邮件，请协助清理或扩容。' },
+    { no: 'T-2609-009', t: '域账号密码重置', s: 4, p: '低' as const, time: '08-31 09:12', assignee: '', desc: '忘记域账号密码，需要重置。' },
+    { no: 'T-2609-007', t: '办公网 Wi-Fi 无法获取 IP', s: 1, p: '中' as const, time: '08-30 14:05', assignee: '', desc: '连接办公 Wi-Fi 后一直显示正在获取 IP 地址，无法上网。' },
+    { no: 'T-2609-005', t: '新员工入职开通账号', s: 5, p: '低' as const, time: '08-29 11:30', assignee: '李工', desc: '新员工张三入职，需开通域账号、邮箱、VPN 等权限。' },
+    ...Array.from({ length: 18 }, (_, i) => ({
+      no: `T-2609-${String(100 - i).padStart(3, '0')}`, t: `历史工单示例 ${i + 1} — 网络设备巡检异常`,
+      s: 5, p: '低' as const, time: `08-${20 - i} 10:00`, assignee: '李工', desc: `这是第 ${i + 1} 条历史工单的描述内容，用于验证列表滚动。`,
+    })),
+  ];
+
+  if (selected !== null) {
+    const t = tickets[selected];
+    return <TicketDetail ticket={t} onBack={() => setSelected(null)} />;
+  }
+
+  const filtered = statusTab === 'all' ? tickets : tickets.filter((t) => String(t.s) === statusTab);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-88px)]">
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
-        <span className="text-callout text-[var(--color-text-muted-48)]">工单 / <b className="text-[var(--color-ink)] font-medium">全部工单</b></span>
-        <div className="flex-1" />
-        <Button size="sm"><Plus size={14} /> 新建</Button>
+    <div className="h-full flex flex-col">
+      {/* 工具栏：状态 Tabs + 新建 */}
+      <div className="bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] px-6 py-2.5 flex items-center justify-between shrink-0">
+        <Tabs value={statusTab} onValueChange={setStatusTab}>
+          <TabsList>
+            <TabsTrigger value="all">全部 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{tickets.length}</span></TabsTrigger>
+            <TabsTrigger value="1">待处理 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{tickets.filter(t => t.s === 1).length}</span></TabsTrigger>
+            <TabsTrigger value="2">处理中 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{tickets.filter(t => t.s === 2).length}</span></TabsTrigger>
+            <TabsTrigger value="4">已解决 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{tickets.filter(t => t.s === 4).length}</span></TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button size="sm"><Plus size={14} /> 新建工单</Button>
       </div>
-      <div className="flex flex-1 min-h-0">
-        {/* 列表 */}
-        <div className="w-2/5 border-r border-[var(--color-hairline)] flex flex-col">
-          <div className="px-4 py-2.5 border-b border-[var(--color-divider-soft)] flex gap-1.5 flex-wrap">
-            <Toggle variant="pill" size="pill-sm" pressed>全部</Toggle>
-            <Toggle variant="pill" size="pill-sm">待处理·3</Toggle>
-            <Toggle variant="pill" size="pill-sm">处理中</Toggle>
-            <Toggle variant="pill" size="pill-sm">已解决</Toggle>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {[
-              { no: 'T-2609-012', t: 'VPN 连接错误 691', s: 2, p: '高', time: '09-01 10:23', assignee: '王工', active: true },
-              { no: 'T-2609-011', t: '邮箱配额已满', s: 3, p: '中', time: '08-31', assignee: '', active: false },
-              { no: 'T-2609-009', t: '域账号密码重置', s: 4, p: '低', time: '08-31', assignee: '', active: false },
-              { no: 'T-2609-007', t: 'Wi-Fi 无法获取 IP', s: 1, p: '中', time: '08-30', assignee: '', active: false },
-            ].map((t) => (
-              <div key={t.no} className={`px-4 py-3 border-b border-[var(--color-divider-soft)] border-l-[3px] ${t.active ? 'bg-[var(--color-tile-1)] border-l-[var(--color-accent)]' : 'border-l-transparent'}`}>
-                <div className="flex justify-between items-center">
-                  <span className="font-[var(--font-mono)] text-fine text-[var(--color-text-muted-48)]">{t.no}</span>
-                  <StatusBadge type="ticket" status={t.s} />
-                </div>
-                <div className="font-medium text-callout text-[var(--color-ink)] my-1">{t.t}</div>
-                <div className="text-fine text-[var(--color-text-muted-48)]">{t.p} · {t.time}{t.assignee ? ` · ${t.assignee}` : ''}</div>
+
+      {/* 列表表头 */}
+      <div className="px-6 py-2 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide border-b border-[var(--color-divider-soft)] grid grid-cols-[1fr_auto_auto] gap-4 items-center shrink-0">
+        <span>标题</span>
+        <span className="w-12 text-center">优先级</span>
+        <span className="w-28 text-right">更新时间</span>
+      </div>
+
+      {/* 行列表（独立滚动） */}
+      <div className="flex-1 overflow-y-auto">
+        {filtered.map((t, i) => {
+          const idx = tickets.indexOf(t);
+          return (
+            <button
+              key={t.no}
+              onClick={() => setSelected(idx)}
+              className="w-full text-left px-6 py-2.5 border-b border-[var(--color-divider-soft)] hover:bg-[var(--color-tile-1)] grid grid-cols-[1fr_auto_auto] gap-4 items-center transition-colors"
+            >
+              <div className="min-w-0 flex items-center gap-2">
+                <StatusBadge type="ticket" status={t.s} />
+                <span className="text-callout text-[var(--color-ink)] truncate">{t.t}</span>
+                <span className="font-[var(--font-mono)] text-fine text-[var(--color-text-muted-48)] shrink-0">{t.no}</span>
               </div>
-            ))}
-          </div>
-        </div>
-        {/* 详情 */}
-        <div className="flex-1 overflow-y-auto p-7">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <div className="font-[var(--font-mono)] text-fine text-[var(--color-text-muted-48)]">T-2609-012</div>
-              <h2 className="text-headline font-semibold text-[var(--color-ink)] mt-1">VPN 连接错误 691</h2>
-            </div>
-          </div>
-          <div className="flex gap-2 items-center mb-5">
-            <Badge variant="warning">处理中</Badge>
-            <Badge variant="error">高</Badge>
-            <span className="text-fine text-[var(--color-text-muted-48)]">创建 09-01 10:23 · 分派 王工</span>
-          </div>
-          <Card className="!p-4 mb-5">
-            <div className="text-fine text-[var(--color-text-muted-48)] mb-1.5">问题描述</div>
-            <div className="text-callout leading-relaxed">VPN 客户端提示错误 691，已重试两次仍无法连接，账号密码确认未改动，期望尽快排查。</div>
-          </Card>
-          <div className="text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide mb-2.5">状态流转 · 待处理 → 处理中 → 已解决</div>
-          <div className="relative pl-6 mb-5">
-            <div className="absolute left-[5px] top-1.5 bottom-1.5 w-0.5 bg-[var(--color-hairline)]" />
-            {[
-              { t: '工单已创建', m: '09-01 10:23 · 系统', state: 'done' },
-              { t: '已分派网络组', m: '09-01 10:45 · 自动', state: 'done' },
-              { t: '处理中 · 王工接手', m: '09-01 11:02', state: 'current' },
-            ].map((s) => (
-              <div key={s.t} className="relative pb-4 last:pb-0">
-                <span className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${s.state === 'current' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]' : 'border-[var(--color-success)] bg-[var(--color-success)]'}`} />
-                <div className="text-callout font-medium text-[var(--color-ink)]">{s.t}</div>
-                <div className="text-fine text-[var(--color-text-muted-48)]">{s.m}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-fine text-[var(--color-text-muted-48)] mb-2">补充信息</div>
-          <Textarea rows={2} placeholder="补充处理进展…" className="mb-3.5" />
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">需补充信息</Button>
-            <Button variant="outline" size="sm">关闭工单</Button>
-            <Button size="sm">标记已解决</Button>
-          </div>
-        </div>
+              <span className="w-12 text-center"><Badge variant={t.p === '高' ? 'error' : t.p === '中' ? 'warning' : 'neutral'}>{t.p}</Badge></span>
+              <span className="w-28 text-right text-fine text-[var(--color-text-muted-48)]">{t.time}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 分页 */}
+      <div className="border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] shrink-0">
+        <DataTablePagination page={page} pageSize={10} total={filtered.length} onChange={(p) => setPage(p)} />
       </div>
     </div>
   );
 }
 
-// ============ Knowledge Base (master-detail) ============
-function KB() {
+function TicketDetail({ ticket, onBack }: { ticket: { no: string; t: string; s: number; p: string; time: string; assignee: string; desc: string }; onBack: () => void }) {
   return (
-    <div className="flex flex-col h-[calc(100vh-88px)]">
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-[var(--color-hairline)] bg-[var(--color-canvas)]">
-        <span className="text-callout text-[var(--color-text-muted-48)]">知识库 / <b className="text-[var(--color-ink)] font-medium">网络运维</b></span>
-        <div className="flex-1" />
-        <Button variant="outline" size="sm"><FileText size={14} /> 上传文档</Button>
-        <Button size="sm"><Plus size={14} /> 新建文章</Button>
+    <div className="h-full overflow-y-auto p-6 max-w-4xl mx-auto">
+      <Button variant="ghost" size="sm" onClick={onBack} className="mb-4"><ChevronLeft size={16} /> 返回列表</Button>
+      <div className="flex items-start gap-3 mb-4">
+        <h1 className="text-headline font-semibold text-[var(--color-ink)] flex-1">{ticket.t}</h1>
+        <span className="font-[var(--font-mono)] text-callout text-[var(--color-text-muted-48)] shrink-0 pt-1">{ticket.no}</span>
       </div>
-      <div className="flex flex-1 min-h-0">
-        {/* 文章列表 */}
-        <div className="w-2/5 border-r border-[var(--color-hairline)] overflow-y-auto">
-          <div className="px-4 py-2.5 sticky top-0 bg-[var(--color-canvas)] border-b border-[var(--color-divider-soft)] flex gap-1.5 flex-wrap">
-            <Toggle variant="pill" size="pill-sm" pressed>全部</Toggle>
-            <Toggle variant="pill" size="pill-sm">已发布</Toggle>
-            <Toggle variant="pill" size="pill-sm">待审核</Toggle>
+      <div className="flex gap-2 items-center mb-6">
+        <StatusBadge type="ticket" status={ticket.s} />
+        <Badge variant={ticket.p === '高' ? 'error' : ticket.p === '中' ? 'warning' : 'neutral'}>{ticket.p}</Badge>
+        <span className="text-fine text-[var(--color-text-muted-48)]">创建 {ticket.time}{ticket.assignee ? ` · 分派 ${ticket.assignee}` : ''}</span>
+      </div>
+
+      <Card className="!p-4 mb-5">
+        <div className="text-fine text-[var(--color-text-muted-48)] mb-1.5">问题描述</div>
+        <div className="text-callout leading-relaxed">{ticket.desc}</div>
+      </Card>
+
+      <div className="text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide mb-2.5">状态流转 · 待处理 → 处理中 → 已解决</div>
+      <div className="relative pl-6 mb-6">
+        <div className="absolute left-[5px] top-1.5 bottom-1.5 w-0.5 bg-[var(--color-hairline)]" />
+        {[
+          { t: '工单已创建', m: `${ticket.time} · 系统`, state: 'done' },
+          { t: '已分派网络组', m: `${ticket.time} · 自动`, state: 'done' },
+          { t: '处理中 · 王工接手', m: `${ticket.time}`, state: 'current' },
+        ].map((s) => (
+          <div key={s.t} className="relative pb-4 last:pb-0">
+            <span className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${s.state === 'current' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]' : 'border-[var(--color-success)] bg-[var(--color-success)]'}`} />
+            <div className="text-callout font-medium text-[var(--color-ink)]">{s.t}</div>
+            <div className="text-fine text-[var(--color-text-muted-48)]">{s.m}</div>
           </div>
-          {[
-            { t: 'VPN 错误码对照表', s: 4, meta: '更新 2h 前 · 1280 字', active: true },
-            { t: 'VPN 客户端配置指引', s: 4, meta: '更新 昨天 · 2400 字', active: false },
-            { t: '域网接入排障手册', s: 2, meta: '更新 3 天前', active: false },
-            { t: 'Wi-Fi 故障处置', s: 0, meta: '解析中 · 分块 4/12', active: false, progress: 33 },
-          ].map((a) => (
-            <div key={a.t} className={`px-4 py-3 border-b border-[var(--color-divider-soft)] border-l-[3px] ${a.active ? 'bg-[var(--color-tile-1)] border-l-[var(--color-accent)]' : 'border-l-transparent'}`}>
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-callout text-[var(--color-ink)]">{a.t}</span>
+        ))}
+      </div>
+
+      <div className="text-fine text-[var(--color-text-muted-48)] mb-2">补充信息</div>
+      <Textarea rows={3} placeholder="补充处理进展…" className="mb-3.5" />
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm">需补充信息</Button>
+        <Button variant="outline" size="sm">关闭工单</Button>
+        <Button size="sm">标记已解决</Button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Knowledge Base (GitHub Issues 模式：单列行列表 + 点击跳详情页) ============
+function KB() {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [statusTab, setStatusTab] = useState('all');
+  const [page, setPage] = useState(1);
+  const articles = [
+    { no: 'A-128', t: 'VPN 错误码对照表', s: 4, meta: '更新 2h 前 · 1280 字 · 手动', content: '本手册汇总企业 VPN 接入过程中常见的错误码及其含义、成因与处置步骤。\n\n错误 691 · 认证失败：表示用户名或密码错误，或域控策略阻止拨入。排查步骤：1. 确认账号未锁定；2. 删除客户端保存凭据后重新输入；3. 联系 IT 检查域控拨入权限。' },
+    { no: 'A-127', t: 'VPN 客户端配置指引', s: 4, meta: '更新 昨天 · 2400 字 · 上传', content: 'VPN 客户端安装与配置完整指引...' },
+    { no: 'A-126', t: '域网接入排障手册', s: 2, meta: '更新 3 天前 · 待审核 · 上传', content: '域网接入故障排查流程...' },
+    { no: 'A-125', t: 'Wi-Fi 故障处置', s: 0, meta: '解析中 · 分块 4/12', content: '' },
+    ...Array.from({ length: 18 }, (_, i) => ({
+      no: `A-${124 - i}`, t: `网络运维文档 ${i + 5} — 设备巡检规范`, s: 4, meta: `更新 08-${20 - i} · ${800 + i * 50} 字`, content: `这是第 ${i + 5} 篇文章的内容...`,
+    })),
+  ];
+
+  if (selected !== null) {
+    const a = articles[selected];
+    return <ArticleDetail article={a} onBack={() => setSelected(null)} />;
+  }
+
+  const filtered = statusTab === 'all' ? articles : articles.filter((a) => String(a.s) === statusTab);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] px-6 py-2.5 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="text-callout text-[var(--color-text-muted-48)]">知识库 / <b className="text-[var(--color-ink)] font-medium">网络运维</b></span>
+          <Separator orientation="vertical" className="h-4" />
+          <Tabs value={statusTab} onValueChange={setStatusTab}>
+            <TabsList>
+              <TabsTrigger value="all">全部 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{articles.length}</span></TabsTrigger>
+              <TabsTrigger value="4">已发布 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{articles.filter(a => a.s === 4).length}</span></TabsTrigger>
+              <TabsTrigger value="2">待审核 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{articles.filter(a => a.s === 2).length}</span></TabsTrigger>
+              <TabsTrigger value="0">已停用 <span className="text-fine text-[var(--color-text-muted-48)] ml-1">{articles.filter(a => a.s === 0).length}</span></TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm"><FileText size={14} /> 上传文档</Button>
+          <Button size="sm"><Plus size={14} /> 新建文章</Button>
+        </div>
+      </div>
+
+      <div className="px-6 py-2 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide border-b border-[var(--color-divider-soft)] grid grid-cols-[1fr_auto] gap-4 items-center shrink-0">
+        <span>标题</span>
+        <span className="w-48 text-right">更新</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {filtered.map((a) => {
+          const idx = articles.indexOf(a);
+          return (
+            <button
+              key={a.no}
+              onClick={() => setSelected(idx)}
+              className="w-full text-left px-6 py-2.5 border-b border-[var(--color-divider-soft)] hover:bg-[var(--color-tile-1)] grid grid-cols-[1fr_auto] gap-4 items-center transition-colors"
+            >
+              <div className="min-w-0 flex items-center gap-2">
                 <StatusBadge type="article" status={a.s} />
+                <span className="text-callout text-[var(--color-ink)] truncate">{a.t}</span>
+                <span className="font-[var(--font-mono)] text-fine text-[var(--color-text-muted-48)] shrink-0">{a.no}</span>
               </div>
-              <div className="text-fine text-[var(--color-text-muted-48)] mt-1">{a.meta}</div>
-              {a.progress && (
-                <div className="h-1 bg-[var(--color-tile-2)] rounded mt-2">
-                  <div className="h-full bg-[var(--color-accent)] rounded" style={{ width: `${a.progress}%` }} />
-                </div>
-              )}
-            </div>
-          ))}
+              <span className="w-48 text-right text-fine text-[var(--color-text-muted-48)]">{a.meta}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] shrink-0">
+        <DataTablePagination page={page} pageSize={10} total={filtered.length} onChange={(p) => setPage(p)} />
+      </div>
+    </div>
+  );
+}
+
+function ArticleDetail({ article, onBack }: { article: { no: string; t: string; s: number; meta: string; content: string }; onBack: () => void }) {
+  return (
+    <div className="h-full overflow-y-auto p-6 max-w-4xl mx-auto">
+      <Button variant="ghost" size="sm" onClick={onBack} className="mb-4"><ChevronLeft size={16} /> 返回列表</Button>
+      <div className="flex items-start gap-3 mb-2">
+        <h1 className="text-headline font-semibold text-[var(--color-ink)] flex-1">{article.t}</h1>
+        <span className="font-[var(--font-mono)] text-callout text-[var(--color-text-muted-48)] shrink-0 pt-1">{article.no}</span>
+      </div>
+      <div className="flex items-center gap-2 text-fine text-[var(--color-text-muted-48)] mb-6">
+        <StatusBadge type="article" status={article.s} />
+        <span>·</span><span>作者 张工</span><span>·</span><span>{article.meta}</span>
+      </div>
+      <Card className="!p-3 mb-4 !bg-[var(--badge-info-bg)] !border-transparent">
+        <div className="flex items-center gap-2 text-callout text-[var(--badge-info-text)]">
+          <Search size={16} /> BM25 命中关键词：错误 691、认证失败、VPN
         </div>
-        {/* 文章内容 */}
-        <div className="flex-1 overflow-y-auto p-7">
-          <div className="flex justify-between items-center mb-1.5">
-            <h2 className="text-headline font-semibold text-[var(--color-ink)]">VPN 错误码对照表</h2>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm">编辑</Button>
-              <Button variant="outline" size="sm">停用</Button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-fine text-[var(--color-text-muted-48)] mb-5">
-            <span>已发布</span><Separator orientation="vertical" className="h-3" /><span>作者 张工</span><Separator orientation="vertical" className="h-3" /><span>更新 2h 前</span><Separator orientation="vertical" className="h-3" /><span>1280 字</span>
-          </div>
-          <Card className="!p-3 mb-4 !bg-[var(--badge-info-bg)] !border-transparent">
-            <div className="flex items-center gap-2 text-callout text-[var(--badge-info-text)]">
-              <Search size={16} /> BM25 命中关键词：错误 691、认证失败、VPN
-            </div>
-          </Card>
-          <div className="text-callout leading-7">
-            <h3 className="text-title font-semibold mb-3">常见 VPN 错误码</h3>
-            <p className="mb-3.5">本手册汇总企业 VPN 接入过程中常见的错误码及其含义、成因与处置步骤。</p>
-            <h3 className="text-body font-semibold mt-4 mb-2.5">错误 691 · 认证失败</h3>
-            <p className="mb-3.5">表示用户名或密码错误，或域控策略阻止拨入。排查步骤：</p>
-            <ol className="list-decimal pl-5 mb-3.5 space-y-1">
-              <li>确认账号未锁定，必要时在自助门户重置；</li>
-              <li>删除 VPN 客户端保存的凭据后重新输入；</li>
-              <li>联系 IT 在域控侧检查账户拨入权限与策略。</li>
-            </ol>
-          </div>
-        </div>
+      </Card>
+      <div className="text-callout leading-7 whitespace-pre-wrap">{article.content || '内容处理中，请稍后查看...'}</div>
+      <div className="mt-8 flex gap-2">
+        <Button variant="ghost" size="sm">编辑</Button>
+        <Button variant="outline" size="sm">停用</Button>
       </div>
     </div>
   );

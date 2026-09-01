@@ -6,9 +6,10 @@ import { getArticleList } from '@/lib/api/knowledge';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search } from 'lucide-react';
+import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search, X } from 'lucide-react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 
@@ -42,13 +43,18 @@ export default function ArticleListPage() {
         <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} className="!mb-0" />
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
-          <input
+          <Input
             type="text"
             placeholder="搜索标题或标签…"
             value={keyword}
             onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-            className="w-56 py-2 pl-8 pr-3.5 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition placeholder:text-[var(--color-text-muted-48)] focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
+            className="w-56 py-2 pl-8 pr-8 text-caption rounded-[var(--radius-pill)]"
           />
+          {keyword && (
+            <button type="button" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
       <DataTable

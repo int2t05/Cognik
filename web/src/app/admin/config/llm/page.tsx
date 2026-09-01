@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/llm_config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
@@ -261,9 +262,9 @@ export default function LLMConfigPage() {
 
           <div className="mb-4">
             <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
-            <textarea
+            <Textarea
               id={systemPromptId}
-              className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+              className="min-h-[80px]"
               placeholder="自定义系统提示词，可选"
               value={String(form.system_prompt || '')}
               onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}

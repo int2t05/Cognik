@@ -83,15 +83,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
-      <div className="w-full max-w-[420px] p-8 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
-        <div className="text-center mb-8">
-          <div className="mb-5">
-            <Image src="/icon.svg" alt={displayName} width={56} height={56} className="mx-auto" priority />
+      <div className="w-full max-w-[420px] p-6 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
+        <div className="text-center mb-6">
+          <div className="mb-4">
+            <Image src="/icon.svg" alt={displayName} width={48} height={48} className="mx-auto" priority />
           </div>
-          <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">
+          <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-1.5">
             {displayName}
           </h1>
-          <p className="text-title text-[var(--color-text-muted-48)]">
+          <p className="text-callout text-[var(--color-text-muted-48)]">
             运维数字员工系统
           </p>
           <p className="text-caption text-[var(--color-text-muted-48)] mt-1">
