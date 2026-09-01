@@ -151,7 +151,6 @@ func (c *OpenAIEmbeddingClient) doRequest(ctx context.Context, jsonBody []byte) 
 	return nil, fmt.Errorf("embedding 重试 %d 次后仍失败: %w", c.maxRetries, lastErr)
 }
 
-// parseResponse 解析 API 响应为统一格式。
 func (c *OpenAIEmbeddingClient) parseResponse(respBody []byte, expected int) (*EmbeddingResponse, error) {
 	var apiResp embeddingAPIResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {

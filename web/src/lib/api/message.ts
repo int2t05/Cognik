@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchPage } from './client';
+import { apiFetch, apiFetchPage, ApiError } from './client';
 import { PAGE_SIZE } from './constants';
 
 export interface MessageItem { id: number; user_id: number; title: string; content: string; type: string; related_type: string; related_id: number; is_read: boolean; created_at: string; }
@@ -15,7 +15,13 @@ export function getMessages(page: number) { return apiFetchPage<MessageItem>(`${
 export function markAsRead(id: number) { return apiFetch<{ unread_count: number }>(MESSAGE_PATHS.markRead(id), { method: 'PUT' }); }
 export function markAllRead() { return apiFetch<{ affected: number }>(MESSAGE_PATHS.readAll, { method: 'PUT' }); }
 
-/** getUnreadCount 查询未读消息数。可传入可选 token 用于跨账号验证（useAccountSwitcher）。 */
+/**
+ * getUnreadCount 查询未读消息数。
+ *
+ * 传入 token 时使用原始 fetch 而非 apiFetch，原因是 rawApiRequest 会：
+ * 1) 用 _tokenGetter() 覆盖 Authorization header（导致自定义 token 失效）；
+ * 2) 捕获 code=10001 后自动清除认证并跳转登录页（useAccountSwitcher 需要自行处理 10001）。
+ */
 export async function getUnreadCount(token?: string): Promise<{ count: number }> {
   if (!token) return apiFetch<{ count: number }>(MESSAGE_PATHS.unreadCount);
   const BASE = process.env.NEXT_PUBLIC_API_URL || '';
@@ -24,7 +30,7 @@ export async function getUnreadCount(token?: string): Promise<{ count: number }>
   });
   const json = await res.json() as Record<string, unknown>;
   if (json.code !== 0) {
-    throw { code: json.code as number, message: json.message as string };
+    throw new ApiError(json.code as number, json.message as string);
   }
   return json.data as { count: number };
 }

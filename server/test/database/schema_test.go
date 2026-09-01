@@ -207,7 +207,7 @@ func TestSchema_RunAll(t *testing.T) {
 		}
 		// answer → content
 		if !columnExists(t, db, "knowledge_articles", "content") {
-			t.Error("knowledge_articles.content 应存在 (原 answer 列改名)")
+			t.Error("knowledge_articles.content 应存在 (answer 列存储 AI 回答)")
 		}
 				for _, col := range []string{"title", "source_type", "word_count", "chunk_count", "file_type", "minio_path", "process_status", "process_error"} {
 			if !columnExists(t, db, "knowledge_articles", col) {
@@ -370,6 +370,6 @@ func TestSchema_SeedExecutes(t *testing.T) {
 	if err := db.QueryRow("SELECT COUNT(*) FROM llm_configs WHERE is_default = true").Scan(&configCount); err != nil {
 		t.Logf("验证 llm_configs 默认配置: %v（可能表不存在）", err)
 	} else if configCount > 0 {
-		t.Logf("✅ llm_configs 默认配置: %d 条", configCount)
+		t.Logf("llm_configs 默认配置: %d 条", configCount)
 	}
 }

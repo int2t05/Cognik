@@ -545,7 +545,7 @@ func (s *LLMService) computeConfidence(chunks []rag.RetrievalResult, questionEmb
 		confRaw = 1
 	}
 
-	// 阈值默认值：上线后通过分位数计算校准
+	// 阈值默认值（硬编码兜底，DB 配置可覆盖）
 	const defaultLowT, defaultHighT = 0.40, 0.70
 	level := "low"
 	if confRaw >= defaultHighT {

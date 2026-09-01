@@ -4,7 +4,7 @@
 // 所有 MinIO 对象存储操作必须通过此适配层，禁止直接 HTTP 调用。
 //
 // 接口包含 3 个方法：Upload / GetPresignedURL / Delete。
-// Bucket 规划：opsmind-attachments（申告附件）、opsmind-documents（知识文档）。
+// Bucket 规划：opsmind-attachments（申告附件）、opsmind-documents（知识文档）、opsmind-published（已发布文章）。
 // 初始化时自动创建 bucket（MakeBucket）。
 package adapter
 

@@ -1,6 +1,6 @@
 // Package adapter_test 验证 StorageClient 适配器的 MinIO 实现。
 //
-// 测试覆盖 PLAN.md Task27 定义的 3 个方法：Upload / GetPresignedURL / Delete。
+// 测试覆盖 3 个方法：Upload / GetPresignedURL / Delete。
 // 使用本地 MinIO 实例（localhost:9000），不可用时跳过测试。
 //
 // 

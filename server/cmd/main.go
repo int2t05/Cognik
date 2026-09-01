@@ -365,7 +365,7 @@ func wireApp() (*app, error) {
 	}
 	writeTimeout := cfg.Server.WriteTimeout
 	if writeTimeout <= 0 {
-		writeTimeout = 60 * time.Second
+		writeTimeout = 300 * time.Second
 	}
 	idleTimeout := cfg.Server.IdleTimeout
 	if idleTimeout <= 0 {

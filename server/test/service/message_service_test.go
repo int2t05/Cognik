@@ -2,7 +2,7 @@
 
 // Package service_test 验证 MessageService 业务逻辑。
 //
-// 测试覆盖 PLAN.md Task29 定义的全部方法：
+// 测试覆盖全部方法：
 // ListMessages / MarkAsRead / CountUnread / NotifySupplement
 package service_test
 

@@ -2,7 +2,7 @@
 
 // Package service_test 验证 TicketService 业务逻辑。
 //
-// 测试覆盖 PLAN.md Task24 定义的全部方法：
+// 测试覆盖全部方法：
 // CreateTicket / SupplementTicket / UpdateStatus / AddRecord / ListByUser / ListAll / GetDetail
 package service_test
 

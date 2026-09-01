@@ -40,28 +40,3 @@ const (
 
 // 未知错误
 const ErrUnknown = 99999
-
-// messages 错误码到默认消息的映射
-var messages = map[int]string{
-	Success:               "success",
-	ErrAuth:               "未登录或令牌过期",
-	ErrForbidden:          "无权限",
-	ErrParam:              "参数校验失败",
-	ErrNotFound:           "资源不存在",
-	ErrConflict:           "资源冲突",
-	ErrAlreadyFrozen:      "用户已被冻结",
-	ErrAlreadyActive:      "用户已处于正常状态",
-	ErrAIUnavailable:      "AI 服务不可用",
-	ErrRAGUnavailable:     "RAG 服务不可用",
-	ErrStorageUnavailable: "存储服务不可用",
-	ErrUnknown:            "未知错误",
-}
-
-// GetMessage 返回错误码对应的默认消息。
-// 如果错误码未定义，返回 "未知错误"。
-func GetMessage(code int) string {
-	if msg, ok := messages[code]; ok {
-		return msg
-	}
-	return "未知错误"
-}

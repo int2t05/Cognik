@@ -65,6 +65,7 @@ type llmConfigRepo interface {
 	Update(ctx context.Context, cfg *model.LlmConfig) error
 	Delete(ctx context.Context, id int64) error
 	ClearDefault(ctx context.Context) error
+	CountReferencingKBs(ctx context.Context, configID int64) (int64, error)
 }
 
 type txRepoFactory func(tx *gorm.DB) llmConfigRepo
@@ -245,14 +246,12 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 	if cfg.IsDefault {
 		return AppError{Code: errcode.ErrParam, Message: "不能删除默认配置，请先设置其他配置为默认"}
 	}
-	if r, ok := s.repo.(*repository.LlmConfigRepo); ok {
-		count, err := r.CountReferencingKBs(ctx, id)
-		if err != nil {
-			return err
-		}
-		if count > 0 {
-			return AppError{Code: errcode.ErrConflict, Message: "该配置被知识库引用，无法删除"}
-		}
+	count, err := s.repo.CountReferencingKBs(ctx, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return AppError{Code: errcode.ErrConflict, Message: "该配置被知识库引用，无法删除"}
 	}
 	return s.repo.Delete(ctx, id)
 }

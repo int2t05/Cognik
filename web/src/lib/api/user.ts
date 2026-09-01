@@ -1,6 +1,5 @@
 /**
  * User API — 用户 CRUD + 批量删除 + 冻结/恢复。
- * 标准 CRUD 由 createCrudApi 工厂生成，本模块仅保留特殊操作。
  */
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';

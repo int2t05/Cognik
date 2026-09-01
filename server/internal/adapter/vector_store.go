@@ -3,7 +3,7 @@
 // vector_store.go 定义 VectorStore 接口和 pgvector 实现。
 // 使用 pgvector halfvec 类型 + HNSW 索引存储和检索向量。
 //
-// 设计决策（ADR-V2-003）：
+// 设计决策：
 // 接口明确暴露 pgvector 概念（halfvec、cosine），不追求数据库无关抽象。
 // pgvector 的 halfvec/HNSW/<=> 算子是不可替代的核心能力，
 // 过度抽象反而限制性能优化空间。

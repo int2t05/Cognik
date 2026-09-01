@@ -112,7 +112,6 @@ func (s *RoleService) Create(ctx context.Context, name, description string, perm
 	return nil
 }
 
-// GetByID 根据 ID 获取角色。
 func (s *RoleService) GetByID(ctx context.Context, id int64) (*model.Role, error) {
 	role, err := s.repo.GetByID(ctx, id)
 	if err != nil {

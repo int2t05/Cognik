@@ -8,7 +8,6 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -86,8 +85,6 @@ type LLMConfig struct {
 	Timeout   time.Duration `mapstructure:"timeout"` // LLM 调用超时，默认 60s
 }
 
-// EmbeddingConfig 是文本向量化配置。
-//
 // RerankConfig 是 cross-encoder 重排序子进程配置。
 //
 // 使用 Python 子进程运行 sentence-transformers CrossEncoder，
@@ -99,6 +96,8 @@ type RerankConfig struct {
 	ScriptPath string `mapstructure:"script_path"` // rerank_server.py 绝对路径
 }
 
+// EmbeddingConfig 是文本向量化配置。
+//
 // LLM 和 Embedding 可独立配置 Base URL 和 API Key，支持以下场景：
 //   - OpenAI LLM + 本地 bge-m3 Embedding（无需 Embedding API Key）
 //   - DeepSeek LLM + Moonshot Embedding（需要各自的 API Key）
@@ -139,10 +138,6 @@ func Load(configPath string) (*AppConfig, error) {
 	// 加载 .env 文件（本地开发使用；Docker Compose 已自动注入环境变量，godotenv.Load 找不到文件时不报错）
 	_ = godotenv.Load("../.env")
 	_ = godotenv.Load()
-
-	// .env 中的变量名与 Docker Compose 一致（无 OPSMIND_ 前缀），
-	// 映射到 Viper BindEnv 期望的 OPSMIND_ 前缀环境变量
-	applyEnvPrefixMapping()
 
 	v := viper.New()
 
@@ -230,6 +225,8 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("ai.rag_multi_route", "OPSMIND_AI_RAG_MULTI_ROUTE")
 	v.BindEnv("ai.rag_hybrid", "OPSMIND_AI_RAG_HYBRID")
 	v.BindEnv("ai.rag_rerank", "OPSMIND_AI_RAG_RERANK")
+	v.BindEnv("ai.chunk_size", "OPSMIND_AI_CHUNK_SIZE")
+	v.BindEnv("ai.chunk_overlap", "OPSMIND_AI_CHUNK_OVERLAP")
 
 	// CORS
 	v.BindEnv("cors.allow_origins", "OPSMIND_CORS_ALLOW_ORIGINS")
@@ -238,46 +235,6 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("rerank.enabled", "OPSMIND_RERANK_ENABLED")
 	v.BindEnv("rerank.python_path", "OPSMIND_RERANK_PYTHON_PATH")
 	v.BindEnv("rerank.script_path", "OPSMIND_RERANK_SCRIPT_PATH")
-}
-
-// applyEnvPrefixMapping 将 .env 中的无前缀变量映射为 OPSMIND_ 前缀变量。
-//
-// Docker Compose 通过 env_file 和 environment 双重机制自动完成此映射，
-// 本地 go run 时需显式处理，使 .env 文件与 Viper BindEnv 的 OPSMIND_ 前缀对齐。
-func applyEnvPrefixMapping() {
-	setIfEmpty := func(key, value string) {
-		if v := os.Getenv(key); v == "" && value != "" {
-			os.Setenv(key, value)
-		}
-	}
-	setIfEmpty("OPSMIND_SERVER_PORT", os.Getenv("SERVER_PORT"))
-	setIfEmpty("OPSMIND_SERVER_MODE", os.Getenv("SERVER_MODE"))
-	setIfEmpty("OPSMIND_DATABASE_HOST", os.Getenv("DB_HOST"))
-	setIfEmpty("OPSMIND_DATABASE_PORT", os.Getenv("DB_PORT"))
-	setIfEmpty("OPSMIND_DATABASE_USER", os.Getenv("DB_USER"))
-	setIfEmpty("OPSMIND_DATABASE_PASSWORD", os.Getenv("POSTGRES_PASSWORD"))
-	setIfEmpty("OPSMIND_DATABASE_DBNAME", os.Getenv("DB_NAME"))
-	// 兼容旧 .env 文件中的 OPSMIND_DATABASE_NAME（已统一为 OPSMIND_DATABASE_DBNAME）
-	setIfEmpty("OPSMIND_DATABASE_DBNAME", os.Getenv("OPSMIND_DATABASE_NAME"))
-	setIfEmpty("OPSMIND_JWT_SECRET", os.Getenv("JWT_SECRET"))
-	setIfEmpty("OPSMIND_MINIO_ENDPOINT", os.Getenv("MINIO_ENDPOINT"))
-	setIfEmpty("OPSMIND_MINIO_ACCESS_KEY", os.Getenv("MINIO_ROOT_USER"))
-	setIfEmpty("OPSMIND_MINIO_SECRET_KEY", os.Getenv("MINIO_ROOT_PASSWORD"))
-	setIfEmpty("OPSMIND_LLM_BASE_URL", os.Getenv("LLM_BASE_URL"))
-	setIfEmpty("OPSMIND_LLM_API_KEY", os.Getenv("LLM_API_KEY"))
-	setIfEmpty("OPSMIND_LLM_MODEL", os.Getenv("LLM_MODEL"))
-	setIfEmpty("OPSMIND_LLM_MAX_TOKENS", os.Getenv("LLM_MAX_TOKENS"))
-	setIfEmpty("OPSMIND_EMBEDDING_BASE_URL", os.Getenv("EMBEDDING_BASE_URL"))
-	setIfEmpty("OPSMIND_EMBEDDING_API_KEY", os.Getenv("EMBEDDING_API_KEY"))
-	setIfEmpty("OPSMIND_EMBEDDING_MODEL", os.Getenv("EMBEDDING_MODEL"))
-	setIfEmpty("OPSMIND_EMBEDDING_DIMENSION", os.Getenv("EMBEDDING_DIMENSION"))
-	setIfEmpty("OPSMIND_AI_DEFAULT_TOP_K", os.Getenv("AI_DEFAULT_TOP_K"))
-	setIfEmpty("OPSMIND_AI_CONFIDENCE_THRESHOLD", os.Getenv("AI_CONFIDENCE_THRESHOLD"))
-	setIfEmpty("OPSMIND_AI_MAX_HISTORY_MESSAGES", os.Getenv("AI_MAX_HISTORY_MESSAGES"))
-	setIfEmpty("OPSMIND_RERANK_ENABLED", os.Getenv("RERANK_ENABLED"))
-	setIfEmpty("OPSMIND_RERANK_PYTHON_PATH", os.Getenv("RERANK_PYTHON_PATH"))
-	setIfEmpty("OPSMIND_RERANK_SCRIPT_PATH", os.Getenv("RERANK_SCRIPT_PATH"))
-	setIfEmpty("OPSMIND_CORS_ALLOW_ORIGINS", os.Getenv("CORS_ALLOW_ORIGINS"))
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。

@@ -2,7 +2,7 @@
 
 // Package service_test 验证 DashboardService 业务逻辑。
 //
-// 测试覆盖 PLAN.md Task32 定义的全部方法：
+// 测试覆盖全部方法：
 // GetStats / GetTrends
 // 覆盖场景：统计数据聚合正确性、趋势数据按天/周聚合、空数据边界。
 package service_test
