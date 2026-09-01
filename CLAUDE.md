@@ -123,11 +123,12 @@ Project-level source of truth on `main` branch. Changes require audit.
 
 | Doc | Purpose |
 |-----|---------|
+| `docs/ROADMAP.md` | 产品技术路线图 — 战略方向、里程碑、技术决策记录 |
 | `docs/PRD.md` | 产品需求 — RAG 引擎、文档上传、统一文章模型、SSE 流式 |
 | `docs/TECH.md` | 技术架构 — 模块接口、DDL、ADR、部署配置、设计系统附录 |
 | `docs/API/README.md` | API 文档索引 — 9 份端点文档覆盖全部路由 |
 | `docs/FLOW/README.md` | 业务流程图 — 7 大模块端到端数据流 |
-| `docs/TODO.md` | 改进清单与产品路线图（单一事实源） |
+| `docs/TODO.md` | 代码级改进清单与优先级 |
 
 ---
 
