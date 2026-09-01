@@ -26,11 +26,18 @@ jwt:
   access_expire: 2h
   refresh_expire: 168h   # 7 天
 
-minio:
-  endpoint: localhost:9000  # Docker 内: minio:9000
-  access_key: minioadmin
-  secret_key: minioadmin
-  use_ssl: false
+storage:
+  driver: local              # local | minio
+  local:
+    base_dir: ./data/storage  # 本地存储根目录
+  minio:
+    endpoint: localhost:9000  # Docker 内: minio:9000
+    access_key: minioadmin
+    secret_key: minioadmin
+    use_ssl: false
+  buckets:
+    documents: opsmind-documents   # 草稿/审核/处理中
+    published: opsmind-published   # 已发布
 
 llm:
   base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1

@@ -1,9 +1,9 @@
 // Package adapter_test 验证 StorageClient 适配器的 MinIO 实现。
 //
-// 测试覆盖 3 个方法：Upload / GetPresignedURL / Delete。
+// 测试覆盖目录式存储接口：UploadFile / GetFileURL / DeleteDir / DownloadDir。
 // 使用本地 MinIO 实例（localhost:9000），不可用时跳过测试。
 //
-// 
+//
 // - Bucket 规划：opsmind-attachments（申告附件）、opsmind-documents（知识文档）
 // - 初始化时自动创建 bucket
 package adapter_test
@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/storage"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -45,26 +45,24 @@ func tryConnectMinIO(t *testing.T) *minio.Client {
 }
 
 // =============================================================================
-// Upload 测试
+// UploadFile 测试
 // =============================================================================
 
 func TestStorageClient_Upload(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-attachments")
 
 	content := strings.Repeat("测试文件内容\n", 100)
 	reader := bytes.NewReader([]byte(content))
 
 	ctx := context.Background()
-	key, err := client.Upload(ctx, "opsmind-test-attachments", "test/upload.txt", reader, int64(len(content)), "text/plain")
+	err = client.UploadFile(ctx, "opsmind-test-attachments", "test", "upload.txt", reader, int64(len(content)), "text/plain")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
-	if key != "test/upload.txt" {
-		t.Errorf("期望 key='test/upload.txt', got '%s'", key)
-	}
 
 	// 验证文件存在
+	key := "test/upload.txt"
 	_, err = rawClient.StatObject(ctx, "opsmind-test-attachments", key, minio.StatObjectOptions{})
 	if err != nil {
 		t.Errorf("上传后文件应存在: %v", err)
@@ -76,38 +74,37 @@ func TestStorageClient_Upload(t *testing.T) {
 
 func TestStorageClient_Upload_EmptyContent(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-attachments")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-attachments")
 
 	reader := bytes.NewReader([]byte{})
 	ctx := context.Background()
-	key, err := client.Upload(ctx, "opsmind-test-attachments", "test/empty.txt", reader, 0, "text/plain")
+	err = client.UploadFile(ctx, "opsmind-test-attachments", "test", "empty.txt", reader, 0, "text/plain")
 	if err != nil {
 		t.Fatalf("空文件上传不应报错: %v", err)
 	}
-	_ = key
 
 	// 清理
-	rawClient.RemoveObject(ctx, "opsmind-test-attachments", key, minio.RemoveObjectOptions{})
+	rawClient.RemoveObject(ctx, "opsmind-test-attachments", "test/empty.txt", minio.RemoveObjectOptions{})
 }
 
 // =============================================================================
-// GetPresignedURL 测试
+// GetFileURL 测试
 // =============================================================================
 
-func TestStorageClient_GetPresignedURL(t *testing.T) {
+func TestStorageClient_GetFileURL(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-presigned")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-presigned")
 
 	// 先上传文件
 	content := []byte("预签名测试")
 	ctx := context.Background()
-	key, err := client.Upload(ctx, "opsmind-test-presigned", "test/presigned.txt", bytes.NewReader(content), int64(len(content)), "text/plain")
+	err = client.UploadFile(ctx, "opsmind-test-presigned", "test", "presigned.txt", bytes.NewReader(content), int64(len(content)), "text/plain")
 	if err != nil {
 		t.Fatalf("上传失败: %v", err)
 	}
 
-	// 获取预签名 URL
-	url, err := client.GetPresignedURL(ctx, "opsmind-test-presigned", key, 1*time.Hour)
+	// 获取文件 URL
+	url, err := client.GetFileURL(ctx, "opsmind-test-presigned", "test", "presigned.txt")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -119,47 +116,47 @@ func TestStorageClient_GetPresignedURL(t *testing.T) {
 	}
 
 	// 清理
-	rawClient.RemoveObject(ctx, "opsmind-test-presigned", key, minio.RemoveObjectOptions{})
+	rawClient.RemoveObject(ctx, "opsmind-test-presigned", "test/presigned.txt", minio.RemoveObjectOptions{})
 }
 
 // =============================================================================
-// Delete 测试
+// DeleteDir 测试
 // =============================================================================
 
-func TestStorageClient_Delete(t *testing.T) {
+func TestStorageClient_DeleteDir(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-delete")
 
 	// 先上传文件
 	content := []byte("待删除文件")
 	ctx := context.Background()
-	key, err := client.Upload(ctx, "opsmind-test-delete", "test/to-delete.txt", bytes.NewReader(content), int64(len(content)), "text/plain")
+	err = client.UploadFile(ctx, "opsmind-test-delete", "test", "to-delete.txt", bytes.NewReader(content), int64(len(content)), "text/plain")
 	if err != nil {
 		t.Fatalf("上传失败: %v", err)
 	}
 
-	// 删除文件
-	err = client.Delete(ctx, "opsmind-test-delete", key)
+	// 删除目录
+	err = client.DeleteDir(ctx, "opsmind-test-delete", "test")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
 
 	// 验证文件已删除
-	_, err = rawClient.StatObject(ctx, "opsmind-test-delete", key, minio.StatObjectOptions{})
+	_, err = rawClient.StatObject(ctx, "opsmind-test-delete", "test/to-delete.txt", minio.StatObjectOptions{})
 	if err == nil {
 		t.Error("删除后文件应不存在")
 	}
 }
 
-func TestStorageClient_Delete_NotFound(t *testing.T) {
+func TestStorageClient_DeleteDir_NotFound(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-delete")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-delete")
 
-	// 删除不存在的对象不应报错（幂等性）
-	// MinIO RemoveObject 对不存在的 key 返回 204，不会报错
-	err = client.Delete(context.Background(), "opsmind-test-delete", "nonexistent/file.txt")
+	// 删除不存在的目录不应报错（幂等性）
+	// DeleteDir 列出空目录时直接返回 nil
+	err = client.DeleteDir(context.Background(), "opsmind-test-delete", "nonexistent")
 	if err != nil {
-		t.Fatalf("删除不存在的对象不应报错（幂等）, got %v", err)
+		t.Fatalf("删除不存在的目录不应报错（幂等）, got %v", err)
 	}
 }
 
@@ -169,34 +166,38 @@ func TestStorageClient_Delete_NotFound(t *testing.T) {
 
 func TestStorageClient_UploadDownloadRoundTrip(t *testing.T) {
 	rawClient := tryConnectMinIO(t)
-	client, err := adapter.NewMinIOClient(rawClient, "opsmind-test-roundtrip")
+	client, err := storage.NewMinIOClient(rawClient, "opsmind-test-roundtrip")
 
 	original := []byte("端到端测试数据: 你好，世界！")
 	ctx := context.Background()
 
 	// 上传
-	key, err := client.Upload(ctx, "opsmind-test-roundtrip", "test/roundtrip.txt", bytes.NewReader(original), int64(len(original)), "text/plain")
+	err = client.UploadFile(ctx, "opsmind-test-roundtrip", "test", "roundtrip.txt", bytes.NewReader(original), int64(len(original)), "text/plain")
 	if err != nil {
 		t.Fatalf("上传失败: %v", err)
 	}
 
-	// 获取预签名 URL
-	url, err := client.GetPresignedURL(ctx, "opsmind-test-roundtrip", key, 15*time.Minute)
+	// 获取文件 URL
+	url, err := client.GetFileURL(ctx, "opsmind-test-roundtrip", "test", "roundtrip.txt")
 	if err != nil {
-		t.Fatalf("获取预签名失败: %v", err)
+		t.Fatalf("获取文件 URL 失败: %v", err)
 	}
 	if url == "" {
-		t.Error("预签名 URL 不应为空")
+		t.Error("文件 URL 不应为空")
 	}
 
-	// 通过原始客户端下载验证内容
-	obj, err := rawClient.GetObject(ctx, "opsmind-test-roundtrip", key, minio.GetObjectOptions{})
+	// 通过 DownloadDir 下载并验证内容
+	files, err := client.DownloadDir(ctx, "opsmind-test-roundtrip", "test")
 	if err != nil {
-		t.Fatalf("下载失败: %v", err)
+		t.Fatalf("下载目录失败: %v", err)
 	}
-	defer obj.Close()
+	reader, ok := files["roundtrip.txt"]
+	if !ok {
+		t.Fatalf("下载结果应包含 roundtrip.txt, 实际 keys: %v", files)
+	}
+	defer reader.Close()
 
-	downloaded, err := io.ReadAll(obj)
+	downloaded, err := io.ReadAll(reader)
 	if err != nil {
 		t.Fatalf("读取失败: %v", err)
 	}
@@ -204,6 +205,13 @@ func TestStorageClient_UploadDownloadRoundTrip(t *testing.T) {
 		t.Errorf("内容不一致: 期望 '%s', got '%s'", string(original), string(downloaded))
 	}
 
+	// 关闭其余 reader
+	for _, r := range files {
+		if r != reader {
+			r.Close()
+		}
+	}
+
 	// 清理
-	rawClient.RemoveObject(ctx, "opsmind-test-roundtrip", key, minio.RemoveObjectOptions{})
+	rawClient.RemoveObject(ctx, "opsmind-test-roundtrip", "test/roundtrip.txt", minio.RemoveObjectOptions{})
 }

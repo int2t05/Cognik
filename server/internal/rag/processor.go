@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/storage"
 )
 
 // defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。
@@ -61,7 +62,7 @@ type Processor struct {
 	chunker  TextChunker
 	embedder TextEmbedder
 	store    adapter.VectorStore
-	storage  adapter.StorageClient
+	storage  storage.StorageClient
 
 	taskCh   chan ProcessTask
 	poolSize int
@@ -77,7 +78,7 @@ type Processor struct {
 //
 // storage 可以为 nil（MinIO 不可用时自动降级到 Content 模式）。
 // poolSize 为 worker goroutine 数量，建议 2-4。
-func NewProcessor(parser DocumentParser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage adapter.StorageClient, poolSize int) *Processor {
+func NewProcessor(parser DocumentParser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
 		poolSize = 2
 	}
@@ -175,7 +176,7 @@ type chunkWithHash struct {
 	hash string
 }
 
-// resolveContent 获取任务正文——MinIO 路径下载解析，或直接用纯文本。
+// resolveContent 获取任务正文——从存储下载整个文章目录，解析 markdown.md。
 func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (string, error) {
 	if task.Bucket == "" || task.Key == "" {
 		return task.Content, nil
@@ -183,17 +184,34 @@ func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (strin
 	if p.storage == nil {
 		return "", fmt.Errorf("StorageClient 未初始化")
 	}
-	reader, err := p.storage.Download(ctx, task.Bucket, task.Key)
+	// task.Key 是目录名，DownloadDir 返回 filename→reader 映射
+	files, err := p.storage.DownloadDir(ctx, task.Bucket, task.Key)
 	if err != nil {
-		return "", fmt.Errorf("从 MinIO 下载文件失败: %w", err)
+		return "", fmt.Errorf("下载文章目录失败: %w", err)
+	}
+
+	// 取 markdown.md 作为正文
+	reader, ok := files["markdown.md"]
+	if !ok {
+		// 清理所有 reader
+		for _, r := range files {
+			r.Close()
+		}
+		return "", fmt.Errorf("文章目录缺少 markdown.md [%s/%s]", task.Bucket, task.Key)
 	}
 	defer reader.Close()
+	// 清理其余 reader（图片暂不参与 embedding）
+	defer func() {
+		for name, r := range files {
+			if name != "markdown.md" {
+				r.Close()
+			}
+		}
+	}()
 
 	fileType := task.FileType
 	if fileType == "" {
-		if idx := strings.LastIndex(task.Key, "."); idx >= 0 {
-			fileType = task.Key[idx+1:]
-		}
+		fileType = "md"
 	}
 	return p.parser.Parse(reader, fileType)
 }

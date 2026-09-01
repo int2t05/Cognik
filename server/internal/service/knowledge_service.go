@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/storage"
 	"opsmind/internal/dto/request"
 	"opsmind/internal/dto/response"
 	"opsmind/internal/model"
@@ -31,23 +32,23 @@ const MaxDocumentSize = 50 * 1024 * 1024
 // allowedDocumentTypes 支持上传的文档格式白名单。
 var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
 
-// MinIO 两桶模型：
+// 存储两桶模型：
 //   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
 //   - opsmind-published：已发布桶（正文已嵌入 pgvector，RAG 可检索）
 //
-// 状态由 DB knowledge_articles.status 管理，MinIO 不按状态分桶。
+// 状态由 DB knowledge_articles.status 管理，存储不按状态分桶。
 const (
 	minioBucketDocs      = "opsmind-documents"
 	minioBucketPublished = "opsmind-published"
 )
 
-// articleContentKey 返回文章正文在 MinIO 中的 key（{标题}.txt），清洗路径分隔符等特殊字符。
+// articleContentKey 返回文章在存储中的目录名（title 清洗特殊字符，无扩展名）。
 func articleContentKey(title string) string {
 	safe := strings.NewReplacer(
 		"/", "_", "\\", "_", ":", "_", "*", "_", "?", "_",
 		"\"", "_", "<", "_", ">", "_", "|", "_",
 	).Replace(title)
-	return safe + ".txt"
+	return safe
 }
 
 // formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
@@ -114,7 +115,7 @@ type KnowledgeService struct {
 	store                 adapter.VectorStore
 	docParser             knowledgeDocParser
 	processor             *rag.Processor
-	storage               adapter.StorageClient
+	storage               storage.StorageClient
 	auditWriter          AuditWriter
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string            // 当前默认嵌入模型名
@@ -155,7 +156,7 @@ func WithProcessor(p *rag.Processor) KnowledgeServiceOption {
 }
 
 // WithStorage 设置对象存储客户端（上传时写入 MinIO）。
-func WithStorage(sc adapter.StorageClient) KnowledgeServiceOption {
+func WithStorage(sc storage.StorageClient) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.storage = sc }
 }
 
@@ -417,7 +418,7 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	s.uploadMinioAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
+	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
 	return article, nil
 }
 
@@ -445,7 +446,7 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
 	}
 
-	s.uploadMinioAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
+	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
 	return nil
 }
 
@@ -557,7 +558,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	// 同步上传正文到 MinIO——消除 uploadMinioAsync 与发布之间的竞态，
 	// 确保处理器取任务时文件已就位（特别是标题变更导致 key 变化时）
 	if s.storage != nil {
-		if _, err := s.storage.Upload(ctx, minioBucketDocs, pubKey, strings.NewReader(formatted), int64(len(formatted)), "text/plain; charset=utf-8"); err != nil {
+		if err := s.storage.UploadFile(ctx, minioBucketDocs, pubKey, "markdown.md", strings.NewReader(formatted), int64(len(formatted)), "text/markdown"); err != nil {
 			return errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文章正文失败: " + err.Error()}
 		}
 	}
@@ -583,7 +584,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 			s.onPublishComplete(context.Background(), aID, status, errMsg)
 			if status == "completed" {
 				// 嵌入成功 → 拷贝临时桶→已发布桶 → 更新 MinioPath → 删临时桶
-				s.moveMinioFile(minioBucketDocs, minioBucketPublished, pubKey)
+				s.moveArticleDir(minioBucketDocs, minioBucketPublished, pubKey)
 				_ = s.repo.UpdateArticleMinioPath(context.Background(), aID, minioBucketPublished+"/"+pubKey)
 				if s.onKBChanged != nil {
 					s.onKBChanged(article.KBID)
@@ -617,7 +618,7 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 	// 搜索侧通过 knowledge_articles.status = 4 过滤，停用文章不会出现在检索结果中。
 
 	// 停用：从已发布桶移回临时桶（保留一份文档）
-	s.moveMinioFile(minioBucketPublished, minioBucketDocs, articleContentKey(article.Title))
+	s.moveArticleDir(minioBucketPublished, minioBucketDocs, articleContentKey(article.Title))
 
 	if err := s.repo.UpdateArticleDisable(ctx, id); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
@@ -799,7 +800,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	key := articleContentKey(article.Title)
 	article.MinioPath = minioBucketDocs + "/" + key
 	_ = s.repo.UpdateArticle(ctx, article)
-	s.uploadMinioAsync(minioBucketDocs, key, formatArticleText(title, text))
+	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text))
 
 	return article, nil
 }
@@ -985,57 +986,64 @@ func (s *KnowledgeService) cleanupArticleFiles(article *model.KnowledgeArticle) 
 	}
 	bg := context.Background()
 	key := articleContentKey(article.Title)
-	s.deleteMinioFile(bg, minioBucketDocs, key)
-	s.deleteMinioFile(bg, minioBucketPublished, key)
+	s.deleteArticleDir(bg, minioBucketDocs, key)
+	s.deleteArticleDir(bg, minioBucketPublished, key)
 }
 
-// uploadMinioAsync 异步上传内容到 MinIO，不阻塞主流程。
-func (s *KnowledgeService) uploadMinioAsync(bucket, key, content string) {
+// uploadArticleFilesAsync 异步上传正文到存储（目录式 markdown.md），不阻塞主流程。
+func (s *KnowledgeService) uploadArticleFilesAsync(bucket, dir, content string) {
 	if s.storage == nil {
 		return
 	}
 	go func() {
-		if _, err := s.storage.Upload(context.Background(), bucket, key, strings.NewReader(content), int64(len(content)), "text/plain; charset=utf-8"); err != nil {
-			slog.Warn("异步上传 MinIO 失败", "bucket", bucket, "key", key, "error", err)
+		if err := s.storage.UploadFile(context.Background(), bucket, dir, "markdown.md", strings.NewReader(content), int64(len(content)), "text/markdown"); err != nil {
+			slog.Warn("异步上传文章失败", "bucket", bucket, "dir", dir, "error", err)
 		}
 	}()
 }
 
-// moveMinioFile 从 srcBucket 移动到 dstBucket（下载→上传→删除源，尽力而为不阻塞主流程）。
-func (s *KnowledgeService) moveMinioFile(srcBucket, dstBucket, key string) {
-	if s.storage == nil || srcBucket == "" || dstBucket == "" || key == "" {
+// moveArticleDir 从 srcBucket 移动到 dstBucket（下载目录→上传→删除源，尽力而为不阻塞主流程）。
+func (s *KnowledgeService) moveArticleDir(srcBucket, dstBucket, dir string) {
+	if s.storage == nil || srcBucket == "" || dstBucket == "" || dir == "" {
 		return
 	}
 	go func() {
 		bg := context.Background()
-		reader, err := s.storage.Download(bg, srcBucket, key)
+		files, err := s.storage.DownloadDir(bg, srcBucket, dir)
 		if err != nil {
-			slog.Warn("moveMinioFile 下载失败", "src", srcBucket, "key", key, "error", err)
+			slog.Warn("moveArticleDir 下载失败", "src", srcBucket, "dir", dir, "error", err)
 			return
 		}
-		defer reader.Close()
-		data, err := io.ReadAll(reader)
-		if err != nil || len(data) == 0 {
-			slog.Warn("moveMinioFile 读取失败", "src", srcBucket, "key", key, "error", err)
-			return
+		// 逐文件上传到目标
+		uploadFailed := false
+		for filename, reader := range files {
+			data, err := io.ReadAll(reader)
+			reader.Close()
+			if err != nil {
+				slog.Warn("moveArticleDir 读取失败", "filename", filename, "error", err)
+				uploadFailed = true
+				continue
+			}
+			if err := s.storage.UploadFile(bg, dstBucket, dir, filename, bytes.NewReader(data), int64(len(data)), "text/markdown"); err != nil {
+				slog.Warn("moveArticleDir 上传失败", "dst", dstBucket, "filename", filename, "error", err)
+				uploadFailed = true
+			}
 		}
-		if _, err := s.storage.Upload(bg, dstBucket, key, bytes.NewReader(data), int64(len(data)), "text/plain; charset=utf-8"); err != nil {
-			slog.Warn("moveMinioFile 上传失败", "dst", dstBucket, "key", key, "error", err)
-			return
-		}
-		// 上传成功才删源
-		if err := s.storage.Delete(bg, srcBucket, key); err != nil {
-			slog.Warn("moveMinioFile 删除源失败", "src", srcBucket, "key", key, "error", err)
+		// 全部上传成功才删源
+		if !uploadFailed {
+			if err := s.storage.DeleteDir(bg, srcBucket, dir); err != nil {
+				slog.Warn("moveArticleDir 删除源失败", "src", srcBucket, "dir", dir, "error", err)
+			}
 		}
 	}()
 }
 
-// deleteMinioFile 安全删除 MinIO 文件（bucket/key 为空或 storage 为 nil 时静默跳过）。
-func (s *KnowledgeService) deleteMinioFile(ctx context.Context, bucket, key string) {
-	if s.storage == nil || bucket == "" || key == "" {
+// deleteArticleDir 安全删除文章目录（bucket/dir 为空或 storage 为 nil 时静默跳过）。
+func (s *KnowledgeService) deleteArticleDir(ctx context.Context, bucket, dir string) {
+	if s.storage == nil || bucket == "" || dir == "" {
 		return
 	}
-	if err := s.storage.Delete(ctx, bucket, key); err != nil {
-		slog.Warn("删除 MinIO 文件失败", "bucket", bucket, "key", key, "error", err)
+	if err := s.storage.DeleteDir(ctx, bucket, dir); err != nil {
+		slog.Warn("删除文章目录失败", "bucket", bucket, "dir", dir, "error", err)
 	}
 }
