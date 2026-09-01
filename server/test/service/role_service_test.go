@@ -9,8 +9,9 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/user"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -34,12 +35,12 @@ func init() {
 	roleSvcDB = db
 }
 
-func setupRoleService(t *testing.T) *service.RoleService {
+func setupRoleService(t *testing.T) *user.RoleService {
 	t.Helper()
-	repo := repository.NewRoleRepo(roleSvcDB)
-	menuRepo := repository.NewMenuRepo(roleSvcDB)
-	auditRepo := repository.NewAuditRepo(roleSvcDB)
-	return service.NewRoleService(repo, menuRepo, service.NewAuditService(auditRepo), roleSvcDB)
+	repo := user.NewRoleRepo(roleSvcDB)
+	menuRepo := user.NewMenuRepo(roleSvcDB)
+	auditRepo := system.NewAuditRepo(roleSvcDB)
+	return user.NewRoleService(repo, menuRepo, system.NewAuditService(auditRepo), roleSvcDB)
 }
 
 func seedTestRole(t *testing.T, name string) *model.Role {
@@ -78,7 +79,7 @@ func TestRoleService_Create_Duplicate(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
-	if code := err.(service.AppError).Code; code != 10005 {
+	if code := err.(errcode.AppError).Code; code != 10005 {
 		t.Errorf("期望错误码 10005, got %d", code)
 	}
 }
@@ -103,7 +104,7 @@ func TestRoleService_GetByID_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望错误, got nil")
 	}
-	if code := err.(service.AppError).Code; code != 10004 {
+	if code := err.(errcode.AppError).Code; code != 10004 {
 		t.Errorf("期望错误码 10004, got %d", code)
 	}
 }

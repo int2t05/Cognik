@@ -17,11 +17,9 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/handler"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/rag"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/knowledge"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -49,14 +47,14 @@ func init() {
 	knowledgeHandlerDB = db
 }
 
-func setupKnowledgeHandler(t *testing.T) *handler.KnowledgeHandler {
+func setupKnowledgeHandler(t *testing.T) *knowledge.KnowledgeHandler {
 	t.Helper()
-	repo := repository.NewKnowledgeRepo(knowledgeHandlerDB)
+	repo := knowledge.NewKnowledgeRepo(knowledgeHandlerDB)
 	// 使用真实 DocParser（纯 Go）和 Chunker（纯 Go），无需外部依赖
 	docParser := rag.NewDocParser()
 	chunker := rag.NewChunker(1000, 200)
-	svc := service.NewKnowledgeService(repo, service.WithChunker(chunker), service.WithDocParser(docParser))
-	return handler.NewKnowledgeHandler(svc)
+	svc := knowledge.NewKnowledgeService(repo, knowledge.WithChunker(chunker), knowledge.WithDocParser(docParser))
+	return knowledge.NewKnowledgeHandler(svc)
 }
 
 func setupGin() *gin.Engine {

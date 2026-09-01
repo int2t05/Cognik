@@ -12,10 +12,9 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/user"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -39,12 +38,12 @@ func init() {
 	userHandlerDB = db
 }
 
-func setupUserHandler(t *testing.T) (*handler.UserHandler, *model.User) {
+func setupUserHandler(t *testing.T) (*user.UserHandler, *model.User) {
 	t.Helper()
-	repo := repository.NewUserRepo(userHandlerDB)
-	auditRepo := repository.NewAuditRepo(userHandlerDB)
-	svc := service.NewUserService(repo, service.NewAuditService(auditRepo), userHandlerDB, nil)
-	h := handler.NewUserHandler(svc)
+	repo := user.NewUserRepo(userHandlerDB)
+	auditRepo := system.NewAuditRepo(userHandlerDB)
+	svc := user.NewUserService(repo, system.NewAuditService(auditRepo), userHandlerDB, nil)
+	h := user.NewUserHandler(svc)
 
 	// 清理同用户名的旧数据
 	userHandlerDB.Where("username = ?", "test_handleruser_1").Delete(&model.User{})
@@ -63,7 +62,7 @@ func setupUserHandler(t *testing.T) (*handler.UserHandler, *model.User) {
 	return h, user
 }
 
-func setupUserRouter(h *handler.UserHandler) *gin.Engine {
+func setupUserRouter(h *user.UserHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	admin := r.Group("/api/v1/admin")

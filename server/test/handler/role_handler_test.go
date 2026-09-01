@@ -13,10 +13,9 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/user"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
@@ -41,13 +40,13 @@ func init() {
 	roleHandlerDB = db
 }
 
-func setupRoleHandler(t *testing.T) *handler.RoleHandler {
+func setupRoleHandler(t *testing.T) *user.RoleHandler {
 	t.Helper()
-	repo := repository.NewRoleRepo(roleHandlerDB)
-	menuRepo := repository.NewMenuRepo(roleHandlerDB)
-	auditRepo := repository.NewAuditRepo(roleHandlerDB)
-	svc := service.NewRoleService(repo, menuRepo, service.NewAuditService(auditRepo), roleHandlerDB)
-	return handler.NewRoleHandler(svc)
+	repo := user.NewRoleRepo(roleHandlerDB)
+	menuRepo := user.NewMenuRepo(roleHandlerDB)
+	auditRepo := system.NewAuditRepo(roleHandlerDB)
+	svc := user.NewRoleService(repo, menuRepo, system.NewAuditService(auditRepo), roleHandlerDB)
+	return user.NewRoleHandler(svc)
 }
 
 func seedHandlerRole(t *testing.T, name string) *model.Role {
@@ -62,7 +61,7 @@ func seedHandlerRole(t *testing.T, name string) *model.Role {
 	return role
 }
 
-func setupRoleRouter(h *handler.RoleHandler) *gin.Engine {
+func setupRoleRouter(h *user.RoleHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	admin := r.Group("/api/v1/admin")

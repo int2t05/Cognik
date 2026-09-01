@@ -11,7 +11,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
+	"opsmind/internal/domain/chat"
 
 	"gorm.io/gorm"
 )
@@ -44,7 +44,7 @@ func setupMessageTestDB(t *testing.T) *gorm.DB {
 
 func TestMessageRepo_Create(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	msg := &model.Message{
@@ -61,7 +61,7 @@ func TestMessageRepo_Create(t *testing.T) {
 
 func TestMessageRepo_ListByUser(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES
@@ -69,7 +69,7 @@ func TestMessageRepo_ListByUser(t *testing.T) {
 		(1, 'ticket_status', 'test_list_msg2', '内容2', true, NOW()),
 		(2, 'ticket_status', 'test_list_msg3', '内容3', false, NOW())`)
 
-	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{})
+	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, chat.MessageFilter{})
 	if err != nil {
 		t.Fatalf("ListByUser 失败: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestMessageRepo_ListByUser(t *testing.T) {
 
 func TestMessageRepo_ListByUser_UnreadFilter(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES
@@ -91,7 +91,7 @@ func TestMessageRepo_ListByUser_UnreadFilter(t *testing.T) {
 		(1, 'ticket_status', 'test_read_msg', '内容', true, NOW())`)
 
 	isRead := false
-	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{IsRead: &isRead})
+	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, chat.MessageFilter{IsRead: &isRead})
 	if err != nil {
 		t.Fatalf("ListByUser 失败: %v", err)
 	}
@@ -103,14 +103,14 @@ func TestMessageRepo_ListByUser_UnreadFilter(t *testing.T) {
 
 func TestMessageRepo_ListByUser_TypeFilter(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, created_at) VALUES
 		(1, 'ticket_status', 'test_type_msg1', '内容1', NOW()),
 		(1, 'ticket_supplement', 'test_type_msg2', '内容2', NOW())`)
 
-	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{Type: "ticket_supplement"})
+	msgs, total, err := repo.ListByUser(ctx, 1, 1, 10, chat.MessageFilter{Type: "ticket_supplement"})
 	if err != nil {
 		t.Fatalf("ListByUser 失败: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestMessageRepo_ListByUser_TypeFilter(t *testing.T) {
 
 func TestMessageRepo_MarkAsRead(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES (1, 'ticket_status', 'test_mark_read', '内容', false, NOW())`)
@@ -136,7 +136,7 @@ func TestMessageRepo_MarkAsRead(t *testing.T) {
 
 	// 验证已读
 	isRead := true
-	msgs, _, _ := repo.ListByUser(ctx, 1, 1, 10, repository.MessageFilter{IsRead: &isRead})
+	msgs, _, _ := repo.ListByUser(ctx, 1, 1, 10, chat.MessageFilter{IsRead: &isRead})
 	found := false
 	for _, m := range msgs {
 		if m.ID == id {
@@ -151,7 +151,7 @@ func TestMessageRepo_MarkAsRead(t *testing.T) {
 
 func TestMessageRepo_MarkAsRead_WrongUser(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, created_at) VALUES (1, 'ticket_status', 'test_wrong_user', '内容', NOW())`)
@@ -167,7 +167,7 @@ func TestMessageRepo_MarkAsRead_WrongUser(t *testing.T) {
 
 func TestMessageRepo_CountUnread(t *testing.T) {
 	db := setupMessageTestDB(t)
-	repo := repository.NewMessageRepo(db)
+	repo := chat.NewMessageRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO messages (user_id, type, title, content, is_read, created_at) VALUES

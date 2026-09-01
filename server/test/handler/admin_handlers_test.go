@@ -13,10 +13,8 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
 	"opsmind/internal/infra/middleware"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/system"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -91,8 +89,8 @@ func TestDashboardHandler_GetStats(t *testing.T) {
 	db.Exec("INSERT INTO chat_sessions (id, user_id, kb_id, question, answer, confidence, created_at) VALUES (1, 1, 1, 'Q', 'A', 0.9, NOW())")
 	db.Exec("INSERT INTO knowledge_articles (id, kb_id, question, answer, status, created_at) VALUES (1, 1, 'Q', 'A', 4, NOW())")
 
-	dashboardSvc := service.NewDashboardService(repository.NewDashboardRepo(db))
-	h := handler.NewDashboardHandler(dashboardSvc)
+	dashboardSvc := system.NewDashboardService(system.NewDashboardRepo(db))
+	h := system.NewDashboardHandler(dashboardSvc)
 
 	r.GET("/stats", h.GetStats)
 
@@ -123,8 +121,8 @@ func TestDashboardHandler_GetTrends(t *testing.T) {
 	db.Exec("DELETE FROM tickets")
 	db.Exec("INSERT INTO tickets (id, ticket_no, user_id, title, status, created_at) VALUES (1, 'TK-001', 1, 'Test', 1, NOW())")
 
-	dashboardSvc := service.NewDashboardService(repository.NewDashboardRepo(db))
-	h := handler.NewDashboardHandler(dashboardSvc)
+	dashboardSvc := system.NewDashboardService(system.NewDashboardRepo(db))
+	h := system.NewDashboardHandler(dashboardSvc)
 
 	r.GET("/trends", h.GetTrends)
 
@@ -147,8 +145,8 @@ func TestAuditHandler_List(t *testing.T) {
 	db.Exec("DELETE FROM audit_logs")
 	db.Exec("INSERT INTO audit_logs (id, operator_id, action, target_type, created_at) VALUES (1, 1, 'ticket:create', 'ticket', NOW())")
 
-	auditSvc := service.NewAuditService(repository.NewAuditRepo(db))
-	h := handler.NewAuditHandler(auditSvc)
+	auditSvc := system.NewAuditService(system.NewAuditRepo(db))
+	h := system.NewAuditHandler(auditSvc)
 
 	r.GET("/audit-logs", h.List)
 
@@ -171,8 +169,8 @@ func TestConfigHandler_Get(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db), service.NewAuditService(repository.NewAuditRepo(db)))
-	h := handler.NewConfigHandler(configSvc)
+	configSvc := system.NewConfigService(system.NewConfigRepo(db), system.NewAuditService(system.NewAuditRepo(db)))
+	h := system.NewConfigHandler(configSvc)
 
 	r.GET("/configs/:key", h.Get)
 
@@ -191,8 +189,8 @@ func TestConfigHandler_Update(t *testing.T) {
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
 
-	configSvc := service.NewConfigService(repository.NewConfigRepo(db), service.NewAuditService(repository.NewAuditRepo(db)))
-	h := handler.NewConfigHandler(configSvc)
+	configSvc := system.NewConfigService(system.NewConfigRepo(db), system.NewAuditService(system.NewAuditRepo(db)))
+	h := system.NewConfigHandler(configSvc)
 
 	r.PUT("/configs/:key", h.Update)
 

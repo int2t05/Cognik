@@ -12,8 +12,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/system"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -57,14 +56,14 @@ func envOrDefault(key, def string) string {
 
 func TestAuditService_List_All(t *testing.T) {
 	db := setupAuditServiceTestDB(t)
-	repo := repository.NewAuditRepo(db)
-	svc := service.NewAuditService(repo)
+	repo := system.NewAuditRepo(db)
+	svc := system.NewAuditService(repo)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO users (id, username, password_hash, real_name, phone) VALUES (1, 'admin', '$2a$10$x', '测试用户', '13800000001') ON CONFLICT DO NOTHING`)
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_login", TargetType: "user", TargetID: 1, Detail: datatypes.JSON(`{"ip":"127.0.0.1"}`), IPAddress: "127.0.0.1"})
 
-	_, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 10})
+	_, total, err := svc.List(ctx, system.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -75,14 +74,14 @@ func TestAuditService_List_All(t *testing.T) {
 
 func TestAuditService_List_ByAction(t *testing.T) {
 	db := setupAuditServiceTestDB(t)
-	repo := repository.NewAuditRepo(db)
-	svc := service.NewAuditService(repo)
+	repo := system.NewAuditRepo(db)
+	svc := system.NewAuditService(repo)
 	ctx := context.Background()
 
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_action_a", TargetType: "user", TargetID: 1})
 	repo.Create(ctx, &model.AuditLog{OperatorID: 1, Action: "test_action_b", TargetType: "ticket", TargetID: 1})
 
-	_, total, err := svc.List(ctx, service.AuditFilter{Action: "test_action_a", Page: 1, PageSize: 10})
+	_, total, err := svc.List(ctx, system.AuditFilter{Action: "test_action_a", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -93,8 +92,8 @@ func TestAuditService_List_ByAction(t *testing.T) {
 
 func TestAuditService_List_ByOperator(t *testing.T) {
 	db := setupAuditServiceTestDB(t)
-	repo := repository.NewAuditRepo(db)
-	svc := service.NewAuditService(repo)
+	repo := system.NewAuditRepo(db)
+	svc := system.NewAuditService(repo)
 	ctx := context.Background()
 
 	// 使用唯一 operator_id 避免与其他测试的用户数据冲突
@@ -105,7 +104,7 @@ func TestAuditService_List_ByOperator(t *testing.T) {
 		testOpID)
 	repo.Create(ctx, &model.AuditLog{OperatorID: testOpID, Action: "test_op1", TargetType: "user", TargetID: 1})
 
-	items, _, err := svc.List(ctx, service.AuditFilter{OperatorID: testOpID, Page: 1, PageSize: 10})
+	items, _, err := svc.List(ctx, system.AuditFilter{OperatorID: testOpID, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -118,15 +117,15 @@ func TestAuditService_List_ByOperator(t *testing.T) {
 
 func TestAuditService_List_Pagination(t *testing.T) {
 	db := setupAuditServiceTestDB(t)
-	repo := repository.NewAuditRepo(db)
-	svc := service.NewAuditService(repo)
+	repo := system.NewAuditRepo(db)
+	svc := system.NewAuditService(repo)
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
 		repo.Create(ctx, &model.AuditLog{OperatorID: 0, Action: "test_page", TargetType: "user", TargetID: 1})
 	}
 
-	items, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 2})
+	items, total, err := svc.List(ctx, system.AuditFilter{Page: 1, PageSize: 2})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
@@ -140,11 +139,11 @@ func TestAuditService_List_Pagination(t *testing.T) {
 
 func TestAuditService_List_Empty(t *testing.T) {
 	db := setupAuditServiceTestDB(t)
-	repo := repository.NewAuditRepo(db)
-	svc := service.NewAuditService(repo)
+	repo := system.NewAuditRepo(db)
+	svc := system.NewAuditService(repo)
 	ctx := context.Background()
 
-	items, total, err := svc.List(ctx, service.AuditFilter{Page: 1, PageSize: 10})
+	items, total, err := svc.List(ctx, system.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List 空表: %v", err)
 	}

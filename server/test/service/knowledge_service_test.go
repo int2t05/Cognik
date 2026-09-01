@@ -14,8 +14,7 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/knowledge"
 
 	"gorm.io/gorm"
 )
@@ -42,7 +41,7 @@ func init() {
 	knowledgeSvcDB = db
 }
 
-func setupKnowledgeService(t *testing.T) *service.KnowledgeService {
+func setupKnowledgeService(t *testing.T) *knowledge.KnowledgeService {
 	t.Helper()
 
 	// 确保测试表存在（init 只连接，不建表）
@@ -55,12 +54,12 @@ func setupKnowledgeService(t *testing.T) *service.KnowledgeService {
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_articles")
 	knowledgeSvcDB.Exec("DELETE FROM knowledge_bases")
 
-	repo := repository.NewKnowledgeRepo(knowledgeSvcDB)
-	return service.NewKnowledgeService(repo)
+	repo := knowledge.NewKnowledgeRepo(knowledgeSvcDB)
+	return knowledge.NewKnowledgeService(repo)
 }
 
 // createTestKB 创建测试用知识库。
-func createTestKB(t *testing.T, _ *service.KnowledgeService, name string) *model.KnowledgeBase {
+func createTestKB(t *testing.T, _ *knowledge.KnowledgeService, name string) *model.KnowledgeBase {
 	t.Helper()
 	kb := &model.KnowledgeBase{
 		Name:             name,
@@ -75,7 +74,7 @@ func createTestKB(t *testing.T, _ *service.KnowledgeService, name string) *model
 }
 
 // createTestArticle 创建测试用知识文章。
-func createTestArticle(t *testing.T, _ *service.KnowledgeService, kbID int64, status int16) *model.KnowledgeArticle {
+func createTestArticle(t *testing.T, _ *knowledge.KnowledgeService, kbID int64, status int16) *model.KnowledgeArticle {
 	t.Helper()
 	article := &model.KnowledgeArticle{
 		KBID:      kbID,

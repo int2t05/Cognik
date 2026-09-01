@@ -13,8 +13,8 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/system"
 
 	"gorm.io/gorm"
 )
@@ -33,7 +33,7 @@ func init() {
 	msgSvcDB = db
 }
 
-func setupMessageService(t *testing.T) *service.MessageService {
+func setupMessageService(t *testing.T) *system.MessageService {
 	t.Helper()
 
 	msgSvcDB.Exec(`CREATE TABLE IF NOT EXISTS messages (
@@ -46,8 +46,8 @@ func setupMessageService(t *testing.T) *service.MessageService {
 	// 清理旧数据
 	msgSvcDB.Exec("DELETE FROM messages")
 
-	repo := repository.NewMessageRepo(msgSvcDB)
-	return service.NewMessageService(repo)
+	repo := chat.NewMessageRepo(msgSvcDB)
+	return system.NewMessageService(repo)
 }
 
 // =============================================================================
@@ -120,8 +120,8 @@ func TestMessageService_CountUnread_Zero(t *testing.T) {
 
 func TestMessageService_CountUnreadCacheInvalidatesOnMarkAsRead(t *testing.T) {
 	setupMessageService(t)
-	repo := repository.NewMessageRepo(msgSvcDB)
-	svc := service.NewMessageServiceWithCacheTTL(repo, time.Minute)
+	repo := chat.NewMessageRepo(msgSvcDB)
+	svc := system.NewMessageServiceWithCacheTTL(repo, time.Minute)
 
 	now := time.Now()
 	first := &model.Message{UserID: 1, Title: "A", Content: "a", Type: "test", IsRead: false, CreatedAt: now}
@@ -161,8 +161,8 @@ func TestMessageService_CountUnreadCacheInvalidatesOnMarkAsRead(t *testing.T) {
 
 func TestMessageService_CountUnreadCacheInvalidatesOnNotifySupplement(t *testing.T) {
 	setupMessageService(t)
-	repo := repository.NewMessageRepo(msgSvcDB)
-	svc := service.NewMessageServiceWithCacheTTL(repo, time.Minute)
+	repo := chat.NewMessageRepo(msgSvcDB)
+	svc := system.NewMessageServiceWithCacheTTL(repo, time.Minute)
 
 	count, err := svc.CountUnread(bgCtx, 42)
 	if err != nil {
@@ -249,7 +249,7 @@ func TestMessageService_ListMessages(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 10, service.MessageFilter{})
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 10, system.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -276,7 +276,7 @@ func TestMessageService_ListMessages_Pagination(t *testing.T) {
 		})
 	}
 
-	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 2, service.MessageFilter{})
+	msgs, total, err := svc.ListMessages(bgCtx, 1, 1, 2, system.MessageFilter{})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

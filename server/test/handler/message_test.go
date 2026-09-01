@@ -12,11 +12,10 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
 	"opsmind/internal/infra/middleware"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/service"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/system"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -56,8 +55,8 @@ func setupMessageHandler(t *testing.T) (*gin.Engine, *gorm.DB) {
 	db.Exec(`INSERT INTO messages (id, user_id, type, title, content, is_read, created_at)
 		VALUES (3, 2, 'ticket_supplement', '请补充信息', '需要更多信息', false, NOW())`)
 
-	svc := service.NewMessageService(repository.NewMessageRepo(db))
-	h := handler.NewMessageHandler(svc)
+	svc := system.NewMessageService(chat.NewMessageRepo(db))
+	h := system.NewMessageHandler(svc)
 
 	r := gin.New()
 	r.Use(middleware.RequestID())
