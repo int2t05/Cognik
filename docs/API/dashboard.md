@@ -60,7 +60,7 @@ Authorization: Bearer <token>
 | end_date | string | ✓ | 结束日期（YYYY-MM-DD） |
 | granularity | string | | 粒度：`day`（默认）或 `week` |
 
-> granularity 参数当前保留但未生效，Service 始终按日聚合。
+> granularity 参数暂不生效，Service 始终按日聚合。
 
 **响应：**
 

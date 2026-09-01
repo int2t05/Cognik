@@ -76,8 +76,8 @@ flowchart LR
 
 - 全管道 7 步骤可独立开关，非核心步骤失败降级不阻塞
 - 向量检索与 LLM 生成失败返回明确错误码（20002 / 20001）
-- 置信度三级：高（≥0.8）/ 中（≥0.6）/ 低（<0.6），低置信度引导提交申告
-- SSE 事件类型：step / token / error / done
+- 置信度三级：高（≥0.70）/ 中（≥0.40）/ 低（<0.40），低置信度引导提交申告
+- SSE 事件类型：step / chunks / token / error / done
 
 ### 4.2 知识库管理
 
@@ -113,7 +113,7 @@ stateDiagram-v2
 - 状态机显式校验前置状态，补充信息上限 3 次
 - 调度器每小时扫描，自动关闭超过 7 天的未完结申告
 - CAS 防并发：`UPDATE WHERE id=? AND status=?`
-- 编号格式：TK-YYYYMMDD-XXXX
+- 编号格式：TK-YYYYMMDD-NNNNNN
 
 ### 4.4 用户与权限
 
@@ -156,14 +156,14 @@ flowchart TD
 
 | 层 | 技术 |
 |----|------|
-| 后端框架 | Go 1.26 + Gin + GORM |
-| 数据库 | PostgreSQL 18 + pgvector (halfvec + HNSW) |
+| 后端框架 | Go + Gin + GORM |
+| 数据库 | PostgreSQL + pgvector (halfvec + HNSW) |
 | 对象存储 | MinIO (S3-compatible) |
-| 前端 | Next.js 16 + React 19 + TypeScript + Tailwind CSS 4 |
+| 前端 | Next.js + React + TypeScript + Tailwind CSS |
 | UI | Radix UI + Lucide Icons + SWR |
 | LLM/Embedding | llama.cpp server 或 OpenAI-compatible API |
 | 中文分词 | gse（纯 Go，无 CGO） |
-| 部署 | Docker Compose（4 必须服务 + 1 可选 ai-local profile） |
+| 部署 | Docker Compose（4 必须服务 + 2 可选 ai-local profile） |
 
 ## 6. API 概览
 

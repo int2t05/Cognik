@@ -100,7 +100,7 @@ Content-Type: application/json
 
 响应类型为 `text/event-stream`，包含以下事件类型：
 
-### chunks 事件 — 检索匹配分数（v2 新增）
+### chunks 事件 — 检索匹配分
 
 检索完成后、LLM 生成前发送，携带每个 chunk 的归一化展示分和来源标识：
 
@@ -186,7 +186,7 @@ data: {"type":"done","metadata":{"session_id":42,"question":"如何重置 VPN �
 | metadata.sources[].doc_name | string | 来源文档名称 |
 | metadata.sources[].chunk_content | string | 匹配的切片内容 |
 | metadata.sources[].confidence | float | 该来源 chunk 展示分 (0-1) |
-| metadata.confidence | float | 原始综合置信度 Conf_raw [0,1]（同 confidence_raw，保留向后兼容） |
+| metadata.confidence | float | 同 confidence_raw（别名） |
 | metadata.confidence_raw | float | 原始综合置信度 Conf_raw [0,1] |
 | metadata.confidence_level | string | 置信度等级：`"high"` / `"medium"` / `"low"` |
 | metadata.can_submit_ticket | bool | 是否建议转人工申告（`confidence_level != "high"`） |
@@ -217,30 +217,39 @@ data: {"type":"done","metadata":{"session_id":42,"question":"如何重置 VPN �
 **前端消费示例：**
 
 ```typescript
-import { createSession, streamChatMessage } from '@/api/chat'
+import { createSession, streamUrl } from '@/lib/api/chat'
 
 // 1. 创建会话
-const { data } = await createSession(1, '如何重置 VPN 密码？')
-const sessionId = data.session_id
+const res = await createSession(1, '如何重置 VPN 密码？')
+const sessionId = res.session_id
 
-// 2. 发送首条消息（SSE 流式）
-await streamChatMessage(sessionId, '如何重置 VPN 密码？', {
-  onStep(step) {
-    currentStep.value = step.label
-  },
-  onToken(content) {
-    assistantMessage.content += content
-  },
-  onDone(session) {
-    currentSession.value = session
-  },
-  onError(error) {
-    showError(error)
-  }
+// 2. 发送问题并消费 SSE 流（fetch POST + ReadableStream 解析）
+const resp = await fetch(streamUrl(sessionId), {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({ question: '如何重置 VPN 密码？' }),
 })
+const reader = resp.body!.getReader()
+const decoder = new TextDecoder()
+let buffer = ''
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  buffer += decoder.decode(value, { stream: true })
+  for (const line of buffer.split('\n')) {
+    if (!line.startsWith('data: ')) continue
+    const evt = JSON.parse(line.slice(6))
+    switch (evt.type) {
+      case 'step':   setCurrentStep(evt.label); break
+      case 'chunks': /* evt.chunks: 检索匹配分 */ break
+      case 'token':  setAssistant(prev => prev + evt.content); break
+      case 'done':   /* evt.metadata: 会话元数据 */ break
+      case 'error':  throw new Error(evt.message)
+    }
+  }
+}
 
-// 3. 多轮追问（同一会话）
-await streamChatMessage(sessionId, '第二步具体怎么做？', { ... })
+// 3. 多轮追问：复用同一 sessionId，重复步骤 2（body 改为新问题）
 ```
 
 ---
@@ -463,7 +472,7 @@ GET /api/v1/portal/chat-sessions/:id/stream
 Authorization: Bearer <token>
 ```
 
-恢复被中断的 SSE 流式输出，返回格式同 [§2 流式问答](#2-流式问答)。
+恢复被中断的 SSE 流式输出，返回格式同 [§2](#2-发送消息sse-流式)。
 
 ---
 
@@ -478,7 +487,7 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "question": "更新后的标题",
+  "title": "更新后的标题",
   "kb_id": 1
 }
 ```

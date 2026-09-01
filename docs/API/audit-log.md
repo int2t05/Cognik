@@ -147,7 +147,8 @@ Authorization: Bearer <token>
 |-----|------|------|
 | `app_name` | string | 应用名称，显示在页面标题和系统通知中 |
 | `ai.top_k` | number | RAG 默认检索 Top K |
-| `ai.threshold` | number | AI 置信度阈值 |
+| `ai.confidence_threshold_low` | number | 低置信阈值 |
+| `ai.confidence_threshold_high` | number | 高置信阈值 |
 
 **错误码：**
 

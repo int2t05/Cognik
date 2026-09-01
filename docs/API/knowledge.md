@@ -490,7 +490,7 @@ Content-Type: multipart/form-data
     1. process_status = "parsing"
        → 从 MinIO 下载 → 按文件类型解析文本
     2. process_status = "chunking"
-       → RecursiveCharacterTextSplitter 分块
+       → Chunker.Split 分块
        (chunk_size=1000, overlap=200)
     3. process_status = "embedding"
        → 调用 Embedding API 批量生成向量（每批 20 块）
@@ -567,7 +567,7 @@ POST /api/v1/admin/articles/:id/submit-review
 Authorization: Bearer <token>
 ```
 
-> 状态：草稿(1) → 已提交审核(2)
+> 状态：草稿(1) → 待审核(2)
 
 **响应：**
 
@@ -630,7 +630,7 @@ Authorization: Bearer <token>
 > 1. 对文章 `content` 执行文本分块（Chunker）
 > 2. 批量调用 Embedding API 生成向量（Embedder）
 > 3. 将分块和向量写入 `knowledge_chunks` 表（VectorStore.BatchInsert）
-> 4. 失效该知识库的 BM25 缓存（BM25Retriever.Invalidate）
+> 4. 重建该知识库的 BM25 索引（onKBChanged 回调 → BuildIndex）
 > 5. 记录审计日志
 
 **响应：**
@@ -643,7 +643,7 @@ Authorization: Bearer <token>
 
 | 错误码 | HTTP 状态 | 说明                           |
 | ------ | --------- | ------------------------------ |
-| 10003  | 400       | 当前状态不为待审核或 embed 失败 |
+| 10003  | 400       | 仅审核通过的文章可发布           |
 | 10004  | 404       | 文章不存在                     |
 | 20001  | 503       | AI 服务不可用（Embedding 调用失败） |
 
@@ -665,7 +665,7 @@ Authorization: Bearer <token>
 > **内部逻辑：**
 >
 > 1. 从 `knowledge_chunks` 删除该文章的所有向量分块（VectorStore.DeleteByArticle）
-> 2. 失效该知识库的 BM25 缓存（BM25Retriever.Invalidate）
+> 2. 重建该知识库的 BM25 索引（onKBChanged 回调 → BuildIndex）
 > 3. 记录审计日志
 >
 > 停用后文章不再参与 RAG 检索。

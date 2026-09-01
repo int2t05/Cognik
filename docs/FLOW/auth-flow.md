@@ -9,7 +9,7 @@
 **输入** `{"username":"admin","password":"Admin@123"}`
 
 ```
-1. AuthHandler.Login (handler/auth.go:33)
+1. AuthHandler.Login (handler/auth.go:34)
    └─ c.ShouldBindJSON → request.LoginRequest{Username, Password}
 
 2. AuthService.Login (service/auth_service.go:166)
