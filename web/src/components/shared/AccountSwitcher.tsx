@@ -9,7 +9,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Trash2, LogIn } from 'lucide-react';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
 import { useToast } from '@/hooks/useToast';
 
@@ -56,15 +56,15 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
 
   return (
     <div ref={ref} className="relative">
-      <AppleButton
+      <Button
         variant="menu"
-        icon={<UserPlus />}
         onClick={() => setOpen(!open)}
         aria-label="切换账号"
         className={className}
       >
+        <UserPlus size={18} />
         {!iconOnly && '切换账号'}
-      </AppleButton>
+      </Button>
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] z-50 overflow-hidden">
@@ -112,14 +112,14 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
           </div>
 
           <div className="border-t border-[var(--color-divider-soft)]">
-            <AppleButton
+            <Button
               variant="menu"
-              icon={<LogIn />}
               onClick={handleNewLogin}
               className="w-full justify-start font-semibold"
             >
+              <LogIn size={18} />
               其他账号登录
-            </AppleButton>
+            </Button>
           </div>
         </div>
       )}

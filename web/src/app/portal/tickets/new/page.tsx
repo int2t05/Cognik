@@ -2,14 +2,14 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface ChatContextData {
   session_id: number;
@@ -88,8 +88,8 @@ export default function TicketSubmitPage() {
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">
-          <AppleButton variant="pill" icon={<Send />} type="submit" loading={submitting}>提交申告</AppleButton>
-          <AppleButton variant="ghost" type="button" onClick={() => router.push("/portal/tickets")}>取消</AppleButton>
+          <Button size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交申告</Button>
+          <Button variant="ghost" size="sm" type="button" onClick={() => router.push("/portal/tickets")}>取消</Button>
         </div>
       </form>
     </div>

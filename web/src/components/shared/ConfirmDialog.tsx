@@ -1,6 +1,7 @@
 /** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound，外部 API 不变。 */
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -34,16 +35,18 @@ export function ConfirmDialog({
         </DialogHeader>
         {children ?? <div />}
         <DialogFooter>
-          <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             取消
-          </AppleButton>
-          <AppleButton
-            variant={danger ? 'danger' : 'pill'}
+          </Button>
+          <Button
+            variant={danger ? 'destructive' : 'default'}
+            size="lg"
+            disabled={loading}
             onClick={onConfirm}
-            loading={loading}
           >
+            {loading && <Loader2 className="animate-spin" />}
             {confirmLabel}
-          </AppleButton>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

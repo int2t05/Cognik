@@ -5,14 +5,14 @@ import { PageTitle } from '@/components/shared/PageTitle';
 import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenus, updateRoleMenus, type Menu } from '@/lib/api/role';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
-import { ShieldPlus, Pencil, Trash2 } from 'lucide-react';
+import { ShieldPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
 const KNOWN_PERMISSIONS = [
@@ -98,7 +98,7 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>角色管理</PageTitle>
-        <AppleButton onClick={openCreate} icon={<ShieldPlus />} aria-label="新建角色" />
+        <Button size="icon" onClick={openCreate} aria-label="新建角色"><ShieldPlus /></Button>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <DataTable
@@ -106,8 +106,8 @@ export default function RoleManagePage() {
           { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
           { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
           { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
-            <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })} />
-            <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteId(row.original.id as number)} />
+            <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></Button>
+            <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></Button>
           </div> },
         ]}
         data={data?.items || []} loading={!data && !error}
@@ -155,7 +155,7 @@ export default function RoleManagePage() {
               </div>
             </div>
           )}
-          <DialogFooter><AppleButton variant="ghost" onClick={() => setShowDialog(false)}>取消</AppleButton><AppleButton onClick={handleSave} loading={saving}>保存</AppleButton></DialogFooter>
+          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

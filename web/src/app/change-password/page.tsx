@@ -3,11 +3,11 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { changePassword } from '@/lib/api/auth';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { useToast } from '@/hooks/useToast';
-import { Key } from 'lucide-react';
+import { Key, Loader2 } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState('');
@@ -43,7 +43,7 @@ export default function ChangePasswordPage() {
           <Field label="新密码"><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
           <Field label="确认新密码"><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
           <div className="mt-6">
-            <AppleButton type="submit" icon={<Key />} loading={loading} className="w-full">修改密码</AppleButton>
+            <Button size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <Key size={18} />}修改密码</Button>
           </div>
         </form>
       </div>

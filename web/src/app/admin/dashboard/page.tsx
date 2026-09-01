@@ -6,7 +6,7 @@ import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
 import { StatCard } from '@/components/shared/StatCard';
 import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
@@ -96,7 +96,7 @@ export default function DashboardPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>数据看板</PageTitle>
-        <AppleButton variant="ghost" icon={<RotateCw />} aria-label="刷新" onClick={handleRefresh} />
+        <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
       </div>
       {statsErr && <p className="text-[var(--color-error)] mb-4 text-caption">加载失败，请点击刷新重试</p>}
 
@@ -124,14 +124,14 @@ export default function DashboardPage() {
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
-          <AppleButton
-            variant="pill"
+          <Button
+            size="lg"
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"
           >
             {analyzing ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />分析中...</span> : 'AI 分析反馈'}
-          </AppleButton>
+          </Button>
         </div>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">
           基于近 30 天的用户反馈，由 LLM 自动分析知识库的优势与待补充领域。

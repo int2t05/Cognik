@@ -9,15 +9,15 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { useConfigValue } from '@/hooks/useAppConfig';
 import { hasAdminAccess } from '@/lib/roles';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
 import { MessageSquare, TicketPlus, ListTodo, Bot, Sun, Moon, Shield } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { path: '/portal/chat', label: '智能问答', icon: <Bot size={16} /> },
-  { path: '/portal/tickets/new', label: '提交申告', icon: <TicketPlus size={16} /> },
-  { path: '/portal/tickets', label: '我的申告', icon: <ListTodo size={16} /> },
-  { path: '/portal/messages', label: '消息', icon: <MessageSquare size={16} /> },
+  { path: '/portal/chat', label: '智能问答', icon: <Bot size={18} /> },
+  { path: '/portal/tickets/new', label: '提交申告', icon: <TicketPlus size={18} /> },
+  { path: '/portal/tickets', label: '我的申告', icon: <ListTodo size={18} /> },
+  { path: '/portal/messages', label: '消息', icon: <MessageSquare size={18} /> },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -56,16 +56,15 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               })();
               return (
                 <div key={item.path} className="relative">
-                  <AppleButton
+                  <Button
                     variant="menu"
-                    icon={item.icon}
                     onClick={() => router.push(item.path)}
-                    spanClassName="hidden lg:inline"
                     className={active ? '!bg-[var(--color-divider-soft)] font-semibold' : ''}
                     aria-current={active ? 'page' : undefined}
                   >
-                    {item.label}
-                  </AppleButton>
+                    {item.icon}
+                    <span className="hidden lg:inline">{item.label}</span>
+                  </Button>
                   {item.label === '消息' && unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 bg-[var(--color-error)] text-[var(--color-canvas)] w-3 h-3 rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99' : unreadCount}
@@ -77,10 +76,14 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <AppleButton variant="menu" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggleTheme}
-            aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} />
+          <Button variant="menu" size="icon" onClick={toggleTheme}
+            aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+            {theme === 'dark' ? <Sun /> : <Moon />}
+          </Button>
           {mounted && isAdmin && (
-            <AppleButton variant="menu" icon={<Shield />} aria-label="后台管理" onClick={() => router.push('/admin/dashboard')} />
+            <Button variant="menu" size="icon" aria-label="后台管理" onClick={() => router.push('/admin/dashboard')}>
+              <Shield />
+            </Button>
           )}
           {mounted && <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name}</span>}
           {mounted && <AccountSwitcher />}

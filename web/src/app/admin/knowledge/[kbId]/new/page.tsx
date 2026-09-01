@@ -3,14 +3,14 @@ import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createArticle, uploadDocuments, getKBList, type KB } from '@/lib/api/knowledge';
 import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { FilePlus, X, AlertTriangle } from 'lucide-react';
+import { FilePlus, X, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
@@ -131,8 +131,8 @@ export default function NewArticlePage() {
           <Field label="标签（逗号分隔，最多 10 个）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
         </Card>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={saving} aria-label="创建" icon={<FilePlus />} />
-          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消" icon={<X />} />
+          <Button type="submit" size="icon" disabled={saving} aria-label="创建">{saving ? <Loader2 className="animate-spin" /> : <FilePlus />}</Button>
+          <Button variant="ghost" type="button" size="icon" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消"><X /></Button>
         </div>
       </form>
     </div>

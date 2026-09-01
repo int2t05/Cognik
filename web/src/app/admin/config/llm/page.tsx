@@ -10,7 +10,7 @@ import {
   updateLLMConfig,
   type LLMConfig,
 } from '@/lib/api/llm_config';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -161,7 +161,7 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <PageTitle>LLM 配置</PageTitle>
-        <AppleButton icon={<Cpu />} aria-label="新建 LLM 配置" onClick={openCreate} />
+        <Button size="icon" aria-label="新建 LLM 配置" onClick={openCreate}><Cpu /></Button>
       </div>
 
       <div className="grid gap-3">
@@ -186,10 +186,10 @@ export default function LLMConfigPage() {
                 </div>
                 <div className="flex gap-2">
                   {!config.is_default && (
-                    <AppleButton variant="ghost" icon={<Star />} aria-label="设为默认" onClick={() => handleSetDefault(config.id)} />
+                    <Button variant="ghost" size="icon" aria-label="设为默认" onClick={() => handleSetDefault(config.id)}><Star /></Button>
                   )}
-                  <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(config)} />
-                  <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(config.id)} />
+                  <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(config)}><Pencil /></Button>
+                  <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 /></Button>
                 </div>
               </div>
             </Card>
@@ -278,17 +278,13 @@ export default function LLMConfigPage() {
           )}
           <DialogFooter>
             {editId && (
-              <AppleButton variant="utility" onClick={handleTest} loading={testing}>
-                测试连接
-              </AppleButton>
+              <Button variant="secondary" size="sm" disabled={testing}>{testing && <Loader2 className="animate-spin" />}测试连接</Button>
             )}
             <div className="flex-1" />
-            <AppleButton variant="ghost" onClick={() => setShowDialog(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>
               取消
-            </AppleButton>
-            <AppleButton onClick={handleSave} loading={saving}>
-              保存
-            </AppleButton>
+            </Button>
+            <Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

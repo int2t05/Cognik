@@ -12,7 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { submitMessageFeedback, createSession } from '@/lib/api/chat';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useConfigValue } from '@/hooks/useAppConfig';
@@ -194,7 +194,7 @@ export default function ChatPage() {
       {/* 侧边栏 */}
       <aside className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)] transition-all duration-200 ${sidebarOpen ? 'w-[240px]' : 'w-0 border-r-0'}`}>
         <div className="flex flex-col h-full p-3 w-[240px]">
-          <AppleButton variant="pill" icon={<Plus />} onClick={handleNewChat} className="w-full py-2 mb-2" aria-label="新对话">新对话</AppleButton>
+          <Button size="lg" onClick={handleNewChat} className="w-full py-2 mb-2" aria-label="新对话"><Plus size={18} />新对话</Button>
           <div className="flex-1 overflow-y-auto">
             {sessionsLoading ? (
               <div className="flex justify-center py-6 text-caption text-[var(--color-text-muted-48)]">加载中...</div>
@@ -228,7 +228,7 @@ export default function ChatPage() {
       {/* 主区域 */}
       <div className="flex flex-col flex-1 min-w-0 bg-[var(--color-parchment)]">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-divider-soft)] bg-[var(--color-canvas)]">
-          <AppleButton variant="menu" icon={sidebarOpen ? <PanelLeftClose /> : <PanelLeft />} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'} />
+          <Button variant="menu" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? '收起侧栏' : '展开侧栏'}>{sidebarOpen ? <PanelLeftClose /> : <PanelLeft />}</Button>
           <span className="flex-1 text-center text-caption text-[var(--color-ink)] font-medium truncate">{currentTitle || `${appName || 'OpsMind'} 智能问答`}</span>
           <div className="w-8 h-8 shrink-0" />
         </div>

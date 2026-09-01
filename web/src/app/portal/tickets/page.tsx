@@ -3,7 +3,7 @@ import useSWR from 'swr';
 import { getMyTickets } from '@/lib/api/ticket';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -36,7 +36,7 @@ export default function TicketQueryPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle>我的申告</PageTitle>
-        <AppleButton icon={<TicketPlus />} aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')} />
+        <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
       </div>
 
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}

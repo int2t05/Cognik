@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getArticleList } from '@/lib/api/knowledge';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search } from 'lucide-react';
@@ -32,10 +32,10 @@ export default function ArticleListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <AppleButton variant="ghost" onClick={() => router.push('/admin/knowledge')} aria-label="返回" icon={<ChevronLeft />} />
+          <Button variant="ghost" size="icon" onClick={() => router.push('/admin/knowledge')} aria-label="返回"><ChevronLeft /></Button>
           <PageTitle>知识文章</PageTitle>
         </div>
-        <AppleButton onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章" icon={<FilePlus />} />
+        <Button size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章"><FilePlus /></Button>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       <div className="flex items-center gap-2 mb-4 flex-wrap">

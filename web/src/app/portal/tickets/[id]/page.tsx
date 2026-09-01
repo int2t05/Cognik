@@ -2,7 +2,7 @@
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import { getTicketDetail, supplementTicket, updateTicket } from '@/lib/api/ticket';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -82,9 +82,9 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" icon={<ChevronLeft />} aria-label="返回" onClick={() => router.push('/portal/tickets')} />
+        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></Button>
         {canEdit(ticket.status) && !editing && (
-          <AppleButton variant="ghost" icon={<Pencil />} onClick={startEdit}>编辑</AppleButton>
+          <Button variant="ghost" size="sm" onClick={startEdit}><Pencil size={16} />编辑</Button>
         )}
       </div>
 
@@ -97,8 +97,8 @@ export default function TicketDetailPage() {
           <Field label="联系电话"><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" /></Field>
           <Field label="联系邮箱"><Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="选填" /></Field>
           <div className="flex gap-2 mt-4">
-            <AppleButton variant="pill" icon={<Check />} onClick={handleSave} loading={sending}>保存</AppleButton>
-            <AppleButton variant="ghost" icon={<X />} onClick={() => setEditing(false)}>取消</AppleButton>
+            <Button size="lg" disabled={sending} onClick={handleSave}>{sending ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}保存</Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}><X size={16} />取消</Button>
           </div>
         </Card>
       ) : (
@@ -141,7 +141,7 @@ export default function TicketDetailPage() {
             <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
               <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-              <AppleButton variant="pill" icon={<Send />} aria-label="提交补充" onClick={handleSupplement} loading={sending} />
+              <Button size="icon" disabled={sending} aria-label="提交补充" onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>
             </Card>
           )}
         </>

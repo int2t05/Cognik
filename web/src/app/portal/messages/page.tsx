@@ -5,7 +5,7 @@ import { getMessages, markAsRead, markAllRead } from '@/lib/api/message';
 import { PAGE_SIZE } from '@/lib/api/constants';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/useToast';
@@ -61,9 +61,9 @@ export default function MessagesPage() {
       <div className="flex items-center justify-between mb-4">
         <PageTitle>站内消息</PageTitle>
         {!isEmpty && (
-          <AppleButton variant="utility" icon={<CheckCheck />} onClick={handleMarkAll} disabled={!hasUnread}>
-            全部已读
-          </AppleButton>
+          <Button variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
+            <CheckCheck size={16} />全部已读
+          </Button>
         )}
       </div>
 
@@ -84,11 +84,13 @@ export default function MessagesPage() {
               { accessorKey: 'created_at', header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
               { id: 'actions', header: '', cell: ({ row }) =>
                 !row.original.is_read ? (
-                  <AppleButton variant="ghost" icon={<Eye />} aria-label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)} />
+                  <Button variant="ghost" size="icon" aria-label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></Button>
                 ) : NAVIGABLE_TYPES.has(row.original.related_type) ? (
-                  <AppleButton variant="ghost" icon={<ExternalLink />} aria-label="跳转" onClick={() => {
+                  <Button variant="ghost" size="icon" aria-label="跳转" onClick={() => {
                     if (row.original.related_type === 'ticket') router.push(`/portal/tickets/${row.original.related_id}`);
-                  }} />
+                  }}>
+                    <ExternalLink />
+                  </Button>
                 ) : null
               },
             ]}

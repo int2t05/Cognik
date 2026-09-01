@@ -12,26 +12,26 @@ import { useConfigValue } from '@/hooks/useAppConfig';
 import { isActivePath } from '@/lib/menu';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, ChevronDown, Cpu, FileText, User, Bot } from 'lucide-react';
 
 // ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
 // ICON_MAP 支持多别名映射，后端菜单 icon 字段可用任一别名。
 const ICON_MAP: Record<string, React.ReactNode> = {
-  dashboard: <LayoutDashboard size={16} />,
-  ticket: <Ticket size={16} />,
-  knowledge: <BookOpen size={16} />,
-  book: <BookOpen size={16} />,
-  users: <Users size={16} />,
-  user: <User size={16} />,
-  role: <Shield size={16} />,
-  shield: <Shield size={16} />,
-  config: <Settings size={16} />,
-  settings: <Settings size={16} />,
-  audit: <ScrollText size={16} />,
-  'file-text': <FileText size={16} />,
-  message: <MessageSquare size={16} />,
-  cpu: <Cpu size={16} />,
+  dashboard: <LayoutDashboard size={18} />,
+  ticket: <Ticket size={18} />,
+  knowledge: <BookOpen size={18} />,
+  book: <BookOpen size={18} />,
+  users: <Users size={18} />,
+  user: <User size={18} />,
+  role: <Shield size={18} />,
+  shield: <Shield size={18} />,
+  config: <Settings size={18} />,
+  settings: <Settings size={18} />,
+  audit: <ScrollText size={18} />,
+  'file-text': <FileText size={18} />,
+  message: <MessageSquare size={18} />,
+  cpu: <Cpu size={18} />,
 };
 
 // FRONTEND_ROUTES 将后端菜单路径映射到实际前端路由。
@@ -99,21 +99,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
     return (
       <div key={m.id}>
-        <AppleButton
+        <Button
           variant="menu"
-          icon={ICON_MAP[m.icon] || <Settings />}
           onClick={() => { if (hasChildren) toggleSubmenu(m.id); else router.push(targetPath); }}
           title={collapsed ? m.name : undefined}
           className={btnClass}
           aria-current={active ? 'page' : undefined}
         >
+          {ICON_MAP[m.icon] || <Settings size={18} />}
           {!collapsed && (
             <span className="inline-flex items-center gap-3 flex-1">
               <span className="flex-1 text-left">{m.name}</span>
               {hasChildren && <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />}
             </span>
           )}
-        </AppleButton>
+        </Button>
         {!collapsed && hasChildren && expanded && m.children!.map((c) => renderMenuItem(c, depth + 1))}
       </div>
     );
@@ -165,16 +165,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
         <div className="border-t border-[var(--color-divider-soft)]">
           <div className="relative">
-            <AppleButton variant="menu" icon={<MessageSquare />} onClick={() => router.push('/portal/messages')}
+            <Button variant="menu" onClick={() => router.push('/portal/messages')}
               aria-label={`消息${unreadCount > 0 ? ` ${unreadCount} 条未读` : ''}`}
               aria-current={isActivePath('/portal/messages', pathname) ? 'page' : undefined}
               className={`w-full justify-start ${collapsed ? 'justify-center' : ''} ${isActivePath('/portal/messages', pathname) ? '!bg-[var(--color-divider-soft)] font-semibold' : ''}`}>
+              <MessageSquare size={18} />
               {!collapsed && (
                 <span className="inline-flex items-center gap-3 flex-1">
                   <span className="flex-1 text-left">消息</span>
                 </span>
               )}
-            </AppleButton>
+            </Button>
             {unreadCount > 0 && (
               <span className={`absolute bg-[var(--color-error)] text-[var(--color-canvas)] rounded-full flex items-center justify-center ${collapsed ? '-top-0.5 -right-0.5 w-3 h-3' : 'top-1 right-2 min-w-[14px] h-3.5 px-1 text-[10px] leading-none'}`}>
                 {collapsed ? '' : unreadCount > 99 ? '99+' : unreadCount}
@@ -187,13 +188,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center justify-between px-6 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
-          <AppleButton variant="menu" icon={collapsed ? <ChevronRight /> : <ChevronLeft />}
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} />
+          <Button variant="menu" size="icon" onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}>
+            {collapsed ? <ChevronRight /> : <ChevronLeft />}
+          </Button>
           <div className="flex items-center gap-3">
-            <AppleButton variant="menu" icon={theme === 'dark' ? <Sun /> : <Moon />} onClick={toggleTheme}
-              aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} />
-            <AppleButton variant="menu" icon={<Bot />} onClick={() => router.push('/portal/chat')} aria-label="门户首页" />
+            <Button variant="menu" size="icon" onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
+              {theme === 'dark' ? <Sun /> : <Moon />}
+            </Button>
+            <Button variant="menu" size="icon" onClick={() => router.push('/portal/chat')} aria-label="门户首页">
+              <Bot />
+            </Button>
             {mounted && <span className="text-caption text-[var(--color-text-muted-48)] mr-1">{user?.real_name || user?.username}</span>}
             {mounted && <AccountSwitcher />}
           </div>
