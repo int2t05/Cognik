@@ -4,7 +4,7 @@
 
 ## 1. Role
 
-You are a senior Go + Next.js full-stack engineer on OpsMind, bound to the actual stack: Gin / GORM / PostgreSQL + pgvector (halfvec + HNSW) / MinIO / a self-built Go RAG engine (`server/internal/rag/`) / gse Chinese tokenizer / Next.js / React / TypeScript / Radix UI / SWR / Docker Compose.
+You are a senior Go + Next.js full-stack engineer on OpsMind, bound to the actual stack: Gin / GORM / PostgreSQL + pgvector (halfvec + HNSW) / shadcn/ui (Radix + Tailwind v4) / a self-built Go RAG engine (`server/internal/rag/`) / gse Chinese tokenizer / Next.js / React / TypeScript / SWR / Docker Compose.
 
 ## 2. Project
 
@@ -24,9 +24,9 @@ Architecture: modular monolith, Handler → Service → Repository. RAG engine (
 - **Object storage:** MinIO (S3-compatible)
 - **RAG:** self-built Go engine — BM25 (gse tokenizer) / vector (pgvector) / RRF fusion / cross-encoder rerank (`rerank_server.py`)
 - **LLM/Embedding:** llama.cpp server or OpenAI-compatible API, via adapter interface
-- **Frontend:** Next.js + React + TypeScript + Radix UI + SWR + Tailwind CSS
-- **Design system:** Apple Design (light/dark dual-theme CSS variables in `web/src/app/globals.css`)
-- **Deployment:** Docker Compose — 4 required (opsmind-server, opsmind-web, postgres, minio) + 2 optional (llama-cpp, llama-cpp-emb under `ai-local` profile)
+- **Frontend:** Next.js + React + TypeScript + shadcn/ui (Radix + Tailwind v4) + SWR
+- **Design system:** Linear/Vercel 专业工具风格（靛蓝 #5b5bd6 + zinc 灰阶，13px body，中性小圆角，亮暗双主题 CSS 变量 in `web/src/app/globals.css`）
+- **Deployment:** Docker Compose — 3 required (opsmind-server, opsmind-web, postgres) + 2 optional (minio under `storage` profile, llama-cpp under `ai-local` profile)
 
 ## 4. Structure
 
@@ -47,7 +47,8 @@ server/
 │   ├── rag/                 # self-built RAG engine (pipeline/query_rewrite/multi_route/hybrid/bm25/rerank/chunker/embedder/retriever/processor/types)
 │   ├── repository/          # 11 Repositories
 │   ├── router/              # route registration + safeHandler
-│   ├── service/             # 12 Services + scheduler + tx_manager + generation_hub
+│   ├── service/             # 11 业务 Services
+│   ├── runtime/            # scheduler / tx_manager / generation_hub（运行时基础设施）
 │   └── pkg/                 # jwt / hash / crypto / response / errcode
 ├── migrations/              # DDL + seed data
 ├── models/                  # rerank model files
@@ -55,7 +56,7 @@ server/
 └── rerank_server.py         # Python cross-encoder rerank service
 
 web/src/
-├── app/                     # Next.js App Router + globals.css (Apple Design Tokens)
+├── app/                     # Next.js App Router + globals.css (Design Tokens)
 ├── components/              # ui/ + layout/ + shared/ + chat/
 ├── contexts/                # ChatStreamProvider
 ├── hooks/                   # 11 custom Hooks
@@ -99,7 +100,7 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 - **Password validation:** `internal/pkg/hash.ValidatePassword` enforces `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$`.
 - **Audit logs:** user/knowledge/ticket management operations write to `audit_logs`.
 - **LLM config hot-swap:** `atomic.Value` in `LLMConfigManager` — config changes take effect without restart.
-- **Apple Design:** light/dark dual-theme CSS variables; Action Blue `#006cc`; Inter Variable font; borderless flat cards; 17px body; pill-radius primary buttons. Tokens in `web/src/app/globals.css`.
+- **Design system:** Linear/Vercel 专业工具风格；靛蓝 `#5b5bd6`；system-ui 字体；中性小圆角；13px body。Tokens in `web/src/app/globals.css`。
 
 ## 7. Project Boundaries
 
