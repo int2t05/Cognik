@@ -24,14 +24,16 @@ import (
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/handler"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/ticket"
+	"opsmind/internal/domain/user"
 	opslog "opsmind/internal/infra/log"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/rag"
-	"opsmind/internal/repository"
 	"opsmind/internal/router"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/service"
 )
 
 // app 持有所有已初始化的组件。
@@ -44,7 +46,7 @@ type app struct {
 	vectorStore   adapter.VectorStore
 	storageClient storage.StorageClient
 	scheduler     *runtime.Scheduler
-	authService   *service.AuthService
+	authService   *user.AuthService
 	server        *http.Server
 }
 
@@ -199,35 +201,35 @@ func wireApp() (*app, error) {
 	}
 
 	// 4. Repository 层
-	configRepo := repository.NewConfigRepo(db)
-	userRepo := repository.NewUserRepo(db)
-	roleRepo := repository.NewRoleRepo(db)
-	ticketRepo := repository.NewTicketRepo(db)
-	knowledgeRepo := repository.NewKnowledgeRepo(db)
-	chatRepo := repository.NewChatRepo(db)
-	messageRepo := repository.NewMessageRepo(db)
-	auditRepo := repository.NewAuditRepo(db)
-	auditService := service.NewAuditService(auditRepo)
-	dashboardRepo := repository.NewDashboardRepo(db)
+	configRepo := system.NewConfigRepo(db)
+	userRepo := user.NewUserRepo(db)
+	roleRepo := user.NewRoleRepo(db)
+	ticketRepo := ticket.NewTicketRepo(db)
+	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
+	chatRepo := chat.NewChatRepo(db)
+	messageRepo := chat.NewMessageRepo(db)
+	auditRepo := system.NewAuditRepo(db)
+	auditService := system.NewAuditService(auditRepo)
+	dashboardRepo := system.NewDashboardRepo(db)
 
 	// 5. Service 层（无 RAG 依赖的部分）
 	txManager := runtime.NewGormTxManager(db)
-	menuRepo := repository.NewMenuRepo(db)
+	menuRepo := user.NewMenuRepo(db)
 
 	// 用户状态缓存（减少每个 API 请求的 DB 查询）
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
 	slog.Info("用户状态缓存已创建", "ttl", "30s")
 
-	a.authService = service.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
-	userService := service.NewUserService(userRepo, auditService, db, userCache)
-	roleService := service.NewRoleService(roleRepo, menuRepo, auditService, db)
-	messageService := service.NewMessageService(messageRepo)
-	dashboardService := service.NewDashboardService(dashboardRepo)
-	configService := service.NewConfigService(configRepo, auditService)
+	a.authService = user.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
+	userService := user.NewUserService(userRepo, auditService, db, userCache)
+	roleService := user.NewRoleService(roleRepo, menuRepo, auditService, db)
+	messageService := system.NewMessageService(messageRepo)
+	dashboardService := system.NewDashboardService(dashboardRepo)
+	configService := system.NewConfigService(configRepo, auditService)
 	configService.SetChatRepo(chatRepo)
 
-	llmConfigRepo := repository.NewLlmConfigRepo(db)
-	llmConfigSvc, err := service.NewLLMConfigService(llmConfigRepo, db, auditService)
+	llmConfigRepo := chat.NewLlmConfigRepo(db)
+	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, db, auditService)
 	if err != nil {
 		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
 	}
@@ -269,29 +271,29 @@ func wireApp() (*app, error) {
 		processor = rag.NewProcessor(docParser, chunker, embedder, a.vectorStore, a.storageClient, procWorkers)
 	}
 
-	knowledgeService := service.NewKnowledgeService(knowledgeRepo,
-		service.WithUserNames(userRepo),
-		service.WithChunker(chunker),
-		service.WithEmbedder(embedder),
-		service.WithVectorStore(a.vectorStore),
-		service.WithDocParser(docParser),
-		service.WithProcessor(processor),
-		service.WithStorage(a.storageClient),
-		service.WithAuditWriter(auditService),
-		service.WithDefaultEmbeddingModel(cfg.Embedding.Model),
-		service.WithOnKBChanged(func(kbID int64) {
+	knowledgeService := knowledge.NewKnowledgeService(knowledgeRepo,
+		knowledge.WithUserNames(userRepo),
+		knowledge.WithChunker(chunker),
+		knowledge.WithEmbedder(embedder),
+		knowledge.WithVectorStore(a.vectorStore),
+		knowledge.WithDocParser(docParser),
+		knowledge.WithProcessor(processor),
+		knowledge.WithStorage(a.storageClient),
+		knowledge.WithAuditWriter(auditService),
+		knowledge.WithDefaultEmbeddingModel(cfg.Embedding.Model),
+		knowledge.WithOnKBChanged(func(kbID int64) {
 			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
 			go rebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
 		}),
-		service.WithMessageNotifier(messageService),
+		knowledge.WithMessageNotifier(messageService),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
 	// TicketService 依赖 KnowledgeService 的 CreateArticle（知识候选），
 	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
-	ticketService := service.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
+	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
-	llmService := service.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
+	llmService := chat.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
 
 	// LLM 默认配置变更回调：重建 LLM/Embedding 客户端以反映新的 BaseURL/APIKey/Model
@@ -321,13 +323,13 @@ func wireApp() (*app, error) {
 		)
 	})
 
-	genHub := runtime.NewGenerationHub[service.StreamEvent](func(e service.StreamEvent, seq int) service.StreamEvent {
+	genHub := runtime.NewGenerationHub[chat.StreamEvent](func(e chat.StreamEvent, seq int) chat.StreamEvent {
 		e.Seq = seq
 		return e
 	})
 	slog.Info("GenerationHub 已初始化")
 
-	chatService := service.NewChatService(knowledgeRepo, chatRepo, llmService, service.RAGDefaults{
+	chatService := chat.NewChatService(knowledgeRepo, chatRepo, llmService, chat.RAGDefaults{
 		TopK:         cfg.AI.DefaultTopK,
 		QueryRewrite: cfg.AI.RAGQueryRewrite,
 		MultiRoute:   cfg.AI.RAGMultiRoute,
@@ -347,17 +349,17 @@ func wireApp() (*app, error) {
 
 	// 6. Handler 层
 	handlers := &router.Handlers{
-		Auth:      handler.NewAuthHandler(a.authService),
-		User:      handler.NewUserHandler(userService),
-		Role:      handler.NewRoleHandler(roleService),
-		Ticket:    handler.NewTicketHandler(ticketService),
-		Knowledge: handler.NewKnowledgeHandler(knowledgeService),
-		Chat:      handler.NewChatHandler(chatService),
-		Message:   handler.NewMessageHandler(messageService),
-		Dashboard: handler.NewDashboardHandler(dashboardService),
-		Audit:     handler.NewAuditHandler(auditService),
-		Config:    handler.NewConfigHandler(configService),
-		LLMConfig: handler.NewLLMConfigHandler(llmConfigSvc),
+		Auth:      user.NewAuthHandler(a.authService),
+		User:      user.NewUserHandler(userService),
+		Role:      user.NewRoleHandler(roleService),
+		Ticket:    ticket.NewTicketHandler(ticketService),
+		Knowledge: knowledge.NewKnowledgeHandler(knowledgeService),
+		Chat:      chat.NewChatHandler(chatService),
+		Message:   system.NewMessageHandler(messageService),
+		Dashboard: system.NewDashboardHandler(dashboardService),
+		Audit:     system.NewAuditHandler(auditService),
+		Config:    system.NewConfigHandler(configService),
+		LLMConfig: chat.NewLLMConfigHandler(llmConfigSvc),
 	}
 
 	// 7. 调度器
@@ -460,7 +462,7 @@ func (a *app) run() error {
 }
 
 // rebuildBM25ForKB 从 DB 加载 KB 下所有已发布文章的分块和标签，重建 BM25 索引。
-func rebuildBM25ForKB(repo *repository.KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
+func rebuildBM25ForKB(repo *knowledge.KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
 	ctx := context.Background()
 
 	// 查询该 KB 下所有已发布文章

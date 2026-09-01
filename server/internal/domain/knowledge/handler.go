@@ -1,12 +1,16 @@
-// Package handler 实现 HTTP 请求处理。
+// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
 //
-// knowledge.go 提供知识库管理相关接口（KB/文章/审核/发布/文档上传）。
-package handler
+// handler.go 提供知识库管理相关接口（KB/文章/审核/发布/文档上传）。
+// parseID / parsePagination / getCurrentUserID 为本领域 Handler 自用的本地副本，
+// 与 handler/common.go 中的同名函数行为一致——领域包独立编译，不依赖 handler 包。
+package knowledge
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -15,20 +19,82 @@ import (
 
 	"opsmind/internal/shared/dto/request"
 	dto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/service"
 	"opsmind/internal/shared/pkg/errcode"
 	"opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
+// =============================================================================
+// Handler 共享工具
+// =============================================================================
+
+// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+//
+// 默认值：page=1, pageSize=10。上限：pageSize≤100。
+func parsePagination(c *gin.Context) (int, int) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	return page, pageSize
+}
+
+// parseID 从路径参数中解析 int64 ID，解析失败时自动返回错误响应。
+//
+// 返回值 ok=false 表示解析失败，调用方应直接 return。
+func parseID(c *gin.Context, key string) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param(key), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的 "+key)
+		return 0, false
+	}
+	return id, true
+}
+
+// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+//
+// JWTAuth 中间件将当前用户 ID 以 int64 类型写入 context，key 为 "userID"。
+func getCurrentUserID(c *gin.Context) (int64, bool) {
+	if val, exists := c.Get("userID"); exists {
+		if id, ok := val.(int64); ok {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// handleServiceError 统一处理 Service 层错误。
+//
+// AppError 类型提取业务码，其他错误视为 500。
+func handleServiceError(c *gin.Context, err error) {
+	var appErr errcode.AppError
+	if errors.As(err, &appErr) {
+		response.Error(c, appErr.Code, appErr.Message)
+		return
+	}
+	// 非 AppError 说明是未预期的内部错误，记录真实原因方便排查
+	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
+	response.Error(c, errcode.ErrUnknown, "服务器内部错误")
+}
+
+// =============================================================================
+// KnowledgeHandler
+// =============================================================================
+
 // KnowledgeHandler 知识库管理接口。
 type KnowledgeHandler struct {
-	svc *service.KnowledgeService
+	svc *KnowledgeService
 }
 
 // NewKnowledgeHandler 创建 KnowledgeHandler 实例。
-func NewKnowledgeHandler(svc *service.KnowledgeService) *KnowledgeHandler {
+func NewKnowledgeHandler(svc *KnowledgeService) *KnowledgeHandler {
 	return &KnowledgeHandler{svc: svc}
 }
 
@@ -279,22 +345,23 @@ func (h *KnowledgeHandler) Enable(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-	// DeleteArticle 删除文章（仅草稿/驳回状态可删除）。
-	//
-	// DELETE /api/v1/admin/articles/:id
-	func (h *KnowledgeHandler) DeleteArticle(c *gin.Context) {
-		id, ok := parseID(c, "id")
-		if !ok {
-			return
-		}
-
-		if svcErr := h.svc.DeleteArticle(c.Request.Context(), id); svcErr != nil {
-			handleServiceError(c, svcErr)
-			return
-		}
-
-		response.Success(c, nil)
+// DeleteArticle 删除文章（仅草稿/驳回状态可删除）。
+//
+// DELETE /api/v1/admin/articles/:id
+func (h *KnowledgeHandler) DeleteArticle(c *gin.Context) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
 	}
+
+	if svcErr := h.svc.DeleteArticle(c.Request.Context(), id); svcErr != nil {
+		handleServiceError(c, svcErr)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // ListArticles 分页查询文章列表。
 //
 // GET /api/v1/admin/knowledge-bases/:kb_id/articles

@@ -1,9 +1,9 @@
-// Package repository 提供申告工单的数据访问层。
+// Package ticket 实现申告领域的数据访问、业务逻辑与 HTTP Handler。
 //
-// TicketRepo 封装 tickets 和 ticket_records 表的 CRUD 操作，供 TicketService 调用。
-// 为什么独立于 UserRepo：申告表涉及状态筛选、分页查询、批量关闭等复杂操作，
+// repository.go 封装 tickets 和 ticket_records 表的 CRUD 操作。
+// TicketRepo 涉及状态筛选、分页查询、批量关闭等复杂操作，
 // 独立 Repo 更利于维护和测试。
-package repository
+package ticket
 
 import (
 	"context"

@@ -1,11 +1,15 @@
-// Package service 实现申告管理业务逻辑。
+// Package ticket 实现申告领域的业务逻辑。
 //
-// TicketService 提供申告 CRUD、状态机转换、处理记录管理功能。
+// service.go 提供申告 CRUD、状态机转换、处理记录管理功能。
 //
 // 申告状态机：待处理(1) → 处理中(2) → 需补充信息(3) → 处理中(2) → 已解决(4) / 已关闭(5)
 // 为什么使用显式状态转换而非隐式条件判断：
 // 状态转换规则是申告核心流程，显式状态机便于审计和调试。
-package service
+//
+// AuditWriter / MessageNotifier / KnowledgeCandidateSaver / FeedbackMarker
+// 均通过消费者接口注入——本包只依赖接口而非具体实现，
+// Go 结构化类型系统使外部 Service 自动满足这些接口，无需显式 import，避免跨领域循环依赖。
+package ticket
 
 import (
 	"context"
@@ -18,16 +22,40 @@ import (
 	"strings"
 	"time"
 
+	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/dto/response"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/repository"
-	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+// AppError 是 errcode.AppError 的类型别名，供本包内使用。
+type AppError = errcode.AppError
+
+// AuditWriter 定义审计日志写入接口（消费者接口模式——本包只依赖接口而非具体实现）。
+//
+// TicketService 通过此接口写入审计日志，而非直接依赖 AuditRepo。
+// Go 结构化类型系统使任何实现了这两个方法的类型自动满足此接口，
+// 无需显式 import system 包，避免跨领域循环依赖。
+type AuditWriter interface {
+	// Write 写入一条审计日志（使用默认 DB 连接）。
+	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
+	// WriteWithTx 在事务中写入审计日志，与业务操作在同一事务中提交或回滚。
+	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
+}
+
+// MessageNotifier 定义申告通知接口（消费者接口模式）。
+//
+// TicketService 通过此接口发送状态变更通知（补充信息/已解决/已关闭），
+// 而非直接依赖 MessageService，避免跨领域循环依赖。
+type MessageNotifier interface {
+	NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
+	NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
+	NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
+}
 
 // KnowledgeCandidateSaver 知识候选保存接口。
 //
@@ -48,10 +76,10 @@ type FeedbackMarker interface {
 
 // TicketService 申告管理服务。
 type TicketService struct {
-	repo               *repository.TicketRepo
+	repo               *TicketRepo
 	auditWriter        AuditWriter
 	txManager          runtime.TxManager
-	msgSvc             *MessageService
+	msgSvc             MessageNotifier
 	knowledgeCandidate KnowledgeCandidateSaver
 	feedbackMarker     FeedbackMarker
 }
@@ -61,7 +89,7 @@ type TicketService struct {
 // knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
 // feedbackMarker 为隐式反馈标记接口，ChatService 隐式满足该接口。
 // 所有依赖在构造时注入，对象始终处于有效状态。
-func NewTicketService(repo *repository.TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc *MessageService, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+func NewTicketService(repo *TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
 	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
 }
 
@@ -130,7 +158,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		UserID:          userID,
 		Title:           req.Title,
 		Description:     req.Description,
-		Tags: tagsJSON,
+		Tags:            tagsJSON,
 		ContactPhone:    req.ContactPhone,
 		ContactEmail:    req.ContactEmail,
 		ChatContext:     chatCtxJSON,
@@ -143,15 +171,15 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 	}
 
 	// 隐式反馈：用户提交申告意味着 AI 回答未能解决其问题，
-// 若带有 ChatContext 则自动标记对应会话的最后一条 AI 消息为"无帮助"。
-// 失败不影响申告创建（非关键路径），仅记录日志。
-if req.ChatContext != nil && req.ChatContext.SessionID > 0 && s.feedbackMarker != nil {
-	if err := s.feedbackMarker.MarkLastAssistantUnhelpful(ctx, req.ChatContext.SessionID); err != nil {
-		slog.Warn("隐式反馈标记失败（申告已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
+	// 若带有 ChatContext 则自动标记对应会话的最后一条 AI 消息为"无帮助"。
+	// 失败不影响申告创建（非关键路径），仅记录日志。
+	if req.ChatContext != nil && req.ChatContext.SessionID > 0 && s.feedbackMarker != nil {
+		if err := s.feedbackMarker.MarkLastAssistantUnhelpful(ctx, req.ChatContext.SessionID); err != nil {
+			slog.Warn("隐式反馈标记失败（申告已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
+		}
 	}
-}
 
-return nil
+	return nil
 }
 
 // =============================================================================
@@ -226,7 +254,7 @@ func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID i
 
 	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)，避免孤立记录
 	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
-		txRepo := repository.NewTicketRepo(tx)
+		txRepo := NewTicketRepo(tx)
 
 		record := &model.TicketRecord{
 			TicketID:   id,
@@ -322,9 +350,9 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 		return AppError{Code: errcode.ErrParam, Message: "不支持的操作类型: " + req.Action}
 	}
 
-	// 事务内原子执行：UpdateStatus(CAS) + CreateRecord
+	// 事务内原子执行：UpdateStatus(CAS) + CreateRecord + 审计日志
 	err = s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
-		txRepo := repository.NewTicketRepo(tx)
+		txRepo := NewTicketRepo(tx)
 
 		// CAS: 仅在状态未变化时执行更新，防止并发双重操作
 		rows, err := txRepo.UpdateStatus(ctx, id, int(ticket.Status), int(newStatus))
@@ -344,11 +372,10 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 		if err := txRepo.CreateRecord(ctx, record); err != nil {
 			return err
 		}
-		txAuditRepo := repository.NewAuditRepo(tx)
-		txAuditRepo.Create(ctx, &model.AuditLog{
-			OperatorID: operatorID, Action: "ticket." + req.Action,
-			TargetType: "ticket", TargetID: id,
-		})
+		// 通过 AuditWriter 接口写入审计日志，与业务操作在同一事务中提交或回滚
+		if err := s.auditWriter.WriteWithTx(ctx, tx, operatorID, "ticket."+req.Action, "ticket", id, ""); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -578,7 +605,7 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 	var closedCount int64
 
 	err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
-		txRepo := repository.NewTicketRepo(tx)
+		txRepo := NewTicketRepo(tx)
 
 		ids, err := txRepo.AutoCloseTickets(ctx, olderThan)
 		if err != nil {

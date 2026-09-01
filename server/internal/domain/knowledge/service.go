@@ -1,7 +1,9 @@
-// Package service 实现知识库管理业务逻辑。
+// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
 //
-// KnowledgeService 统一管理知识库 CRUD、文章审核发布、pgvector 管道操作和文档上传。
-package service
+// service.go 统一管理知识库 CRUD、文章审核发布、pgvector 管道操作和文档上传。
+// AuditWriter 通过消费者接口注入——本包只依赖接口而非具体实现，
+// Go 结构化类型系统使 *system.AuditService 自动满足此接口。
+package knowledge
 
 import (
 	"bytes"
@@ -54,6 +56,15 @@ func articleContentKey(title string) string {
 // formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
 func formatArticleText(title, content string) string {
 	return "# " + title + "\n\n" + content
+}
+
+// AuditWriter 定义审计日志写入接口（消费者接口模式——本包只依赖实际使用的方法）。
+//
+// Go 结构化类型系统使任何实现了 Write 方法的类型自动满足此接口，
+// 无需显式 import system 包，避免跨领域循环依赖。
+type AuditWriter interface {
+	// Write 写入一条审计日志（使用默认 DB 连接）。
+	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
