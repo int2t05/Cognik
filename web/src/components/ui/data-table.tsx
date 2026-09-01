@@ -1,6 +1,5 @@
 'use client';
 // DataTable — 通用数据表格。基于 shadcn Table 原语 + TanStack Table v9，内置 skeleton/empty 态。
-// 替代原 AppleTable 的 Column<T> render-prop API，改用 TanStack ColumnDef。
 import { useTable, tableFeatures, type ColumnDef, type TableFeatures, type RowData } from '@tanstack/react-table';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';

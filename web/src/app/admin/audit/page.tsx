@@ -13,6 +13,7 @@ import { formatDate } from '@/lib/date';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InlineError } from '@/components/shared/InlineError';
 import { ScrollText } from 'lucide-react';
 
 export default function AuditLogPage() {
@@ -54,7 +55,7 @@ export default function AuditLogPage() {
         <div><label htmlFor={idTo} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">结束</label>
           <Input id={idTo} type="date" className="h-8 w-32" onChange={(e) => updateParam('date_to', e.target.value)} /></div>
       </div>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       {!error && data?.items?.length === 0 ? (
         <EmptyState icon={<ScrollText size={40} />} title="暂无审计日志" description="系统操作记录将显示在这里" />
       ) : (

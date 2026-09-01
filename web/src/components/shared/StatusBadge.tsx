@@ -50,7 +50,7 @@ const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> =
 interface StatusBadgeProps {
   type: 'ticket' | 'user' | 'article' | 'process';
   status: number | string;
-  /** 后端返回的 status_text，优先使用（后端新增状态时前端无需更新） */
+  /** 后端返回的 status_text，优先使用 */
   statusText?: string;
 }
 

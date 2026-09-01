@@ -1,8 +1,6 @@
 /**
  * ErrorFallback — 统一错误回退组件。
- *
- * admin/error.tsx 和 portal/error.tsx 原有 90% 重复代码（布局、图标、useEffect），
- * 提取后两个 error.tsx 降为 6 行参数化调用。
+ * admin/error.tsx 和 portal/error.tsx 参数化调用本组件。
  */
 
 'use client';

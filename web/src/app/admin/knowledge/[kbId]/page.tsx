@@ -12,6 +12,7 @@ import { formatDate } from '@/lib/date';
 import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLeft, Search, X } from 'lucide-react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
+import { InlineError } from '@/components/shared/InlineError';
 
 const ARTICLE_FILTERS: FilterOption<string>[] = [
   { value: '-1', label: '全部', icon: <ListFilter size={16} /> },
@@ -38,7 +39,7 @@ export default function ArticleListPage() {
         </div>
         <Button size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章"><FilePlus /></Button>
       </div>
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} className="!mb-0" />
         <div className="relative">

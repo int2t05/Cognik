@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// Card — 改 base 为 AppleCard 等价：18px radius + hairline border + canvas bg + p-6（去 shadcn 默认 flex/gap/shadow）
+// Card — Apple Design 风格：10px radius + hairline border + canvas bg
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

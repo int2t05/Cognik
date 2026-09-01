@@ -5,25 +5,24 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ===== Tailwind v4 Theme — 统一设计 Token =====
-   字号体系对齐专业工具产品（Linear / Vercel / GitHub）：正文 14px，紧凑密度，
-   避免 Apple 营销站式的过大字号与留白。rem 单位响应浏览器默认字号（WCAG 1.4.4）。 */
+   字号体系对齐专业工具产品（Linear / Vercel / GitHub）：正文 13px，高信息密度。 */
 @theme {
-  --font-size-hero: 2.25rem;
-  --font-size-display: 1.875rem;
-  --font-size-display-md: 1.5rem;
-  --font-size-headline: 1.25rem;
-  --font-size-title: 1.0625rem;
-  --font-size-body: 0.875rem;
-  --font-size-callout: 0.8125rem;
-  --font-size-caption: 0.75rem;
-  --font-size-fine: 0.6875rem;
+  --font-size-hero: 1.75rem;
+  --font-size-display: 1.5rem;
+  --font-size-display-md: 1.25rem;
+  --font-size-headline: 1.0625rem;
+  --font-size-title: 0.9375rem;
+  --font-size-body: 0.8125rem;
+  --font-size-callout: 0.75rem;
+  --font-size-caption: 0.6875rem;
+  --font-size-fine: 0.625rem;
 
-  --font-size-metric: 1.5rem;
+  --font-size-metric: 1.25rem;
 
-  --line-height-hero: 1.15;
-  --line-height-display: 1.2;
-  --line-height-display-md: 1.25;
-  --line-height-headline: 1.3;
+  --line-height-hero: 1.2;
+  --line-height-display: 1.25;
+  --line-height-display-md: 1.3;
+  --line-height-headline: 1.35;
   --line-height-lead-airy: 1.4;
   --line-height-title: 1.4;
   --line-height-body: 1.5;
@@ -35,12 +34,12 @@
   --spacing-md: 12px;
   --spacing-md-plus: 16px;
   --spacing-lg: 20px;
-  --spacing-xl: 28px;
-  --spacing-xxl: 40px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
 
   --max-w-wide: 1280px;
   --max-w-content: 768px;
-  --max-w-form: 560px;
+  --max-w-form: 480px;
 }
 
 /* ===== shadcn 语义色 → Tailwind utility 暴露 =====
@@ -69,71 +68,71 @@
   --color-ring: var(--ring);
 }
 
-/* ===== OpsMind Apple Design Tokens ===== */
+/* ===== OpsMind Design Tokens — 专业工具风格（Linear / Vercel） ===== */
 :root {
-  /* 品牌色 — 唯一交互色 */
-  --color-accent: #0066cc;
-  --color-accent-hover: #0055aa;
-  --color-accent-focus: #0071e3;
+  /* 品牌强调色 — 克制的靛蓝，非 Apple 亮蓝 */
+  --color-accent: #5b5bd6;
+  --color-accent-hover: #4a4ac9;
+  --color-accent-focus: #6363f1;
   --color-on-accent: #ffffff;
 
-  /* 画布 */
+  /* 画布 — 中性灰白，非 Apple 暖灰 */
   --color-canvas: #ffffff;
-  --color-parchment: #f5f5f7;
-  --color-pearl: #fafafc;
+  --color-parchment: #fafafa;
+  --color-pearl: #f9f9fb;
 
-  /* 瓦片色 — 浅色主题：介于画布和羊皮纸之间的微妙层次 */
-  --color-tile-1: #f0f0f2;
-  --color-tile-2: #e5e5ea;
+  /* 瓦片色 — 中性灰阶层次 */
+  --color-tile-1: #f4f4f5;
+  --color-tile-2: #e4e4e7;
 
-  /* 文字 */
-  --color-ink: #1d1d1f;
-  --color-text-body: #1d1d1f;
-  --color-text-muted-80: #333333;
-  --color-text-muted-48: #6d6d6d; /* WCAG AA 4.5:1 on #fff */
+  /* 文字 — 更深的前景对比，提升可读性 */
+  --color-ink: #18181b;
+  --color-text-body: #18181b;
+  --color-text-muted-80: #3f3f46;
+  --color-text-muted-48: #71717a; /* WCAG AA 4.5:1 on #fff */
 
   /* 分割线 */
-  --color-divider-soft: rgba(0, 0, 0, 0.04);
-  --color-hairline: #e0e0e0;
+  --color-divider-soft: rgba(0, 0, 0, 0.05);
+  --color-hairline: #e4e4e7;
 
-  /* 语义色 */
-  --color-success: #34c759;
-  --color-warning: #ff9500;
-  --color-error: #ff3b30; /* Apple SF Red — 浅色/暗色统一色相 */
-  --color-info: #007aff;
+  /* 语义色 — 中性专业，非 Apple 饱和色 */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #2563eb;
 
-  /* 徽章语义色 — 亮色主题 */
-  --badge-success-bg: #e8f8ed;
-  --badge-success-text: #1e7b3f;
-  --badge-warning-bg: #fff3e0;
-  --badge-warning-text: #8a4a00; /* WCAG AA 4.5:1 on #fff3e0 */
-  --badge-error-bg: #ffeaea;
-  --badge-error-text: #c41e3a;
-  --badge-info-bg: #e3f0ff;
-  --badge-info-text: #0056b3;
-  --badge-neutral-bg: #f0f0f0;
-  --badge-neutral-text: #5e5e63; /* WCAG AA 4.5:1 on #f0f0f0 */
+  /* 徽章语义色 */
+  --badge-success-bg: #f0fdf4;
+  --badge-success-text: #15803d;
+  --badge-warning-bg: #fffbeb;
+  --badge-warning-text: #b45309; /* WCAG AA 4.5:1 */
+  --badge-error-bg: #fef2f2;
+  --badge-error-text: #b91c1c;
+  --badge-info-bg: #eff6ff;
+  --badge-info-text: #1d4ed8;
+  --badge-neutral-bg: #f4f4f5;
+  --badge-neutral-text: #52525b; /* WCAG AA 4.5:1 */
 
-  /* 字体 */
-  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  /* 字体 — system-ui 优先（各平台原生 UI 字体），Inter 作为 Web 字体回退 */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Inter Variable', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
 
-  /* 聚焦环 — 软辉光，随主题切换颜色 */
-  --focus-ring: 0 0 0 3px rgba(0, 102, 204, 0.12);
+  /* 聚焦环 */
+  --focus-ring: 0 0 0 2px rgba(99, 99, 241, 0.2);
 
   /* 布局尺寸 */
-  --header-height: 44px;
+  --header-height: 48px;
 
-  /* 圆角 — 专业工具偏中性的小圆角，非过圆 pill */
+  /* 圆角 — 中性小圆角 */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-pill: 9999px;
 
-  /* 阴影 — Apple HIG 仅保留产品级阴影，不给卡片/按钮/侧栏加阴影 */
-  --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.15);
+  /* 阴影 — 克制，仅弹层用 */
+  --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.12);
 
-  /* z-index 层级 — 统一散落的 z-40/50/100/1000/9999 */
+  /* z-index 层级 */
   --z-nav: 50;
   --z-overlay: 200;
   --z-dialog: 400;
@@ -168,42 +167,42 @@
 
 /* ===== 暗色主题 ===== */
 [data-theme="dark"] {
-  --color-accent: #2997ff;
-  --color-accent-hover: #40a9ff;
-  --color-accent-focus: #40a9ff;
-  --color-on-accent: #ffffff;
-  --color-canvas: #1d1d1f;
-  --color-parchment: #1c1c1e;
-  --color-pearl: #2a2a2c;
-  --color-tile-1: #2a2a2c;
-  --color-tile-2: #333336;
-  --color-ink: #f5f5f7;
-  --color-text-body: #f5f5f7;
-  --color-text-muted-80: #cccccc;
-  --color-text-muted-48: #a0a0a0; /* WCAG AA ~4.8:1 on #1d1d1f，较浅色主题略亮以补偿暗色环境对比度感知 */
-  --color-divider-soft: rgba(255, 255, 255, 0.08);
-  --color-hairline: rgba(255, 255, 255, 0.15);
+  --color-accent: #818cf8;
+  --color-accent-hover: #a5b4fc;
+  --color-accent-focus: #a5b4fc;
+  --color-on-accent: #1e1e2e;
+  --color-canvas: #18181b;
+  --color-parchment: #0f0f11;
+  --color-pearl: #1f1f23;
+  --color-tile-1: #27272a;
+  --color-tile-2: #3f3f46;
+  --color-ink: #f4f4f5;
+  --color-text-body: #f4f4f5;
+  --color-text-muted-80: #d4d4d8;
+  --color-text-muted-48: #a1a1aa;
+  --color-divider-soft: rgba(255, 255, 255, 0.06);
+  --color-hairline: #27272a;
 
-  /* 徽章语义色 — 暗色主题 */
-  --badge-success-bg: rgba(52, 199, 89, 0.15);
-  --badge-success-text: #34c759;
-  --badge-warning-bg: rgba(255, 149, 0, 0.15);
-  --badge-warning-text: #ff9500;
-  --badge-error-bg: rgba(255, 59, 48, 0.15);
-  --badge-error-text: #ff3b30;
-  --badge-info-bg: rgba(41, 151, 255, 0.15);
-  --badge-info-text: #2997ff;
-  --badge-neutral-bg: rgba(142, 142, 147, 0.15);
-  --badge-neutral-text: #8e8e93;
+  /* 徽章语义色 — 暗色 */
+  --badge-success-bg: rgba(22, 163, 74, 0.15);
+  --badge-success-text: #4ade80;
+  --badge-warning-bg: rgba(217, 119, 6, 0.15);
+  --badge-warning-text: #fbbf24;
+  --badge-error-bg: rgba(220, 38, 38, 0.15);
+  --badge-error-text: #f87171;
+  --badge-info-bg: rgba(37, 99, 235, 0.15);
+  --badge-info-text: #60a5fa;
+  --badge-neutral-bg: rgba(82, 82, 91, 0.15);
+  --badge-neutral-text: #a1a1aa;
 
-  /* 聚焦环 — 暗色主题用更亮的辉光，确保对比度 */
-  --focus-ring: 0 0 0 3px rgba(41, 151, 255, 0.35);
-  --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.4);
+  /* 聚焦环 */
+  --focus-ring: 0 0 0 2px rgba(165, 180, 252, 0.3);
+  --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
 
   /* 叠加层遮罩色 */
   --color-overlay: rgba(0, 0, 0, 0.5);
 
-  /* ===== shadcn 语义 Token — 暗色（映射到 Apple dark tokens）===== */
+  /* ===== shadcn 语义 Token — 暗色 ===== */
   --background: var(--color-parchment);
   --foreground: var(--color-ink);
   --card: var(--color-canvas);

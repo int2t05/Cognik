@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { InlineError } from '@/components/shared/InlineError';
 import { CheckCheck, Mail, ExternalLink, Eye } from 'lucide-react';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -66,7 +67,7 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
+      {error && <InlineError />}
 
       {isEmpty ? (
         <div className="text-center py-16">

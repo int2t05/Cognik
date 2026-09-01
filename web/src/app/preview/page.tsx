@@ -1,6 +1,6 @@
 'use client';
-// Preview — 脱离后端的纯前端骨架页，精确对照 reference-layouts.html 方向 C。
-// 无 auth gate，mock 数据，仅用于重构效果预览。用 query string ?p= 切页面。
+// Preview — 脱离后端的骨架预览页，mock 数据展示布局与组件。
+// 无 auth gate，用 query string ?p= 切页面。
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AppShell, type NavSection } from '@/components/layout/AppShell';
@@ -320,7 +320,7 @@ function Tickets() {
 
 function TicketDetail({ ticket, onBack }: { ticket: { no: string; t: string; s: number; p: string; time: string; assignee: string; desc: string }; onBack: () => void }) {
   return (
-    <div className="h-full overflow-y-auto p-6 max-w-4xl mx-auto">
+    <div className="h-full overflow-y-auto p-6">
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-4"><ChevronLeft size={16} /> 返回列表</Button>
       <div className="flex items-start gap-3 mb-4">
         <h1 className="text-headline font-semibold text-[var(--color-ink)] flex-1">{ticket.t}</h1>
@@ -441,7 +441,7 @@ function KB() {
 
 function ArticleDetail({ article, onBack }: { article: { no: string; t: string; s: number; meta: string; content: string }; onBack: () => void }) {
   return (
-    <div className="h-full overflow-y-auto p-6 max-w-4xl mx-auto">
+    <div className="h-full overflow-y-auto p-6">
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-4"><ChevronLeft size={16} /> 返回列表</Button>
       <div className="flex items-start gap-3 mb-2">
         <h1 className="text-headline font-semibold text-[var(--color-ink)] flex-1">{article.t}</h1>

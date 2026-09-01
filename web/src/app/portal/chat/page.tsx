@@ -1,8 +1,7 @@
 /**
  * ChatPage — 智能问答：侧栏会话 + 对话区 + 建议卡片欢迎态。
- *
- * 重构后：编排层仅 ~160 行，会话管理委托给 useChatSessions，
- * 滚动逻辑委托给 useAutoScroll，UI 委托给 ChatMessage/ChatInput/ChatPipeline 组件。
+ * 会话管理委托给 useChatSessions，滚动逻辑委托给 useAutoScroll，
+ * UI 委托给 ChatMessage/ChatInput/ChatPipeline 组件。
  */
 'use client';
 

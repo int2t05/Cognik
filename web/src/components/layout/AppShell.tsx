@@ -1,6 +1,5 @@
 'use client';
-// AppShell — 方向 C 统一 Shell（对照 reference-layouts.html 方案 C）：
-// 顶栏（品牌 + 内联全局搜索 + 主题 + 账号）+ 可折叠侧栏（分区 nav）+ main。
+// AppShell — 统一 Shell：顶栏（品牌 + 内联全局搜索 + 主题 + 账号）+ 可折叠侧栏（分区 nav）+ main。
 // 搜索框内联下拉即时结果（导航项 + 快捷操作过滤），非独立弹窗。
 // Portal/Admin 共用：管理员分区由调用方通过 nav 传入（权限判断在 layout 层）。
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
