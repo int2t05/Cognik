@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"testing"
 
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/shared/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

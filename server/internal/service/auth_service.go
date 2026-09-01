@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"opsmind/internal/config"
-	"opsmind/internal/dto/response"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/shared/dto/response"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/hash"
-	"opsmind/internal/pkg/jwt"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/hash"
+	"opsmind/internal/shared/pkg/jwt"
 
 	"gorm.io/gorm"
 )

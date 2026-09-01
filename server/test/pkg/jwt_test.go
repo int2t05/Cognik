@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/pkg/jwt"
+	"opsmind/internal/shared/pkg/jwt"
 )
 
 const testSecret = "test-secret-key-for-unit-testing"

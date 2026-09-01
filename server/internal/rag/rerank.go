@@ -16,7 +16,7 @@ import (
 	"context"
 	"fmt"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // Rerank 使用 cross-encoder 对候选文档按与 query 的相关性重新排序。

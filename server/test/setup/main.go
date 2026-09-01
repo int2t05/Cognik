@@ -8,9 +8,9 @@ package main
 import (
 	"log"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/model"
 )
 
 func main() {

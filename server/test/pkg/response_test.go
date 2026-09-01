@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"opsmind/internal/pkg/response"
+	"opsmind/internal/shared/pkg/response"
 )
 
 // setupGinContext 创建一个用于测试的 gin.Context

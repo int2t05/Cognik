@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"opsmind/internal/handler"
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
 

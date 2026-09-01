@@ -6,7 +6,7 @@ package pkg_test
 import (
 	"testing"
 
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/shared/pkg/hash"
 )
 
 // TestHashPassword 测试密码哈希生成

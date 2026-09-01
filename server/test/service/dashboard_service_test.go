@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/dto/request"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
 

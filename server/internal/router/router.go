@@ -12,10 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"opsmind/internal/cache"
-	"opsmind/internal/config"
+	"opsmind/internal/infra/cache"
+	"opsmind/internal/infra/config"
 	"opsmind/internal/handler"
-	"opsmind/internal/middleware"
+	"opsmind/internal/infra/middleware"
 )
 
 // Handlers 聚合所有 Handler 实例，供路由注册使用。

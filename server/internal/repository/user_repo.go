@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
 )

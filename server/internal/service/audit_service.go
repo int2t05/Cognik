@@ -7,8 +7,8 @@ package service
 
 import (
 	"context"
-	"opsmind/internal/dto/response"
-	"opsmind/internal/model"
+	"opsmind/internal/shared/dto/response"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 
 	"gorm.io/datatypes"

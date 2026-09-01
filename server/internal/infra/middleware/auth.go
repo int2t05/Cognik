@@ -8,10 +8,10 @@ import (
 	"context"
 	"strings"
 
-	"opsmind/internal/cache"
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/jwt"
-	"opsmind/internal/pkg/response"
+	"opsmind/internal/infra/cache"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/jwt"
+	"opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

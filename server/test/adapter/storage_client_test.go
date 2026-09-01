@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/storage"
+	"opsmind/internal/infra/storage"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"

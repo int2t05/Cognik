@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // =============================================================================

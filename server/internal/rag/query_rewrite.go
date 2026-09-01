@@ -17,7 +17,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // stripThinkingPrefix 移除模型思考/推理前缀，提取实际改写结果。

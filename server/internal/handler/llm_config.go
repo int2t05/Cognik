@@ -7,11 +7,11 @@ import (
 	"context"
 	"strconv"
 
-	"opsmind/internal/dto/request"
-	"opsmind/internal/model"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/service"
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/response"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

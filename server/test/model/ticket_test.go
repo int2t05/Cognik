@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 
 	"gorm.io/datatypes"
 )

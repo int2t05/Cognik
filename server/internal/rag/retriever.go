@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // VectorRetriever 向量检索器：将查询文本向量化后调用 pgvector cosine 检索。

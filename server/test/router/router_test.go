@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"opsmind/internal/config"
+	"opsmind/internal/infra/config"
 	"opsmind/internal/router"
 )
 

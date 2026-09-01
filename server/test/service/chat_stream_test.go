@@ -12,7 +12,7 @@ import (
 	"context"
 	"testing"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 )
 

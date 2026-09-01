@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"opsmind/internal/adapter"
-	"opsmind/internal/dto/response"
+	"opsmind/internal/infra/adapter"
+	"opsmind/internal/shared/dto/response"
 	"opsmind/internal/rag"
 )
 

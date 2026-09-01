@@ -10,8 +10,8 @@ package database_test
 import (
 	"testing"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
 )
 
 // testDBConfig 返回测试数据库配置

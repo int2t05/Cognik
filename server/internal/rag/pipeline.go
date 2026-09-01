@@ -25,7 +25,7 @@ import (
 	"log/slog"
 	"time"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // =============================================================================

@@ -18,10 +18,10 @@ package integration_test
 import (
 	"testing"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/model"
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/model"
+	"opsmind/internal/shared/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

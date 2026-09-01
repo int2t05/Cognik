@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 
 	"github.com/stretchr/testify/assert"

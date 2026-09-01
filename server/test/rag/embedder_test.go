@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 	"opsmind/internal/rag"
 )
 

@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/shared/pkg/hash"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

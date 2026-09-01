@@ -14,7 +14,7 @@ package model
 import (
 	"time"
 
-	"opsmind/internal/pkg/crypto"
+	"opsmind/internal/shared/pkg/crypto"
 
 	"gorm.io/gorm"
 )

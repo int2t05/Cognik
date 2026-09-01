@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/dto/request"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
-	"opsmind/internal/runtime"
+	"opsmind/internal/infra/runtime"
 	"opsmind/internal/service"
 
 	"gorm.io/gorm"

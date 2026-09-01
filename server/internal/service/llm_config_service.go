@@ -9,10 +9,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"opsmind/internal/model"
-	"opsmind/internal/adapter"
+	"opsmind/internal/shared/model"
+	"opsmind/internal/infra/adapter"
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 
 	"fmt"
 	"time"
