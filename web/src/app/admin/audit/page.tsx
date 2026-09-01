@@ -19,7 +19,11 @@ export default function AuditLogPage() {
   const debouncedParams = useDebounce(params, 300);
   const { data, error, mutate } = useSWR(`audit-${JSON.stringify(debouncedParams)}`, () => getAuditLogs(debouncedParams));
   const toast = useToast();
-  const idOp = useId(); const idAct = useId(); const idType = useId(); const idFrom = useId(); const idTo = useId();
+  const idOp = useId();
+  const idAct = useId();
+  const idType = useId();
+  const idFrom = useId();
+  const idTo = useId();
 
   const items = data?.items || [];
   const batch = useBatchSelection({

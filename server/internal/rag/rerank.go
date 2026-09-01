@@ -3,12 +3,7 @@
 // rerank.go 实现 cross-encoder 驱动的候选文档重排序。
 // 对应适配层为 adapter/rerank_client.go。
 //
-// 为什么从 LLM prompt 方案切换到 cross-encoder：
-// LLM prompt 方案通过编号排序（"仅输出 3,1,2"）做重排，
-// 存在三个根本问题：
-//   1. 依赖 LLM 输出格式——编号顺序可能错误或缺失
-//   2. 延迟高（500ms-2s），每次消耗 token
-//   3. 候选内容全部塞进 prompt，无长度裁剪
+// 为什么使用 cross-encoder：
 // Cross-encoder 对每个 (query, passage) 对独立打分，
 // 速度快（~50ms）、分数稳定、不需要 token 消耗。
 //

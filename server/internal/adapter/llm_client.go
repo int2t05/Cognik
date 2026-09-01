@@ -408,7 +408,7 @@ func doHTTPRequest(ctx context.Context, baseURL, apiKey, path string, jsonBody [
 	return respBody, nil
 }
 
-// MustNewOpenAIClient 创建客户端，失败时 panic（仅用于测试初始化）。
+// MustNewOpenAIClient 创建客户端，失败时 panic（测试辅助）。
 func MustNewOpenAIClient(baseURL, apiKey string, timeout time.Duration) *OpenAIClient {
 	c, err := NewOpenAIClient(baseURL, apiKey, timeout)
 	if err != nil {

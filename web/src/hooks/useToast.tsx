@@ -64,7 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           const s = TOAST_STYLE[t.type];
           return (
             <div key={t.id} role="alert" onClick={() => dismiss(t.id)}
-              className="flex items-center gap-2.5 px-3.5 py-2.5 text-caption rounded-[var(--radius-apple)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.2s_ease-out] cursor-pointer active:scale-[0.98] transition"
+              className="flex items-center gap-2.5 px-3.5 py-2.5 text-caption rounded-[var(--radius-lg)] shadow-[var(--shadow-dialog)] backdrop-blur-xl max-w-[360px] pointer-events-auto animate-[fadeIn_0.2s_ease-out] cursor-pointer active:scale-[0.98] transition"
               style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, borderLeft: `3px solid ${s.border}` }}>
               <span className="flex-shrink-0" style={{ color: s.border }}>{s.icon}</span>
               <span className="flex-1">{t.message}</span>

@@ -6,6 +6,9 @@
 server:
   port: 8080
   mode: debug  # debug / release
+  read_timeout: 15s
+  write_timeout: 300s
+  idle_timeout: 60s
 
 database:
   host: localhost        # Docker 内: postgres
@@ -14,6 +17,9 @@ database:
   password: "opsmind_dev"  # 通过环境变量 OPSMIND_DATABASE_PASSWORD 覆盖
   dbname: opsmind
   sslmode: disable
+  max_open_conns: 0    # 0 = 不限，由 PostgreSQL max_connections 控制
+  max_idle_conns: 0    # 0 = 不限
+  conn_max_lifetime: 5m
 
 jwt:
   secret: ""             # 通过环境变量 OPSMIND_JWT_SECRET 设置
@@ -27,21 +33,25 @@ minio:
   use_ssl: false
 
 llm:
-  base_url: http://llama-cpp:8081/v1  # Docker 内部地址（端口与宿主机统一）；OpenAI: https://api.openai.com/v1
+  base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
   api_key: ""                          # 通过环境变量 OPSMIND_LLM_API_KEY 设置
-  model: Qwen3-4B-Q4_K_M               # LLM 模型名称（与 docker-compose 中 GGUF 文件名一致）
+  model: qwen3-4b                      # LLM 模型名称
   max_tokens: 8192                     # 最大生成 Token 数
+  timeout: 300s                        # LLM 调用超时
 
 embedding:
-  base_url: http://llama-cpp-emb:8082/v1  # Embedding 独立地址（端口与宿主机统一）
-  api_key: ""                             # Embedding 独立 API Key，空则回退到 llm.api_key
-  model: Qwen3-Embedding-0.6B-Q8_0        # Embedding 模型名称（与 docker-compose 中 GGUF 文件名一致）
-  dimension: 1024                          # 向量维度
+  base_url: ""                             # 空则回退到 llm.base_url
+  api_key: ""                               # 空则回退到 llm.api_key
+  model: ""                                 # 必须通过环境变量或 LLM 配置指定
+  dimension: 1024                           # 向量维度
+  timeout: 300s                             # Embedding 调用超时
 
 ai:
   default_top_k: 5
   confidence_threshold: 0.6  # 低于此阈值引导用户提交申告
   max_history_messages: 10     # 多轮对话历史消息数上限（滑动窗口，0=不限制）
+  chunk_size: 500             # 文档分块大小
+  chunk_overlap: 100           # 分块重叠
   rag_query_rewrite: true     # 查询改写开关
   rag_multi_route: true       # 多路检索开关
   rag_hybrid: true            # BM25 混合检索开关
@@ -51,3 +61,6 @@ rerank:
   enabled: true              # 是否启用 cross-encoder 重排序子进程
   python_path: "python"      # Python 解释器路径（Windows: python，Docker: python3）
   script_path: "rerank_server.py"  # rerank_server.py 路径（相对或绝对）
+
+cors:
+  allow_origins: "http://localhost:5173,http://localhost:3000"

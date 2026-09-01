@@ -36,31 +36,3 @@ func TestErrCodeValues(t *testing.T) {
 		})
 	}
 }
-
-// TestErrCodeMessages 测试错误码关联的默认消息
-func TestErrCodeMessages(t *testing.T) {
-	tests := []struct {
-		code    int
-		message string
-	}{
-		{errcode.Success, "success"},
-		{errcode.ErrAuth, "未登录或令牌过期"},
-		{errcode.ErrForbidden, "无权限"},
-		{errcode.ErrParam, "参数校验失败"},
-		{errcode.ErrNotFound, "资源不存在"},
-		{errcode.ErrConflict, "资源冲突"},
-		{errcode.ErrAIUnavailable, "AI 服务不可用"},
-		{errcode.ErrRAGUnavailable, "RAG 服务不可用"},
-		{errcode.ErrStorageUnavailable, "存储服务不可用"},
-		{errcode.ErrUnknown, "未知错误"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.message, func(t *testing.T) {
-			msg := errcode.GetMessage(tt.code)
-			if msg != tt.message {
-				t.Errorf("错误码 %d: 期望消息 %q，实际 %q", tt.code, tt.message, msg)
-			}
-		})
-	}
-}

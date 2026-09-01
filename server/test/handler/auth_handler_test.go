@@ -2,7 +2,7 @@
 
 // Package handler_test 验证认证 Handler 的 HTTP 接口行为。
 //
-// 测试覆盖 PLAN.md T11 定义的场景：
+// 测试覆盖场景：
 // POST /login 正常返回、参数缺失返回 400。
 package handler_test
 

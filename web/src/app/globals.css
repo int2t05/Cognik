@@ -8,13 +8,11 @@
   --font-size-display: 2.5rem;
   --font-size-display-md: 2.125rem;
   --font-size-headline: 1.75rem;
-  --font-size-lead-airy: 1.5rem;
   --font-size-title: 1.3125rem;
   --font-size-body: 1.0625rem;
   --font-size-callout: 0.9375rem;
   --font-size-caption: 0.875rem;
   --font-size-fine: 0.75rem;
-  --font-size-micro: 0.625rem;
 
   /* 指标卡数值专用 — 介于 headline 和 title 之间 */
   --font-size-metric: 2rem;

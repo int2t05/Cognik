@@ -23,7 +23,7 @@ type ChatSession struct {
 func (ChatSession) TableName() string { return "chat_sessions" }
 
 // 消息生成状态：generating 表示后台仍在生成（刷新后据此续传），
-// completed/failed 为终态。默认 completed 兼容历史数据。
+// completed/failed 为终态。默认值 completed，用于未显式设置状态的消息。
 const (
 	MessageStatusGenerating = "generating"
 	MessageStatusCompleted  = "completed"

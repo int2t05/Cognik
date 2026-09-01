@@ -28,7 +28,6 @@ func (r *RoleRepo) Create(ctx context.Context, role *model.Role) error {
 	return r.db.WithContext(ctx).Create(role).Error
 }
 
-// GetByID 根据 ID 获取角色。
 func (r *RoleRepo) GetByID(ctx context.Context, id int64) (*model.Role, error) {
 	var role model.Role
 	err := r.db.WithContext(ctx).First(&role, id).Error

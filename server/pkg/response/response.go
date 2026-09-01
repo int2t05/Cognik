@@ -49,7 +49,7 @@ func Error(c *gin.Context, code int, message string) {
 		Code:      code,
 		Message:   message,
 		Data:      nil,
-		RequestID: c.GetString("requestID"),
+		RequestID: c.GetString("X-Request-ID"),
 	})
 }
 

@@ -8,7 +8,7 @@ import (
 
 // Ticket 申告工单表
 //
-// Tags 为逗号分隔的标签字符串（如 "网络,邮箱,VPN"），替代原来的 Urgency/ImpactScope/AffectedSystems 三个字段。
+// Tags 为逗号分隔的标签字符串，存储为 JSONB 数组。
 // 存储为 JSONB 数组，与知识库文章的 Tags 字段互通——从申告生成知识候选时标签直接复制。
 type Ticket struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`

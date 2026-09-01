@@ -72,7 +72,7 @@ func (p *DocParser) parseTxt(reader io.Reader) (string, error) {
 
 // parsePDF 解析 PDF 文件，逐页提取文本。
 //
-// 注意：使用 bytes.NewReader 而非 strings.NewReader(string(b))，
+// 使用 bytes.NewReader 而非 strings.NewReader(string(b))，
 // 避免非 UTF-8 二进制字节在 Go string 往返中损坏。
 func (p *DocParser) parsePDF(reader io.Reader) (string, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))

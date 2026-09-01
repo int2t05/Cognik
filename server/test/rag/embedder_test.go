@@ -103,7 +103,7 @@ func TestEmbedder_MultiBatch(t *testing.T) {
 
 // TestEmbedder_PartialFailure 验证批次失败时 fail-fast 返回错误。
 //
-// 从之前的"静默跳过失败批次"改为 fail-fast：
+// 失败批次 fail-fast（立即返回错误）：
 // 任一批次失败立即返回带批次位置的错误，避免 vectors[i] 与 texts[i] 索引错位。
 func TestEmbedder_PartialFailure(t *testing.T) {
 	mock := &mockEmbeddingClient{dimension: 1024, failCount: 1}

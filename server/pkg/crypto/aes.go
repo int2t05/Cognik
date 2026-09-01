@@ -40,7 +40,7 @@ func Init(keyHex string) error {
 // Encrypt 使用 AES-256-GCM 加密明文。
 //
 // 返回带 cipher: 前缀的 hex 编码密文（hex 内容含 12 字节 nonce 前缀）。
-// 若密钥未初始化，返回明文（向后兼容无加密环境）。
+// 若密钥未初始化，返回明文（无加密部署场景）。
 func Encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
@@ -70,7 +70,7 @@ func Encrypt(plaintext string) (string, error) {
 
 // Decrypt 使用 AES-256-GCM 解密密文。
 //
-// 接受 hex 编码的密文。若密钥未初始化，返回原文（明文存储兼容）。
+// 接受 hex 编码的密文。若密钥未初始化，返回原文（无加密部署场景）。
 func Decrypt(cipherHex string) (string, error) {
 	if cipherHex == "" {
 		return "", nil

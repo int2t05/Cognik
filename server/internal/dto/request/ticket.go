@@ -1,6 +1,6 @@
 // Package request 定义申告管理相关请求 DTO。
 //
-// 校验规则：标题、描述、手机号为必填；紧急程度 1-3 范围校验。
+// 校验规则：标题、描述、手机号为必填。
 package request
 
 // CreateTicketRequest 创建申告请求。

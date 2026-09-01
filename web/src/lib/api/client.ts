@@ -4,7 +4,7 @@ import type { ApiResponse, PageResponse } from './types';
 import { defaultTokenGetter, clearAuth } from '@/lib/token-store';
 
 // 默认空字符串 = 相对路径，通过 Next.js rewrite 代理到后端
-// 开发时设 NEXT_PUBLIC_API_URL=http://localhost:8080 可直接连后端（绕过 Turbopack 代理问题）
+// 开发时设 NEXT_PUBLIC_API_URL=http://localhost:8080 可直连后端（绕过 Next.js Turbopack POST 代理 500 问题）
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // 模块级 token getter — 默认通过 token-store 读取 localStorage，
@@ -114,6 +114,3 @@ export async function apiFetchPage<T>(url: string): Promise<PageResponse<T>> {
     pageSize: json.page_size as number,
   };
 }
-
-/** SWR 默认 fetcher */
-export const swrFetcher = (url: string) => apiFetch(url);

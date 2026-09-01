@@ -13,6 +13,13 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { ShieldPlus, Pencil, Trash2 } from 'lucide-react';
 
+/** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
+const KNOWN_PERMISSIONS = [
+  'user:manage', 'ticket:read', 'ticket:write', 'ticket:manage',
+  'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage',
+  'dashboard:read', 'audit:read', 'system:config',
+];
+
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
   const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page));
@@ -28,16 +35,13 @@ export default function RoleManagePage() {
   const toast = useToast();
 
   // 从已有角色中提取所有已知权限（动态，而非硬编码）
-  // 使用 useMemo 避免每次 render 重复计算
   const knownPermissions = useMemo(() => {
     const perms = Array.from(
       new Set((data?.items || []).flatMap((r) => r.permissions))
     ).sort();
-    // 追加未在任何角色上出现但系统中实际存在的权限
+    // 已有角色均无权限时回退到系统已知权限码
     if (data?.items && perms.length === 0) {
-      perms.push('user:manage', 'ticket:read', 'ticket:write', 'ticket:manage',
-        'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage',
-        'dashboard:read', 'audit:read', 'system:config');
+      perms.push(...KNOWN_PERMISSIONS);
     }
     return perms;
   }, [data]);

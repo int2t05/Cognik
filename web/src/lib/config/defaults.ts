@@ -21,11 +21,6 @@ export const SYSTEM_CONFIG_DEFAULTS = {
 
 export type SystemConfigKey = keyof typeof SYSTEM_CONFIG_DEFAULTS;
 
-/** 获取单个配置项的默认值。 */
-export function getDefaultConfig<K extends SystemConfigKey>(key: K): (typeof SYSTEM_CONFIG_DEFAULTS)[K] {
-  return SYSTEM_CONFIG_DEFAULTS[key];
-}
-
 /** 获取应用名称（便捷方法）。 */
 export function getAppName(): string {
   return SYSTEM_CONFIG_DEFAULTS.app_name;

@@ -441,9 +441,9 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 	}, nil
 }
 
-// ListAll 分页查询全部申告（支持按状态和紧急程度筛选）。
+// ListAll 分页查询全部申告（支持按状态筛选）。
 //
-// status=-1 表示不过滤，urgency=0 表示不过滤。
+// status=-1 表示不过滤。
 func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int) (*response.TicketListResponse, error) {
 	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize)
 	if err != nil {
@@ -501,7 +501,7 @@ func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (
 	detail.Source = ticket.Source
 	detail.Records = records
 
-	// 反序列化受影响的系统
+	// 反序列化标签
 	if len(ticket.Tags) > 0 {
 		detail.Tags = unmarshalTicketTags(ticket.Tags)
 	}
@@ -538,7 +538,7 @@ func toTicketItem(t *model.Ticket) response.TicketItem {
 
 // marshalTicketTags 将字符串切片序列化为 JSON。
 //
-// 使用 json.Marshal 保证正确转义 — 修复前手动拼接在含双引号/逗号时产生畸形 JSON。
+// 使用 json.Marshal 保证正确转义。
 func marshalTicketTags(items []string) datatypes.JSON {
 	if len(items) == 0 {
 		return datatypes.JSON("[]")
@@ -552,7 +552,7 @@ func marshalTicketTags(items []string) datatypes.JSON {
 
 // unmarshalTicketTags 将 JSON 反序列化为字符串切片。
 //
-// 使用 json.Unmarshal 替代手动字符串分割，正确处理转义字符。
+// 使用 json.Unmarshal 正确处理转义字符。
 func unmarshalTicketTags(data datatypes.JSON) []string {
 	if len(data) == 0 {
 		return nil
