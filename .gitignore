@@ -77,6 +77,15 @@ web/playwright-report/
 # === 接口设计 ===
 .interface-design/
 
+# === 非正式产物（调研/审计/参考仓库/原型/设计参考） ===
+# 正式文档见 CLAUDE.md §8；以下为开发过程辅助，不进 main
+docs/research/
+docs/audit/
+docs/design/
+reference/
+prototype/
+scratch/
+
 # === Playwright MCP（测试辅助） ===
 .playwright-mcp
 
