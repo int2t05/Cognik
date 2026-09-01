@@ -9,7 +9,7 @@ import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleChip } from '@/components/ui/AppleChip';
+import { Toggle } from '@/components/ui/toggle';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -122,8 +122,9 @@ export default function UserListPage() {
           <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
           <div className="flex flex-wrap gap-2">
             {roles.map(role => (
-              <AppleChip key={role.id} selected={form.role_ids.includes(role.id)} onClick={() => toggleRole(role.id)} role="checkbox" aria-checked={form.role_ids.includes(role.id)}
-                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); toggleRole(role.id); } }}>{role.name}</AppleChip>
+              <Toggle key={role.id} variant="pill" size="pill-sm"
+                pressed={form.role_ids.includes(role.id)}
+                onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
             ))}
           </div>
         </div>

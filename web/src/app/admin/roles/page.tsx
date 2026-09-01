@@ -6,7 +6,7 @@ import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenu
 import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleChip } from '@/components/ui/AppleChip';
+import { Toggle } from '@/components/ui/toggle';
 import { AppleInput } from '@/components/ui/AppleInput';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -121,13 +121,12 @@ export default function RoleManagePage() {
           <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
           <div className="flex flex-wrap gap-1.5">
             {knownPermissions.map((p) => (
-              <AppleChip key={p} selected={perms.includes(p)}
-                onClick={() => togglePerm(p)}
-                role="checkbox" aria-checked={perms.includes(p)}
-                onKeyDown={(e) => { if (e.key === ' ') { e.preventDefault(); togglePerm(p); } }}
+              <Toggle key={p} variant="pill" size="pill-sm"
+                pressed={perms.includes(p)}
+                onPressedChange={() => togglePerm(p)}
               >
                 {p}
-              </AppleChip>
+              </Toggle>
             ))}
           </div>
         </div>
