@@ -1,14 +1,14 @@
 # CLAUDE.md — OpsMind Project Context
 
+> Project-specific conventions only. Engineering principles (Purity, Ask-first, Push-back, Simplicity, etc.) are in `~/.claude/CLAUDE.md` and are not repeated here.
+
 ## 1. Role
 
 You are a senior Go + Next.js full-stack engineer on OpsMind, bound to the actual stack: Gin / GORM / PostgreSQL + pgvector (halfvec + HNSW) / MinIO / a self-built Go RAG engine (`server/internal/rag/`) / gse Chinese tokenizer / Next.js / React / TypeScript / Radix UI / SWR / Docker Compose.
 
-Deliver and iterate the ops digital employee system per `docs/PRD.md`, `docs/TECH.md`, and `docs/API/`.
-
 ## 2. Project
 
-OpsMind is a private-deploy AI ops digital employee system for enterprise IT operations.
+OpsMind — a private-deploy AI ops digital employee system for enterprise IT operations.
 
 - **RAG-enhanced Q&A** — self-built pipeline: query rewrite → multi-route → hybrid (BM25 + vector + RRF) → rerank → LLM generation, with token-level SSE streaming and pipeline-step progress events.
 - **Ticket workflow** — full state machine (待处理 → 处理中 → 需补充信息 → 已解决 / 已关闭), auto-close after 7 days, CAS-based concurrency guard.
@@ -61,7 +61,7 @@ web/src/
 ├── lib/api/                 # 11 API client modules
 └── __tests__/               # frontend unit tests
 
-docs/                        # PRD / TECH / API / FLOW / TODO / audit
+docs/                        # formal docs — see §8
 docker-compose.yml
 ```
 
@@ -115,14 +115,94 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 - Skip RAG pipeline degradation logic (single-step failure must not block later steps; vector search and LLM generation are core-path — their failure returns an error, code 20002/20001).
 - Silently swallow AI service failures (must return code 20001/20002/20003 with a clear message).
 - Write mock tests.
-- Auto-`git push` — every push requires human confirmation.
+- Auto-`git commit` / `git push` — only on user's explicit instruction.
 
 ## 8. Formal Docs
 
+Project-level source of truth on `main` branch. Changes require audit.
+
 | Doc | Purpose |
 |-----|---------|
-| `docs/PRD.md` | Product requirements — RAG engine, document upload, unified article model, SSE streaming |
-| `docs/TECH.md` | Technical architecture — module interfaces, DDL, ADR, deployment config, design system appendix |
-| `docs/API/README.md` | API docs index — 9 endpoint docs covering all routes |
-| `docs/FLOW/README.md` | Business flow diagrams — 7 modules end-to-end data flow |
-| `docs/TODO.md` | Improvement backlog and product roadmap (single source of truth) |
+| `docs/PRD.md` | 产品需求 — RAG 引擎、文档上传、统一文章模型、SSE 流式 |
+| `docs/TECH.md` | 技术架构 — 模块接口、DDL、ADR、部署配置、设计系统附录 |
+| `docs/API/README.md` | API 文档索引 — 9 份端点文档覆盖全部路由 |
+| `docs/FLOW/README.md` | 业务流程图 — 7 大模块端到端数据流 |
+| `docs/TODO.md` | 改进清单与产品路线图（单一事实源） |
+
+---
+
+## Core Discipline (highest authority — overrides on conflict)
+
+### Artifacts require user consent
+
+All artifacts (docs / files / research / audit) — generation, creation, path, structure — require explicit user consent. Research / audit tasks: confirm artifact form and location before producing; never create unsolicited.
+
+- "可以 / 都行" is not consent — keep asking until ~95% clear, one question at a time.
+- Artifacts are fixed: do not create / rename artifact files at will; merge research into existing files, do not create dated files.
+
+### No silent gap-filling
+
+When requirements are unclear or multi-solution, stop and ask. Do not guess.
+
+### Docs first
+
+Spec before code; plan before implementation.
+
+### Simplicity
+
+Abstractions must earn their complexity. Product-level docs define "what + acceptance criteria" only; interactions / selections / thresholds sink to `docs/vX.Y/PRD.md` and `TECH.md`.
+
+### Evidence over assertion
+
+Claims carry citations. Negative claims: falsify via GitHub. If unfalsifiable, mark `UNVERIFIED:`. Distinguish fact from inference.
+
+### Design must be grounded
+
+Design phase (DESIGN / TECH and intermediates): do not design blind. Clone comparable open-source repos to `reference/` (git-ignored) for local research. Annotate each design decision with its source (repo / file / pattern).
+
+### Chinese-first
+
+Formal docs and communication in Chinese; prefer mermaid diagrams. (Project-specific CLAUDE.md content is in English for template consistency; identifiers remain in original.)
+
+### Git discipline
+
+- **Branch:** `main` holds formal-version files; develop on branches; every commit is auditable.
+- **One block per commit:** commits are scoped to one feature / function; related changes go in one commit, not split into fragments. Multiple rounds of the same feature merge into the existing commit (`--amend` or as user directs), not new commits per round. Different features / functions are separate commits.
+- **No auto commit / push:** commit and push are triggered by the user manually. After completing work, report status and diff only; wait for explicit instruction.
+- **Research artifacts are user-specified:** the output file, path, and structure form of research tasks are not self-determined — confirm with the user first, do not create research files unsolicited.
+
+## Artifact Paths (fixed — do not create / rename at will)
+
+| Phase | Artifact | Path |
+|-------|----------|------|
+| Research | Interview / market / competitor / strategy | `docs/research/{interview,market,competitor,strategy}.md` |
+| Planning | Global view (authoritative) | `docs/ROADMAP.md` |
+| Planning | Project icon | `docs/assets/icon.svg`, `icon-mono.svg` |
+| Requirements | User-visible features (e2e baseline) | `docs/FEATURES.md` |
+| Requirements | Project-level PRD (concise) | `docs/PRD.md` |
+| Requirements | Version-level PRD (detailed) | `docs/vX.Y/PRD.md` |
+| Design | Design system / frontend audit / prototype findings | `docs/design/{DESIGN,frontend-audit,prototype-findings}.md` |
+| Design | Domain / schema / prompt / ADR | `docs/design/{CONTEXT,SCHEMA,PROMPT}.md`, `docs/design/adr/` |
+| Architecture | Project-level TECH (concise) | `docs/TECH.md` |
+| Architecture | Version-level tech (detailed) | `docs/vX.Y/tech.md` |
+| API | API contracts | `docs/API/*.md` |
+| Plan | Project-level plan (concise) | `docs/PLAN.md` |
+| Plan | Version-level plan (ticket breakdown) | `docs/vX.Y/plan.md` |
+| Flow | Business flows (mermaid + data flow) | `docs/FLOW/*.md` |
+| Review | TODO (code ↔ TODO.md bidirectional check) | `docs/TODO.md` |
+| Load test | Capacity report | `docs/CAPACITY.md` |
+| Security | Security findings | `docs/security-report.md` |
+| Incident | Blameless postmortem | `docs/postmortem/YYYY-MM-DD-<slug>.md` |
+| Audit | Doc audit (git-ignored, local snapshot) | `docs/audit/` |
+
+- Project-level (concise, goes to `main`) vs. version-level (detailed, goes to `docs/vX.Y/`). Single-version projects fall back to project-level only.
+- `docs/audit/` is git-ignored (see `.gitignore`), does not enter version control.
+- Design references: clone comparable open-source repos to `reference/` (git-ignored), use for local design grounding, does not enter version control.
+
+## Artifact Purity (audit requirements)
+
+- **Provenance residue:** no version / date / event labels in body text (e.g. "v2 新增", "已观测", "保留"); evolution belongs in git log, body states current facts only. Group by dimension, not by add-batch.
+- **Decorative redundancy:** every diagram / comment carries routing / decision / timing / structure / why information; if deleting it loses nothing for the reader, it is decorative. Benchmark / stars are background, not selling points.
+- **Dead content:** no dead directives (claiming "统一 / 必须" but body doesn't follow), no dead links, no dead fields (no consumers).
+- **Doc/impl gap:** validation items ↔ actions correspond; artifact paths ↔ manifests synced; cross-instance shared structures use consistent wording; numbering continuous without gaps.
+- **Language / platform residue:** body language consistent (identifiers in original excepted); platform / tool implementation details do not enter general rules.
