@@ -1,4 +1,4 @@
-// skeleton.tsx — 占位骨架。沿用项目 Apple 风格 shimmer 扫光动画（非 shadcn 默认 pulse）。
+// skeleton.tsx — 占位骨架。shimmer 扫光动画。
 import { cn } from "@/lib/utils"
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {

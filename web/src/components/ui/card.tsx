@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// Card — Apple Design 风格：10px radius + hairline border + canvas bg
+// Card — 10px radius + hairline border + canvas bg
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
