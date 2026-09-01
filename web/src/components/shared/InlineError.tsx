@@ -1,5 +1,6 @@
 /** InlineError — 内联错误提示，统一各页面加载失败样式。 */
 import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface InlineErrorProps {
   message?: string;
@@ -12,12 +13,9 @@ export function InlineError({ message = '加载失败，请刷新重试', onRetr
       <AlertTriangle size={12} />
       <span>{message}</span>
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="underline cursor-pointer border-0 bg-transparent text-[var(--color-error)] hover:opacity-70 transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-focus)] rounded"
-        >
+        <Button variant="link" size="sm" onClick={onRetry} className="text-[var(--color-error)] underline">
           重试
-        </button>
+        </Button>
       )}
     </div>
   );

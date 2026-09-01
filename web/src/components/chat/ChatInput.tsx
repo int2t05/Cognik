@@ -5,6 +5,7 @@
 
 import { forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Send, Square, Loader2 } from 'lucide-react';
 
 interface ChatInputProps {
@@ -28,7 +29,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
       <div className="border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-3">
         <div className="max-w-[768px] mx-auto flex items-center gap-2">
           <div className="flex-1 relative">
-            <input
+            <Input
               ref={ref}
               value={value}
               onChange={(e) => onChange(e.target.value)}
@@ -36,7 +37,7 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               placeholder={placeholder}
               disabled={disabled}
               aria-label="输入消息"
-              className="w-full h-11 pr-20 pl-5 text-body rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition disabled:opacity-40 disabled:cursor-not-allowed focus:border-[var(--color-accent)] focus:shadow-[var(--focus-ring)]"
+              className="h-11 pr-20 pl-5 text-body rounded-[var(--radius-lg)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
               Enter ↵

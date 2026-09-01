@@ -13,6 +13,9 @@ import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, Pane
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { submitMessageFeedback, createSession } from '@/lib/api/chat';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useConfigValue } from '@/hooks/useAppConfig';
@@ -207,14 +210,17 @@ export default function ChatPage() {
                     <div key={s.id} className="flex items-center gap-1 group">
                       <div role="button" tabIndex={0} onClick={() => selectSession(s.id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSession(s.id); } }}
-                        className={`flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2 ${isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'}`}>
+                        className={cn(
+                          'flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2',
+                          isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
+                        )}>
                         <MessageSquare size={12} className={`shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
                         <span className="truncate leading-tight">{s.question}</span>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }} aria-label="编辑会话" title="编辑"
-                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"><Pencil size={12} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }} aria-label="删除会话" title="删除"
-                        className="p-1 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)] transition border-0 bg-transparent cursor-pointer shrink-0"><Trash2 size={12} /></button>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingSession({ id: s.id, title: s.question, kb_id: s.kb_id }); setEditTitle(s.question); setEditKB(s.kb_id); }} aria-label="编辑会话" title="编辑"
+                        className="shrink-0 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)]"><Pencil size={12} /></Button>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }} aria-label="删除会话" title="删除"
+                        className="shrink-0 rounded-[var(--radius-pill)] text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)]"><Trash2 size={12} /></Button>
                     </div>
                   );
                 })}
@@ -244,10 +250,10 @@ export default function ChatPage() {
               </div>
               <div className="grid gap-2 w-full max-w-[480px]">
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s.text)}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] rounded-xl hover:bg-[var(--color-tile-1)] active:scale-[0.98] transition cursor-pointer">
+                  <Button key={i} variant="ghost" onClick={() => handleSend(s.text)}
+                    className="h-auto flex items-center gap-3 w-full px-4 py-3 text-left text-caption text-[var(--color-ink)] bg-[var(--color-canvas)] rounded-xl hover:bg-[var(--color-tile-1)]">
                     <span className="text-[var(--color-accent)] shrink-0">{s.icon}</span>{s.text}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -317,23 +323,33 @@ export default function ChatPage() {
           } catch { toast.error('创建会话失败'); }
           finally { setCreating(false); }
         }}>
-        <select value={pendingKB} onChange={(e) => setPendingKB(Number(e.target.value))} aria-label="选择知识库"
-          className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none">
-          <option value={0}>请选择知识库...</option>
-          {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
-        </select>
+        <Select value={pendingKB ? String(pendingKB) : undefined} onValueChange={(v) => setPendingKB(Number(v))}>
+          <SelectTrigger aria-label="选择知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+            <SelectValue placeholder="请选择知识库..." />
+          </SelectTrigger>
+          <SelectContent>
+            {(kbs || []).map((kb) => (
+              <SelectItem key={kb.id} value={String(kb.id)}>{kb.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </ConfirmDialog>
 
       {/* 编辑会话对话框 */}
       <ConfirmDialog open={editingSession !== null} onOpenChange={(open) => !open && setEditingSession(null)} title="编辑会话" confirmLabel="保存" onConfirm={handleSaveEdit} loading={saving}>
         <div className="flex flex-col gap-3">
-          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} aria-label="会话标题" placeholder="会话标题"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]" />
-          <select value={editKB} onChange={(e) => setEditKB(Number(e.target.value))} aria-label="知识库"
-            className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] cursor-pointer outline-none">
-            <option value={0}>选择知识库...</option>
-            {(kbs || []).map((kb) => (<option key={kb.id} value={kb.id}>{kb.name}</option>))}
-          </select>
+          <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} aria-label="会话标题" placeholder="会话标题"
+            className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]" />
+          <Select value={editKB ? String(editKB) : undefined} onValueChange={(v) => setEditKB(Number(v))}>
+            <SelectTrigger aria-label="知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+              <SelectValue placeholder="选择知识库..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(kbs || []).map((kb) => (
+                <SelectItem key={kb.id} value={String(kb.id)}>{kb.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </ConfirmDialog>
     </div>

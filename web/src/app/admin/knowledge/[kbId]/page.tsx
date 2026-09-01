@@ -51,9 +51,9 @@ export default function ArticleListPage() {
             className="w-56 py-2 pl-8 pr-8 text-caption rounded-[var(--radius-pill)]"
           />
           {keyword && (
-            <button type="button" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
+            <Button type="button" variant="ghost" size="icon" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-1 top-1/2 -translate-y-1/2 size-7 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
               <X size={12} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

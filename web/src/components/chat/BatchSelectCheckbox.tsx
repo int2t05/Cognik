@@ -3,6 +3,8 @@
  *
  * 配合 useBatchSelection hook 使用，减少 4 个页面中重复的 checkbox JSX。
  */
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 
 interface BatchSelectCheckboxProps<T extends { id: number | string }> {
   items: T[];
@@ -15,11 +17,11 @@ export function BatchSelectHeader<T extends { id: number | string }>({
   items, selectedIds, onSelectAll,
 }: BatchSelectCheckboxProps<T>) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       checked={items.length > 0 && selectedIds.size === items.length}
-      onChange={onSelectAll}
-      className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]"
+      onCheckedChange={onSelectAll}
+      className="border-[var(--color-hairline)]"
+      aria-label="全选"
     />
   );
 }
@@ -28,11 +30,11 @@ export function BatchSelectRow<T extends { id: number | string }>({
   row, selectedIds, onToggleSelect,
 }: { row: T } & Pick<BatchSelectCheckboxProps<T>, 'selectedIds' | 'onToggleSelect'>) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       checked={selectedIds.has(row.id)}
-      onChange={() => onToggleSelect(row.id)}
-      className="w-4 h-4 rounded border-[var(--color-hairline)] accent-[var(--color-accent)]"
+      onCheckedChange={() => onToggleSelect(row.id)}
+      className="border-[var(--color-hairline)]"
+      aria-label="选择此行"
     />
   );
 }
@@ -55,20 +57,24 @@ export function BatchSelectToolbar({
         已选 <strong>{selectedCount}</strong>
       </span>
       {onDelete && (
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={onDelete}
-          className="inline-flex items-center gap-1 text-caption text-[var(--color-error)] bg-transparent border-0 cursor-pointer px-2 py-1 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] transition active:scale-95 font-sans"
+          className="rounded-[var(--radius-pill)] font-sans text-caption"
         >
           {deleteLabel}
-        </button>
+        </Button>
       )}
       {onCancel && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onCancel}
-          className="inline-flex items-center gap-1 text-caption text-[var(--color-text-muted-48)] bg-transparent border-0 cursor-pointer px-2 py-1 rounded-[var(--radius-pill)] hover:bg-[var(--color-divider-soft)] transition active:scale-95 font-sans"
+          className="rounded-[var(--radius-pill)] font-sans text-caption text-[var(--color-text-muted-48)]"
         >
           取消
-        </button>
+        </Button>
       )}
     </span>
   );
