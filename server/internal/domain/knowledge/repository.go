@@ -1,8 +1,8 @@
-// Package repository 提供知识库的数据访问层。
+// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
 //
-// KnowledgeRepo 封装 knowledge_bases、knowledge_articles、knowledge_chunks
+// repository.go 封装 knowledge_bases、knowledge_articles、knowledge_chunks
 // 三张表的 CRUD 操作，供 KnowledgeService 调用。
-package repository
+package knowledge
 
 import (
 	"context"

@@ -14,23 +14,27 @@ import (
 
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
-	"opsmind/internal/handler"
+	"opsmind/internal/domain/chat"
+	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/ticket"
+	"opsmind/internal/domain/user"
 	"opsmind/internal/infra/middleware"
 )
 
 // Handlers 聚合所有 Handler 实例，供路由注册使用。
 type Handlers struct {
-	Auth      *handler.AuthHandler
-	User      *handler.UserHandler
-	Role      *handler.RoleHandler
-	Knowledge *handler.KnowledgeHandler
-	Ticket    *handler.TicketHandler
-	Chat      *handler.ChatHandler
-	Message   *handler.MessageHandler
-	Dashboard *handler.DashboardHandler
-	Audit     *handler.AuditHandler
-	Config    *handler.ConfigHandler
-	LLMConfig *handler.LLMConfigHandler
+	Auth      *user.AuthHandler
+	User      *user.UserHandler
+	Role      *user.RoleHandler
+	Knowledge *knowledge.KnowledgeHandler
+	Ticket    *ticket.TicketHandler
+	Chat      *chat.ChatHandler
+	Message   *system.MessageHandler
+	Dashboard *system.DashboardHandler
+	Audit     *system.AuditHandler
+	Config    *system.ConfigHandler
+	LLMConfig *chat.LLMConfigHandler
 }
 
 // Setup 初始化 Gin 引擎并注册所有路由。
