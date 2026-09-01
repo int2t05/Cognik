@@ -6,6 +6,7 @@ import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
@@ -105,13 +106,17 @@ export default function KnowledgeListPage() {
           <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
           <div>
             <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
-            <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"
-              className="w-full h-9 px-3 text-body rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none cursor-pointer transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
-              <option value="">默认（跟随系统配置）</option>
-              {embeddingOptions.map((c) => (
-                <option key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</option>
-              ))}
-            </select>
+            <Select value={kbEmbeddingModel} onValueChange={setKbEmbeddingModel}>
+              <SelectTrigger aria-label="Embedding 模型" className="w-full h-9 rounded-[var(--radius-pill)]">
+                <SelectValue placeholder="默认（跟随系统配置）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">默认（跟随系统配置）</SelectItem>
+                {embeddingOptions.map((c) => (
+                  <SelectItem key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>

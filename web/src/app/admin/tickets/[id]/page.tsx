@@ -12,6 +12,7 @@ import {
 import { getKBList } from '@/lib/api/knowledge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -132,19 +133,19 @@ export default function AdminTicketDetailPage() {
       <Card className="mb-5">
         <h2 className="mb-3 text-title font-semibold">生成知识候选</h2>
         <div className="flex items-end gap-3">
-          <select
-            value={kbId}
-            onChange={(e) => setKbId(Number(e.target.value))}
-            aria-label="选择知识库"
-            className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)]"
-          >
-            <option value={0}>选择知识库...</option>
-            {(kbs || []).map((kb) => (
-              <option key={kb.id} value={kb.id}>
-                {kb.name}
-              </option>
-            ))}
-          </select>
+          <Select value={String(kbId)} onValueChange={(v) => setKbId(Number(v))}>
+            <SelectTrigger aria-label="选择知识库" className="rounded-[var(--radius-pill)]">
+              <SelectValue placeholder="选择知识库..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">选择知识库...</SelectItem>
+              {(kbs || []).map((kb) => (
+                <SelectItem key={kb.id} value={String(kb.id)}>
+                  {kb.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />生成</Button>
         </div>
       </Card>

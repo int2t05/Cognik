@@ -4,6 +4,7 @@ import { useState, useId } from 'react';
 import { getAuditLogs, batchDeleteAuditLogs } from '@/lib/api/audit';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -43,15 +44,15 @@ export default function AuditLogPage() {
       </div>
       <div className="flex gap-2 mb-4 flex-wrap items-end">
         <div><label htmlFor={idOp} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">操作人</label>
-          <input id={idOp} placeholder="ID" type="number" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-24 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('operator_id', e.target.value)} /></div>
+          <Input id={idOp} placeholder="ID" type="number" className="h-8 w-24" onChange={(e) => updateParam('operator_id', e.target.value)} /></div>
         <div><label htmlFor={idAct} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">操作</label>
-          <input id={idAct} placeholder="类型" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-28 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('action', e.target.value)} /></div>
+          <Input id={idAct} placeholder="类型" className="h-8 w-28" onChange={(e) => updateParam('action', e.target.value)} /></div>
         <div><label htmlFor={idType} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">对象</label>
-          <input id={idType} placeholder="类型" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-24 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('target_type', e.target.value)} /></div>
+          <Input id={idType} placeholder="类型" className="h-8 w-24" onChange={(e) => updateParam('target_type', e.target.value)} /></div>
         <div><label htmlFor={idFrom} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">开始</label>
-          <input id={idFrom} type="date" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-32 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('date_from', e.target.value)} /></div>
+          <Input id={idFrom} type="date" className="h-8 w-32" onChange={(e) => updateParam('date_from', e.target.value)} /></div>
         <div><label htmlFor={idTo} className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">结束</label>
-          <input id={idTo} type="date" className="h-8 px-2.5 text-fine rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] w-32 outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" onChange={(e) => updateParam('date_to', e.target.value)} /></div>
+          <Input id={idTo} type="date" className="h-8 w-32" onChange={(e) => updateParam('date_to', e.target.value)} /></div>
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
       {!error && data?.items?.length === 0 ? (

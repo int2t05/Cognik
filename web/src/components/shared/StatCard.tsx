@@ -1,6 +1,7 @@
-/** StatCard — 看板统计卡片，支持图标和环比趋势指示。 */
+/** StatCard — 看板统计卡片，支持图标和环比趋势指示。基于 shadcn Card。 */
 import { type ReactNode } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 export function StatCard({
   label,
@@ -15,13 +16,13 @@ export function StatCard({
   delta?: number;
 }) {
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 transition-all hover:bg-[var(--color-tile-1)] hover:-translate-y-px">
-      <div className="flex items-center gap-2 mb-3">
+    <Card className="!p-5 transition-all hover:bg-[var(--color-tile-1)] hover:-translate-y-px">
+      <div className="flex items-center gap-2 mb-2">
         {icon && <span className="text-[var(--color-text-muted-48)]">{icon}</span>}
         <span className="text-caption font-normal text-[var(--color-text-muted-48)]">{label}</span>
       </div>
       <div className="flex items-baseline gap-2.5">
-        <span className="text-metric font-semibold text-[var(--color-ink)] leading-none">{value}</span>
+        <span className="font-semibold text-[var(--color-ink)] leading-none" style={{ fontSize: 'var(--font-size-metric)' }}>{value}</span>
         {delta !== undefined && (
           <span className={`inline-flex items-center gap-0.5 text-fine font-semibold ${
             delta > 0 ? 'text-[var(--color-success)]' : delta < 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-text-muted-48)]'
@@ -31,6 +32,6 @@ export function StatCard({
           </span>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

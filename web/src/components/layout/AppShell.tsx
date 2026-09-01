@@ -159,7 +159,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
             {subbar}
           </div>
         )}
-        <main className={`flex-1 min-h-0 w-full ${padded ? 'p-6 max-w-wide mx-auto' : ''}`}>
+        <main className={`flex-1 min-h-0 w-full overflow-hidden ${padded ? 'max-w-wide mx-auto' : ''}`}>
           <SectionErrorBoundary>{children}</SectionErrorBoundary>
         </main>
       </div>

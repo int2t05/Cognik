@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResult } from '@/lib/api/config';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
@@ -48,12 +50,17 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
       {editing ? (
         <>
           {type === 'bool' ? (
-            <select value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]">
-              <option value="true">开启</option>
-              <option value="false">关闭</option>
-            </select>
+            <Select value={val} onValueChange={setVal}>
+              <SelectTrigger className="flex-1 h-9 rounded-[var(--radius-pill)]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">开启</SelectItem>
+                <SelectItem value="false">关闭</SelectItem>
+              </SelectContent>
+            </Select>
           ) : (
-            <input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" />
+            <Input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9" />
           )}
           <Button variant="ghost" size="sm" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
         </>
@@ -108,10 +115,14 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
     <div className="mb-3">
       <div className="flex items-center gap-3">
         <span className="text-caption font-semibold text-[var(--color-ink)] w-[140px] shrink-0">自动计算阈值</span>
-        <select value={days} onChange={e => setDays(Number(e.target.value))}
-          className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none">
-          {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>近 {d} 天</option>)}
-        </select>
+        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+          <SelectTrigger className="h-9 rounded-[var(--radius-lg)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[7, 14, 30, 60, 90].map(d => <SelectItem key={d} value={String(d)}>近 {d} 天</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Button variant="ghost" size="sm" disabled={computing}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}计算</Button>
       </div>
       {result && (
