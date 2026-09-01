@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Send, Loader2 } from 'lucide-react';
 
@@ -65,7 +66,7 @@ export default function TicketSubmitPage() {
       toast.success('申告提交成功');
       router.push('/portal/tickets');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '提交失败');
+      toast.error(errorMessage(err, '提交失败'));
     } finally {
       setSubmitting(false);
     }

@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { errorMessage } from '@/lib/api/error';
 
 type Id = number | string;
 
@@ -60,7 +61,7 @@ export function useBatchSelection<T extends { id: Id }>({
       setSelectedIds(new Set());
       onMutate();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '删除失败';
+      const msg = errorMessage(err, '删除失败');
       onError?.(msg);
     } finally {
       setDeleting(false);

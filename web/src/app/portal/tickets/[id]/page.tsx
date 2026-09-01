@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { useState } from 'react';
 import { ChevronLeft, Send, Pencil, X, Check, Loader2 } from 'lucide-react';
 
@@ -42,7 +43,7 @@ export default function TicketDetailPage() {
       setSupplement('');
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '提交失败');
+      toast.error(errorMessage(err, '提交失败'));
     } finally { setSending(false); }
   };
 
@@ -72,7 +73,7 @@ export default function TicketDetailPage() {
       setEditing(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : '更新失败');
+      toast.error(errorMessage(err, '更新失败'));
     } finally { setSending(false); }
   };
 

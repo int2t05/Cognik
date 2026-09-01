@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { useRouter } from 'next/navigation';
 import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
@@ -44,7 +45,7 @@ export default function KnowledgeListPage() {
       else { await createKB(payload); toast.success('已创建'); }
       setShowCreate(false); setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel('');
       mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
     finally { setSaving(false); }
   };
 
@@ -60,7 +61,7 @@ export default function KnowledgeListPage() {
       toast.success('已删除');
       setDeleteTarget(null);
       mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '删除失败')); }
     finally { setDeleting(false); }
   };
 

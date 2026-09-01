@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { InlineError } from '@/components/shared/InlineError';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { formatDate } from '@/lib/date';
 import { UserPlus, Pencil, Lock, Unlock, Loader2 } from 'lucide-react';
 
@@ -56,13 +57,13 @@ export default function UserListPage() {
         toast.success('已创建');
       }
       setShowCreate(false); setEditUser(null); mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
     finally { setSaving(false); }
   };
 
   const handleFreeze = async () => {
     if (!confirmFreeze) return;
-    try { if (confirmFreeze.freeze) await freezeUser(confirmFreeze.id); else await unfreezeUser(confirmFreeze.id); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '操作失败'); }
+    try { if (confirmFreeze.freeze) await freezeUser(confirmFreeze.id); else await unfreezeUser(confirmFreeze.id); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); }
     finally { setConfirmFreeze(null); }
   };
 

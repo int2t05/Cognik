@@ -8,6 +8,7 @@ import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
 import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
@@ -65,9 +66,9 @@ export default function DashboardPage() {
       const parsed = JSON.parse(jsonStr) as FeedbackAnalysis;
       setAnalysis(parsed);
       toast.success('分析完成');
-    } catch (e) {
-      setAnalysisError(e instanceof Error ? e.message : '分析失败');
-      toast.error('分析失败，请重试');
+    } catch (err: unknown) {
+      setAnalysisError(errorMessage(err, '分析失败'));
+      toast.error(errorMessage(err, '分析失败，请重试'));
     } finally {
       setAnalyzing(false);
     }

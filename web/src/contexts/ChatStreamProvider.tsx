@@ -168,7 +168,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
     try {
       const resp = await fetch(streamUrl(sessionId), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ question }), signal: ctrl.signal });
       await consume(sessionId, resp, onError);
-    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { onError(e.message || '请求失败'); patch(sessionId, s => ({ ...s, status: 'error' })); } }
+    } catch (err: unknown) { if (err instanceof Error && err.name !== 'AbortError') { onError(err.message || '请求失败'); patch(sessionId, s => ({ ...s, status: 'error' })); } }
     return sessionId;
   }, [patch, consume]);
 
@@ -179,7 +179,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
       const resp = await fetch(resumeUrl(id, since), { headers: { Authorization: `Bearer ${authToken}` }, signal: ctrl.signal });
       if (resp.status === 404) return;
       await consume(id, resp);
-    } catch (e: unknown) { if (e instanceof Error && e.name !== 'AbortError') { /* 续传失败静默 */ } }
+    } catch (err: unknown) { if (err instanceof Error && err.name !== 'AbortError') { /* 续传失败静默 */ } }
   }, [consume]);
 
   const cancel: Store['cancel'] = useCallback(async (id) => {

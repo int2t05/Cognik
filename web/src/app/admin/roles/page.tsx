@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api/error';
 import { ShieldPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
@@ -59,13 +60,13 @@ export default function RoleManagePage() {
         await createRole({ name, description: desc, permissions: perms });
       }
       toast.success(editId ? '已更新' : '已创建'); setShowDialog(false); mutate();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : '保存失败'); }
+    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     try { await deleteRole(deleteId!); toast.success('已删除'); mutate(); }
-    catch (err: unknown) { toast.error(err instanceof Error ? err.message : '删除失败'); }
+    catch (err: unknown) { toast.error(errorMessage(err, '删除失败')); }
     finally { setDeleteId(null); }
   };
 
