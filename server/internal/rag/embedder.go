@@ -12,7 +12,7 @@ import (
 	"context"
 	"fmt"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // Embedder 批量文本向量化器。

@@ -9,9 +9,9 @@ import (
 	"errors"
 	"encoding/json"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

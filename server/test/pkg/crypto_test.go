@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/pkg/crypto"
+	"opsmind/internal/shared/pkg/crypto"
 )
 
 const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"

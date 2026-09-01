@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"opsmind/internal/adapter"
-	"opsmind/internal/storage"
+	"opsmind/internal/infra/adapter"
+	"opsmind/internal/infra/storage"
 )
 
 // defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。

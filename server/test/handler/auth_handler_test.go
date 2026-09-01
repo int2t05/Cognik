@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
 	"opsmind/internal/handler"
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/shared/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

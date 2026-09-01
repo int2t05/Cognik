@@ -7,10 +7,10 @@ package handler
 import (
 	"strconv"
 
-	dto "opsmind/internal/dto/response"
+	dto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/service"
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/response"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

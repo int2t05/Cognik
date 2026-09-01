@@ -16,12 +16,12 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	respDto "opsmind/internal/dto/response"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	respDto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/handler"
-	"opsmind/internal/middleware"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/middleware"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
 

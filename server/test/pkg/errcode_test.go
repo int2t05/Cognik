@@ -6,7 +6,7 @@ package pkg_test
 import (
 	"testing"
 
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 )
 
 // TestErrCodeValues 测试错误码值是否符合分段约定

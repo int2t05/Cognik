@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/adapter"
-	"opsmind/internal/dto/request"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/adapter"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
 )

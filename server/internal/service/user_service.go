@@ -11,13 +11,13 @@ import (
 	"regexp"
 	"strings"
 
-	"opsmind/internal/cache"
-	"opsmind/internal/dto/request"
-	"opsmind/internal/dto/response"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/cache"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/dto/response"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/hash"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/hash"
 
 	"gorm.io/gorm"
 )

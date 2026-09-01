@@ -4,7 +4,7 @@ package repository
 import (
 	"context"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
 )

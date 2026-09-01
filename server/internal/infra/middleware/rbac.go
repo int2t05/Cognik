@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/pkg/errcode"
-	"opsmind/internal/pkg/response"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

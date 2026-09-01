@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
 )

@@ -5,8 +5,8 @@ package database_test
 import (
 	"testing"
 
-	"opsmind/internal/database"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/model"
 )
 
 // TestAutoMigrate_AllTablesCreated 验证 AutoMigrate 创建所有 16 张表

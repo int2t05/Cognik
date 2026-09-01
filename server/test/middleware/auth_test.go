@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/middleware"
-	pkgjwt "opsmind/internal/pkg/jwt"
+	"opsmind/internal/infra/middleware"
+	pkgjwt "opsmind/internal/shared/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

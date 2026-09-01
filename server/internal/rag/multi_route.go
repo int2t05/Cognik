@@ -22,7 +22,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 )
 
 // MultiRoute 使用 LLM 从不同角度生成多个子查询。

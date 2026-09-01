@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

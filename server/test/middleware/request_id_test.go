@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"opsmind/internal/middleware"
+	"opsmind/internal/infra/middleware"
 )
 
 func setupRequestIDRouter() *gin.Engine {

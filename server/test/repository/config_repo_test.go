@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
-	"opsmind/internal/model"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 
 	"gorm.io/datatypes"

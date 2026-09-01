@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
-	"opsmind/internal/config"
-	"opsmind/internal/database"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
 	"opsmind/internal/repository"
 
 	"gorm.io/gorm"

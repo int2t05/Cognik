@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"opsmind/internal/config"
+	"opsmind/internal/infra/config"
 )
 
 // TestLoad_DefaultValues 验证从 config.yaml 加载默认值

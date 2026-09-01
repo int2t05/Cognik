@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"opsmind/internal/pkg/errcode"
+	"opsmind/internal/shared/pkg/errcode"
 )
 
 // Response 统一响应结构

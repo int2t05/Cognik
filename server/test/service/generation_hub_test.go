@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/runtime"
+	"opsmind/internal/infra/runtime"
 	"opsmind/internal/service"
 )
 

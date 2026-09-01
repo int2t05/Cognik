@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"opsmind/internal/config"
+	"opsmind/internal/infra/config"
 )
 
 // Init 初始化数据库连接。

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 	"opsmind/internal/repository"
 	"opsmind/internal/service"
-	"opsmind/internal/pkg/crypto"
+	"opsmind/internal/shared/pkg/crypto"
 )
 
 const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"

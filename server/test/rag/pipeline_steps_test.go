@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 	"opsmind/internal/rag"
 )
 

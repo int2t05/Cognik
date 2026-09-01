@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/middleware"
+	"opsmind/internal/infra/middleware"
 
 	"github.com/gin-gonic/gin"
 )

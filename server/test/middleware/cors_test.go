@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"opsmind/internal/middleware"
+	"opsmind/internal/infra/middleware"
 )
 
 // setupRouter 创建用于测试的 Gin 路由

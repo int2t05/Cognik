@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/adapter"
+	"opsmind/internal/infra/adapter"
 	"opsmind/internal/rag"
 )
 

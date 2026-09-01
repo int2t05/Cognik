@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"opsmind/internal/middleware"
+	"opsmind/internal/infra/middleware"
 )
 
 // setupLoggerTest 创建带 Logger 中间件的测试路由，替换 slog 默认 handler 为写入 buf。

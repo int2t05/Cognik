@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/model"
+	"opsmind/internal/shared/model"
 )
 
 // TestMessage_Fields 验证 Message 模型字段定义

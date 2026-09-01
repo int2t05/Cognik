@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/adapter"
-	"opsmind/internal/config"
-	"opsmind/internal/database"
+	"opsmind/internal/infra/adapter"
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
 	"opsmind/internal/rag"
 
 	"gorm.io/gorm"
