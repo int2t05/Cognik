@@ -6,14 +6,6 @@
 
 <p align="center"><strong>私有部署的 AI 运维数字员工</strong><br>让每家企业拥有自己的智能运维助手</p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go" alt="Go">
-  <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs" alt="Next.js">
-  <img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Docker-blue?logo=docker" alt="Docker">
-</p>
-
 ---
 
 ## 这是什么？
@@ -90,11 +82,11 @@ graph TB
 
 ## 快速开始
 
-**前置条件：** Docker + Docker Compose v2 · 8 GB 内存 · 10 GB 磁盘
+**前置条件：** Docker + Docker Compose · 8 GB 内存 · 10 GB 磁盘
 
 ```bash
 git clone https://github.com/int2t05/OpsMind.git && cd OpsMind
-copy .env.example .env
+cp .env.example .env
 # 编辑 .env：设置 JWT_SECRET（必填）和 LLM 配置
 docker compose up -d --build
 ```
@@ -163,19 +155,33 @@ stateDiagram-v2
 OpsMind/
 ├── server/                  # Go 后端（Gin + GORM）
 │   ├── internal/
+│   │   ├── adapter/         # LLM / Embedding / VectorStore / StorageClient
+│   │   ├── cache/           # 内存缓存
+│   │   ├── config/          # Viper 配置
+│   │   ├── database/        # AutoMigrate + 连接管理
+│   │   ├── dto/             # 请求/响应传输对象
 │   │   ├── handler/         # HTTP Handler（11 个 API 域）
-│   │   ├── service/         # 业务逻辑 + 状态机
-│   │   ├── rag/             # 自建 RAG 引擎（12 个模块）
-│   │   ├── adapter/         # LLM / Embedding / pgvector / MinIO
-│   │   └── middleware/      # JWT / RBAC / CORS
+│   │   ├── log/             # 结构化日志
+│   │   ├── middleware/      # JWT / RBAC / CORS / Logger
+│   │   ├── model/           # GORM 模型 + 枚举
+│   │   ├── rag/             # 自建 RAG 引擎
+│   │   ├── repository/      # 数据访问层（11 个 Repository）
+│   │   ├── router/          # 路由注册
+│   │   └── service/         # 业务逻辑 + 状态机
+│   ├── cmd/                 # 入口 main.go
 │   ├── migrations/          # DDL + 种子数据
-│   └── tests/               # Go 集成测试
+│   ├── models/              # rerank 模型文件
+│   ├── pkg/                 # jwt / hash / crypto / response / errcode
+│   ├── test/                # Go 集成测试（外部测试包）
+│   └── rerank_server.py     # Python 重排序服务
 ├── web/                     # Next.js 前端
 │   └── src/
-│       ├── app/             # App Router（portal / admin）
-│       ├── components/      # UI 组件 + 布局
-│       └── lib/api/         # API 客户端
-├── docs/                    # PRD / TECH / API 文档
+│       ├── app/             # App Router + globals.css（Apple Design Tokens）
+│       ├── components/      # UI 组件 + 布局 + 复合组件
+│       ├── contexts/        # React Context（ChatStreamProvider）
+│       ├── hooks/           # 自定义 Hooks（11 个）
+│       └── lib/api/         # API 客户端（11 个模块）
+├── docs/                    # PRD / TECH / API / FLOW 文档
 ├── test/                    # 验收测试文档与数据
 └── docker-compose.yml
 ```
@@ -191,34 +197,7 @@ OpsMind/
 
 ## 路线图
 
-> 完整改进清单见 [`docs/TODO.md`](docs/TODO.md)。以下为已规划的演进方向。
-
-### 2026 H2 — 产品能力
-
-| 方向 | 说明 |
-|------|------|
-| **本地 Agent** | 支持在线深度搜索，智能化收集运维数据 |
-| **知识库模板系统** | 常见运维场景（新员工入职、设备申领）一键创建知识库结构 |
-| **看板增强** | 自定义日期范围、数据导出 |
-| **申告满意度评价** | 闭环反馈机制 |
-
-### 架构演进
-
-| 方向 | 优先级 | 说明 |
-|------|--------|------|
-| **BM25 索引增量更新** | 🟡 P2 | 全量重建 → 增量更新，支撑大规模文档 |
-| **文档处理器重试 + 死信队列** | 🟡 P2 | embedding API 瞬时失败自动重试，持久失败入死信 |
-| **DOCX/PDF 流式解析** | 🟡 P2 | 替代全量读入内存，消除大文件 OOM 风险 |
-| **前端代码分割** | 🟡 P2 | `next/dynamic` 按路由懒加载，优化首屏加载 |
-| **上传上限配置化** | 🟡 P2 | 50MB 硬编码改为按 KB 粒度可配置 |
-
-### 2027 — 生态扩展
-
-| 方向 | 说明 |
-|------|------|
-| **外部 ITSM 对接** | Jira Service Management、ServiceNow 等 |
-| **自然语言转 SQL** | 非技术人员直接查询运维数据 |
-| **知识库覆盖度分析** | 识别高频未命中问题，指导知识补充 |
+产品路线图与技术债务清单见 [`docs/TODO.md`](docs/TODO.md)。
 
 ## 贡献
 

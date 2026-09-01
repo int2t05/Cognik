@@ -46,7 +46,7 @@ test: 添加申告状态机测试
 ```bash
 # Go 集成测试（需 PostgreSQL + pgvector）
 cd server
-go test ./tests/... -v -tags=integration -p 1
+go test ./test/... -v -tags=integration -p 1
 
 # 前端 E2E 测试（Playwright）
 cd web
