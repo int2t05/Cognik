@@ -32,7 +32,7 @@ interface MenuItem { id: number; name: string; path: string; icon: string; paren
 
 function unreadBadge(count: number) {
   return count > 0 ? (
-    <span className="bg-[var(--color-error)] text-[var(--color-canvas)] min-w-[16px] h-4 px-1 text-[10px] leading-none rounded-full flex items-center justify-center">
+    <span className="bg-[var(--color-error)] text-[var(--color-canvas)] min-w-[16px] h-4 px-1 text-fine leading-none rounded-full flex items-center justify-center">
       {count > 99 ? '99+' : count}
     </span>
   ) : undefined;

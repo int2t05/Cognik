@@ -1,8 +1,8 @@
 'use client';
-// DataTablePagination — 分页器 + 页大小选择，基于 shadcn Pagination + Select（Radix，键盘可达）。
+// DataTablePagination — GitHub 风格分页：居中页码导航 + 左侧计数 + 右侧页大小。
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface DataTablePaginationProps {
   page: number;
@@ -38,67 +38,68 @@ export function DataTablePagination({
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
 
+  // 页码按钮基础样式 — GitHub 风格：无边框、方形、hover 静音背景
+  const btnBase = 'inline-flex items-center justify-center min-w-[28px] h-7 px-2 text-caption rounded-[var(--radius-sm)] transition-colors';
+  const btnIdle = 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)]';
+  const btnActive = 'bg-[var(--color-tile-1)] text-[var(--color-ink)] font-medium';
+  const btnDisabled = 'pointer-events-none opacity-30';
+
   return (
-    <div className="flex items-center justify-between flex-wrap gap-3 py-3">
-      <span className="text-fine text-[var(--color-text-muted-48)]">第 {start}-{end} / {total} 条</span>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-fine text-[var(--color-text-muted-48)]">每页</span>
-          <Select value={String(pageSize)} onValueChange={(v) => onChange(1, Number(v))}>
-            <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map((n) => (
-                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Pagination className="mx-0 w-auto justify-end">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationLink
-                size="icon"
-                href="#"
-                aria-label="上一页"
-                aria-disabled={page <= 1}
-                className={page <= 1 ? 'pointer-events-none opacity-40' : ''}
-                onClick={(e) => { e.preventDefault(); if (page > 1) onChange(page - 1, pageSize); }}
-              >
-                <ChevronLeft className="size-4" />
-              </PaginationLink>
-            </PaginationItem>
-            {visible.map((p, i) =>
-              p === 0 ? (
-                <PaginationItem key={`e${i}`}><PaginationEllipsis /></PaginationItem>
-              ) : (
-                <PaginationItem key={p}>
-                  <PaginationLink
-                    size="icon"
-                    href="#"
-                    isActive={p === page}
-                    aria-label={`第 ${p} 页`}
-                    onClick={(e) => { e.preventDefault(); onChange(p, pageSize); }}
-                  >
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>
-              )
-            )}
-            <PaginationItem>
-              <PaginationLink
-                size="icon"
-                href="#"
-                aria-label="下一页"
-                aria-disabled={page >= totalPages}
-                className={page >= totalPages ? 'pointer-events-none opacity-40' : ''}
-                onClick={(e) => { e.preventDefault(); if (page < totalPages) onChange(page + 1, pageSize); }}
-              >
-                <ChevronRight className="size-4" />
-              </PaginationLink>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+    <div className="flex items-center py-2.5 px-6">
+      {/* 左：计数 + 页大小 */}
+      <div className="flex items-center gap-3 flex-1">
+        <span className="text-fine text-[var(--color-text-muted-48)]">
+          第 {start}-{end} 条，共 {total} 条
+        </span>
+        <Select value={String(pageSize)} onValueChange={(v) => onChange(1, Number(v))}>
+          <SelectTrigger className="h-8 w-[68px] text-caption"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {pageSizeOptions.map((n) => (
+              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* 中：页码导航（居中，右侧 flex-1 平衡） */}
+      <div className="flex items-center gap-0.5 justify-center">
+        <button
+          type="button"
+          aria-label="上一页"
+          disabled={page <= 1}
+          onClick={() => page > 1 && onChange(page - 1, pageSize)}
+          className={cn(btnBase, 'w-7', page <= 1 ? btnDisabled : btnIdle)}
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        {visible.map((p, i) =>
+          p === 0 ? (
+            <span key={`e${i}`} className={cn(btnBase, 'pointer-events-none')}>…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p, pageSize)}
+              aria-current={p === page ? 'page' : undefined}
+              className={cn(btnBase, p === page ? btnActive : btnIdle)}
+            >
+              {p}
+            </button>
+          )
+        )}
+        <button
+          type="button"
+          aria-label="下一页"
+          disabled={page >= totalPages}
+          onClick={() => page < totalPages && onChange(page + 1, pageSize)}
+          className={cn(btnBase, 'w-7', page >= totalPages ? btnDisabled : btnIdle)}
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+
+      {/* 右：平衡占位（与左侧 flex-1 对称，使中间居中） */}
+      <div className="flex-1" />
     </div>
   );
 }

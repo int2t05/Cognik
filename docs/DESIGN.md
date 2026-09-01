@@ -1,67 +1,67 @@
-# OpsMind 前端设计系统 — shadcn/ui × Apple Design（方向 C）
+# OpsMind 前端设计系统 — shadcn/ui
 
-> 重构分支：`v1.0`。将原 11 个手写 `Apple*` 组件全部替换为 shadcn/ui（Radix + Tailwind v4），统一为方向 C AppShell（顶栏品牌+⌘K + 分区侧栏），保留 Apple Design 视觉语言。
+> 组件库统一：shadcn/ui（Radix + Tailwind v4）+ 统一 AppShell。UI 层无手写组件。
 
 ## 1. 设计目标
 
-- **组件库统一**：采用 shadcn/ui（组件代码生成进仓库，非黑盒依赖），消除手写 `Apple*` 维护负担。
-- **风格不变**：Apple Design token（`#0066cc` 品牌、parchment 画布、17px 正文、亮暗双主题、负 letter-spacing 标题）原样保留。
-- **方向 C**：顶栏（品牌+折叠钮+主题+跨跳+账号）+ 可折叠侧栏（分区 nav）+ ⌘K 全局命令面板。Portal/Admin 共用单一 `AppShell`，消除原双 shell 割裂。
+- **组件库统一**：采用 shadcn/ui（组件代码生成进仓库，非黑盒依赖），UI 层无手写组件。
+- **专业工具风格**：对齐 Linear / Vercel / GitHub——正文 13px 高信息密度、中性灰阶、靛蓝强调色、中性小圆角、克制阴影。
+- **统一 Shell**：顶栏（品牌+内联全局搜索+主题+账号）+ 可折叠侧栏（分区 nav）+ main。Portal/Admin 共用单一 `AppShell`。
 
-## 2. Token 映射（shadcn 语义 → Apple Design）
+## 2. Token 映射（shadcn 语义 → 项目 Token）
 
-`globals.css` 中 shadcn 语义 token 映射到 Apple 原始 token，`@theme inline` 暴露为 Tailwind utility：
+`globals.css` 中 shadcn 语义 token 映射到项目设计 token，`@theme inline` 暴露为 Tailwind utility：
 
 | shadcn token | 映射到 | 说明 |
 |---|---|---|
-| `--primary` / `--color-primary` | `var(--color-accent)` #0066cc | 品牌色 = shadcn primary（`bg-primary` 即品牌蓝） |
-| `--accent` / `--color-accent` | `var(--color-tile-1)` #f0f0f2 | 静音 hover bg（Radix accent 概念，非品牌） |
-| `--background` | `var(--color-parchment)` | 页面画布 |
-| `--card` / `--popover` | `var(--color-canvas)` | 卡片/弹层白底 |
-| `--border` / `--input` | `var(--color-hairline)` | 发丝边 |
+| `--primary` / `--color-primary` | `var(--color-accent)` #5b5bd6 | 强调色 = shadcn primary |
+| `--accent` / `--color-accent` | `var(--color-tile-1)` #f4f4f5 | 静音 hover bg（Radix accent 概念） |
+| `--background` | `var(--color-parchment)` #fafafa | 页面画布 |
+| `--card` / `--popover` | `var(--color-canvas)` #ffffff | 卡片/弹层白底 |
+| `--border` / `--input` | `var(--color-hairline)` #e4e4e7 | 分割线 |
 | `--ring` | `var(--color-accent-focus)` | 聚焦环 |
-| `--destructive` | `var(--color-error)` | 危险红 |
+| `--destructive` | `var(--color-error)` #dc2626 | 危险红 |
 | `--muted` / `--secondary` | `var(--color-tile-1)` | 静音瓦片 |
-| radius | `--radius-lg`=18px / `--radius-md`=11px / `--radius-sm`=8px | 复用 Apple 半径，shadcn `rounded-lg` 自动 18px |
+| radius | `--radius-lg`=10px / `--radius-md`=8px / `--radius-sm`=6px | 中性小圆角 |
 
-**冲突处理**：shadcn `--accent`（静音）≠ 项目 `--color-accent`（品牌）。`@theme inline` 的 `--color-accent` 被 `:root` 品牌色覆盖，故 `bg-accent` 运行时解析为品牌色（Apple 风格 hover 淡蓝），非 shadcn 默认静音灰。
+**暗色**：`@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))`，对齐项目 `data-theme` 属性。主题 cookie 预读在 root layout 服务端（防 FOUC）。
 
-**暗色**：`@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))`，对齐项目 `data-theme` 属性（非 shadcn 默认 `.dark` class）。主题 cookie 预读在 root layout 服务端（防 FOUC）。
+**字体**：`@theme` 块声明 `--font-sans` / `--font-mono`，使 Tailwind `font-sans` / `font-mono` utility 自动映射到项目字体变量。`font-sans` = `system-ui, -apple-system, 'Segoe UI', 'Inter Variable', sans-serif`。
 
 ## 3. 组件库
 
 ### 基础组件（shadcn 标准生成）
-button / card / input / textarea / label / table / dialog / badge / tabs / select / dropdown-menu / sheet / tooltip / command / pagination / toggle / skeleton / sonner。
+button / card / input / textarea / label / table / dialog / badge / tabs / select / dropdown-menu / sheet / tooltip / command / pagination / toggle / skeleton / sonner / checkbox / separator / breadcrumb / avatar / scroll-area。
 
-### 定制（设计系统配置，非 shim）
+### 定制（设计系统配置）
 | 组件 | 定制 |
 |---|---|
 | `badge.tsx` | 扩展 cva 加 5 语义 variant（success/warning/error/info/neutral），映射 `--badge-*-bg/text`，颜色+图标双编码 |
-| `toggle.tsx` | 加 `pill` variant + `pill-md`/`pill-sm` size，复刻 Apple segmented-control（pill 圆角+border+选中品牌色填充白字） |
-| `button.tsx` | base `rounded-full`（Apple 全 pill）+ 加 `menu` variant（导航栏，ink 文字）+ `active:scale-95` |
-| `skeleton.tsx` | base 用 `skeleton-shimmer`（Apple 扫光动画，非 shadcn 默认 pulse）+ radius-lg |
-| `card.tsx` | Card base 改 Apple 等价（18px radius + hairline border + canvas bg + p-6，去 flex/gap/shadow） |
-| `dialog.tsx` | DialogContent `bg-background` → `bg-card`（dialog 内容用 canvas 白） |
-| `sonner.tsx` | 用 `@/hooks/useTheme`（非 next-themes），配置 top-right/richColors/closeButton/visibleToasts=3 |
+| `toggle.tsx` | 加 `pill` variant + `pill-md`/`pill-sm` size，用于 segmented control / 筛选 |
+| `button.tsx` | base `rounded-md` + 加 `menu` variant（导航栏，ink 文字） |
+| `skeleton.tsx` | base 用 `skeleton-shimmer`（扫光动画，非默认 pulse） |
+| `card.tsx` | Card base：10px radius + hairline border + canvas bg + p-6 |
+| `dialog.tsx` | DialogContent `bg-card`，overlay 用 `var(--color-overlay)` |
+| `sonner.tsx` | 用 `@/hooks/useTheme`，配置 top-right/richColors/closeButton/visibleToasts=3 |
+| `data-table-pagination.tsx` | GitHub 风格分页：居中页码导航 + 左侧计数 + 右侧页大小 |
 
 ### 新建组件
 | 组件 | 说明 |
 |---|---|
-| `lib/utils.ts` `cn()` | clsx + tailwind-merge，shadcn 标准入口（项目首个 cn，替代手写 filter(Boolean).join） |
-| `form-field.tsx` `Field` | Label+children+error 容器，useId+cloneElement 注入 id/aria，保持 label-input-error a11y 关联（替代 AppleInput 内聚） |
-| `data-table.tsx` `DataTable` | shadcn Table + TanStack Table v9（useTable+tableFeatures+table.FlexRender），内置 skeleton/empty 态 |
-| `data-table-pagination.tsx` | shadcn Pagination + Select 页大小，保留 getVisiblePages 椭圆逻辑 |
+| `lib/utils.ts` `cn()` | clsx + tailwind-merge，类名合并标准入口 |
+| `form-field.tsx` `Field` | Label+children+error 容器，useId+cloneElement 注入 id/aria |
+| `data-table.tsx` `DataTable` | shadcn Table + TanStack Table v9，内置 skeleton/empty 态 |
+| `data-table-pagination.tsx` | 分页器 + Select 页大小 |
 
-## 4. AppShell（方向 C 统一 Shell）
+## 4. AppShell
 
 `components/layout/AppShell.tsx`：Portal/Admin 共用。
-- **顶栏**：折叠钮 + 主题切换 + 跨跳（Portal→Admin / Admin→Portal）+ AccountSwitcher
-- **侧栏**：可折叠（68/240px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
-- **main**：max-w-wide 居中 + SectionErrorBoundary
-- **⌘K**：GlobalCommand（shadcn CommandDialog + cmdk），客户端过滤导航 + 快捷操作（主题/跨跳），AppShell 自动从 nav 构造 groups
+- **顶栏**：品牌 + 内联全局搜索（输入即时过滤导航+快捷操作，⌘K 聚焦）+ 主题切换 + 跨跳 + AccountSwitcher
+- **侧栏**：可折叠（68/220px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
+- **main**：`flex-1 min-h-0 overflow-hidden`，内容由页面自行管理 padding 和滚动
 
-`PortalLayout`：静态 NAV（含消息未读 badge）→ AppShell，Portal 首次获得侧栏。
-`AdminLayout`：`useAuth().menus` → NavItem（ICON_MAP/FRONTEND_ROUTES 保留，去重）→ AppShell。
+`PortalLayout`：静态 NAV（用户菜单 + 消息未读 badge）+ 管理员条件渲染管理分区（来自 `useAuth().menus`，`hasAdminAccess` 判断）。
+`AdminLayout`：复用 PortalLayout（管理员分区由权限自动渲染）。
 
 ## 5. Toast
 
@@ -87,23 +87,22 @@ UI 层全部基于 shadcn/ui，按功能分类：
 
 ### 数据展示类
 - `DataTable`（shadcn Table + TanStack Table v9，内置 skeleton/empty 态）
-- `DataTablePagination`（shadcn Pagination + Select 页大小）
+- `DataTablePagination`（GitHub 风格分页 + Select 页大小）
 - `Badge` / `StatusBadge`（5 语义 variant，颜色+图标双编码）
-- `Card`（Apple Design 风格：10px radius + hairline border + canvas bg）
+- `Card`（10px radius + hairline border + canvas bg）
 
 ### 反馈类
 - `Dialog` / `ConfirmDialog`（compound，Radix 焦点陷阱/escape/scroll-lock）
-- `Toaster`（sonner，替代手写 ToastProvider）
+- `Toaster`（sonner）
 - `Skeleton`（shimmer 扫光动画）
 - `InlineError`（inline / full-page 双模式，统一错误提示）
 - `EmptyState` / `ErrorFallback`
 
 ### 导航/布局类
-- `Button`（default/outline/destructive/ghost/secondary/link/menu variant + icon/sm/lg/icon-sm 尺寸）
+- `Button`（default/outline/destructive/ghost/secondary/link/menu variant + icon/sm/lg 尺寸）
 - `Toggle`（pill variant 用于 segmented control / 筛选）
 - `Tabs`（状态切换，带计数）
 - `DropdownMenu`（AccountSwitcher / 账号切换）
-- `CommandDialog`（⌘K，预留）
-- `AppShell`（方向 C 统一 Shell：顶栏+侧栏+main）
+- `AppShell`（统一 Shell：顶栏+侧栏+main）
 
-全部路由 build + tsc 通过。UI 层无手写组件，统一由 shadcn/ui + 定制 variant 构成。
+UI 层无手写组件，统一由 shadcn/ui + 定制 variant 构成。全部路由 build + tsc 通过。
