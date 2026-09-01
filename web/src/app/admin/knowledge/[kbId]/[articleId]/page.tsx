@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
@@ -100,25 +102,25 @@ export default function ArticleEditPage() {
         </div>
       </div>
 
-      {article.status === 2 && <AppleCard className="mb-4"><AppleInput label="驳回理由（驳回时必填）" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></AppleCard>}
+      {article.status === 2 && <Card className="mb-4"><Field label="驳回理由（驳回时必填）"><Input value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></Field></Card>}
 
       {editing ? (
-        <AppleCard className="mb-4">
-          <AppleInput label="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <AppleTextarea label="正文" value={content} onChange={(e) => setContent(e.target.value)} rows={15} />
-          <AppleInput label="标签（逗号分隔）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
+        <Card className="mb-4">
+          <Field label="标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label="正文"><Textarea rows={15} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
+          <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
           <div className="flex gap-2"><AppleButton icon={<CheckCircle />} onClick={handleSave} loading={editSaving}>保存</AppleButton><AppleButton variant="ghost" icon={<XCircle />} onClick={() => setEditing(false)}>取消</AppleButton></div>
-        </AppleCard>
+        </Card>
       ) : (
-        <AppleCard className="mb-4">
+        <Card className="mb-4">
           <h2 className="text-headline font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
           <div className="text-body leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <span key={t} className="px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
-        </AppleCard>
+        </Card>
       )}
 
       {article.process_status === 'failed' && (
-        <AppleCard className="border border-[var(--color-error)] mb-4">
+        <Card className="border border-[var(--color-error)] mb-4">
           <div className="flex items-start gap-3">
             <XCircle size={18} className="text-[var(--color-error)] shrink-0 mt-0.5" />
             <div>
@@ -129,7 +131,7 @@ export default function ArticleEditPage() {
               )}
             </div>
           </div>
-        </AppleCard>
+        </Card>
       )}
 
       <ConfirmDialog

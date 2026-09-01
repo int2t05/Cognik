@@ -2,7 +2,7 @@
  * SearchInput — Apple 风格搜索输入框。
  *
  * 对齐 Apple HIG search-input：44px 高度、pill 圆角、左侧搜索图标（14px 灰色）、
- * 有内容时右侧清除按钮。基于 AppleInput 的 pill 模式扩展。
+ * 有内容时右侧清除按钮。采用 pill 圆角独立实现。
  */
 'use client';
 

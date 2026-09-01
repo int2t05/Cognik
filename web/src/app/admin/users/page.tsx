@@ -10,7 +10,8 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -94,7 +95,7 @@ export default function UserListPage() {
         <AppleButton onClick={openCreate} icon={<UserPlus />} aria-label="新建用户" />
       </div>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <div className="mb-4"><AppleInput pill placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
+      <div className="mb-4"><Input className="rounded-[var(--radius-pill)]" placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       <AppleTable
         columns={[
           { key: '_check', title: <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, render: (r) => <BatchSelectRow row={r} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} />, width: '44px' },
@@ -118,10 +119,10 @@ export default function UserListPage() {
             <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
             {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
           </DialogHeader>
-          {!editUser && <><AppleInput label="用户名" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /><AppleInput label="密码" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></>}
-          <AppleInput label="姓名" value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} />
-          <AppleInput label="手机" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <AppleInput label="邮箱" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          {!editUser && <><Field label="用户名"><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码"><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
+          <Field label="姓名"><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
+          <Field label="手机"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="邮箱"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <div className="mt-4">
             <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
             <div className="flex flex-wrap gap-2">

@@ -5,9 +5,10 @@ import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
@@ -75,9 +76,9 @@ export default function KnowledgeListPage() {
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
           <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
-          <AppleCard
+          <Card
             key={kb.id}
-            className="flex justify-between items-center cursor-pointer"
+            className="flex justify-between items-center cursor-pointer hover:bg-[var(--color-tile-1)] hover:-translate-y-px transition-[transform,background-color] focus-visible:shadow-[var(--focus-ring)]"
             role="button"
             tabIndex={0}
             aria-label={`打开知识库 ${kb.name}`}
@@ -92,7 +93,7 @@ export default function KnowledgeListPage() {
               <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(kb)} />
               <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(kb.id)} />
             </div>
-          </AppleCard>
+          </Card>
         ))}
       </div>
 
@@ -101,8 +102,8 @@ export default function KnowledgeListPage() {
           <DialogHeader>
             <DialogTitle>{editId ? '编辑知识库' : '新建知识库'}</DialogTitle>
           </DialogHeader>
-          <AppleInput label="名称" value={kbName} onChange={(e) => setKbName(e.target.value)} />
-          <AppleInput label="描述" value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} />
+          <Field label="名称"><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
+          <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
           <div>
             <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
             <select value={kbEmbeddingModel} onChange={(e) => setKbEmbeddingModel(e.target.value)} aria-label="Embedding 模型"

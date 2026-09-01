@@ -3,8 +3,10 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Send } from 'lucide-react';
@@ -74,17 +76,17 @@ export default function TicketSubmitPage() {
     <div className="max-w-form">
       <PageTitle>提交申告</PageTitle>
       <form onSubmit={handleSubmit}>
-        <AppleCard className="mb-4">
+        <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
-          <AppleInput label="申告标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" />
-          <AppleTextarea label="详细描述" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="请详细描述问题现象、发生时间、影响范围等" />
-          <AppleInput label="标签（逗号分隔）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" />
-        </AppleCard>
-        <AppleCard className="mb-4">
+          <Field label="申告标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
+          <Field label="详细描述"><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
+          <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" /></Field>
+        </Card>
+        <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">联系信息</h2>
-          <AppleInput label="联系电话" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" />
-          <AppleInput label="联系邮箱" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" />
-        </AppleCard>
+          <Field label="联系电话"><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
+          <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
+        </Card>
         <div className="flex gap-3">
           <AppleButton variant="pill" icon={<Send />} type="submit" loading={submitting}>提交申告</AppleButton>
           <AppleButton variant="ghost" type="button" onClick={() => router.push("/portal/tickets")}>取消</AppleButton>

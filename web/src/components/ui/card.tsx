@@ -2,12 +2,13 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Card — 改 base 为 AppleCard 等价：18px radius + hairline border + canvas bg + p-6（去 shadcn 默认 flex/gap/shadow）
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
+        "rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-card p-6 text-card-foreground",
         className
       )}
       {...props}

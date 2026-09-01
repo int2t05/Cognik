@@ -11,8 +11,9 @@ import {
 } from '@/lib/api/ticket';
 import { getKBList } from '@/lib/api/knowledge';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { useToast } from '@/hooks/useToast';
@@ -97,9 +98,9 @@ export default function AdminTicketDetailPage() {
         )}
       </div>
 
-      <AppleCard className="mb-4">
+      <Card className="mb-4">
         <p className="whitespace-pre-wrap">{ticket.description}</p>
-      </AppleCard>
+      </Card>
 
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
@@ -125,18 +126,19 @@ export default function AdminTicketDetailPage() {
       </div>
 
       {ticket.status === 2 && (
-        <AppleCard className="mb-4">
-          <AppleTextarea
-            label="处理说明"
-            value={actionResult}
-            onChange={(e) => setActionResult(e.target.value)}
-            rows={2}
-            placeholder="可选：填写处理结果；索要补充时必填"
-          />
-        </AppleCard>
+        <Card className="mb-4">
+          <Field label="处理说明">
+            <Textarea
+              value={actionResult}
+              onChange={(e) => setActionResult(e.target.value)}
+              rows={2}
+              placeholder="可选：填写处理结果；索要补充时必填"
+            />
+          </Field>
+        </Card>
       )}
 
-      <AppleCard className="mb-5">
+      <Card className="mb-5">
         <h2 className="mb-3 text-title font-semibold">生成知识候选</h2>
         <div className="flex items-end gap-3">
           <select
@@ -156,10 +158,10 @@ export default function AdminTicketDetailPage() {
             生成
           </AppleButton>
         </div>
-      </AppleCard>
+      </Card>
 
       {ticket.records && ticket.records.length > 0 && (
-        <AppleCard>
+        <Card>
           <h2 className="mb-3 text-title font-semibold">处理记录</h2>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
@@ -168,7 +170,7 @@ export default function AdminTicketDetailPage() {
               <p className="mt-1 text-caption">{record.content}</p>
             </div>
           ))}
-        </AppleCard>
+        </Card>
       )}
     </div>
   );

@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import useSWR from 'swr';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { getAppName } from '@/lib/config/defaults';
@@ -100,23 +101,25 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <AppleInput
-            label="用户名"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
-            autoComplete="username"
-            autoFocus
-          />
-          <AppleInput
-            label="密码"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
-            autoComplete="current-password"
-          />
+          <Field label="用户名">
+            <Input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
+              autoComplete="username"
+              autoFocus
+            />
+          </Field>
+          <Field label="密码">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(e as unknown as FormEvent); }}
+              autoComplete="current-password"
+            />
+          </Field>
           <div className="mt-8">
             <AppleButton type="submit" loading={loading} className="w-full" icon={<LogIn />}>
               登录

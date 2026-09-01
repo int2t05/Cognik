@@ -11,9 +11,10 @@ import {
   type LLMConfig,
 } from '@/lib/api/llm_config';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/useToast';
@@ -170,7 +171,7 @@ export default function LLMConfigPage() {
           <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
         ) : (
           [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((config) => (
-            <AppleCard key={config.id}>
+            <Card key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-title font-semibold text-[var(--color-ink)]">
@@ -191,7 +192,7 @@ export default function LLMConfigPage() {
                   <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(config.id)} />
                 </div>
               </div>
-            </AppleCard>
+            </Card>
           ))
         )}
       </div>
@@ -201,55 +202,63 @@ export default function LLMConfigPage() {
           <DialogHeader>
             <DialogTitle>{editId ? '编辑 LLM 配置' : '新建 LLM 配置'}</DialogTitle>
           </DialogHeader>
-          <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Field label="名称"><Input value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
 
-          <AppleInput
-            label="LLM Base URL"
-            value={String(form.llm_base_url || '')}
-            onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
-          />
-          <AppleInput
-            label="LLM API Key"
-            type="password"
-            value={String(form.llm_api_key || '')}
-            onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
-            placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
-          />
-          <AppleInput
-            label="Embedding Base URL"
-            placeholder="留空则使用 LLM Base URL"
-            value={String(form.embedding_base_url || '')}
-            onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
-          />
-          <AppleInput
-            label="Embedding API Key"
-            type="password"
-            value={String(form.embedding_api_key || '')}
-            onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
-            placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
-          />
-          <AppleInput
-            label="LLM 模型"
-            value={String(form.llm_model || '')}
-            onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
-          />
-          <AppleInput
-            label="Embedding 模型"
-            value={String(form.embedding_model || '')}
-            onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
-          />
-          <AppleInput
-            label="最大 Token"
-            type="number"
-            value={String(form.max_tokens || '')}
-            onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
-          />
-          <AppleInput
-            label="向量维度"
-            type="number"
-            value={String(form.vector_dimension || '')}
-            onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
-          />
+          <Field label="LLM Base URL">
+            <Input
+              value={String(form.llm_base_url || '')}
+              onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
+            />
+          </Field>
+          <Field label="LLM API Key">
+            <Input
+              type="password"
+              value={String(form.llm_api_key || '')}
+              onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
+              placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
+            />
+          </Field>
+          <Field label="Embedding Base URL">
+            <Input
+              placeholder="留空则使用 LLM Base URL"
+              value={String(form.embedding_base_url || '')}
+              onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
+            />
+          </Field>
+          <Field label="Embedding API Key">
+            <Input
+              type="password"
+              value={String(form.embedding_api_key || '')}
+              onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
+              placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
+            />
+          </Field>
+          <Field label="LLM 模型">
+            <Input
+              value={String(form.llm_model || '')}
+              onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
+            />
+          </Field>
+          <Field label="Embedding 模型">
+            <Input
+              value={String(form.embedding_model || '')}
+              onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
+            />
+          </Field>
+          <Field label="最大 Token">
+            <Input
+              type="number"
+              value={String(form.max_tokens || '')}
+              onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="向量维度">
+            <Input
+              type="number"
+              value={String(form.vector_dimension || '')}
+              onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
+            />
+          </Field>
 
           <div className="mb-4">
             <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>

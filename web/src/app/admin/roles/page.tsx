@@ -7,7 +7,8 @@ import { AppleTable } from '@/components/ui/AppleTable';
 import { ApplePagination } from '@/components/ui/ApplePagination';
 import { AppleButton } from '@/components/ui/AppleButton';
 import { Toggle } from '@/components/ui/toggle';
-import { AppleInput } from '@/components/ui/AppleInput';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
@@ -118,8 +119,8 @@ export default function RoleManagePage() {
           <DialogHeader>
             <DialogTitle>{editId ? '编辑角色' : '新建角色'}</DialogTitle>
           </DialogHeader>
-          <AppleInput label="角色名" value={name} onChange={(e) => setName(e.target.value)} />
-          <AppleInput label="描述" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          <Field label="角色名"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="描述"><Input value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
           <div className="mt-2">
             <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
             <div className="flex flex-wrap gap-1.5">

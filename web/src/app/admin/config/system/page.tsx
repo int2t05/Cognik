@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResult } from '@/lib/api/config';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleCard } from '@/components/ui/AppleCard';
+import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
 import { Pencil, RefreshCw } from 'lucide-react';
 
@@ -139,7 +139,7 @@ export default function SystemConfigPage() {
     <div>
       <PageTitle>系统配置</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <AppleCard className="max-w-form">
+      <Card className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />
 
@@ -157,7 +157,7 @@ export default function SystemConfigPage() {
 
         <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
         <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
-      </AppleCard>
+      </Card>
     </div>
   );
 }
