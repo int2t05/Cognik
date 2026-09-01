@@ -1,6 +1,7 @@
-/** ConfirmDialog — 危险操作二次确认 */
-import { AppleDialog } from '@/components/ui/AppleDialog';
-import { AppleButton } from '@/components/ui/AppleButton';
+/** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound，外部 API 不变。 */
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,27 +27,28 @@ export function ConfirmDialog({
   children,
 }: ConfirmDialogProps) {
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={message ?? ''}
-      footer={
-        <>
-          <AppleButton variant="ghost" onClick={() => onOpenChange(false)}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {message && <DialogDescription>{message}</DialogDescription>}
+        </DialogHeader>
+        {children ?? <div />}
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             取消
-          </AppleButton>
-          <AppleButton
-            variant={danger ? 'danger' : 'pill'}
+          </Button>
+          <Button
+            variant={danger ? 'destructive' : 'default'}
+            size="lg"
+            disabled={loading}
             onClick={onConfirm}
-            loading={loading}
           >
+            {loading && <Loader2 className="animate-spin" />}
             {confirmLabel}
-          </AppleButton>
-        </>
-      }
-    >
-      {children ?? <div />}
-    </AppleDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

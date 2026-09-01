@@ -4,8 +4,8 @@
 'use client';
 
 import { forwardRef } from 'react';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { Send, Square } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Send, Square, Loader2 } from 'lucide-react';
 
 interface ChatInputProps {
   value: string;
@@ -43,9 +43,9 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             </span>
           </div>
           {streaming ? (
-            <AppleButton variant="danger" icon={<Square />} onClick={onStop} aria-label="停止生成" />
+            <Button variant="destructive" size="icon" onClick={onStop} aria-label="停止生成"><Square /></Button>
           ) : (
-            <AppleButton icon={<Send />} onClick={onSend} loading={loading} disabled={!value.trim() || disabled} aria-label="发送" />
+            <Button size="icon" disabled={!value.trim() || disabled || loading} onClick={onSend} aria-label="发送">{loading ? <Loader2 className="animate-spin" /> : <Send />}</Button>
           )}
         </div>
       </div>

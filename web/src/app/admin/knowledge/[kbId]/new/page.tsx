@@ -3,17 +3,18 @@ import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createArticle, uploadDocuments, getKBList, type KB } from '@/lib/api/knowledge';
 import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { useToast } from '@/hooks/useToast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { FilePlus, X, AlertTriangle } from 'lucide-react';
+import { FilePlus, X, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
   const router = useRouter();
-  const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
@@ -110,7 +111,7 @@ export default function NewArticlePage() {
       )}
 
       {/* 文档上传 */}
-      <AppleCard className="mb-4">
+      <Card className="mb-4">
         <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">文档上传</h2>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / MD / TXT，单文件最大 50MB</p>
         <div className="flex gap-3 items-center">
@@ -118,19 +119,19 @@ export default function NewArticlePage() {
             aria-label="选择文档文件"
             className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-semibold file:border-0 file:bg-[var(--color-accent)] file:text-[var(--color-on-accent)] file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
         </div>
-      </AppleCard>
+      </Card>
 
       {/* 手动创建 */}
       <form onSubmit={handleCreate}>
-        <AppleCard className="mb-4">
+        <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">手动创建</h2>
-          <AppleInput label="文章标题" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" />
-          <AppleTextarea label="正文内容" value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="输入文章正文..." />
-          <AppleInput label="标签（逗号分隔，最多 10 个）" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" />
-        </AppleCard>
+          <Field label="文章标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="知识文章标题" /></Field>
+          <Field label="正文内容"><Textarea rows={12} value={content} onChange={(e) => setContent(e.target.value)} placeholder="输入文章正文..." /></Field>
+          <Field label="标签（逗号分隔，最多 10 个）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
+        </Card>
         <div className="flex gap-3">
-          <AppleButton type="submit" loading={saving} aria-label="创建" icon={<FilePlus />} />
-          <AppleButton variant="ghost" type="button" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消" icon={<X />} />
+          <Button type="submit" size="icon" disabled={saving} aria-label="创建">{saving ? <Loader2 className="animate-spin" /> : <FilePlus />}</Button>
+          <Button variant="ghost" type="button" size="icon" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消"><X /></Button>
         </div>
       </form>
     </div>

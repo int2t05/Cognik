@@ -6,7 +6,7 @@
  * 统一后所有空状态遵循"图标→标题→描述→可选操作"的信息层级。
  */
 import { type ReactNode } from 'react';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { Button } from '@/components/ui/button';
 
 interface EmptyStateProps {
   /** 图标（Lucide 组件） */
@@ -37,9 +37,9 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         </p>
       )}
       {action && (
-        <AppleButton variant="pill" onClick={action.onClick}>
+        <Button size="lg" onClick={action.onClick}>
           {action.label}
-        </AppleButton>
+        </Button>
       )}
     </div>
   );

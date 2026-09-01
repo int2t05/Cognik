@@ -2,15 +2,16 @@
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import { getTicketDetail, supplementTicket, updateTicket } from '@/lib/api/ticket';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput, AppleTextarea } from '@/components/ui/AppleInput';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { useState } from 'react';
-import { ChevronLeft, Send, Pencil, X, Check } from 'lucide-react';
+import { ChevronLeft, Send, Pencil, X, Check, Loader2 } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -30,7 +31,6 @@ export default function TicketDetailPage() {
   const [editTags, setEditTags] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const toast = useToast();
 
   const handleSupplement = async () => {
     if (!supplement.trim()) return;
@@ -76,30 +76,30 @@ export default function TicketDetailPage() {
   };
 
   if (error) return <p className="text-[var(--color-error)] text-caption py-10 text-center">加载失败，请刷新重试</p>;
-  if (!ticket) return <div className="flex justify-center py-10"><AppleSpinner /></div>;
+  if (!ticket) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <AppleButton variant="ghost" icon={<ChevronLeft />} aria-label="返回" onClick={() => router.push('/portal/tickets')} />
+        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></Button>
         {canEdit(ticket.status) && !editing && (
-          <AppleButton variant="ghost" icon={<Pencil />} onClick={startEdit}>编辑</AppleButton>
+          <Button variant="ghost" size="sm" onClick={startEdit}><Pencil size={16} />编辑</Button>
         )}
       </div>
 
       {editing ? (
-        <AppleCard className="mb-5">
+        <Card className="mb-5">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">编辑申告</h2>
-          <AppleInput label="标题" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="申告标题" />
-          <AppleTextarea label="详细描述" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={5} placeholder="详细描述" />
-          <AppleInput label="标签（逗号分隔）" value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="如：网络,邮箱,VPN" />
-          <AppleInput label="联系电话" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" />
-          <AppleInput label="联系邮箱" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="选填" />
+          <Field label="标题"><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="申告标题" /></Field>
+          <Field label="详细描述"><Textarea rows={5} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="详细描述" /></Field>
+          <Field label="标签（逗号分隔）"><Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="如：网络,邮箱,VPN" /></Field>
+          <Field label="联系电话"><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" /></Field>
+          <Field label="联系邮箱"><Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="选填" /></Field>
           <div className="flex gap-2 mt-4">
-            <AppleButton variant="pill" icon={<Check />} onClick={handleSave} loading={sending}>保存</AppleButton>
-            <AppleButton variant="ghost" icon={<X />} onClick={() => setEditing(false)}>取消</AppleButton>
+            <Button size="lg" disabled={sending} onClick={handleSave}>{sending ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}保存</Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}><X size={16} />取消</Button>
           </div>
-        </AppleCard>
+        </Card>
       ) : (
         <>
           <h1 className="text-display font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
@@ -116,13 +116,13 @@ export default function TicketDetailPage() {
             )}
           </div>
 
-          <AppleCard className="mb-5">
+          <Card className="mb-5">
             <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
             <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
-          </AppleCard>
+          </Card>
 
           {ticket.records && ticket.records.length > 0 && (
-            <AppleCard className="mb-5">
+            <Card className="mb-5">
               <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
               {ticket.records.map((r) => (
                 <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
@@ -133,15 +133,15 @@ export default function TicketDetailPage() {
                   <p className="text-caption text-[var(--color-ink)]">{r.content}</p>
                 </div>
               ))}
-            </AppleCard>
+            </Card>
           )}
 
           {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
-            <AppleCard>
+            <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
-              <AppleTextarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-              <AppleButton variant="pill" icon={<Send />} aria-label="提交补充" onClick={handleSupplement} loading={sending} />
-            </AppleCard>
+              <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
+              <Button size="icon" disabled={sending} aria-label="提交补充" onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>
+            </Card>
           )}
         </>
       )}

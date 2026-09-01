@@ -3,10 +3,10 @@ import useSWR from 'swr';
 import { useState } from 'react';
 import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResult } from '@/lib/api/config';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { useToast } from '@/hooks/useToast';
-import { Pencil, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
 
 const CONFIG_KEYS = [
   'app_name',
@@ -28,7 +28,6 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
   const [val, setVal] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const toast = useToast();
 
   const displayVal = editing ? val : formatDisplay(value, type);
   const startEdit = () => { setVal(formatEdit(value, type)); setEditing(true); };
@@ -56,12 +55,12 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
           ) : (
             <input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]" />
           )}
-          <AppleButton variant="ghost" onClick={handleSave} loading={saving}>保存</AppleButton>
+          <Button variant="ghost" size="sm" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
         </>
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{displayVal}</span>
-          <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={startEdit} />
+          <Button variant="ghost" size="icon" aria-label="编辑" onClick={startEdit}><Pencil /></Button>
         </>
       )}
     </div>
@@ -84,7 +83,6 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
   const [computing, setComputing] = useState(false);
   const [result, setResult] = useState<ComputeThresholdsResult | null>(null);
   const [applying, setApplying] = useState(false);
-  const toast = useToast();
 
   const handleCompute = async () => {
     setComputing(true); setResult(null);
@@ -114,9 +112,7 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
           className="h-9 px-3 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none">
           {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>近 {d} 天</option>)}
         </select>
-        <AppleButton variant="ghost" onClick={handleCompute} loading={computing} icon={<RefreshCw />}>
-          计算
-        </AppleButton>
+        <Button variant="ghost" size="sm" disabled={computing}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}计算</Button>
       </div>
       {result && (
         <div className="flex items-center gap-3 mt-2 ml-[140px]">
@@ -124,7 +120,7 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
             {result.sample_count} 条样本 · P30={result.p30} · P70={result.p70}
             {result.warning && <span className="text-[var(--badge-warning-text)] ml-2">{result.warning}</span>}
           </span>
-          <AppleButton variant="ghost" onClick={handleApply} loading={applying}>应用</AppleButton>
+          <Button variant="ghost" size="sm" disabled={applying}>{applying && <Loader2 className="animate-spin" />}应用</Button>
         </div>
       )}
     </div>
@@ -139,7 +135,7 @@ export default function SystemConfigPage() {
     <div>
       <PageTitle>系统配置</PageTitle>
       {error && <p className="text-[var(--color-error)] text-caption mb-4">加载失败，请刷新重试</p>}
-      <AppleCard className="max-w-form">
+      <Card className="max-w-form">
         <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
         <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />
 
@@ -157,7 +153,7 @@ export default function SystemConfigPage() {
 
         <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
         <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
-      </AppleCard>
+      </Card>
     </div>
   );
 }

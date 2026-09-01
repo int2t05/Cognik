@@ -3,12 +3,12 @@ import useSWR, { mutate as globalMutate } from 'swr';
 import { useState } from 'react';
 import { getMessages, markAsRead, markAllRead } from '@/lib/api/message';
 import { PAGE_SIZE } from '@/lib/api/constants';
-import { AppleTable } from '@/components/ui/AppleTable';
-import { ApplePagination } from '@/components/ui/ApplePagination';
-import { AppleButton } from '@/components/ui/AppleButton';
+import { DataTable } from '@/components/ui/data-table';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { CheckCheck, Mail, ExternalLink, Eye } from 'lucide-react';
 
@@ -27,7 +27,6 @@ const NAVIGABLE_TYPES = new Set(['ticket']);
 export default function MessagesPage() {
   const [page, setPage] = useState(1);
   const router = useRouter();
-  const toast = useToast();
   const { data, error, mutate } = useSWR(`messages-${page}`, () => getMessages(page));
 
   const handleRead = async (id: number, relatedType: string, relatedId: number) => {
@@ -61,9 +60,9 @@ export default function MessagesPage() {
       <div className="flex items-center justify-between mb-4">
         <PageTitle>站内消息</PageTitle>
         {!isEmpty && (
-          <AppleButton variant="utility" icon={<CheckCheck />} onClick={handleMarkAll} disabled={!hasUnread}>
-            全部已读
-          </AppleButton>
+          <Button variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
+            <CheckCheck size={16} />全部已读
+          </Button>
         )}
       </div>
 
@@ -76,27 +75,28 @@ export default function MessagesPage() {
         </div>
       ) : (
         <>
-          <AppleTable
+          <DataTable
             columns={[
-              { key: 'type', title: '类型', width: '100px', render: (r) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[r.type] ?? r.type}</span> },
-              { key: 'title', title: '标题', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{r.title}</span> },
-              { key: 'content', title: '内容', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{r.content}</span> },
-              { key: 'created_at', title: '时间', render: (r) => <span className={r.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(r.created_at)}</span> },
-              { key: 'actions', title: '', width: '60px', render: (r) =>
-                !r.is_read ? (
-                  <AppleButton variant="ghost" icon={<Eye />} aria-label="查看" onClick={() => handleRead(r.id, r.related_type, r.related_id)} />
-                ) : NAVIGABLE_TYPES.has(r.related_type) ? (
-                  <AppleButton variant="ghost" icon={<ExternalLink />} aria-label="跳转" onClick={() => {
-                    if (r.related_type === 'ticket') router.push(`/portal/tickets/${r.related_id}`);
-                  }} />
+              { accessorKey: 'type', header: '类型', cell: ({ row }) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[row.original.type] ?? row.original.type}</span> },
+              { accessorKey: 'title', header: '标题', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{row.original.title}</span> },
+              { accessorKey: 'content', header: '内容', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{row.original.content}</span> },
+              { accessorKey: 'created_at', header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
+              { id: 'actions', header: '', cell: ({ row }) =>
+                !row.original.is_read ? (
+                  <Button variant="ghost" size="icon" aria-label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></Button>
+                ) : NAVIGABLE_TYPES.has(row.original.related_type) ? (
+                  <Button variant="ghost" size="icon" aria-label="跳转" onClick={() => {
+                    if (row.original.related_type === 'ticket') router.push(`/portal/tickets/${row.original.related_id}`);
+                  }}>
+                    <ExternalLink />
+                  </Button>
                 ) : null
               },
             ]}
             data={messages}
             loading={!data && !error}
-            rowKey="id"
           />
-          {data && <ApplePagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(p) => setPage(p)} />}
+          {data && <DataTablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(p) => setPage(p)} />}
         </>
       )}
     </div>

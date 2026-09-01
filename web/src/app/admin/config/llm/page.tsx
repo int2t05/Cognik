@@ -10,16 +10,16 @@ import {
   updateLLMConfig,
   type LLMConfig,
 } from '@/lib/api/llm_config';
-import { AppleButton } from '@/components/ui/AppleButton';
-import { AppleInput } from '@/components/ui/AppleInput';
-import { AppleDialog } from '@/components/ui/AppleDialog';
-import { AppleCard } from '@/components/ui/AppleCard';
-import { AppleSpinner } from '@/components/ui/AppleSpinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useToast } from '@/hooks/useToast';
+import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Cpu, Pencil, Trash2, Star } from 'lucide-react';
+import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
 
@@ -48,7 +48,6 @@ export default function LLMConfigPage() {
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const systemPromptId = useId();
-  const toast = useToast();
 
   const openCreate = () => {
     setEditId(null);
@@ -161,17 +160,17 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <PageTitle>LLM 配置</PageTitle>
-        <AppleButton icon={<Cpu />} aria-label="新建 LLM 配置" onClick={openCreate} />
+        <Button size="icon" aria-label="新建 LLM 配置" onClick={openCreate}><Cpu /></Button>
       </div>
 
       <div className="grid gap-3">
         {!configs ? (
-          <AppleSpinner />
+          <Loader2 className="animate-spin" />
         ) : configs.length === 0 ? (
           <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
         ) : (
           [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((config) => (
-            <AppleCard key={config.id}>
+            <Card key={config.id}>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-title font-semibold text-[var(--color-ink)]">
@@ -186,106 +185,108 @@ export default function LLMConfigPage() {
                 </div>
                 <div className="flex gap-2">
                   {!config.is_default && (
-                    <AppleButton variant="ghost" icon={<Star />} aria-label="设为默认" onClick={() => handleSetDefault(config.id)} />
+                    <Button variant="ghost" size="icon" aria-label="设为默认" onClick={() => handleSetDefault(config.id)}><Star /></Button>
                   )}
-                  <AppleButton variant="ghost" icon={<Pencil />} aria-label="编辑" onClick={() => openEdit(config)} />
-                  <AppleButton variant="utility" icon={<Trash2 />} aria-label="删除" onClick={() => setDeleteTarget(config.id)} />
+                  <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(config)}><Pencil /></Button>
+                  <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 /></Button>
                 </div>
               </div>
-            </AppleCard>
+            </Card>
           ))
         )}
       </div>
 
-      <AppleDialog
-        open={showDialog}
-        onOpenChange={setShowDialog}
-        title={editId ? '编辑 LLM 配置' : '新建 LLM 配置'}
-        width="560px"
-        footer={
-          <>
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>{editId ? '编辑 LLM 配置' : '新建 LLM 配置'}</DialogTitle>
+          </DialogHeader>
+          <Field label="名称"><Input value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+
+          <Field label="LLM Base URL">
+            <Input
+              value={String(form.llm_base_url || '')}
+              onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
+            />
+          </Field>
+          <Field label="LLM API Key">
+            <Input
+              type="password"
+              value={String(form.llm_api_key || '')}
+              onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
+              placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
+            />
+          </Field>
+          <Field label="Embedding Base URL">
+            <Input
+              placeholder="留空则使用 LLM Base URL"
+              value={String(form.embedding_base_url || '')}
+              onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
+            />
+          </Field>
+          <Field label="Embedding API Key">
+            <Input
+              type="password"
+              value={String(form.embedding_api_key || '')}
+              onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
+              placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
+            />
+          </Field>
+          <Field label="LLM 模型">
+            <Input
+              value={String(form.llm_model || '')}
+              onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
+            />
+          </Field>
+          <Field label="Embedding 模型">
+            <Input
+              value={String(form.embedding_model || '')}
+              onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
+            />
+          </Field>
+          <Field label="最大 Token">
+            <Input
+              type="number"
+              value={String(form.max_tokens || '')}
+              onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="向量维度">
+            <Input
+              type="number"
+              value={String(form.vector_dimension || '')}
+              onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
+            />
+          </Field>
+
+          <div className="mb-4">
+            <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
+            <textarea
+              id={systemPromptId}
+              className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
+              placeholder="自定义系统提示词，可选"
+              value={String(form.system_prompt || '')}
+              onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
+            />
+          </div>
+
+          {testResult && (
+            <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              {testResult.message}
+            </p>
+          )}
+          <DialogFooter>
             {editId && (
-              <AppleButton variant="utility" onClick={handleTest} loading={testing}>
-                测试连接
-              </AppleButton>
+              <Button variant="secondary" size="sm" disabled={testing}>{testing && <Loader2 className="animate-spin" />}测试连接</Button>
             )}
             <div className="flex-1" />
-            <AppleButton variant="ghost" onClick={() => setShowDialog(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>
               取消
-            </AppleButton>
-            <AppleButton onClick={handleSave} loading={saving}>
-              保存
-            </AppleButton>
-          </>
-        }
-      >
-        <AppleInput label="名称" value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-
-        <AppleInput
-          label="LLM Base URL"
-          value={String(form.llm_base_url || '')}
-          onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
-        />
-        <AppleInput
-          label="LLM API Key"
-          type="password"
-          value={String(form.llm_api_key || '')}
-          onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
-          placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
-        />
-        <AppleInput
-          label="Embedding Base URL"
-          placeholder="留空则使用 LLM Base URL"
-          value={String(form.embedding_base_url || '')}
-          onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
-        />
-        <AppleInput
-          label="Embedding API Key"
-          type="password"
-          value={String(form.embedding_api_key || '')}
-          onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
-          placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
-        />
-        <AppleInput
-          label="LLM 模型"
-          value={String(form.llm_model || '')}
-          onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
-        />
-        <AppleInput
-          label="Embedding 模型"
-          value={String(form.embedding_model || '')}
-          onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
-        />
-        <AppleInput
-          label="最大 Token"
-          type="number"
-          value={String(form.max_tokens || '')}
-          onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
-        />
-        <AppleInput
-          label="向量维度"
-          type="number"
-          value={String(form.vector_dimension || '')}
-          onChange={(e) => setForm({ ...form, vector_dimension: Number(e.target.value) })}
-        />
-
-        <div className="mb-4">
-          <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
-          <textarea
-            id={systemPromptId}
-            className="min-h-[80px] w-full resize-y rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-4 py-2 text-body text-[var(--color-ink)] outline-none focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
-            placeholder="自定义系统提示词，可选"
-            value={String(form.system_prompt || '')}
-            onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
-          />
-        </div>
-
-        {testResult && (
-          <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-            {testResult.message}
-          </p>
-        )}
-      </AppleDialog>
+            </Button>
+            <Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}
