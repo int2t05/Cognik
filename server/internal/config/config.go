@@ -19,7 +19,7 @@ type AppConfig struct {
 	Server    ServerConfig    `mapstructure:"server"`
 	Database  DatabaseConfig  `mapstructure:"database"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
-	MinIO     MinIOConfig     `mapstructure:"minio"`
+	Storage   StorageConfig   `mapstructure:"storage"`
 	LLM       LLMConfig       `mapstructure:"llm"`
 	Embedding EmbeddingConfig `mapstructure:"embedding"`
 	Rerank    RerankConfig    `mapstructure:"rerank"`
@@ -70,6 +70,26 @@ type MinIOConfig struct {
 	AccessKey string `mapstructure:"access_key"`
 	SecretKey string `mapstructure:"secret_key"`
 	UseSSL    bool   `mapstructure:"use_ssl"`
+}
+
+// StorageConfig 是文件存储层配置。
+// Driver 选择存储驱动：local（本地文件系统）或 minio（S3-compatible）。
+type StorageConfig struct {
+	Driver  string             `mapstructure:"driver"`   // local | minio
+	Local   LocalStorageConfig `mapstructure:"local"`
+	MinIO   MinIOConfig        `mapstructure:"minio"`
+	Buckets BucketConfig       `mapstructure:"buckets"`
+}
+
+// LocalStorageConfig 是本地文件系统存储配置。
+type LocalStorageConfig struct {
+	BaseDir string `mapstructure:"base_dir"`
+}
+
+// BucketConfig 是存储桶/目录名配置。
+type BucketConfig struct {
+	Documents string `mapstructure:"documents"`
+	Published string `mapstructure:"published"`
 }
 
 // LLMConfig 是大语言模型调用配置。
@@ -197,11 +217,13 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("jwt.access_expire", "OPSMIND_JWT_ACCESS_EXPIRE")
 	v.BindEnv("jwt.refresh_expire", "OPSMIND_JWT_REFRESH_EXPIRE")
 
-	// MinIO
-	v.BindEnv("minio.endpoint", "OPSMIND_MINIO_ENDPOINT")
-	v.BindEnv("minio.access_key", "OPSMIND_MINIO_ACCESS_KEY")
-	v.BindEnv("minio.secret_key", "OPSMIND_MINIO_SECRET_KEY")
-	v.BindEnv("minio.use_ssl", "OPSMIND_MINIO_USE_SSL")
+	// Storage
+	v.BindEnv("storage.driver", "OPSMIND_STORAGE_DRIVER")
+	v.BindEnv("storage.local.base_dir", "OPSMIND_STORAGE_LOCAL_BASE_DIR")
+	v.BindEnv("storage.minio.endpoint", "OPSMIND_MINIO_ENDPOINT")
+	v.BindEnv("storage.minio.access_key", "OPSMIND_MINIO_ACCESS_KEY")
+	v.BindEnv("storage.minio.secret_key", "OPSMIND_MINIO_SECRET_KEY")
+	v.BindEnv("storage.minio.use_ssl", "OPSMIND_MINIO_USE_SSL")
 
 	// LLM
 	v.BindEnv("llm.base_url", "OPSMIND_LLM_BASE_URL")
@@ -300,11 +322,15 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.access_expire", "2h")
 	v.SetDefault("jwt.refresh_expire", "168h")
 
-	// MinIO
-	v.SetDefault("minio.endpoint", "localhost:9000")
-	v.SetDefault("minio.access_key", "minioadmin")
-	v.SetDefault("minio.secret_key", "minioadmin")
-	v.SetDefault("minio.use_ssl", false)
+	// Storage
+	v.SetDefault("storage.driver", "local")
+	v.SetDefault("storage.local.base_dir", "./data/storage")
+	v.SetDefault("storage.minio.endpoint", "localhost:9000")
+	v.SetDefault("storage.minio.access_key", "minioadmin")
+	v.SetDefault("storage.minio.secret_key", "minioadmin")
+	v.SetDefault("storage.minio.use_ssl", false)
+	v.SetDefault("storage.buckets.documents", "opsmind-documents")
+	v.SetDefault("storage.buckets.published", "opsmind-published")
 
 	// LLM
 	v.SetDefault("llm.base_url", "http://llama-cpp:8080/v1")

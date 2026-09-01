@@ -45,19 +45,19 @@ func TestLoad_DefaultValues(t *testing.T) {
 		t.Errorf("Database.SSLMode = %q, 期望 disable", cfg.Database.SSLMode)
 	}
 
-	if cfg.MinIO.Endpoint != "localhost:9000" {
-		t.Errorf("MinIO.Endpoint = %q, 期望 localhost:9000", cfg.MinIO.Endpoint)
+	if cfg.Storage.MinIO.Endpoint != "localhost:9000" {
+		t.Errorf("MinIO.Endpoint = %q, 期望 localhost:9000", cfg.Storage.MinIO.Endpoint)
 	}
 
-	if cfg.MinIO.AccessKey != "minioadmin" {
-		t.Errorf("MinIO.AccessKey = %q, 期望 minioadmin", cfg.MinIO.AccessKey)
+	if cfg.Storage.MinIO.AccessKey != "minioadmin" {
+		t.Errorf("MinIO.AccessKey = %q, 期望 minioadmin", cfg.Storage.MinIO.AccessKey)
 	}
 
-	if cfg.MinIO.SecretKey != "minioadmin" {
-		t.Errorf("MinIO.SecretKey = %q, 期望 minioadmin", cfg.MinIO.SecretKey)
+	if cfg.Storage.MinIO.SecretKey != "minioadmin" {
+		t.Errorf("MinIO.SecretKey = %q, 期望 minioadmin", cfg.Storage.MinIO.SecretKey)
 	}
 
-	if cfg.MinIO.UseSSL != false {
+	if cfg.Storage.MinIO.UseSSL != false {
 		t.Error("MinIO.UseSSL = true, 期望 false")
 	}
 
@@ -174,13 +174,13 @@ func TestLoad_StructFields(t *testing.T) {
 	}
 
 	// 验证 MinIO 结构体
-	if cfg.MinIO.Endpoint == "" {
+	if cfg.Storage.MinIO.Endpoint == "" {
 		t.Error("MinIO.Endpoint 未填充")
 	}
-	if cfg.MinIO.AccessKey == "" {
+	if cfg.Storage.MinIO.AccessKey == "" {
 		t.Error("MinIO.AccessKey 未填充")
 	}
-	if cfg.MinIO.SecretKey == "" {
+	if cfg.Storage.MinIO.SecretKey == "" {
 		t.Error("MinIO.SecretKey 未填充")
 	}
 

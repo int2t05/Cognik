@@ -20,6 +20,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"opsmind/internal/adapter"
+	"opsmind/internal/storage"
 	"opsmind/internal/cache"
 	"opsmind/internal/config"
 	"opsmind/internal/database"
@@ -40,7 +41,7 @@ type app struct {
 	llmClient     *adapter.OpenAIClient
 	reranker      adapter.Reranker
 	vectorStore   adapter.VectorStore
-	storageClient adapter.StorageClient
+	storageClient storage.StorageClient
 	scheduler     *service.Scheduler
 	authService   *service.AuthService
 	server        *http.Server
@@ -168,22 +169,31 @@ func wireApp() (*app, error) {
 		slog.Info("pgvector VectorStore 已连接")
 	}
 
-	// MinIO 对象存储
-	minioEndpoint := cfg.MinIO.Endpoint
-	if minioEndpoint == "" {
-		slog.Warn("MinIO 未配置，文档上传将使用降级模式（纯文本）")
-	} else {
+	// 文件存储（按 driver 选择 LocalStorageClient 或 MinIOClient）
+	bucketDocs := cfg.Storage.Buckets.Documents
+	bucketPub := cfg.Storage.Buckets.Published
+	switch cfg.Storage.Driver {
+	case "minio":
+		minioEndpoint := cfg.Storage.MinIO.Endpoint
 		minioClient, err := minio.New(minioEndpoint, &minio.Options{
-			Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
-			Secure: cfg.MinIO.UseSSL,
+			Creds:  credentials.NewStaticV4(cfg.Storage.MinIO.AccessKey, cfg.Storage.MinIO.SecretKey, ""),
+			Secure: cfg.Storage.MinIO.UseSSL,
 		})
 		if err != nil {
 			slog.Error("MinIO 客户端创建失败，文档上传将降级", "error", err)
-		} else if mc, err := adapter.NewMinIOClient(minioClient, "opsmind-attachments", "opsmind-documents", "opsmind-published"); err != nil {
+		} else if mc, err := storage.NewMinIOClient(minioClient, bucketDocs, bucketPub); err != nil {
 			slog.Error("MinIO bucket 初始化失败，文档上传将降级", "error", err)
 		} else {
 			a.storageClient = mc
 			slog.Info("MinIO 对象存储已连接", "endpoint", minioEndpoint)
+		}
+	default:
+		lsc, err := storage.NewLocalStorageClient(cfg.Storage.Local.BaseDir, bucketDocs, bucketPub)
+		if err != nil {
+			slog.Error("本地存储初始化失败，文档上传将降级", "error", err)
+		} else {
+			a.storageClient = lsc
+			slog.Info("本地文件存储已就绪", "base_dir", cfg.Storage.Local.BaseDir)
 		}
 	}
 
