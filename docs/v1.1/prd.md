@@ -45,34 +45,49 @@ storage:
 - `driver=minio`：启动 `MinIOClient`（现有行为），MinIO 容器必选
 - 切换 driver 不迁移已存数据（部署时选定，不热切换）
 
-### 2.2 本地存储路径规则
+### 2.2 存储路径规则（目录式）
+
+每篇文章存储为一个目录，包含 Markdown 正文和提取的图片：
 
 ```
-{base_dir}/
-  opsmind-documents/      ← 对应 bucket=documents
-    {title}.md
-  opsmind-published/       ← 对应 bucket=published
-    {title}.md
+{base_dir}/                              # local 模式
+  opsmind-documents/                     # ← bucket=documents（草稿/审核/处理中）
+    {article_key}/
+      markdown.md                       # 正文（图片用相对路径 ![](images/xxx.jpg)）
+      images/                            # 提取的图片
+        {hash}.jpg
+  opsmind-published/                     # ← bucket=published（已发布）
+    {article_key}/
+      markdown.md
+      images/
+        {hash}.png
 ```
 
-- 目录名 = bucket 名，文件名 = key（与 MinIO 的 bucket/key 语义对齐）
-- 启动时自动创建目录（等价 MinIO 的 `ensureBucket`）
+- 每篇文章 = 一个目录（`{article_key}/`），key 为 title 清洗后的安全文件名
+- 目录内 `markdown.md` 为正文，`images/` 存解析提取的图片
+- markdown 中图片用相对路径引用（`![](images/xxx.jpg)`），目录整体可移动/迁移
+- MinIO 模式下同样目录式：`bucket/{article_key}/markdown.md` + `bucket/{article_key}/images/xxx.jpg`
 
-### 2.3 接口行为保持
+### 2.3 接口升级（目录式存储）
 
-`StorageClient` 4 方法不变，本地实现映射：
+目录式存储需支持多文件（markdown + images），原 `Upload(ctx, bucket, key, reader, size)` 单文件接口不够。升级为：
 
-| 方法 | MinIO 实现 | 本地实现 |
-|---|---|---|
-| `Upload(ctx, bucket, key, reader, size, contentType)` | PutObject | `os.MkdirAll` + `os.Create` + `io.Copy` |
-| `Download(ctx, bucket, key)` | GetObject | `os.Open` → `io.ReadCloser` |
-| `Delete(ctx, bucket, key)` | RemoveObject（幂等） | `os.Remove`（忽略 `IsNotExist`，幂等） |
-| `GetPresignedURL(ctx, bucket, key, expiry)` | PresignedGetObject | 返回 `/{base_dir}/{bucket}/{key}` 本地路径（只读场景） |
+| 方法 | 说明 |
+|---|---|
+| `UploadFile(ctx, bucket, dir, filename, reader, size, contentType)` | 上传单文件到 `bucket/{dir}/{filename}` |
+| `DownloadDir(ctx, bucket, dir)` | 下载整个目录（返回文件列表 + reader），用于 processor 读取 markdown + images |
+| `DeleteDir(ctx, bucket, dir)` | 删除整个目录（递归，幂等） |
+| `GetFileURL(ctx, bucket, dir, filename)` | 获取单文件访问 URL（MinIO 预签名 / 本地路径） |
+
+- 原 `Upload/Download/Delete` 单文件接口废弃，改为目录式
+- `UploadFile` 用于上传 `markdown.md` 和每张图片
+- `DownloadDir` 用于 processor 读取整个文章目录解析
+- `DeleteDir` 用于删除文章时清理整个目录
 
 ### 2.4 降级语义保持
 
 现有 `storage == nil` 降级路径不变：
-- `uploadMinioAsync` 静默跳过
+- `uploadFileAsync` 静默跳过
 - `resolveContent` 走 `task.Content` 纯文本模式
 
 本地模式下 `storage != nil`（LocalStorageClient 实例），正常存储，不走降级。

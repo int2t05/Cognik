@@ -11,15 +11,21 @@
 
 ## 2. 存储引擎抽象
 
-### 2.1 接口（不变）
+### 2.1 接口（升级为目录式）
+
+目录式存储（markdown + images 多文件），原单文件接口废弃：
 
 ```go
 // server/internal/adapter/storage_client.go
 type StorageClient interface {
-    Upload(ctx context.Context, bucket, key string, reader io.Reader, size int64, contentType string) (string, error)
-    Download(ctx context.Context, bucket, key string) (io.ReadCloser, error)
-    GetPresignedURL(ctx context.Context, bucket, key string, expiry time.Duration) (string, error)
-    Delete(ctx context.Context, bucket, key string) error
+    // 上传单文件到 bucket/{dir}/{filename}
+    UploadFile(ctx context.Context, bucket, dir, filename string, reader io.Reader, size int64, contentType string) error
+    // 下载整个目录，返回文件名→reader 映射
+    DownloadDir(ctx context.Context, bucket, dir string) (map[string]io.ReadCloser, error)
+    // 删除整个目录（递归，幂等）
+    DeleteDir(ctx context.Context, bucket, dir string) error
+    // 获取单文件访问 URL（MinIO 预签名 / 本地路径）
+    GetFileURL(ctx context.Context, bucket, dir, filename string) (string, error)
 }
 ```
 
@@ -29,19 +35,17 @@ type StorageClient interface {
 classDiagram
     class StorageClient {
         <<interface>>
-        Upload(ctx, bucket, key, reader, size, contentType)
-        Download(ctx, bucket, key)
-        GetPresignedURL(ctx, bucket, key, expiry)
-        Delete(ctx, bucket, key)
+        UploadFile(ctx, bucket, dir, filename, reader, size, contentType)
+        DownloadDir(ctx, bucket, dir)
+        DeleteDir(ctx, bucket, dir)
+        GetFileURL(ctx, bucket, dir, filename)
     }
     class MinIOClient {
         -client *minio.Client
         -maxRetries int
-        +ensureBucket(buckets)
     }
     class LocalStorageClient {
         -baseDir string
-        +ensureDir(buckets)
     }
     StorageClient <|.. MinIOClient
     StorageClient <|.. LocalStorageClient
@@ -56,33 +60,41 @@ type LocalStorageClient struct {
 }
 
 func NewLocalStorageClient(baseDir string, buckets ...string) (*LocalStorageClient, error) {
-    // 启动时遍历 buckets 创建 {baseDir}/{bucket} 目录
+    // 创建 {baseDir}/{bucket} 目录
 }
 
-func (c *LocalStorageClient) Upload(ctx, bucket, key, reader, size, contentType) (string, error) {
-    // os.MkdirAll(dir, 0755) + os.Create(path) + io.Copy
-    // 返回 key（与 MinIO 实现对齐）
+func (c *LocalStorageClient) UploadFile(ctx, bucket, dir, filename, reader, size, contentType) error {
+    // path = filepath.Join(baseDir, bucket, dir, filename)
+    // os.MkdirAll(filepath.Dir(path), 0755) + os.Create + io.Copy
 }
 
-func (c *LocalStorageClient) Download(ctx, bucket, key) (io.ReadCloser, error) {
-    // os.Open(path) → *os.File（实现 io.ReadCloser）
+func (c *LocalStorageClient) DownloadDir(ctx, bucket, dir) (map[string]io.ReadCloser, error) {
+    // 遍历 {baseDir}/{bucket}/{dir}/ 下所有文件
+    // 返回 filename → ReadCloser 映射（包含 markdown.md + images/*）
 }
 
-func (c *LocalStorageClient) Delete(ctx, bucket, key) error {
-    // os.Remove(path)，忽略 IsNotExist（幂等，与 MinIO 对齐）
+func (c *LocalStorageClient) DeleteDir(ctx, bucket, dir) error {
+    // os.RemoveAll(filepath.Join(baseDir, bucket, dir))，幂等
 }
 
-func (c *LocalStorageClient) GetPresignedURL(ctx, bucket, key, expiry) (string, error) {
-    // 返回 filepath.Join(baseDir, bucket, key)
-    // 本地无签名概念，返回直接路径
+func (c *LocalStorageClient) GetFileURL(ctx, bucket, dir, filename) (string, error) {
+    // 返回 filepath.Join(baseDir, bucket, dir, filename)
 }
 ```
 
-**路径映射**：`{baseDir}/{bucket}/{key}`，与 MinIO 的 `bucket/key` 语义对齐。
+**路径映射**：`{baseDir}/{bucket}/{dir}/{filename}`，目录式存储。
 
-**无需重试**：本地文件系统操作失败多为磁盘满/权限错误，重试无意义（与 MinIO 的网络重试不同）。
+**无需重试**：本地文件系统操作失败多为磁盘满/权限错误，重试无意义。
 
-**无需内存缓冲**：`Upload` 直接 `io.Copy` 到文件，不 `io.ReadAll`（本地无重试需求）。
+**无需内存缓冲**：`UploadFile` 直接 `io.Copy` 到文件。
+
+### 2.4 MinIOClient 改造
+
+MinIO 原单文件接口改为目录式：
+- `UploadFile`：`PutObject(bucket, dir+"/"+filename, reader, size, PutObjectOptions{ContentType})`
+- `DownloadDir`：列出 `bucket/{dir}/` 前缀所有对象，逐个 `GetObject` 返回映射
+- `DeleteDir`：列出 `bucket/{dir}/` 前缀所有对象，逐个 `RemoveObject`（幂等）
+- `GetFileURL`：`PresignedGetObject(bucket, dir+"/"+filename, expiry)`
 
 ## 3. 配置层
 
@@ -154,19 +166,28 @@ flowchart TD
 
 ### 5.1 knowledge_service.go
 
-- 构造函数注入 `config.StorageConfig`，bucket 名从 config 读取（替代包级常量）
-- `uploadMinioAsync` / `moveMinioFile` / `deleteMinioFile` 逻辑不变（调用 `s.storage.Upload/Download/Delete`，接口不变）
-- 函数命名可保留（内部实现细节），或重命名为 `uploadFileAsync` 等（可选，低优先）
+- bucket 名从 config 读取（删包级常量）
+- `articleContentKey(title)` 返回的 key 改为目录名（无扩展名，文件名固定 `markdown.md`）
+- `formatArticleText(title, content)` 生成 `# {title}\n\n{content}`，存为 `markdown.md`，contentType `text/markdown`
+- `uploadMinioAsync` → `uploadArticleFilesAsync`：调用 `storage.UploadFile` 上传 `markdown.md`；若解析提取了图片，逐个上传 `images/{hash}.ext`
+- `moveMinioFile` → `moveArticleDir`：调用 `storage.DownloadDir` + `UploadFile` 逐文件迁移 + `DeleteDir`
+- `deleteMinioFile` → `deleteArticleDir`：调用 `storage.DeleteDir`
 
 ### 5.2 processor.go
 
-- `resolveContent` 调用 `p.storage.Download`，接口不变
-- 无改动
+- `resolveContent` 调用 `storage.DownloadDir` 读取整个文章目录
+- 从返回的文件映射中取 `markdown.md` 解析为正文
+- 图片文件暂不参与 embedding（仅正文文本分块），但保留在目录中供前端展示
 
-### 5.3 删除 opsmind-attachments
+### 5.3 文档解析器
+
+- 当前 `docParser.Parse` 只提取纯文本，V1.1 需增强为提取文本 + 图片
+- PDF/DOCX 解析时提取内嵌图片，存为 `images/{hash}.ext`，正文 Markdown 用相对路径 `![](images/xxx.jpg)` 引用
+- 每篇文章存储为目录：`markdown.md` + `images/`，正文用相对路径 `![](images/xxx.jpg)` 引用图片
+
+### 5.4 删除 opsmind-attachments
 
 - `main.go` 启动时不再创建 `opsmind-attachments` 桶（零使用）
-- `GetPresignedURL` 保留（接口不变，本地实现返回路径）
 
 ## 6. docker-compose 变化
 
@@ -201,14 +222,18 @@ volumes:
 
 | 文件 | 改动 |
 |---|---|
-| `server/internal/adapter/storage_local.go` | 新增 LocalStorageClient |
+| `server/internal/adapter/storage_client.go` | 接口升级为目录式（UploadFile/DownloadDir/DeleteDir/GetFileURL） |
+| `server/internal/adapter/storage_local.go` | 新增 LocalStorageClient（目录式实现） |
+| `server/internal/adapter/storage_minio.go` | MinIOClient 改造为目录式（原 storage_client.go 重命名） |
+| `server/internal/adapter/doc_parser.go` | 增强解析器：提取文本 + 图片，生成 Markdown + images |
 | `server/internal/config/config.go` | 新增 StorageConfig / LocalStorageConfig / BucketConfig |
 | `server/internal/config/config.yaml` | 新增 storage 配置块 |
 | `server/cmd/main.go` | 按 driver 选择创建 LocalStorageClient 或 MinIOClient；bucket 从 config 读取 |
-| `server/internal/service/knowledge_service.go` | bucket 从 config 读取（删包级常量）；`articleContentKey` 改为 `.md` 后缀；`formatArticleText` contentType 改为 `text/markdown` |
+| `server/internal/service/knowledge_service.go` | bucket 从 config 读取；UploadFile 目录式上传 markdown.md + images；moveArticleDir/deleteArticleDir 目录操作；`.md` 后缀 + `text/markdown` |
+| `server/internal/rag/processor.go` | resolveContent 改为 DownloadDir 读取 markdown.md |
 | `docker-compose.yml` | MinIO 加 profile；server 加本地存储卷 |
 | `.env.example` | 新增 `OPSMIND_STORAGE_DRIVER` / `OPSMIND_STORAGE_LOCAL_BASE_DIR` |
-| `docs/TECH.md` | 同步存储架构（接口 4 方法、双实现、可选 MinIO） |
+| `docs/TECH.md` | 同步存储架构（目录式接口、双实现、可选 MinIO） |
 
 ## 8. 验证
 
