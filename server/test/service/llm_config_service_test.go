@@ -182,11 +182,11 @@ func TestLLMConfigService_APIKeyMasked(t *testing.T) {
 	}
 }
 
-// TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt verifies that editing
-// non-secret fields keeps the existing API key readable when encryption is enabled.
+// TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt 验证编辑非密钥字段时，
+// 开启加密后已有 API Key 仍可正常读取（不会被二次加密）。
 func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) {
 	if err := crypto.Init(testEncryptionKey); err != nil {
-		t.Fatalf("crypto.Init failed: %v", err)
+		t.Fatalf("crypto.Init 失败: %v", err)
 	}
 	defer crypto.Init("")
 
@@ -194,18 +194,18 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 
 	created, err := svc.CreateConfig(bgCtx, "openai", "https://api.openai.com/v1", "sk-original", "", "sk-original", "gpt-4o", "text-3-small", "", 4096, 1536, true)
 	if err != nil {
-		t.Fatalf("CreateConfig failed: %v", err)
+		t.Fatalf("CreateConfig 失败: %v", err)
 	}
 	if created.LLMAPIKey != "sk-original" {
-		t.Fatalf("created APIKey = %q, want sk-original", created.LLMAPIKey)
+		t.Fatalf("创建后 APIKey = %q，期望 sk-original", created.LLMAPIKey)
 	}
 
 	var rawBefore string
 	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawBefore).Error; err != nil {
-		t.Fatalf("query raw api_key failed: %v", err)
+		t.Fatalf("查询原始 api_key 失败: %v", err)
 	}
 	if !strings.HasPrefix(rawBefore, "cipher:") {
-		t.Fatalf("stored api_key should be prefixed ciphertext, got %q", rawBefore)
+		t.Fatalf("存储的 api_key 应带 cipher 前缀，得到 %q", rawBefore)
 	}
 
 	updated := &model.LlmConfig{
@@ -220,26 +220,26 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 		IsDefault:       true,
 	}
 	if err := svc.UpdateConfig(bgCtx, updated); err != nil {
-		t.Fatalf("UpdateConfig failed: %v", err)
+		t.Fatalf("UpdateConfig 失败: %v", err)
 	}
 
 	var rawAfter string
 	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawAfter).Error; err != nil {
-		t.Fatalf("query updated raw api_key failed: %v", err)
+		t.Fatalf("查询更新后原始 api_key 失败: %v", err)
 	}
 	if !strings.HasPrefix(rawAfter, "cipher:") {
-		t.Fatalf("updated api_key should remain prefixed ciphertext, got %q", rawAfter)
+		t.Fatalf("更新后 api_key 应保持 cipher 前缀，得到 %q", rawAfter)
 	}
 
 	cfg, err := svc.GetConfig(bgCtx, created.ID)
 	if err != nil {
-		t.Fatalf("GetConfig failed: %v", err)
+		t.Fatalf("GetConfig 失败: %v", err)
 	}
 	if cfg.LLMAPIKey != "sk-original" {
-		t.Fatalf("APIKey after non-secret update = %q, want sk-original", cfg.LLMAPIKey)
+		t.Fatalf("非密钥字段更新后 APIKey = %q，期望 sk-original", cfg.LLMAPIKey)
 	}
 	if mgrCfg := svc.GetManager().GetConfig(); mgrCfg == nil || mgrCfg.LLMAPIKey != "sk-original" {
-		t.Fatalf("manager APIKey = %#v, want sk-original", mgrCfg)
+		t.Fatalf("管理器 APIKey = %#v，期望 sk-original", mgrCfg)
 	}
 }
 

@@ -135,7 +135,7 @@ func (s *UserService) Create(ctx context.Context, req request.CreateUserRequest)
 	}
 
 	// 包裹在事务中：Create + AssignRoles 原子执行。
-	// AssignRoles 不再自开事务，直接使用当前 tx 保证同一事务边界。
+	// AssignRoles 使用当前 tx 保证同一事务边界。
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
 			return err

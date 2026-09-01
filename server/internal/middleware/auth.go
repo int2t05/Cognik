@@ -26,7 +26,7 @@ type CurrentUser struct {
 	Permissions []string `json:"permissions"`
 }
 
-// 权限解析从 JWT Claims.Permissions 读取，不再使用硬编码映射。
+// 权限解析从 JWT Claims.Permissions 读取。
 // 权限在登录时由 AuthService 从 Role.Permissions（数据库 JSONB 字段）解析后写入 JWT，
 // 中间件只需从 Claims 中读取即可，新增角色/修改权限无需改代码。
 

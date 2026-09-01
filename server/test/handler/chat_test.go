@@ -2,7 +2,7 @@
 
 // Package handler_test 验证 ChatHandler HTTP 接口。
 //
-// 测试覆盖 PLAN.md Task26 定义的门户端问答端点：
+// 测试覆盖门户端问答端点：
 // POST /portal/chat-sessions（创建问答）
 // POST /portal/chat-sessions/:id/feedback（提交反馈）
 // GET /portal/chat-sessions/:id（查询详情）

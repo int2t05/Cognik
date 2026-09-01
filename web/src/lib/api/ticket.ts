@@ -1,6 +1,5 @@
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
-import type { PageResponse } from './types';
 
 export interface Ticket { id: number; ticket_no: string; title: string; tags: string[]; status: number; status_text: string; urgency?: number; submitter_name?: string; created_at: string; updated_at: string; }
 export interface TicketDetail extends Ticket { description: string; contact_phone: string; contact_email: string; supplement_count: number; records?: TicketRecord[]; }

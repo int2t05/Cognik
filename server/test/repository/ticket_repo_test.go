@@ -2,7 +2,7 @@
 
 // Package repository_test 验证 TicketRepo 数据访问层。
 //
-// 测试覆盖 PLAN.md Task23 定义的 10 个方法：
+// 测试覆盖 10 个方法：
 // Ticket: Create/FindByID/Update/UpdateStatus/IncrementSupplementCount/ListByUser/ListAll/AutoCloseTickets
 // TicketRecord: CreateRecord/FindByTicketID
 package repository_test

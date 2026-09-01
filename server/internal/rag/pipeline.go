@@ -13,7 +13,7 @@
 //   - 向量检索失败（无 BM25 降级）→ 返回错误（核心路径不可降级）
 //   - BM25 失败 → 仅用向量结果
 //
-// 设计决策（ADR-V2-001）：
+// 设计决策：
 // Pipeline 通过 Retriever 接口调用向量检索和 BM25，
 // 不直接依赖 VectorStore 或 BM25Retriever 的具体实现。
 // 这样 BM25 懒加载和 TTL 对 Pipeline 完全透明。

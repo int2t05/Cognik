@@ -2,7 +2,7 @@
 
 // Package repository_test 验证 ChatRepo 数据访问层。
 //
-// 测试覆盖 PLAN.md Task25 定义的 5 个方法：
+// 测试覆盖 5 个方法：
 // ChatSession: Create/FindByID/UpdateFeedback/ListByUser
 // ChatMessage: CreateBatch
 package repository_test

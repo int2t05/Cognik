@@ -2,7 +2,7 @@
 
 // Package service_test 验证 Scheduler 后台调度器业务逻辑。
 //
-// 测试覆盖 PLAN.md Task30 定义的核心逻辑：
+// 测试覆盖核心逻辑：
 // TicketAutoCloseJob — 自动关闭超过 7 天的申告
 package service_test
 

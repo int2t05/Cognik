@@ -16,7 +16,7 @@ import { AppleButton } from '@/components/ui/AppleButton';
 import { LayoutDashboard, Ticket, BookOpen, Users, Shield, Settings, ScrollText, MessageSquare, ChevronLeft, ChevronRight, Sun, Moon, ChevronDown, Cpu, FileText, User, Bot } from 'lucide-react';
 
 // ICON_MAP 将后端菜单 icon 字段映射到 Lucide 图标组件。
-// 同时兼容旧值（如 knowledge → BookOpen），确保后端数据变动时不挂。
+// ICON_MAP 支持多别名映射，后端菜单 icon 字段可用任一别名。
 const ICON_MAP: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard size={16} />,
   ticket: <Ticket size={16} />,
@@ -35,10 +35,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 // FRONTEND_ROUTES 将后端菜单路径映射到实际前端路由。
-// 同时兼容旧版本种子数据中的错误路径，避免升级后菜单 404。
+// FRONTEND_ROUTES 提供路由别名，后端菜单 path 可用任一别名。
 const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/audit-logs': '/admin/audit',
-  // 旧版菜单路径兼容（commit 16bd0ab 及更早的 seed 数据）
   '/admin/model-config': '/admin/config/llm',
   '/admin/llm-config': '/admin/config/llm',
   '/admin/system-config': '/admin/config/system',

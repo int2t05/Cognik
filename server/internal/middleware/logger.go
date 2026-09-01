@@ -16,7 +16,7 @@ import (
 // 每条请求结束时输出一条 slog 记录，自动携带 RequestID 中间件生成的 X-Request-ID。
 // 状态码 ≥500 以 Error 级别输出，≥400 以 Warn 级别输出，其余 Info。
 //
-// Logger 不再接受 writer 参数——日志输出目标由 main.go 中 slog.SetDefault 统一控制。
+// 日志输出目标由 main.go 中 slog.SetDefault 统一控制。
 // 测试中可通过 slog.SetDefault 设置测试 handler 验证日志行为。
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -64,28 +64,4 @@ func Logger() gin.HandlerFunc {
 			slog.Info(msg, attrs...)
 		}
 	}
-}
-
-// RequestIDFromContext 从 Gin context 提取请求 ID。
-//
-// 供 Service 层或其他中间件使用，将请求 ID 注入业务日志。
-func RequestIDFromContext(c *gin.Context) string {
-	if rid, exists := c.Get(RequestIDKey); exists {
-		if s, ok := rid.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-// SlogWithRequest 从 Gin context 创建带 request_id 的 slog.Logger。
-//
-// 调用方在请求处理 goroutine 中使用返回的 logger，
-// 业务日志自动携带请求 ID，与 HTTP 请求日志形成完整链路。
-func SlogWithRequest(c *gin.Context) *slog.Logger {
-	attrs := []any{"request_id", RequestIDFromContext(c)}
-	if uid, exists := c.Get("userID"); exists {
-		attrs = append(attrs, "user_id", uid)
-	}
-	return slog.With(attrs...)
 }

@@ -31,8 +31,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-/** 轻量级 ErrorFallback — 用于局部区域错误恢复，仅 SectionErrorBoundary 内部使用。 */
-function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
+/** 轻量级 SectionErrorFallback — 用于局部区域错误恢复，仅 SectionErrorBoundary 内部使用。 */
+function SectionErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
       <div className="text-center max-w-form">
@@ -56,7 +56,7 @@ export class SectionErrorBoundary extends Component<SectionProps, SectionState> 
 
   render() {
     if (this.state.error) {
-      return <ErrorFallback error={this.state.error} onReset={() => { this.setState({ error: null }); }} />;
+      return <SectionErrorFallback error={this.state.error} onReset={() => { this.setState({ error: null }); }} />;
     }
     return this.props.children;
   }

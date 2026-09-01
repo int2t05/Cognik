@@ -29,7 +29,7 @@ const (
 )
 
 // 消费者接口——ChatService 仅暴露它实际使用的依赖方法，
-// 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
+// 遵循 Go "accept interfaces, return structs" 惯例，消费者接口模式，依赖最小化。
 type chatKnowledgeRepo interface {
 	FindKBByID(ctx context.Context, id int64) (*model.KnowledgeBase, error)
 }
@@ -195,8 +195,8 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	if err := s.chatRepo.CreateMessage(ctx, userMsg); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "保存用户消息失败"}
 	}
-		// 首次对话时将标题从"新对话"自动更新为用户问题
-	if session.Question == "新对话" || session.Question == "" {
+	// 首次对话时将标题从默认值自动更新为用户问题
+	if session.Question == "新会话" || session.Question == "" {
 	_ = s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, 0)
 		}
 
@@ -213,7 +213,7 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 		genTimeout = 300 * time.Second
 	}
 	gctx, cancel := context.WithTimeout(context.Background(), genTimeout)
-	if err := s.hub.Start(sessionID, assistant.ID, cancel); err != nil {
+	if err := s.hub.Start(sessionID, cancel); err != nil {
 		cancel()
 		// 标记占位失败，避免残留 generating
 		assistant.Status = model.MessageStatusFailed
@@ -564,7 +564,7 @@ func (s *ChatService) ListSessions(ctx context.Context, userID int64, page, page
 
 	items := make([]response.SessionListItem, 0, len(sessions))
 	for _, sess := range sessions {
-		lastAnswer := truncateText(sess.Answer, 100)
+		lastAnswer := truncateRunes(sess.Answer, 100)
 		items = append(items, response.SessionListItem{
 			ID:           sess.ID,
 			KBID:         sess.KBID,
@@ -752,15 +752,6 @@ func truncateRunes(s string, maxRunes int) string {
 	runes := []rune(s)
 	if len(runes) <= maxRunes {
 		return s
-	}
-	return string(runes[:maxRunes]) + "..."
-}
-
-// truncateText 截断文本到 maxRunes 个字符，超出加 "..."
-func truncateText(text string, maxRunes int) string {
-	runes := []rune(text)
-	if len(runes) <= maxRunes {
-		return text
 	}
 	return string(runes[:maxRunes]) + "..."
 }

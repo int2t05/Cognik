@@ -1,8 +1,7 @@
 // Package service —— GenerationHub 接管「进行中」的流式生成所有权。
 //
-// 为什么需要它：原实现把生成绑在 HTTP 请求 ctx 上，客户端一断开（导航/刷新）
-// 生成即停止且不落库。Hub 把生成与请求解耦——请求只是订阅者，断开不影响生成；
-// 重连可凭 since 回放缓冲实现真实断点续传。单实例内存实现，不依赖外部中间件。
+// 生成与 HTTP 请求 ctx 解耦，客户端断开（导航/刷新）不影响生成，确保结果落库。
+// 重连可凭 since 回放缓冲实现断点续传。单实例内存实现，不依赖外部中间件。
 package service
 
 import (
@@ -45,8 +44,7 @@ func NewGenerationHub() *GenerationHub {
 }
 
 // Start 登记一个新生成；若该会话已有未完成的生成则拒绝。
-// msgID 预留给后续任务（持久化时关联消息行），本任务不使用但保留接口。
-func (h *GenerationHub) Start(sessionID, msgID int64, cancel context.CancelFunc) error {
+func (h *GenerationHub) Start(sessionID int64, cancel context.CancelFunc) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if g, ok := h.gen[sessionID]; ok && !g.finished {

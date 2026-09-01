@@ -1,6 +1,6 @@
 // Package middleware_test 验证 JWT 认证中间件。
 //
-// 测试覆盖 PLAN.md T12 定义的 4 个场景：
+// 测试覆盖 4 个场景：
 // 有效令牌、过期令牌、缺失 Authorization、格式错误。
 package middleware_test
 

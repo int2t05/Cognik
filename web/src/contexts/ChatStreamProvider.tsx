@@ -160,8 +160,7 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   const getStream = useCallback((id: number) => streams[id], [streams]);
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => patch(id, s => ({ ...s, messages: msgs, lastSeq: -1 })), [patch]);
 
-  // send 只负责向已有会话发送消息，会话创建由调用方（handleSend）统一处理。
-  // 移除内部 createSession 回退——双重创建点导致新对话首条消息时产生重复会话。
+  // send 只负责向已有会话发送消息，会话创建由调用方统一处理。
   const send: Store['send'] = useCallback(async (sessionId, kbId, question, token, onError) => {
     const authToken = token || tokenRef.current;
     if (!sessionId) { onError('会话不存在'); return null; }

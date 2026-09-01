@@ -56,7 +56,7 @@ func formatArticleText(title, content string) string {
 }
 
 // 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
-// 遵循 Go "accept interfaces, return structs" 惯例，便于测试 mock。
+// 遵循 Go "accept interfaces, return structs" 惯例，消费者接口模式，依赖最小化。
 type knowledgeChunker interface {
 	Split(text string) []string
 }
@@ -105,7 +105,7 @@ type knowledgeMsgNotifier interface {
 
 // KnowledgeService 知识库管理服务。
 //
-// 所有依赖使用接口类型，便于测试 mock。
+// 所有依赖使用接口类型，消费者接口模式，依赖最小化。
 type KnowledgeService struct {
 	repo                  knowledgeRepo
 	userNames             userNameResolver
@@ -530,8 +530,8 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 
 // republishFromApproved 将文章正文保存到 MinIO，入队异步处理（分块→embedding→pgvector）。
 //
-// 为什么改为异步：同步 embedding 阻塞 HTTP 请求长达数秒甚至数十秒，
-// 改为 MinIO→队列→Worker 模式后，发布接口立即返回，Worker 后台消费。
+// 为什么异步处理：同步 embedding 阻塞 HTTP 请求长达数秒甚至数十秒，
+// MinIO→队列→Worker 模式使发布接口立即返回，Worker 后台消费。
 //
 // 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
@@ -969,7 +969,7 @@ func unmarshalTags(data datatypes.JSON) []string {
 
 // mapArticleToProcessStatus 返回文章的处理状态字符串。
 //
-// 仅读取 ProcessStatus 字段，不再从 Status 反推（历史兼容逻辑已删除）。
+// 仅读取 ProcessStatus 字段。
 // ProcessStatus 取值见 rag.Processor 文档：pending/chunking/embedding/indexing/completed/failed/disabled。
 func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 	if article.ProcessStatus != "" {

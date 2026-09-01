@@ -84,6 +84,3 @@ func (r *LlmConfigRepo) CountReferencingKBs(ctx context.Context, configID int64)
 func (r *LlmConfigRepo) ClearDefault(ctx context.Context) error {
 	return r.db.WithContext(ctx).Model(&model.LlmConfig{}).Where("is_default = ?", true).Update("is_default", false).Error
 }
-
-// 确保导出了 ErrNotFound（兼容 mock 使用）
-var _ = ErrNotFound

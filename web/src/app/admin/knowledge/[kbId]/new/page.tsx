@@ -97,7 +97,7 @@ export default function NewArticlePage() {
       <PageTitle>新建文章</PageTitle>
 
       {configMismatch && (
-        <div className="mb-4 flex items-start gap-3 rounded-[var(--radius-apple)] border border-[var(--color-warning)] p-4 text-caption" style={{ background: 'var(--badge-warning-bg)' }}>
+        <div className="mb-4 flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-warning)] p-4 text-caption" style={{ background: 'var(--badge-warning-bg)' }}>
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--color-warning)]" />
           <div>
             <p className="font-semibold mb-1 text-[var(--badge-warning-text)]">Embedding 配置不一致</p>

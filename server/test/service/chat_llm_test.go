@@ -261,5 +261,5 @@ func TestChatService_SessionFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteSession 失败: %v", err)
 	}
-	t.Log("会话端到端流程测试通过 ✓")
+	t.Log("会话端到端流程测试通过")
 }

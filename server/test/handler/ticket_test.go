@@ -2,7 +2,7 @@
 
 // Package handler_test 验证 TicketHandler HTTP 接口。
 //
-// 测试覆盖 PLAN.md Task24 定义的后台管理和门户端申告端点。
+// 测试覆盖后台管理和门户端申告端点。
 package handler_test
 
 import (

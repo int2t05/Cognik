@@ -30,7 +30,7 @@ func drain(ch <-chan service.StreamEvent, n int, d time.Duration) []service.Stre
 // 先 Publish 若干，再 Subscribe(since=2)，必须回放 2..尾 且与实时无缺号。
 func TestHub_ReplayThenLiveNoGap(t *testing.T) {
 	h := service.NewGenerationHub()
-	if err := h.Start(1, 100, func() {}); err != nil {
+	if err := h.Start(1, func() {}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	for i := 0; i < 3; i++ {
@@ -54,7 +54,7 @@ func TestHub_ReplayThenLiveNoGap(t *testing.T) {
 // 多订阅者都收到全量实时事件。
 func TestHub_MultipleSubscribers(t *testing.T) {
 	h := service.NewGenerationHub()
-	_ = h.Start(2, 200, func() {})
+	_ = h.Start(2, func() {})
 	_, chA, ua, _ := h.Subscribe(2, 0)
 	_, chB, ub, _ := h.Subscribe(2, 0)
 	defer ua()
@@ -71,7 +71,7 @@ func TestHub_MultipleSubscribers(t *testing.T) {
 // 慢订阅者（不消费）不得阻塞生成：Publish 远超 buffer 容量仍快速返回。
 func TestHub_SlowSubscriberNotBlocking(t *testing.T) {
 	h := service.NewGenerationHub()
-	_ = h.Start(3, 300, func() {})
+	_ = h.Start(3, func() {})
 	_, _, unsub, _ := h.Subscribe(3, 0) // 拿到通道但从不读
 	defer unsub()
 	done := make(chan struct{})
@@ -91,8 +91,8 @@ func TestHub_SlowSubscriberNotBlocking(t *testing.T) {
 // 同会话重复 Start 返回 ErrGenerationInProgress。
 func TestHub_DuplicateStart(t *testing.T) {
 	h := service.NewGenerationHub()
-	_ = h.Start(4, 400, func() {})
-	if err := h.Start(4, 401, func() {}); err != service.ErrGenerationInProgress {
+	_ = h.Start(4, func() {})
+	if err := h.Start(4, func() {}); err != service.ErrGenerationInProgress {
 		t.Fatalf("应返回 ErrGenerationInProgress，得到 %v", err)
 	}
 }
@@ -102,7 +102,7 @@ func TestHub_CancelAndFinish(t *testing.T) {
 	h := service.NewGenerationHub()
 	var mu sync.Mutex
 	canceled := false
-	_ = h.Start(5, 500, func() { mu.Lock(); canceled = true; mu.Unlock() })
+	_ = h.Start(5, func() { mu.Lock(); canceled = true; mu.Unlock() })
 	if !h.Cancel(5) {
 		t.Fatal("Cancel 应返回 true")
 	}
@@ -121,7 +121,7 @@ func TestHub_CancelAndFinish(t *testing.T) {
 // 用 -race 跑：Subscribe/Publish/Unsubscribe 并发无数据竞争。
 func TestHub_ConcurrentRace(t *testing.T) {
 	h := service.NewGenerationHub()
-	_ = h.Start(6, 600, func() {})
+	_ = h.Start(6, func() {})
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
@@ -146,7 +146,7 @@ func TestHub_ConcurrentRace(t *testing.T) {
 // 生成已 Finish 后(宽限期内)Subscribe 应成功：全量回放 + 通道已关闭、无实时事件。
 func TestHub_SubscribeAfterFinish(t *testing.T) {
 	h := service.NewGenerationHub()
-	_ = h.Start(7, 700, func() {})
+	_ = h.Start(7, func() {})
 	h.Publish(7, service.StreamEvent{Type: "token", Content: "a"})
 	h.Publish(7, service.StreamEvent{Type: "done"})
 	h.Finish(7)
