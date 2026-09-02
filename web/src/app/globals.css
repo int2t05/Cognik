@@ -5,7 +5,7 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ===== Tailwind v4 Theme — 统一设计 Token =====
-   字号体系对齐专业工具产品（Linear / Vercel / GitHub）：正文 13px，高信息密度。 */
+   字号体系：高信息密度专业工具风格，正文 13px。 */
 @theme {
   /* 字体映射 — 使 Tailwind font-sans / font-mono utility 自动解析到项目变量 */
   --font-sans: system-ui, -apple-system, 'Segoe UI', 'Inter Variable', sans-serif;
@@ -14,15 +14,15 @@
   /* 字号 — caption 提到 12px（三家下限） */
   --font-size-hero: 1.75rem;
   --font-size-display: 1.5rem;
-  --font-size-display-md: 1.125rem;    /* 18px，原 20px 降，对齐 Linear */
-  --font-size-headline: 1rem;           /* 16px，原 17px 降 */
-  --font-size-title: 0.875rem;         /* 14px，原 15px 降 */
+  --font-size-display-md: 1.125rem;    /* 18px */
+  --font-size-headline: 1rem;           /* 16px */
+  --font-size-title: 0.875rem;         /* 14px */
   --font-size-body: 0.8125rem;         /* 13px，保持 */
   --font-size-callout: 0.75rem;        /* 12px，保持 */
-  --font-size-caption: 0.75rem;        /* 12px，原 11px 提升 */
+  --font-size-caption: 0.75rem;        /* 12px */
   --font-size-fine: 0.625rem;          /* 10px，仅 badge */
 
-  --font-size-metric: 1.5rem;          /* 24px，原 20px 升，对齐 Vercel stat */
+  --font-size-metric: 1.5rem;          /* 24px */
 
   --line-height-hero: 1.2;
   --line-height-display: 1.25;
@@ -39,17 +39,15 @@
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-md-plus: 16px;
-  --spacing-lg: 24px;     /* 原 20px */
-  --spacing-xl: 32px;     /* 原 24px */
-  --spacing-xxl: 48px;    /* 原 32px */
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
 
   --max-w-wide: 1280px;
   --max-w-content: 768px;
   --max-w-form: 480px;
 
-  /* 结构性 token — 对齐 Linear/GitHub */
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 56px;
+  /* 结构性 token */
   --header-height: 44px;
 }
 
@@ -79,7 +77,7 @@
   --color-ring: var(--ring);
 }
 
-/* ===== OpsMind Design Tokens — 专业工具风格（Linear / Vercel） ===== */
+/* ===== OpsMind Design Tokens — 专业工具风格 ===== */
 :root {
   /* 品牌强调色 — 克制靛蓝 */
   --color-accent: #5b5bd6;
@@ -146,8 +144,6 @@
   /* z-index 层级 */
   --z-nav: 50;
   --z-overlay: 200;
-  --z-dialog: 400;
-  --z-toast: 600;
 
   /* 叠加层遮罩色 — 浅色/暗色分别定义，避免硬编码 */
   --color-overlay: rgba(0, 0, 0, 0.4);
@@ -174,9 +170,6 @@
   --border: var(--color-hairline);
   --input: var(--color-hairline);
   --ring: var(--color-accent-focus);
-
-  /* shadow-as-border — Vercel 技法，卡片用 */
-  --shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 /* ===== 暗色主题 ===== */

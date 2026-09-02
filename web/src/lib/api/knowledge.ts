@@ -2,7 +2,7 @@ import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 
 export interface KB { id: number; name: string; description: string; embedding_model: string; vector_dimension: number; llm_config_id: number; article_count: number; created_at: string; }
-export interface Article { id: number; kb_id: number; kb_name: string; title: string; content: string; source_type: number; status: number; status_text: string; tags: string[]; word_count: number; chunk_count: number; file_type: string; process_status: string; process_error: string; created_by_name: string; created_at: string; updated_at: string; }
+export interface Article { id: number; kb_id: number; kb_name: string; title: string; content: string; source_type: number; status: number; status_text: string; tags: string[]; file_type: string; process_status: string; process_error: string; created_by_name: string; created_at: string; updated_at: string; }
 export interface ArticleDetail extends Article { chunks: unknown[]; reviewed_by: number | null; published_by: number | null; minio_path: string; }
 
 // KB
