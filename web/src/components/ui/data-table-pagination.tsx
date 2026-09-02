@@ -1,5 +1,5 @@
 'use client';
-// DataTablePagination — GitHub 风格分页：居中页码导航 + 左侧计数 + 右侧页大小。
+// DataTablePagination — GitHub 风格分页：左侧计数+页大小 + 居中页码导航。
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';

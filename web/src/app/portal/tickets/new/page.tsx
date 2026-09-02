@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
 import { Button } from '@/components/ui/button';
@@ -26,29 +26,17 @@ export default function TicketSubmitPage() {
   const chatContextRaw = searchParams.get('chat_context');
 
   // 从 chat_context 解析预填数据：描述 = 用户原始问题，标题由用户自行填写
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const chatContext = useMemo<ChatContextData | undefined>(() => {
+    if (!chatContextRaw) return undefined;
+    try { return JSON.parse(chatContextRaw) as ChatContextData; } catch { return undefined; }
+  }, [chatContextRaw]);
+
+  const [title, setTitle] = useState(chatContext?.question || '');
+  const [description, setDescription] = useState(chatContext?.question || '');
   const [tags, setTags] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [chatContext, setChatContext] = useState<ChatContextData | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
-
-  // 解析 chat_context 并预填标题和描述
-  useEffect(() => {
-    if (!chatContextRaw) return;
-    try {
-      const ctx: ChatContextData = JSON.parse(chatContextRaw);
-      setChatContext(ctx);
-      if (ctx.question) {
-        if (!title) setTitle(ctx.question);
-        if (!description) setDescription(ctx.question);
-      }
-    } catch {
-      // URL 参数格式错误，静默忽略
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatContextRaw]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

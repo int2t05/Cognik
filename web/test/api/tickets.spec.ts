@@ -38,7 +38,6 @@ test.describe('申告 API', () => {
 
   test.describe('门户端', () => {
     const TICKET_TITLE = 'API 测试申告 — 邮箱问题';
-    let ticketId = 0;
 
     test('创建申告成功', async ({ request }) => {
       const res = await request.post(`${API_URL}/api/v1/portal/tickets`, {

@@ -8,7 +8,7 @@
    字号体系对齐专业工具产品（Linear / Vercel / GitHub）：正文 13px，高信息密度。 */
 @theme {
   /* 字体映射 — 使 Tailwind font-sans / font-mono utility 自动解析到项目变量 */
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Inter Variable', sans-serif;
   --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
 
   --font-size-hero: 1.75rem;
@@ -48,7 +48,7 @@
 
 /* ===== shadcn 语义色 → Tailwind utility 暴露 =====
    放在 :root 之前：:root 的项目品牌 --color-accent 会覆盖此处 --color-accent，
-   故 bg-accent 运行时解析为品牌色（Apple 风格 hover 淡蓝），而非 shadcn 默认静音灰。
+   故 bg-accent 运行时解析为品牌色（品牌强调色 hover），而非 shadcn 默认静音灰。
    其余 shadcn 语义色（primary/background/card/border 等）正常暴露为 utility。 */
 @theme inline {
   --color-background: var(--background);
@@ -145,7 +145,7 @@
   /* 叠加层遮罩色 — 浅色/暗色分别定义，避免硬编码 */
   --color-overlay: rgba(0, 0, 0, 0.4);
 
-  /* ===== shadcn 语义 Token → 映射到 Apple Design Tokens =====
+  /* ===== shadcn 语义 Token → 映射到项目设计 Token =====
      primary = 品牌色（bg-primary 即品牌蓝）；accent = 静音 hover bg（瓦片色）。
      注：--color-accent 被 :root 品牌色覆盖，故 shadcn bg-accent 运行时为品牌色。 */
   --background: var(--color-parchment);
@@ -309,7 +309,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
 }
 
-/* ===== Dialog 入场/出场动画 — Apple 风格缩放+淡入 ===== */
+/* ===== Dialog 入场/出场动画 — 缩放+淡入动画 ===== */
 @keyframes dialog-in {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
