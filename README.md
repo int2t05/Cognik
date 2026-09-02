@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="opsmind-icon.svg" width="80" height="80" alt="OpsMind">
+  <img src="docs\assets\icon.svg" width="80" height="80" alt="OpsMind">
 </p>
 
 <h1 align="center">OpsMind</h1>

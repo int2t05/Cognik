@@ -46,7 +46,7 @@ flowchart TB
         LLM["LLMClient — OpenAI-compatible"]
         EMB["EmbeddingClient — OpenAI-compatible"]
         VEC["VectorStore — pgvector halfvec + HNSW"]
-        STO["StorageClient — MinIO S3"]
+        STO["StorageClient — Local / MinIO"]
     end
 
     Client --> Router --> MW --> Handler --> Service --> RAG --> Adapter
@@ -89,8 +89,10 @@ flowchart TB
     Start(["main()"]) --> Cfg["config.Load() — Viper 读取 config.yaml + 环境变量"]
     Cfg --> DB["gorm.Open(postgres) — MaxOpenConns=25, MaxIdle=10, Lifetime=5m"]
     DB --> Migrate["AutoMigrate 全部 Model + pgvector 扩展"]
-    Migrate --> Adapters["初始化 LLMClient / EmbeddingClient / VectorStore / MinIOClient"]
-    Adapters --> RAGInit["初始化 Chunker / Embedder / BM25 / Pipeline / Processor(goroutine pool)"]
+    Migrate --> Adapters["初始化 LLMClient / EmbeddingClient / VectorStore"]
+    Adapters --> Storage["switch cfg.Storage.Driver → Local | MinIO（目录式）"]
+    Storage --> ParserInit["初始化 Parser（MinerU 云端 / 本地降级）"]
+    ParserInit --> RAGInit["初始化 Chunker / Embedder / BM25 / Pipeline / Processor(goroutine pool)"]
     RAGInit --> Repos["初始化 Repository 层"]
     Repos --> Services["初始化 Service 层"]
     Services --> Handlers["初始化 Handler 层"]
@@ -114,7 +116,7 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 
 ### 2.2 RAG 引擎
 
-12 个文件组成自包含领域引擎，不依赖 HTTP 层：
+11 个文件组成自包含领域引擎，不依赖 HTTP 层：
 
 | 文件 | 职责 |
 |------|------|
@@ -128,7 +130,6 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 | `embedder.go` | 批量 Embedding (batch=32) |
 | `retriever.go` | 向量检索入口 |
 | `processor.go` | goroutine pool 异步文档处理 |
-| `document_parser.go` | PDF/DOCX/MD/TXT 解析 |
 | `types.go` | 共享类型定义 |
 
 ### 2.3 适配层接口
@@ -154,14 +155,16 @@ classDiagram
     }
     class StorageClient {
         <<interface>>
-        Upload(ctx, bucket, key, reader, size) error
-        Download(ctx, bucket, key) (io.ReadCloser, error)
+        UploadFile(ctx, bucket, dir, filename, reader, size, contentType) error
+        DownloadDir(ctx, bucket, dir) (map[string]io.ReadCloser, error)
+        DeleteDir(ctx, bucket, dir) error
+        GetFileURL(ctx, bucket, dir, filename) (string, error)
     }
 ```
 
 - `LLMClient` / `EmbeddingClient`：OpenAI-compatible 实现，指数退避重试（maxRetries=3，429/503 可重试）
 - `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验
-- `StorageClient`：MinIO 实现，两桶模型（`opsmind-attachments` 申告附件 + `opsmind-documents` 知识文档）
+- `StorageClient`：Local + MinIO 双实现（目录式），桶：`opsmind-documents` 文档 + `opsmind-published` 发布
 
 ## 3. 前端架构
 
@@ -375,6 +378,7 @@ flowchart TD
 | Reranker 子进程 | 自动重启 | 崩溃后 3s 重连 | 内部 30s 超时 |
 | pgvector | 无 | 瞬时故障返回 20002 | HNSW 索引 |
 | MinIO | 无 | 惰性检查 | io.LimitReader(100MB) |
+| Local | 无 | 直接文件系统操作 | filepath.Join 防路径穿越 |
 
 ### 5.4 并发安全
 
@@ -398,8 +402,12 @@ flowchart TD
 | `EMBEDDING_MODEL` | Embedding 模型 | bge-m3 |
 | `EMBEDDING_DIMENSION` | 向量维度 | 1024 |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
+| `OPSMIND_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
+| `OPSMIND_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录 | ./data/storage |
 | `AI_CONFIDENCE_THRESHOLD` | 置信度阈值 | 0.6 |
 | `AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
+| `OPSMIND_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
+| `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
 
 > 完整 28 项环境变量见 `.env.example` 和 `docker-compose.yml`。
 
@@ -468,34 +476,46 @@ flowchart LR
 ## 9. 项目结构
 
 ```
-server/cmd/main.go           入口：配置→DB→RAG→Service→Handler→Router→Scheduler
-server/internal/
-├── adapter/                  LLM / Embedding / VectorStore / StorageClient
-├── cache/                    内存缓存
-├── config/                   Viper 配置
-├── database/                 AutoMigrate + 连接管理
-├── dto/                      request/ + response/
-├── handler/                  11 个 Handler
-├── log/                      结构化日志
-├── middleware/               JWT / RBAC / CORS / Logger
-├── model/                    GORM 模型 + 枚举
-├── rag/                      自建 RAG 引擎
-├── repository/               11 个 Repository
-├── router/                   路由注册 + safeHandler
-├── service/                  12 个 Service + scheduler + tx_manager + generation_hub
-server/pkg/                   jwt / hash / crypto / response / errcode
-server/migrations/            DDL + 种子数据
-server/models/                rerank 模型文件
-server/test/                  外部测试包（config/database/model/service/handler/...）
-server/rerank_server.py       Python 重排序服务
+server/
+├── cmd/main.go              # entry: config → DB → RAG → domain → router → runtime
+├── internal/
+│   ├── domain/              # 业务领域（每领域 handler + service + repository 三文件）
+│   │   ├── chat/           # 聊天/AI 问答（session + llm_config）
+│   │   ├── knowledge/      # 知识库
+│   │   ├── system/         # 系统管理（audit + config + dashboard + message）
+│   │   ├── ticket/         # 工单
+│   │   └── user/           # 用户/权限（auth + role + account）
+│   ├── infra/              # 基础设施
+│   │   ├── adapter/        # LLMClient / EmbeddingClient / VectorStore / Reranker
+│   │   ├── cache/          # 用户状态缓存
+│   │   ├── config/         # Viper 配置
+│   │   ├── database/       # AutoMigrate + 连接管理
+│   │   ├── log/            # 结构化日志
+│   │   ├── middleware/     # JWT / RBAC / CORS / Logger
+│   │   ├── runtime/        # scheduler / tx_manager / generation_hub
+│   │   └── storage/        # StorageClient 接口 + MinIO / Local 双实现（目录式）
+│   ├── rag/                # 自建 RAG 引擎（pipeline/bm25/hybrid/rerank/chunker/embedder/processor）
+│   ├── parser/             # 文档解析（parser.go + mineru/ + local/）
+│   ├── router/             # 路由注册 + safeHandler
+│   └── shared/             # 共享类型和工具
+│       ├── dto/            # request/ + response/
+│       ├── handler/        # 共享 handler 工具
+│       ├── model/          # GORM models + enums
+│       └── pkg/            # jwt / hash / crypto / response / errcode
+├── migrations/              # DDL + seed data
+├── models/                  # rerank model files
+├── test/                    # 外部测试包（domain/infra/rag/shared/router/e2e/integration）
+└── rerank_server.py         # Python cross-encoder rerank service
+
 web/src/
-├── app/                      Next.js App Router + globals.css（Apple Design Tokens）
-├── components/ui/            Apple Design 组件
-├── components/layout/        AdminLayout / PortalLayout
-├── components/shared/        StatusBadge / ConfirmDialog / StatCard
-├── components/chat/          ChatInput / ChatMessage / ChatPipeline
-├── contexts/                 ChatStreamProvider
-├── hooks/                    11 个自定义 Hooks
-├── lib/api/                  11 个 API 客户端模块
-└── __tests__/                前端单元测试
+├── app/                     # Next.js App Router + globals.css (Design Tokens)
+├── components/              # ui/ + layout/ + shared/ + chat/
+├── contexts/                # ChatStreamProvider
+├── hooks/                   # 11 custom Hooks
+├── lib/api/                 # 11 API client modules
+└── __tests__/               # frontend unit tests
+
+docs/                        # formal docs — see §8
+deploy/                      # Docker 部署（docker-compose.yml + allinone/）
+Makefile                     # 本地开发命令入口
 ```

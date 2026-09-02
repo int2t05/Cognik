@@ -26,7 +26,7 @@ Architecture: modular monolith, Handler → Service → Repository. RAG engine (
 - **LLM/Embedding:** llama.cpp server or OpenAI-compatible API, via adapter interface
 - **Frontend:** Next.js + React + TypeScript + shadcn/ui (Radix + Tailwind v4) + SWR
 - **Design system:** Linear/Vercel 专业工具风格（靛蓝 #5b5bd6 + zinc 灰阶，13px body，中性小圆角，亮暗双主题 CSS 变量 in `web/src/app/globals.css`）
-- **Deployment:** Docker Compose — 3 required (opsmind-server, opsmind-web, postgres) + 2 optional (minio under `storage` profile, llama-cpp under `ai-local` profile)
+- **Deployment:** Local-first dev (Makefile + Docker for PostgreSQL only) / `deploy/` for Docker Compose + All-in-One image
 
 ## 4. Structure
 
@@ -50,6 +50,7 @@ server/
 │   │   ├── runtime/        # scheduler / tx_manager / generation_hub
 │   │   └── storage/        # StorageClient 接口 + MinIO / Local 双实现（目录式）
 │   ├── rag/                # 自建 RAG 引擎（pipeline/bm25/hybrid/rerank/chunker/embedder/processor）
+│   ├── parser/             # 文档解析（parser.go + mineru/ + local/）
 │   ├── router/             # 路由注册 + safeHandler
 │   └── shared/             # 共享类型和工具
 │       ├── dto/            # request/ + response/
@@ -70,36 +71,49 @@ web/src/
 └── __tests__/               # frontend unit tests
 
 docs/                        # formal docs — see §8
-docker-compose.yml
+deploy/                      # Docker 部署（docker-compose.yml + allinone/）
+Makefile                     # 本地开发命令入口
 ```
 
 ## 5. Commands
 
 ```bash
-# Backend (cd server)
-go build ./cmd/...
-go run ./cmd/main.go
-go vet ./...
-go test ./test/... -v -tags=integration -p 1   # requires PostgreSQL + pgvector + MinIO
+# 一键开发（Docker DB + Go 后端 + Next.js 前端）
+make dev          # 前台启动（3 个进程）
+make dev-detached # 后台启动
 
-# Frontend (cd web)
-npm run dev      # port 3000, rewrite proxies to localhost:8080
-npm run build
-npm run lint
+# 分终端启动
+make dev-db       # 仅 PostgreSQL + pgvector
+make dev-server   # 仅后端（热重载）
+make dev-web      # 仅前端（热重载）
 
-# Docker (project root)
-docker compose up -d --build
-docker compose --profile ai-local up -d --build   # with local llama.cpp
+# 本地 AI（可选）
+make dev-ai       # PostgreSQL + llama.cpp (LLM + Embedding)
+make dev-storage  # PostgreSQL + MinIO
 
-# DB seed (tables auto-created via GORM AutoMigrate on server startup)
-docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
+# 构建 / 测试
+make build        # 编译后端 + 前端
+make test         # 后端集成测试
+make lint         # 代码检查
+
+# Docker 基础设施
+make dev-stop     # 停止 Docker 服务
+make dev-clean    # 停止并清除数据卷
+
+# All-in-One 镜像
+make docker-allinone  # 构建单容器生产镜像
+
+# 手动命令
+cd server && go run ./cmd/main.go          # 后端 :8080
+cd web && npm run dev                      # 前端 :3000
+cd server && go test ./test/... -v -tags=integration -p 1
 ```
 
 ## 6. Project Conventions
 
 - **Three-layer architecture:** Handler (param validation, response format) → Service (business logic, transactions) → Repository (data access). No cross-layer calls. RAG (`rag/`) does not depend on Handler/Service/Repository.
-- **External calls via adapters only:** LLM, Embedding, VectorStore are accessed exclusively through interfaces in `server/internal/adapter/`. StorageClient is in `server/internal/storage/`. No direct HTTP calls to LLM/MinIO/pgvector from Service/Handler.
-- **Chinese comments:** file-header comment per file (why the module exists), function comment per key function (why, not what).
+- **External calls via adapters only:** LLM, Embedding, VectorStore are accessed exclusively through interfaces in `server/internal/infra/adapter/`. StorageClient is in `server/internal/infra/storage/`. No direct HTTP calls to LLM/MinIO/pgvector from Service/Handler.
+- **Comment specification:** comments in concise Chinese, focusing on functionality; file-header comment required per file; function comment required per key function / method; no restating code logic — focus on functional explanation with a short Chinese example.
 - **Tests:** in `server/test/` using external test packages (`_test`); no mocks — tests run against real PostgreSQL + pgvector + MinIO. Use `-p 1` for integration tests to avoid cross-package DB contention.
 - **Unified response envelope:** `{"code": 0, "message": "success", "data": {...}}` via `internal/pkg/response`; error codes in `internal/pkg/errcode`.
 - **RBAC:** admin endpoints require JWT middleware + RBAC permission-code middleware.
@@ -111,12 +125,14 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 ## 7. Project Boundaries
 
 **Always:**
+
 - Read `docs/PRD.md` + `docs/TECH.md` before changing any interface or data model; confirm whether TECH.md needs sync after implementation.
-- Handle external-service failures (timeout, unreachable, error return) for all LLMClient / EmbeddingClient / VectorStore / StorageClient calls. StorageClient is in `server/internal/storage/`.
+- Handle external-service failures (timeout, unreachable, error return) for all LLMClient / EmbeddingClient / VectorStore / StorageClient calls. StorageClient is in `server/internal/infra/storage/`.
 - Enforce state machines in Service (ticket status transitions, knowledge article status transitions) — never `UPDATE status` directly.
 - Use Docker-internal hostnames: `postgres:5432`, `minio:9000`, `http://llama-cpp:8080/v1` — never `localhost` for inter-container calls.
 
 **Never:**
+
 - Bypass the adapter layer to call LLM / MinIO / pgvector directly.
 - Put business logic in Repository (audit rules, state-machine transitions, LLM hot-swap belong in Service).
 - Hardcode config values (LLM Base URL, API Key, model names, vector dimensions, DB connection, JWT secret) — read from config/env.
@@ -129,14 +145,14 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 
 Project-level source of truth on `main` branch. Changes require audit.
 
-| Doc | Purpose |
-|-----|---------|
-| `docs/ROADMAP.md` | 产品技术路线图 — 战略方向、里程碑、技术决策记录 |
-| `docs/PRD.md` | 产品需求 — RAG 引擎、文档上传、统一文章模型、SSE 流式 |
-| `docs/TECH.md` | 技术架构 — 模块接口、DDL、ADR、部署配置、设计系统附录 |
-| `docs/API/README.md` | API 文档索引 — 9 份端点文档覆盖全部路由 |
-| `docs/FLOW/README.md` | 业务流程图 — 7 大模块端到端数据流 |
-| `docs/TODO.md` | 代码级改进清单与优先级 |
+| Doc                     | Purpose                                                |
+| ----------------------- | ------------------------------------------------------ |
+| `docs/ROADMAP.md`     | 产品技术路线图 — 战略方向、里程碑、技术决策记录       |
+| `docs/PRD.md`         | 产品需求 — RAG 引擎、文档上传、统一文章模型、SSE 流式 |
+| `docs/TECH.md`        | 技术架构 — 模块接口、DDL、ADR、部署配置、设计系统附录 |
+| `docs/API/README.md`  | API 文档索引 — 9 份端点文档覆盖全部路由               |
+| `docs/FLOW/README.md` | 业务流程图 — 7 大模块端到端数据流                     |
+| `docs/TODO.md`        | 代码级改进清单与优先级                                 |
 
 ---
 
@@ -182,27 +198,27 @@ Formal docs and communication in Chinese; prefer mermaid diagrams. (Project-spec
 
 ## Artifact Paths (fixed — do not create / rename at will)
 
-| Phase | Artifact | Path |
-|-------|----------|------|
-| Research | Interview / market / competitor / strategy | `docs/research/{interview,market,competitor,strategy}.md` |
-| Planning | Global view (authoritative) | `docs/ROADMAP.md` |
-| Planning | Project icon | `docs/assets/icon.svg`, `icon-mono.svg` |
-| Requirements | User-visible features (e2e baseline) | `docs/FEATURES.md` |
-| Requirements | Project-level PRD (concise) | `docs/PRD.md` |
-| Requirements | Version-level PRD (detailed) | `docs/vX.Y/PRD.md` |
-| Design | Design system / frontend audit / prototype findings | `docs/design/{DESIGN,frontend-audit,prototype-findings}.md` |
-| Design | Domain / schema / prompt / ADR | `docs/design/{CONTEXT,SCHEMA,PROMPT}.md`, `docs/design/adr/` |
-| Architecture | Project-level TECH (concise) | `docs/TECH.md` |
-| Architecture | Version-level tech (detailed) | `docs/vX.Y/tech.md` |
-| API | API contracts | `docs/API/*.md` |
-| Plan | Project-level plan (concise) | `docs/PLAN.md` |
-| Plan | Version-level plan (ticket breakdown) | `docs/vX.Y/plan.md` |
-| Flow | Business flows (mermaid + data flow) | `docs/FLOW/*.md` |
-| Review | TODO (code ↔ TODO.md bidirectional check) | `docs/TODO.md` |
-| Load test | Capacity report | `docs/CAPACITY.md` |
-| Security | Security findings | `docs/security-report.md` |
-| Incident | Blameless postmortem | `docs/postmortem/YYYY-MM-DD-<slug>.md` |
-| Audit | Doc audit (git-ignored, local snapshot) | `docs/audit/` |
+| Phase        | Artifact                                            | Path                                                             |
+| ------------ | --------------------------------------------------- | ---------------------------------------------------------------- |
+| Research     | Interview / market / competitor / strategy          | `docs/research/{interview,market,competitor,strategy}.md`      |
+| Planning     | Global view (authoritative)                         | `docs/ROADMAP.md`                                              |
+| Planning     | Project icon                                        | `docs/assets/icon.svg`, `icon-mono.svg`                      |
+| Requirements | User-visible features (e2e baseline)                | `docs/FEATURES.md`                                             |
+| Requirements | Project-level PRD (concise)                         | `docs/PRD.md`                                                  |
+| Requirements | Version-level PRD (detailed)                        | `docs/vX.Y/PRD.md`                                             |
+| Design       | Design system / frontend audit / prototype findings | `docs/design/{DESIGN,frontend-audit,prototype-findings}.md`    |
+| Design       | Domain / schema / prompt / ADR                      | `docs/design/{CONTEXT,SCHEMA,PROMPT}.md`, `docs/design/adr/` |
+| Architecture | Project-level TECH (concise)                        | `docs/TECH.md`                                                 |
+| Architecture | Version-level tech (detailed)                       | `docs/vX.Y/tech.md`                                            |
+| API          | API contracts                                       | `docs/API/*.md`                                                |
+| Plan         | Project-level plan (concise)                        | `docs/PLAN.md`                                                 |
+| Plan         | Version-level plan (ticket breakdown)               | `docs/vX.Y/plan.md`                                            |
+| Flow         | Business flows (mermaid + data flow)                | `docs/FLOW/*.md`                                               |
+| Review       | TODO (code ↔ TODO.md bidirectional check)          | `docs/TODO.md`                                                 |
+| Load test    | Capacity report                                     | `docs/CAPACITY.md`                                             |
+| Security     | Security findings                                   | `docs/security-report.md`                                      |
+| Incident     | Blameless postmortem                                | `docs/postmortem/YYYY-MM-DD-<slug>.md`                         |
+| Audit        | Doc audit (git-ignored, local snapshot)             | `docs/audit/`                                                  |
 
 - Project-level (concise, goes to `main`) vs. version-level (detailed, goes to `docs/vX.Y/`). Single-version projects fall back to project-level only.
 - `docs/audit/` is git-ignored (see `.gitignore`), does not enter version control.

@@ -9,20 +9,21 @@ server/tmp/
 server/*.log
 server/coverage.out
 server/coverage.html
+server/cmd.exe
 
 # Go workspace（多人协作时不提交本地工作区）
 go.work
 go.work.sum
 
-# === Vue 前端 ===
+# === Next.js 前端 ===
 web/node_modules/
-web/dist/
-web/dist-ssr/
+web/.next/
 web/.env.local
 web/.env.*.local
 web/*.log
-web/.vite/
 web/*.tsbuildinfo
+web/test-results/
+web/playwright-report/
 
 # === Docker / 运行时数据 ===
 .env
@@ -31,9 +32,7 @@ web/*.tsbuildinfo
 !server/models/
 postgres_data/
 minio_data/
-anythingllm_storage/
-anythingllm_hotdir/
-anythingllm_outputs/
+data/
 
 # === IDE / 编辑器 ===
 .idea/
@@ -74,9 +73,6 @@ web/playwright-report/
 *.cache
 *.exe
 
-# === 接口设计 ===
-.interface-design/
-
 # === 非正式产物（调研/审计/参考仓库/原型/设计参考） ===
 # 正式文档见 CLAUDE.md §8；以下为开发过程辅助，不进 main
 docs/research/
@@ -89,8 +85,8 @@ scratch/
 # === Playwright MCP（测试辅助） ===
 .playwright-mcp
 
-# === 重排序模型（cross-encoder ~80MB，已入库以便开箱即用） ===
-# 模型文件随 download.py 一起提交，首次 clone 即可运行 rerank_server.py
+# === Python ===
 __pycache__/
 
+# === 旧目录（已清理） ===
 defense
