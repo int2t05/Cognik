@@ -1,8 +1,4 @@
-// handler.go 提供申告管理相关 HTTP 接口。
-//
-// Handler 层职责：参数校验、调用 Service、格式化响应，不包含业务规则。
-// parsePagination / getCurrentUserID / handleServiceError 为本领域 Handler 自用的本地副本，
-// 与 handler/common.go 中的同名函数行为一致——领域包独立编译，不依赖 handler 包。
+// handler.go 申告管理 HTTP 接口（参数校验、调用 Service、格式化响应）。
 package ticket
 
 import (
@@ -21,9 +17,7 @@ import (
 // Handler 共享工具
 // =============================================================================
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
-//
-// 默认值：page=1, pageSize=10。上限：pageSize≤100。
+// parsePagination 解析分页参数（page 默认 1，pageSize 默认 10，上限 100）。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -38,9 +32,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
-//
-// JWTAuth 中间件将当前用户 ID 以 int64 类型写入 context，key 为 "userID"。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -50,16 +42,13 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
-//
-// AppError 类型提取业务码，其他错误视为 500。
+// handleServiceError 统一处理 Service 错误（AppError 提取业务码，其余 500）。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr AppError
 	if errors.As(err, &appErr) {
 		response.Error(c, appErr.Code, appErr.Message)
 		return
 	}
-	// 非 AppError 说明是未预期的内部错误，记录真实原因方便排查
 	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
 	response.Error(c, errcode.ErrUnknown, "服务器内部错误")
 }
@@ -187,11 +176,7 @@ func (h *TicketHandler) ListAll(c *gin.Context) {
 	response.SuccessWithPage(c, result.Tickets, result.Total, page, pageSize)
 }
 
-// GetDetailAdmin 获取申告详情（后台——不限所有权）。
-//
-// GET /api/v1/admin/tickets/:id
-// 为什么独立方法而非路由前缀判断：Handler 不应感知 URL 结构，
-// 路由逻辑应留在 Router 层。
+// GetDetailAdmin 获取申告详情（后台，不限所有权）。
 func (h *TicketHandler) GetDetailAdmin(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

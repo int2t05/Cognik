@@ -1,15 +1,13 @@
 // Package response 定义认证相关的响应结构体。
-//
-// LoginResponse 包含令牌和用户信息。
 package response
 
 // LoginResponse 登录响应
 type LoginResponse struct {
-	AccessToken  string   `json:"access_token"`  // 访问令牌
-	RefreshToken string   `json:"refresh_token"` // 刷新令牌
-	User         UserInfo `json:"user"`           // 用户信息
-	Roles        []string `json:"roles"`          // 角色名列表
-	Permissions  []string `json:"permissions"`    // 权限列表
+	AccessToken  string     `json:"access_token"`  // 访问令牌
+	RefreshToken string     `json:"refresh_token"` // 刷新令牌
+	User         UserInfo   `json:"user"`          // 用户信息
+	Roles        []string   `json:"roles"`         // 角色名列表
+	Permissions  []string   `json:"permissions"`   // 权限列表
 	Menus        []MenuItem `json:"menus"`         // 菜单树
 }
 

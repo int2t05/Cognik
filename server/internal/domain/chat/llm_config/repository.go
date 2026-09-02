@@ -1,6 +1,6 @@
-// Package llmconfig 封装 LLM 配置领域的数据访问层。
+// Package llmconfig LLM 配置数据访问。
 //
-// repository.go 管理 llm_configs 表的 CRUD 及默认配置查询。
+// repository.go 管理 llm_configs 表 CRUD。
 package llmconfig
 
 import (
@@ -21,7 +21,7 @@ func NewLlmConfigRepo(db *gorm.DB) *LlmConfigRepo {
 	return &LlmConfigRepo{db: db}
 }
 
-// DB 返回底层 *gorm.DB，供 Service 层事务操作使用。
+// DB 返回底层 *gorm.DB，供 Service 事务使用。
 func (r *LlmConfigRepo) DB() *gorm.DB {
 	return r.db
 }
@@ -39,7 +39,7 @@ func (r *LlmConfigRepo) FindByID(ctx context.Context, id int64) (*model.LlmConfi
 	return &cfg, nil
 }
 
-// FindDefault 查询默认配置。未找到时返回 nil, nil（静默降级，不视为错误）。
+// FindDefault 查询默认配置（未找到返回 nil, nil，不视为错误）。
 func (r *LlmConfigRepo) FindDefault(ctx context.Context) (*model.LlmConfig, error) {
 	var cfgs []model.LlmConfig
 	if err := r.db.WithContext(ctx).Where("is_default = ?", true).Limit(1).Find(&cfgs).Error; err != nil {

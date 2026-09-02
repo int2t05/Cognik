@@ -1,6 +1,4 @@
 // Package request 定义 API 请求体结构。
-//
-// llm_config.go 定义 LLM 配置相关请求体。
 package request
 
 // CreateLLMConfigRequest 创建 LLM 配置请求。

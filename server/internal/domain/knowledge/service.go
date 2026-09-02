@@ -1,8 +1,4 @@
-// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
-//
-// service.go 统一管理知识库 CRUD、文章审核发布、pgvector 管道操作和文档上传。
-// AuditWriter 通过消费者接口注入——本包只依赖接口而非具体实现，
-// Go 结构化类型系统使 *system.AuditService 自动满足此接口。
+// Package knowledge 知识库领域业务逻辑、数据访问与 HTTP 处理。
 package knowledge
 
 import (
@@ -20,10 +16,10 @@ import (
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
 	"opsmind/internal/parser"
+	"opsmind/internal/rag"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/dto/response"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/rag"
 	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
@@ -60,17 +56,11 @@ func formatArticleText(title, content string) string {
 	return "# " + title + "\n\n" + content
 }
 
-// AuditWriter 定义审计日志写入接口（消费者接口模式——本包只依赖实际使用的方法）。
-//
-// Go 结构化类型系统使任何实现了 Write 方法的类型自动满足此接口，
-// 无需显式 import system 包，避免跨领域循环依赖。
+// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
 type AuditWriter interface {
-	// Write 写入一条审计日志（使用默认 DB 连接）。
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// 消费者接口——KnowledgeService 仅暴露它实际使用的依赖方法，
-// 遵循 Go "accept interfaces, return structs" 惯例，消费者接口模式，依赖最小化。
 type knowledgeChunker interface {
 	Split(text string) []string
 }
@@ -129,9 +119,9 @@ type KnowledgeService struct {
 	docParser             knowledgeDocParser
 	processor             *rag.Processor
 	storage               storage.StorageClient
-	auditWriter          AuditWriter
+	auditWriter           AuditWriter
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
-	defaultEmbeddingModel string            // 当前默认嵌入模型名
+	defaultEmbeddingModel string           // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
 }
 
@@ -219,21 +209,7 @@ func (s *KnowledgeService) effectiveEmbeddingModel(kbModel string) string {
 	return s.defaultEmbeddingModel
 }
 
-// NewKnowledgeService 创建 KnowledgeService 实例。
-//
-// repo 为必需参数（所有业务操作依赖数据访问）。
-// 其余依赖通过可选函数注入——调用方只传非 nil 的依赖，
-// 避免 8 位置参数的可读性问题。
-//
-// 示例：
-//
-//	// 生产环境全依赖
-//	svc := NewKnowledgeService(repo,
-//	    WithUserNames(userRepo), WithChunker(c), WithEmbedder(e),
-//	    WithVectorStore(vs), WithDocParser(dp), WithProcessor(proc), WithStorage(sc))
-//
-//	// 测试环境仅 repo
-//	svc := NewKnowledgeService(repo)
+// NewKnowledgeService 创建 KnowledgeService 实例（repo 必需，其余通过选项注入）。
 func NewKnowledgeService(repo knowledgeRepo, opts ...KnowledgeServiceOption) *KnowledgeService {
 	s := &KnowledgeService{repo: repo}
 	for _, o := range opts {
@@ -306,12 +282,9 @@ func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.U
 
 // DeleteKB 删除知识库及其下所有内容。
 //
-// 执行顺序：pgvector 向量删除 → 文章 + KB 数据库记录删除。
-// 为什么先删向量再删数据库：VectorStore 删除可能失败（DB 连接问题），
-// 如果先删数据库记录再失败则向量成为孤儿数据。
-// MinIO 文件和 BM25 缓存由对应适配器异步管理，DeleteKB 仅负责 DB 和向量清理。
+// 先删向量再删数据库记录，避免向量删除失败产生孤儿数据。
+// MinIO 文件和 BM25 缓存由适配器异步管理。
 func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
-	// 1. 校验知识库存在
 	_, err := s.repo.FindKBByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -320,7 +293,7 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库失败: " + err.Error()}
 	}
 
-	// 2. 删除 pgvector 中该知识库的所有向量分块
+	// 删除 pgvector 向量分块
 	if s.store != nil {
 		if err := s.store.DeleteByKB(ctx, id); err != nil {
 			slog.Warn("删除知识库向量分块失败", "kb_id", id, "error", err)
@@ -328,7 +301,6 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 		}
 	}
 
-	// 3. 级联删除文章和知识库
 	return s.repo.DeleteKB(ctx, id)
 }
 
@@ -475,10 +447,7 @@ func (s *KnowledgeService) SubmitReview(ctx context.Context, id int64, userID in
 	return s.repo.UpdateArticleStatus(ctx, id, int(model.ArticleStatusReviewing))
 }
 
-// Review 审核文章（待审核→已通过/已驳回）。
-//
-// 使用精确字段更新（UpdateArticleReview）而非 Save()，
-// 避免将 Preload 关联数据、ProcessStatus 等不相关字段写回数据库。
+// Review 审核文章（待审核→已通过/已驳回，精确字段更新避免脏写）。
 func (s *KnowledgeService) Review(ctx context.Context, id int64, reviewerID int64, req request.ReviewRequest) error {
 	article, err := s.findArticle(ctx, id)
 	if err != nil {
@@ -542,12 +511,7 @@ func (s *KnowledgeService) Publish(ctx context.Context, id int64, publisherID in
 	return s.republishFromApproved(ctx, article, publisherID)
 }
 
-// republishFromApproved 将文章正文保存到 MinIO，入队异步处理（分块→embedding→pgvector）。
-//
-// 为什么异步处理：同步 embedding 阻塞 HTTP 请求长达数秒甚至数十秒，
-// MinIO→队列→Worker 模式使发布接口立即返回，Worker 后台消费。
-//
-// 由 Publish（Approved → Published）和 Enable（Disabled → Published）共用。
+// republishFromApproved 上传正文到存储并入队异步处理（分块→embedding→pgvector）。Publish/Enable 共用。
 func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *model.KnowledgeArticle, publisherID int64) error {
 	if s.chunker == nil || s.embedder == nil || s.store == nil {
 		return errcode.AppError{Code: errcode.ErrRAGUnavailable, Message: "RAG 服务未初始化（缺少 Chunker/Embedding/VectorStore）"}
@@ -568,8 +532,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	pubKey := articleContentKey(article.Title)
 	formatted := formatArticleText(article.Title, content)
 
-	// 同步上传正文到 MinIO——消除 uploadMinioAsync 与发布之间的竞态，
-	// 确保处理器取任务时文件已就位（特别是标题变更导致 key 变化时）
+	// 同步上传正文到存储，确保处理器取任务时文件已就位
 	if s.storage != nil {
 		if err := s.storage.UploadFile(ctx, minioBucketDocs, pubKey, "markdown.md", strings.NewReader(formatted), int64(len(formatted)), "text/markdown"); err != nil {
 			return errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文章正文失败: " + err.Error()}
@@ -585,7 +548,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
 
-	// 提交异步处理任务——从临时桶读取 {标题}.txt，嵌入成功后才拷贝到已发布桶
+	// 提交异步处理任务
 	task := rag.ProcessTask{
 		ArticleID:      id,
 		KBID:           article.KBID,
@@ -596,7 +559,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		OnStatusChange: func(aID int64, status, errMsg string) {
 			s.onPublishComplete(context.Background(), aID, status, errMsg)
 			if status == "completed" {
-				// 嵌入成功 → 拷贝临时桶→已发布桶 → 更新 MinioPath → 删临时桶
+				// 嵌入成功 → 迁移到已发布桶 → 更新路径 → 触发 BM25 重建
 				s.moveArticleDir(minioBucketDocs, minioBucketPublished, pubKey)
 				_ = s.repo.UpdateArticleMinioPath(context.Background(), aID, minioBucketPublished+"/"+pubKey)
 				if s.onKBChanged != nil {
@@ -604,7 +567,9 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 				}
 			}
 		},
-		OnMetrics: func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount) },
+		OnMetrics: func(aID int64, wordCount, chunkCount int) {
+			s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
+		},
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -627,10 +592,8 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已发布状态可停用"}
 	}
 
-	// 停用时不删向量——保留以支持增量 embedding（重新发布时只需 embed 变更的分块）。
-	// 搜索侧通过 knowledge_articles.status = 4 过滤，停用文章不会出现在检索结果中。
-
-	// 停用：从已发布桶移回临时桶（保留一份文档）
+	// 停用时不删向量——搜索侧通过 status=4 过滤，保留以支持增量 embedding。
+	// 从已发布桶移回临时桶。
 	s.moveArticleDir(minioBucketPublished, minioBucketDocs, articleContentKey(article.Title))
 
 	if err := s.repo.UpdateArticleDisable(ctx, id); err != nil {
@@ -668,6 +631,7 @@ func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
 	go s.cleanupArticleFiles(article)
 	return s.repo.DeleteArticle(ctx, id)
 }
+
 // =============================================================================
 // List / Detail
 // =============================================================================
@@ -685,8 +649,8 @@ func toArticleResponse(a model.KnowledgeArticle, userNames map[int64]string) res
 		CreatedBy: a.CreatedBy, CreatedByName: userNames[a.CreatedBy],
 		ReviewedBy: a.ReviewedBy, PublishedBy: a.PublishedBy,
 		PublishedByName: userNames[ptrVal(a.PublishedBy)],
-		ReviewComment: a.ReviewComment,
-		CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt,
+		ReviewComment:   a.ReviewComment,
+		CreatedAt:       a.CreatedAt, UpdatedAt: a.UpdatedAt,
 	}
 }
 
@@ -738,11 +702,7 @@ func (s *KnowledgeService) GetArticleDetail(ctx context.Context, id int64) (*res
 // 文档上传与处理
 // =============================================================================
 
-// UploadDocuments 上传文档到知识库（解析→创建文章）。
-//
-// 文件名去掉后缀作为文章标题，正文由后端同步解析后返回前端。
-// 分块→embedding→pgvector 不在此阶段执行——
-// 统一推迟到 Publish（发布）环节，避免草稿文章向量污染检索结果和重复 embed。
+// UploadDocuments 上传文档到知识库（解析→创建文章，分块/embedding 推迟到 Publish）。
 func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, userID int64, filename string, fileType string, fileSize int64, tags []string, content io.Reader) (*model.KnowledgeArticle, error) {
 	_, err := s.repo.FindKBByID(ctx, kbID)
 	if err != nil {
@@ -760,18 +720,15 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件大小超过限制（最大 50MB）"}
 	}
 
-	// 解析标题：文件名去掉扩展名
 	title := strings.TrimSuffix(filename, "."+fileType)
 	if title == "" {
 		title = filename
 	}
 
-	// 标题唯一性校验
 	if err := s.checkTitleUnique(ctx, kbID, title, 0); err != nil {
 		return nil, err
 	}
 
-	// 读取文件内容到内存
 	data, err := io.ReadAll(io.LimitReader(content, MaxDocumentSize))
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "读取上传文件失败: " + err.Error()}
@@ -780,7 +737,6 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件内容为空"}
 	}
 
-	// 同步解析文档正文
 	if s.docParser == nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "文档解析器未初始化"}
 	}
@@ -810,7 +766,6 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	// 解析后正文统一为 {标题}.txt（与手动创建一致）
 	key := articleContentKey(article.Title)
 	article.MinioPath = minioBucketDocs + "/" + key
 	_ = s.repo.UpdateArticle(ctx, article)
@@ -860,8 +815,12 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 		KBID:           article.KBID,
 		Content:        article.Content,
 		EmbeddingModel: s.effectiveEmbeddingModel(article.KnowledgeBase.EmbeddingModel),
-		OnStatusChange: func(aID int64, status, errMsg string) { s.onProcessStatusChange(context.Background(), aID, status, errMsg) },
-		OnMetrics:      func(aID int64, wordCount, chunkCount int) { s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount) },
+		OnStatusChange: func(aID int64, status, errMsg string) {
+			s.onProcessStatusChange(context.Background(), aID, status, errMsg)
+		},
+		OnMetrics: func(aID int64, wordCount, chunkCount int) {
+			s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
+		},
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -880,10 +839,7 @@ func (s *KnowledgeService) onProcessStatusChange(ctx context.Context, aID int64,
 	}
 }
 
-// onPublishComplete 发布异步处理完成回调。
-//
-// 仅对终态（completed / failed）写入 process_status，中间进度状态静默忽略。
-// completed 时清理临时桶文件——已发布桶已有备份，临时桶不再需要。
+// onPublishComplete 发布完成回调（仅终态写入 process_status）。
 func (s *KnowledgeService) onPublishComplete(ctx context.Context, aID int64, status, errMsg string) {
 	switch status {
 	case "completed":
@@ -900,10 +856,7 @@ func (s *KnowledgeService) onProcessMetrics(ctx context.Context, aID int64, word
 	}
 }
 
-// resolveUserNames 批量解析文章关联的用户名（创建人 + 发布人）。
-//
-// 为什么一次查询而非每个文章单独查：列表页 20 篇文章会产生 ~40 次用户查询，
-// 批量去重后一次搞定，避免 N+1 往返。
+// resolveUserNames 批量解析用户名（去重后一次查询，避免 N+1）。
 func (s *KnowledgeService) resolveUserNames(ctx context.Context, articles []model.KnowledgeArticle) map[int64]string {
 	if s.userNames == nil || len(articles) == 0 {
 		return map[int64]string{}
@@ -982,10 +935,7 @@ func unmarshalTags(data datatypes.JSON) []string {
 	return tags
 }
 
-// mapArticleToProcessStatus 返回文章的处理状态字符串。
-//
-// 仅读取 ProcessStatus 字段。
-// ProcessStatus 取值见 rag.Processor 文档：pending/chunking/embedding/indexing/completed/failed/disabled。
+// mapArticleToProcessStatus 返回文章处理状态（取值见 rag.Processor）。
 func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 	if article.ProcessStatus != "" {
 		return article.ProcessStatus
@@ -1034,7 +984,6 @@ func (s *KnowledgeService) moveArticleDir(srcBucket, dstBucket, dir string) {
 			slog.Warn("moveArticleDir 下载失败", "src", srcBucket, "dir", dir, "error", err)
 			return
 		}
-		// 逐文件上传到目标
 		uploadFailed := false
 		for filename, reader := range files {
 			data, err := io.ReadAll(reader)
@@ -1049,7 +998,6 @@ func (s *KnowledgeService) moveArticleDir(srcBucket, dstBucket, dir string) {
 				uploadFailed = true
 			}
 		}
-		// 全部上传成功才删源
 		if !uploadFailed {
 			if err := s.storage.DeleteDir(bg, srcBucket, dir); err != nil {
 				slog.Warn("moveArticleDir 删除源失败", "src", srcBucket, "dir", dir, "error", err)

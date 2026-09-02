@@ -1,6 +1,4 @@
 // Package request 定义请求 DTO。
-//
-// role.go 提供角色管理相关的请求结构体。
 package request
 
 // CreateRoleRequest 创建角色请求。

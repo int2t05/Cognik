@@ -1,7 +1,4 @@
-// Package middleware 提供 Gin 中间件。
-//
-// 本文件实现 JWT 认证中间件，从 Authorization 头提取 Bearer 令牌，
-// 解析后将用户信息写入 Gin context，供下游 Handler 使用。
+// Package middleware 提供 Gin 中间件（JWT 认证、RBAC、CORS、请求日志、RequestID）。
 package middleware
 
 import (
@@ -16,9 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CurrentUser JWT 解析后的用户信息，写入 Gin context。
-//
-// Permissions 由 JWT 中间件根据角色映射填充，RBAC 中间件使用该字段做权限校验。
+// CurrentUser JWT 解析后的用户信息，写入 Gin context 供下游使用。
 type CurrentUser struct {
 	UserID      int64    `json:"user_id"`
 	Username    string   `json:"username"`
@@ -26,14 +21,8 @@ type CurrentUser struct {
 	Permissions []string `json:"permissions"`
 }
 
-// 权限解析从 JWT Claims.Permissions 读取。
-// 权限在登录时由 AuthService 从 Role.Permissions（数据库 JSONB 字段）解析后写入 JWT，
-// 中间件只需从 Claims 中读取即可，新增角色/修改权限无需改代码。
-
 // JWTAuth 返回 JWT 认证中间件。
-//
-// userCache 用于校验用户状态（冻结/存在性），内存缓存减少 DB 查询。
-// 测试环境传 nil 跳过 DB 校验。secret 为空时返回配置错误。
+// userCache 校验用户状态（冻结/存在性），测试环境传 nil 跳过。
 func JWTAuth(userCache *cache.UserStatusCache, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if secret == "" {
@@ -64,7 +53,7 @@ func JWTAuth(userCache *cache.UserStatusCache, secret string) gin.HandlerFunc {
 			return
 		}
 
-		// 校验用户状态——优先内存缓存，未命中回退 DB
+		// 校验用户状态，优先缓存未命中回退 DB
 		if userCache != nil {
 			status, err := userCache.GetStatus(context.Background(), claims.UserID)
 			if err != nil {

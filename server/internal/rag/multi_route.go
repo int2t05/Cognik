@@ -1,18 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// multi_route.go 实现多路检索（Multi-Route Retrieval）。
-//
-// 为什么需要多路检索：
-// 单一查询只能覆盖知识库的一个视角。通过 LLM 从不同角度
-// 生成 2-4 个互补子查询（如"VPN 连接"→"VPN客户端配置"、
-// "VPN服务器地址"、"VPN证书安装"），多路检索后融合，
-// 显著提升查全率。
-//
-// 降级策略：
-// LLM 调用失败时降级为单路检索（仅原始查询）。
-// llm 为 nil 时直接降级（与 Pipeline 层守卫互补）。
-//
-// 输出格式：让 LLM 输出 JSON 数组，避免依赖编号前缀等脆弱字符串解析。
+// multi_route.go 实现多路检索，LLM 生成互补子查询提升查全率。失败时降级为单路检索。
 package rag
 
 import (
@@ -25,10 +13,8 @@ import (
 	"opsmind/internal/infra/adapter"
 )
 
-// MultiRoute 使用 LLM 从不同角度生成多个子查询。
-//
-// count 控制生成的子查询数量，自动钳位到 [2, 4]。
-// LLM 调用失败或 llm 为 nil 时降级返回 [query] 单路检索。
+// MultiRoute 使用 LLM 从不同角度生成多个子查询，count 自动钳位到 [2,4]。
+// LLM 失败或 llm 为 nil 时降级返回 [query]。
 func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string, count int) ([]string, error) {
 	if llm == nil {
 		return []string{query}, nil
@@ -71,10 +57,7 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string,
 	return routes, nil
 }
 
-// parseMultiRouteJSON 从 LLM 响应中解析 JSON 字符串数组。
-//
-// LLM 可能在 JSON 前后附加 markdown 或说明文字，
-// 先尝试整段解析，失败后截取首个 [...] 再解析。
+// parseMultiRouteJSON 从 LLM 响应中解析 JSON 字符串数组，先整段解析失败后截取首个 [...] 再解析。
 func parseMultiRouteJSON(raw string, originalQuery string, maxCount int) []string {
 	raw = strings.TrimSpace(raw)
 

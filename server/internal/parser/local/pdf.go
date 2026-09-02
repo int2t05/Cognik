@@ -1,11 +1,11 @@
-// Package parser 实现多格式文档解析。
+// Package local 实现本地纯 Go 文档解析降级引擎。
 //
 // pdf.go 实现 PDF 文件的文本与图片提取。
 //
 // 文本提取使用 ledongthuc/pdf（纯 Go，无 CGO 依赖），逐页 GetPlainText。
 // 图片提取使用 pdfcpu（github.com/pdfcpu/pdfcpu），支持 JPEG/PNG/TIFF/JPX/JBIG2 等。
 // 图片提取失败不阻塞文本提取——降级为仅返回文本。
-package parser
+package local
 
 import (
 	"bytes"
@@ -19,8 +19,8 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
-// parsePDF 解析 PDF 文件：逐页提取文本 + pdfcpu 提取嵌入图片。
-func (p *Parser) parsePDF(reader io.Reader) (*ParseResult, error) {
+// ParsePDF 解析 PDF 文件：逐页提取文本 + pdfcpu 提取嵌入图片。
+func ParsePDF(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return nil, fmt.Errorf("读取 PDF 文件失败: %w", err)
@@ -91,12 +91,6 @@ func extractPDFText(b []byte) (string, error) {
 	}
 
 	return result, nil
-}
-
-// imageEntry 图片名与字节的有序对。
-type imageEntry struct {
-	name string
-	data []byte
 }
 
 // extractPDFImages 使用 pdfcpu 提取 PDF 中的嵌入图片。

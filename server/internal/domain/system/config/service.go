@@ -1,7 +1,4 @@
-// Package config 封装系统配置领域的业务逻辑层。
-//
-// service.go 实现 ConfigService——配置键白名单、值类型校验、Upsert、置信度阈值计算。
-// AuditWriter 通过消费者接口注入，confidenceScoreQuerier 由 main 装配时注入 chat 仓库。
+// Package config 系统配置业务逻辑（配置键白名单、值校验、阈值计算）。
 package config
 
 import (
@@ -16,18 +13,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuditWriter 定义审计日志写入接口（消费者接口模式——本包只依赖接口而非具体实现）。
+// AuditWriter 审计日志写入接口（消费者接口）。
 type AuditWriter interface {
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// confidenceScoreQuerier 分位数计算所需的置信度分数查询接口。
-// 由 chat/session.ChatRepo 自动满足（Go 结构化类型系统）。
+// confidenceScoreQuerier 置信度分数查询接口（chat/session.ChatRepo 自动满足）。
 type confidenceScoreQuerier interface {
 	QueryRawScores(ctx context.Context, days int) ([]float64, error)
 }
 
-// configKeyMeta 定义配置键的元信息：期望类型和用途说明。
+// configKeyMeta 配置键元信息：期望类型和说明。
 type configKeyMeta struct {
 	ValueType   string // "string" | "number" | "bool"
 	Description string // 配置项说明
@@ -55,7 +51,7 @@ type ConfigService struct {
 	chatRepo    confidenceScoreQuerier
 }
 
-// SetChatRepo 注入 chat 仓库依赖（避免构造循环依赖）。
+// SetChatRepo 注入 chat 仓库（避免构造循环依赖）。
 func (s *ConfigService) SetChatRepo(r confidenceScoreQuerier) {
 	s.chatRepo = r
 }

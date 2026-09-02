@@ -1,7 +1,6 @@
-// Package audit 封装审计日志领域的业务逻辑层。
+// Package audit 审计日志业务逻辑。
 //
-// service.go 实现 AuditService——系统唯一的审计写入接缝。
-// AuditWriter 接口定义在此，各业务 Service 通过它写入审计日志，不直接依赖 AuditRepo。
+// AuditWriter 接口定义在此，各业务 Service 通过它写入审计日志。
 package audit
 
 import (
@@ -14,20 +13,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuditWriter 定义审计日志写入接口。
-//
-// 各 Service 通过此接口写入审计日志，而非直接依赖 AuditRepo。
-//   - locality：审计格式变更只需改 AuditService.Write，不影响调用方
-//   - leverage：一个接口，多个 Service 调用方
-//   - testability：Service 测试可注入假 AuditWriter，无需构造完整 AuditRepo
+// AuditWriter 审计日志写入接口。
 type AuditWriter interface {
-	// Write 写入一条审计日志（使用 AuditService 持有的默认 DB 连接）。
+	// Write 写入审计日志（默认 DB 连接）。
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	// WriteWithTx 在事务中写入审计日志（用于 Service 层事务内审计）。
+	// WriteWithTx 在事务中写入审计日志。
 	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// AuditService 审计日志读写服务——唯一的审计接缝。
+// AuditService 审计日志读写服务。
 type AuditService struct {
 	auditRepo *AuditRepo
 }
@@ -37,8 +31,7 @@ func NewAuditService(auditRepo *AuditRepo) *AuditService {
 	return &AuditService{auditRepo: auditRepo}
 }
 
-// buildAuditLog 构造 model.AuditLog 并处理 detail 字段的类型转换。
-// detail 为空字符串时写入 NULL，detail 为非空字符串时预期为已编码的 JSON 字节序列。
+// buildAuditLog 构造 AuditLog（detail 空写 NULL，非空写 JSON）。
 func (s *AuditService) buildAuditLog(operatorID int64, action, targetType string, targetID int64, detail string) *model.AuditLog {
 	var jsonDetail datatypes.JSON
 	if detail != "" {
@@ -53,23 +46,23 @@ func (s *AuditService) buildAuditLog(operatorID int64, action, targetType string
 	}
 }
 
-// Write 实现 AuditWriter 接口——写入一条审计日志（非事务）。
+// Write 写入审计日志（非事务）。
 func (s *AuditService) Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error {
 	return s.auditRepo.Create(ctx, s.buildAuditLog(operatorID, action, targetType, targetID, detail))
 }
 
-// WriteWithTx 在事务中写入审计日志——用于 Service 层事务内审计。
+// WriteWithTx 在事务中写入审计日志。
 func (s *AuditService) WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error {
 	txRepo := NewAuditRepo(tx)
 	return txRepo.Create(ctx, s.buildAuditLog(operatorID, action, targetType, targetID, detail))
 }
 
-// Create 直接写入审计日志记录（用于 ChatService 等已有完整 AuditLog 的调用方）。
+// Create 直接写入审计日志记录。
 func (s *AuditService) Create(ctx context.Context, log any) error {
 	return s.auditRepo.Create(ctx, log)
 }
 
-// List 分页查询审计日志（含操作人姓名，operatorID=0 映射为"系统"）。
+// List 分页查询审计日志（含操作人姓名，operatorID=0 显示"系统"）。
 func (s *AuditService) List(ctx context.Context, f AuditFilter) ([]respDto.AuditLogItem, int64, error) {
 	rows, total, err := s.auditRepo.List(ctx, f)
 	if err != nil {

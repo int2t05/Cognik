@@ -1,7 +1,6 @@
-// Package role 封装角色权限领域的数据访问层。
+// Package role 角色权限数据访问。
 //
-// repository.go 管理 roles / menus / role_menus 三张表的 CRUD。
-// MenuRepo 独立管理菜单表操作——菜单是权限的载体，归入角色权限领域。
+// repository.go 管理 roles / menus / role_menus 表 CRUD。
 package role
 
 import (
@@ -106,7 +105,7 @@ func (r *RoleRepo) IsBuiltinRole(ctx context.Context, id int64) (bool, error) {
 // 菜单数据访问
 // =============================================================================
 
-// MenuRepo 菜单数据访问，独立管理 menus / role_menus 表操作。
+// MenuRepo 菜单数据访问。
 type MenuRepo struct {
 	db *gorm.DB
 }

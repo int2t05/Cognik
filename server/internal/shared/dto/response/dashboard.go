@@ -8,8 +8,8 @@ type StatsResponse struct {
 	ProcessingTickets int64   `json:"processing_tickets"` // 处理中申告数（status=2）
 	ResolvedTickets   int64   `json:"resolved_tickets"`   // 已解决申告数（status=4）
 	TodayChats        int64   `json:"today_chats"`        // 今日问答次数
-	AvgConfidence     float64 `json:"avg_confidence"`      // 今日平均置信度
-	KnowledgeCount    int64   `json:"knowledge_count"`     // 知识条目总数
+	AvgConfidence     float64 `json:"avg_confidence"`     // 今日平均置信度
+	KnowledgeCount    int64   `json:"knowledge_count"`    // 知识条目总数
 	HelpfulFeedback   int64   `json:"helpful_feedback"`   // 累计"有帮助"反馈数
 	UnhelpfulFeedback int64   `json:"unhelpful_feedback"` // 累计"无帮助"反馈数
 }

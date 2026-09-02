@@ -1,5 +1,4 @@
-// Package storage — local.go 本地文件系统存储实现。
-// 目录式存储：每篇文章存储为 {baseDir}/{bucket}/{dir}/ 下的多文件目录。
+// Package storage — local.go 本地文件系统存储实现（目录式）。
 package storage
 
 import (
@@ -93,7 +92,6 @@ func (c *LocalStorageClient) DownloadDir(ctx context.Context, bucket, dir string
 	}
 
 	if err := collect(dirPath, entries); err != nil {
-		// 清理已打开的 reader
 		for _, r := range result {
 			r.Close()
 		}

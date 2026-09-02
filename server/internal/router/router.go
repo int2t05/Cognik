@@ -1,9 +1,4 @@
-// Package router 负责注册 Gin 路由。
-//
-// 路由分为三组：
-// - /api/v1/auth — 公开路由（登录、刷新令牌等）
-// - /api/v1/portal — 门户端路由（需要 JWT 认证）
-// - /api/v1/admin — 后台管理路由（需要 JWT 认证 + RBAC 权限）
+// Package router 负责 Gin 路由注册（auth/portal/admin 三组）。
 package router
 
 import (
@@ -76,7 +71,7 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
-	// 公开系统配置（无需认证），直接注册在根引擎上避免 group 路由冲突
+	// 公开系统配置（无需认证）
 	if h != nil && h.Config != nil {
 		r.GET("/api/v1/public/configs/:key", h.Config.GetPublic)
 	} else {
@@ -101,7 +96,7 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 	return r
 }
 
-// assertHandlers 生产模式下验证所有 Handler 非 nil，防止未装配模块以 501 暴露给用户。
+// assertHandlers 生产模式下验证所有 Handler 非 nil。
 func assertHandlers(h *Handlers) {
 	if h == nil {
 		panic("opsmind: Handlers 为 nil，装配错误")

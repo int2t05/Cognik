@@ -1,6 +1,4 @@
-// Package account 封装用户账户领域的 HTTP 请求处理层。
-//
-// handler.go 处理用户 CRUD、冻结/恢复、批量删除请求。
+// Package account 用户账户 HTTP 请求处理。
 package account
 
 import (
@@ -15,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+// parsePagination 解析分页参数。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -28,7 +26,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// parseID 从路径参数中解析 int64 ID，解析失败时自动返回错误响应。
+// parseID 从路径参数解析 int64 ID，失败时返回错误响应。
 func parseID(c *gin.Context, key string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(key), 10, 64)
 	if err != nil {
@@ -38,7 +36,7 @@ func parseID(c *gin.Context, key string) (int64, bool) {
 	return id, true
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -48,7 +46,7 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

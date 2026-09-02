@@ -1,5 +1,4 @@
-// Package service_test 验证 GenerationHub 的并发与续传语义。
-// 为什么不 mock：Hub 是纯内存结构，直接用真实实例最接近运行时行为。
+// Package service_test 验证 GenerationHub 的并发与续传语义（纯内存结构，用真实实例）。
 package system_test
 
 import (

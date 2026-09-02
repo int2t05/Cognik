@@ -1,6 +1,4 @@
-// Package dashboard 封装数据看板领域的数据访问层。
-//
-// repository.go 执行看板聚合查询：今日申告数、状态分布、问答趋势等。
+// Package dashboard 数据看板数据访问。
 package dashboard
 
 import (

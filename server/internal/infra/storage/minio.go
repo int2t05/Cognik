@@ -14,7 +14,7 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-// 重试常量（与 LLM/Embedding 适配器独立的存储重试配置）。
+// 重试常量。
 const (
 	defaultMaxRetries = 3
 	retryBaseDelay    = 500 * time.Millisecond
@@ -115,11 +115,9 @@ func (c *MinIOClient) DownloadDir(ctx context.Context, bucket, dir string) (map[
 		return nil, fmt.Errorf("目录不存在或为空 [%s/%s]", bucket, dir)
 	}
 
-	// 逐个下载
 	for _, key := range objKeys {
 		obj, err := c.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
 		if err != nil {
-			// 清理已打开的 reader
 			for _, r := range result {
 				r.Close()
 			}

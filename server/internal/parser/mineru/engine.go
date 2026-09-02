@@ -1,6 +1,4 @@
-// Package parser 实现多格式文档解析。
-//
-// mineru.go 实现 MinerU 云端高精度结构化提取引擎。
+// Package mineru 实现 MinerU 云端高精度结构化提取引擎。
 //
 // MinerU (https://mineru.net) 还原 LaTeX 公式 / 表格结构 / 版面布局，
 // 补足本地纯 Go 库在复杂版面和公式场景下的短板。
@@ -14,8 +12,8 @@
 //  5. 下载 full_zip_url → 解压 ZIP → 提取 *.md + images/*
 //  6. 返回 ParseResult{Markdown, Images}
 //
-// 失败 / 超时 / 无 key 由 parser.go 统一降级到本地解析。
-package parser
+// 失败 / 超时 / 无 key 由 parser 包统一降级到本地解析。
+package mineru
 
 import (
 	"archive/zip"
@@ -30,29 +28,30 @@ import (
 	"time"
 
 	"opsmind/internal/infra/config"
+	"opsmind/internal/parser/local"
 )
 
-// minerUFileSizeLimit MinerU 单文件大小上限（200MB，与服务端一致）。
-const minerUFileSizeLimit = 200 * 1024 * 1024
+// fileSizeLimit MinerU 单文件大小上限（200MB，与服务端一致）。
+const fileSizeLimit = 200 * 1024 * 1024
 
-// minerUPollInterval 轮询 batch 结果的间隔。
-const minerUPollInterval = 3 * time.Second
+// pollInterval 轮询 batch 结果的间隔。
+const pollInterval = 3 * time.Second
 
-// MinerUEngine MinerU 云端结构化提取引擎。
+// Engine MinerU 云端结构化提取引擎。
 //
 // endpoint 形如 https://mineru.net/api/v4（含 /api/v4 前缀）。
 // apiKey 为空时引擎不可用，由调用方决定是否降级。
-type MinerUEngine struct {
+type Engine struct {
 	apiKey     string
 	endpoint   string
 	timeout    time.Duration
 	httpClient *http.Client
 }
 
-// NewMinerUEngine 根据 MinerUConfig 创建引擎实例。
+// NewEngine 根据 MinerUConfig 创建引擎实例。
 //
 // apiKey 为空时返回 nil 引擎（调用方据此降级到本地解析）。
-func NewMinerUEngine(cfg config.MinerUConfig) *MinerUEngine {
+func NewEngine(cfg config.MinerUConfig) *Engine {
 	if cfg.APIKey == "" {
 		return nil
 	}
@@ -64,7 +63,7 @@ func NewMinerUEngine(cfg config.MinerUConfig) *MinerUEngine {
 	if timeout <= 0 {
 		timeout = 180 * time.Second
 	}
-	return &MinerUEngine{
+	return &Engine{
 		apiKey:   cfg.APIKey,
 		endpoint: endpoint,
 		timeout:  timeout,
@@ -77,17 +76,17 @@ func NewMinerUEngine(cfg config.MinerUConfig) *MinerUEngine {
 // Parse 上传文件到 MinerU 云端解析，返回 Markdown + 图片。
 //
 // fileName 需含扩展名（如 report.pdf），MinerU 据此路由解析器。
-func (e *MinerUEngine) Parse(reader io.Reader, fileName string) (*ParseResult, error) {
+func (e *Engine) Parse(reader io.Reader, fileName string) (*local.ParseResult, error) {
 	// 1. 读全部字节到内存（LimitReader 防止 OOM）
-	data, err := io.ReadAll(io.LimitReader(reader, minerUFileSizeLimit))
+	data, err := io.ReadAll(io.LimitReader(reader, fileSizeLimit))
 	if err != nil {
 		return nil, fmt.Errorf("MinerU 读取文件失败: %w", err)
 	}
 	if len(data) == 0 {
 		return nil, fmt.Errorf("MinerU 输入文件为空")
 	}
-	if len(data) >= minerUFileSizeLimit {
-		return nil, fmt.Errorf("MinerU 文件超过 %dMB 上限", minerUFileSizeLimit/(1024*1024))
+	if len(data) >= fileSizeLimit {
+		return nil, fmt.Errorf("MinerU 文件超过 %dMB 上限", fileSizeLimit/(1024*1024))
 	}
 
 	// 2. 获取预签名上传 URL
@@ -112,7 +111,7 @@ func (e *MinerUEngine) Parse(reader io.Reader, fileName string) (*ParseResult, e
 }
 
 // getUploadURL POST /file-urls/batch 获取预签名上传 URL + batch_id。
-func (e *MinerUEngine) getUploadURL(fileName string) (batchID, uploadURL string, err error) {
+func (e *Engine) getUploadURL(fileName string) (batchID, uploadURL string, err error) {
 	body := map[string]any{
 		"files":          []map[string]string{{"name": fileName}},
 		"model_version":  "vlm",
@@ -147,11 +146,11 @@ func (e *MinerUEngine) getUploadURL(fileName string) (batchID, uploadURL string,
 	}
 
 	var result struct {
-		Code int `json:"code"`
+		Code int    `json:"code"`
 		Msg  string `json:"msg"`
 		Data struct {
-			BatchID   string   `json:"batch_id"`
-			FileURLs  []string `json:"file_urls"`
+			BatchID  string   `json:"batch_id"`
+			FileURLs []string `json:"file_urls"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
@@ -167,7 +166,7 @@ func (e *MinerUEngine) getUploadURL(fileName string) (batchID, uploadURL string,
 }
 
 // uploadFile PUT 上传文件字节到 OSS 预签名 URL。
-func (e *MinerUEngine) uploadFile(data []byte, uploadURL string) error {
+func (e *Engine) uploadFile(data []byte, uploadURL string) error {
 	req, err := http.NewRequest(http.MethodPut, uploadURL, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("MinerU 创建上传 OSS 请求失败: %w", err)
@@ -187,13 +186,13 @@ func (e *MinerUEngine) uploadFile(data []byte, uploadURL string) error {
 
 // pollBatch GET 轮询 /extract-results/batch/{batch_id}，返回 full_zip_url。
 //
-// 每隔 minerUPollInterval 轮询一次，总等待不超过 e.timeout。
-func (e *MinerUEngine) pollBatch(batchID string) (string, error) {
+// 每隔 pollInterval 轮询一次，总等待不超过 e.timeout。
+func (e *Engine) pollBatch(batchID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
 	url := fmt.Sprintf("%s/extract-results/batch/%s", e.endpoint, batchID)
-	ticker := time.NewTicker(minerUPollInterval)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -214,7 +213,7 @@ func (e *MinerUEngine) pollBatch(batchID string) (string, error) {
 }
 
 // checkBatch 单次查询 batch 状态，返回 full_zip_url（未完成时为空）。
-func (e *MinerUEngine) checkBatch(url string) (string, error) {
+func (e *Engine) checkBatch(url string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", fmt.Errorf("MinerU 创建轮询请求失败: %w", err)
@@ -233,7 +232,7 @@ func (e *MinerUEngine) checkBatch(url string) (string, error) {
 	}
 
 	var result struct {
-		Code int `json:"code"`
+		Code int    `json:"code"`
 		Msg  string `json:"msg"`
 		Data struct {
 			ExtractResult []struct {
@@ -271,7 +270,7 @@ func (e *MinerUEngine) checkBatch(url string) (string, error) {
 }
 
 // downloadAndExtract 下载结果 ZIP 并提取 Markdown + 图片。
-func (e *MinerUEngine) downloadAndExtract(zipURL string) (*ParseResult, error) {
+func (e *Engine) downloadAndExtract(zipURL string) (*local.ParseResult, error) {
 	resp, err := e.httpClient.Get(zipURL)
 	if err != nil {
 		return nil, fmt.Errorf("MinerU 下载结果 ZIP 失败: %w", err)
@@ -281,7 +280,7 @@ func (e *MinerUEngine) downloadAndExtract(zipURL string) (*ParseResult, error) {
 		return nil, fmt.Errorf("MinerU 下载结果 ZIP 失败: HTTP %d", resp.StatusCode)
 	}
 
-	zipData, err := io.ReadAll(io.LimitReader(resp.Body, minerUFileSizeLimit))
+	zipData, err := io.ReadAll(io.LimitReader(resp.Body, fileSizeLimit))
 	if err != nil {
 		return nil, fmt.Errorf("MinerU 读取结果 ZIP 失败: %w", err)
 	}
@@ -336,7 +335,7 @@ func (e *MinerUEngine) downloadAndExtract(zipURL string) (*ParseResult, error) {
 		return nil, fmt.Errorf("MinerU 结果 ZIP 中未找到 Markdown 内容")
 	}
 
-	return &ParseResult{Markdown: markdown, Images: images}, nil
+	return &local.ParseResult{Markdown: markdown, Images: images}, nil
 }
 
 // truncate 截断字符串到指定长度，超出加省略号。

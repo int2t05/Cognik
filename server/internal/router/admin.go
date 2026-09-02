@@ -1,6 +1,4 @@
 // Package router 负责注册 Gin 路由。
-//
-// 本文件注册后台管理路由，所有路由需要 JWT 认证 + RBAC 权限（在 router.go 中统一挂载）。
 package router
 
 import (
@@ -9,10 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// registerAdminRoutes 注册后台管理路由。
-//
-// 使用 safeHandler 消除 if/else nil-check 样板：
-// 条件不满足时自动回退到 placeholder()，release 模式由 assertHandlers 保证不触发。
+// registerAdminRoutes 注册后台管理路由（需 JWT + RBAC）。
 func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 申告管理
 	rg.GET("/tickets", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.ListAll }))

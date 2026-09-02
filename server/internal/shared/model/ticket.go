@@ -7,9 +7,6 @@ import (
 )
 
 // Ticket 申告工单表
-//
-// Tags 为逗号分隔的标签字符串，存储为 JSONB 数组。
-// 存储为 JSONB 数组，与知识库文章的 Tags 字段互通——从申告生成知识候选时标签直接复制。
 type Ticket struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketNo        string         `gorm:"type:varchar(32);uniqueIndex;not null;column:ticket_no" json:"ticket_no"`
@@ -35,7 +32,7 @@ func (Ticket) TableName() string { return "tickets" }
 type TicketRecord struct {
 	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketID   int64          `gorm:"not null;column:ticket_id;index:idx_ticket_records_ticket_id" json:"ticket_id"`
-	OperatorID int64          `gorm:"not null;column:operator_id" json:"operator_id"` // 0=系统自动操作，无 FK 约束以避免冲突
+	OperatorID int64          `gorm:"not null;column:operator_id" json:"operator_id"` // 0=系统自动操作
 	Action     string         `gorm:"type:varchar(32);not null" json:"action"`
 	Content    string         `gorm:"type:text" json:"content"`
 	Detail     datatypes.JSON `gorm:"type:jsonb" json:"detail"`

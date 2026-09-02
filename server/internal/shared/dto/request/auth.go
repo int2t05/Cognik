@@ -1,6 +1,4 @@
 // Package request 定义认证相关的请求结构体。
-//
-// 使用 Gin 的 binding 校验器进行参数校验。
 package request
 
 // LoginRequest 登录请求

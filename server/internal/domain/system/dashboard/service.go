@@ -1,6 +1,4 @@
-// Package dashboard 封装数据看板领域的业务逻辑层。
-//
-// service.go 实现 DashboardService——并行聚合 7 项统计查询、趋势数据生成。
+// Package dashboard 数据看板业务逻辑。
 package dashboard
 
 import (
@@ -16,7 +14,7 @@ import (
 
 const maxTrendDays = 90
 
-// dashboardRepo 定义 DashboardService 所需的仓库接口（消费者定义接口）。
+// dashboardRepo 看板仓库接口（消费者定义）。
 type dashboardRepo interface {
 	CountTodayTickets(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context, status int16) (int64, error)
@@ -38,7 +36,7 @@ func NewDashboardService(repo dashboardRepo) *DashboardService {
 	return &DashboardService{repo: repo}
 }
 
-// GetStats 获取看板统计数据（7 项查询并行执行）。
+// GetStats 获取看板统计数据（9 项查询并行执行）。
 func (s *DashboardService) GetStats(ctx context.Context) (*respDto.StatsResponse, error) {
 	queryCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -157,7 +155,7 @@ func (s *DashboardService) GetStats(ctx context.Context) (*respDto.StatsResponse
 	return &result, nil
 }
 
-// GetTrends 获取趋势数据（支持 day/week 粒度，上限 90 天）。
+// GetTrends 获取趋势数据（day/week 粒度，上限 90 天）。
 func (s *DashboardService) GetTrends(ctx context.Context, req request.TrendRequest) (*respDto.TrendResponse, error) {
 	startDate, err := time.Parse("2006-01-02", req.StartDate)
 	if err != nil {

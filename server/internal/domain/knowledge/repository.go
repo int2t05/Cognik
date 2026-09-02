@@ -1,7 +1,6 @@
-// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
+// Package knowledge 知识库领域数据访问与 HTTP 处理。
 //
-// repository.go 封装 knowledge_bases、knowledge_articles、knowledge_chunks
-// 三张表的 CRUD 操作，供 KnowledgeService 调用。
+// repository.go 封装 knowledge_bases / knowledge_articles / knowledge_chunks 表 CRUD。
 package knowledge
 
 import (
@@ -138,9 +137,7 @@ func (r *KnowledgeRepo) UpdateArticleStatus(ctx context.Context, id int64, statu
 	return nil
 }
 
-// UpdateArticleStatusCAS 原子状态转换（Compare-And-Swap）。
-// 仅当前状态为 expectedOld 时才更新为 newStatus，返回受影响行数。
-// 0 行表示并发冲突——其他请求已修改了状态。
+// UpdateArticleStatusCAS 原子状态转换（CAS，0 行表示并发冲突）。
 func (r *KnowledgeRepo) UpdateArticleStatusCAS(ctx context.Context, id int64, expectedOld, newStatus int) (int64, error) {
 	res := r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).
 		Where("id = ? AND status = ?", id, expectedOld).
@@ -148,7 +145,7 @@ func (r *KnowledgeRepo) UpdateArticleStatusCAS(ctx context.Context, id int64, ex
 	return res.RowsAffected, res.Error
 }
 
-// UpdateArticleMinioPath 仅更新 minio_path（嵌入成功后回调使用，避免 Save 脏写）。
+// UpdateArticleMinioPath 仅更新 minio_path（嵌入回调使用，避免 Save 脏写）。
 func (r *KnowledgeRepo) UpdateArticleMinioPath(ctx context.Context, id int64, path string) error {
 	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).
 		Update("minio_path", path).Error
@@ -217,7 +214,6 @@ func (r *KnowledgeRepo) DeleteArticle(ctx context.Context, id int64) error {
 
 func (r *KnowledgeRepo) DeleteKB(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 先删 chunks（FK 到 articles），再删 articles，最后删 kb
 		if err := tx.Where("kb_id = ?", id).Delete(&model.KnowledgeChunk{}).Error; err != nil {
 			return err
 		}

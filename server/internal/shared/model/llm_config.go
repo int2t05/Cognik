@@ -1,14 +1,4 @@
 // Package model 定义 GORM 数据模型。
-//
-// llm_config.go 定义 LLM 配置模型（表 llm_configs），管理 LLM 和 Embedding 的连接参数。
-//
-// 设计决策：LLM 和 Embedding 各自拥有独立的 Base URL 和 API Key。
-// 虽然本地 llama.cpp server 也兼容 OpenAI v1 协议，但以下场景需要独立配置：
-//   - 使用 OpenAI 做 LLM 生成 + 本地部署 bge-m3 做 Embedding
-//   - 使用 DeepSeek API 做 LLM 生成 + Moonshot API 做 Embedding
-// EmbeddingBaseURL 为空时回退到 LLMBaseURL，EmbeddingAPIKey 为空时回退到 LLMAPIKey。
-//
-// 所有提供商统一使用 OpenAI-compatible v1 API（llama.cpp server 也兼容此协议）。
 package model
 
 import (

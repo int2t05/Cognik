@@ -1,7 +1,4 @@
-// Package main 是 OpsMind 后端服务的入口。
-//
-// main 负责流程编排：加载配置 → 装配依赖 → 运行服务。
-// 初始化细节集中在 wireApp 中，生命周期管理集中在 runServer 中。
+// Package main 是 OpsMind 后端服务入口。
 package main
 
 import (
@@ -38,13 +35,13 @@ import (
 	"opsmind/internal/infra/runtime"
 	"opsmind/internal/infra/storage"
 	"opsmind/internal/parser"
+	"opsmind/internal/parser/mineru"
 	"opsmind/internal/rag"
 	"opsmind/internal/router"
 	"opsmind/internal/shared/model"
 )
 
 // app 持有所有已初始化的组件。
-// wireApp 负责装配，runServer 负责运行。
 type app struct {
 	cfg           *config.AppConfig
 	logCleanup    func()
@@ -72,14 +69,7 @@ func main() {
 	}
 }
 
-// wireApp 加载配置、初始化所有组件并注入依赖。
-//
-// 为什么拆分为独立函数：
-// main 原先同时负责配置加载、DB/Adapter/Service/Handler 初始化和 HTTP 生命周期，
-// 400+ 行混合了装配逻辑和运行时逻辑，不利于集成测试复用装配流程。
-//
-// 注意：当前 wireApp 中无直接 repo 调用（所有 repo 访问都在 service 构造器内部）。
-// 如果将来添加直接 repo 调用，应该在此函数顶部创建 ctx := context.Background() 并传入。
+// wireApp 加载配置、初始化组件并注入依赖。
 func wireApp() (*app, error) {
 	a := &app{}
 
@@ -173,7 +163,7 @@ func wireApp() (*app, error) {
 	vectorStore, err := adapter.NewPgvectorStore(db)
 	if err != nil {
 		slog.Warn("pgvector 初始化失败，向量检索/知识发布功能将不可用", "error", err)
-		// 不阻塞启动：问答仍可用（降级到纯 BM25），但知识发布返回 20002
+		// 不阻塞启动，降级到纯 BM25
 	} else {
 		a.vectorStore = vectorStore
 		slog.Info("pgvector VectorStore 已连接")
@@ -246,9 +236,9 @@ func wireApp() (*app, error) {
 	embedder := rag.NewEmbedder(embeddingClient, 5)
 
 	// 文档解析器：MinerU 云端高精度优先，本地纯 Go 库兜底
-	var mineruEngine *parser.MinerUEngine
+	var mineruEngine *mineru.Engine
 	if cfg.Parser.Engine == "mineru" {
-		mineruEngine = parser.NewMinerUEngine(cfg.Parser.MinerU)
+		mineruEngine = mineru.NewEngine(cfg.Parser.MinerU)
 		if mineruEngine != nil {
 			slog.Info("MinerU 云端解析引擎已启用", "endpoint", cfg.Parser.MinerU.Endpoint)
 		} else {
@@ -307,14 +297,13 @@ func wireApp() (*app, error) {
 	)
 	slog.Info("KnowledgeService 已初始化")
 
-	// TicketService 依赖 KnowledgeService 的 CreateArticle（知识候选），
-	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
+	// 知识候选注入，避免循环依赖
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
 	llmService := session.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
 
-	// LLM 默认配置变更回调：重建 LLM/Embedding 客户端以反映新的 BaseURL/APIKey/Model
+	// LLM 配置变更回调：重建客户端
 	llmConfigSvc.GetManager().OnChange(func() {
 		newCfg := llmConfigSvc.GetManager().GetConfig()
 		if newCfg == nil {
@@ -356,7 +345,7 @@ func wireApp() (*app, error) {
 	}, configService, auditService, genHub)
 	slog.Info("ChatService 已初始化")
 
-	// 将 ChatService 作为隐式反馈标记器注入 TicketService（申告创建 → AI 回答自动标记）
+	// 注入 ChatService 为反馈标记器
 	ticketService.SetFeedbackMarker(chatService)
 
 	// 启动时清理残留的 generating 消息（上次异常退出遗留）
@@ -417,10 +406,6 @@ func wireApp() (*app, error) {
 }
 
 // run 启动服务并等待退出信号，执行优雅关闭。
-//
-// 使用 channel 替代 goroutine 中的 os.Exit：
-// goroutine 内 os.Exit(1) 会跳过所有 defer 导致资源泄漏。
-// 通过 serveErr 通道将错误传递给主 goroutine 统一处理。
 func (a *app) run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -443,11 +428,9 @@ func (a *app) run() error {
 	case sig := <-quit:
 		slog.Info("收到退出信号，开始优雅关闭...", "signal", sig)
 	case err := <-serveErr:
-		// HTTP 启动失败，仍然执行关闭链（scheduler/cancel/cleanup）
 		slog.Error("HTTP 服务异常退出，开始关闭...", "error", err)
 		defer func() {
 			// 仅在 serveErr 路径返回错误给 main
-			// 正常信号退出不返回错误
 		}()
 	}
 

@@ -2,20 +2,16 @@
 package request
 
 // CreateSessionRequest 创建问答会话请求。
-//
-// 仅创建会话容器，不触发 LLM 调用。消息通过 SendMessageRequest 在流式端点发送。
 type CreateSessionRequest struct {
 	KBID  int64  `json:"kb_id" binding:"required"` // 目标知识库 ID
 	Title string `json:"title"`                    // 会话标题（可选，默认"新会话"）
 }
 
-// SendMessageRequest 在已有会话中发送消息请求。
-//
-// 用于 POST /api/v1/portal/chat-sessions/:id/stream（SSE 流式）。
+// SendMessageRequest 发送消息请求（SSE 流式端点）。
 type SendMessageRequest struct {
-	Question   string `json:"question" binding:"required,max=2000"` // 用户问题（限制 2000 字符防滥用）
-	RouteCount int    `json:"route_count"`                          // 多路检索子查询数（0=使用默认值 3）
-	RerankCount int   `json:"rerank_count"`                         // 重排序截断数（0=使用默认值 5）
+	Question    string `json:"question" binding:"required,max=2000"` // 用户问题（限制 2000 字符防滥用）
+	RouteCount  int    `json:"route_count"`                          // 多路检索子查询数（0=使用默认值 3）
+	RerankCount int    `json:"rerank_count"`                         // 重排序截断数（0=使用默认值 5）
 }
 
 // SubmitFeedbackRequest 问答反馈请求。

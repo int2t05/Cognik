@@ -1,4 +1,4 @@
-// Package parser 实现多格式文档解析。
+// Package local 实现本地纯 Go 文档解析降级引擎。
 //
 // pptx.go 实现 PPTX (PowerPoint) 文件的文本与图片提取。
 //
@@ -8,7 +8,7 @@
 //
 // 每张 slide 的文本作为一段，用 --- 分隔。
 // 图片提取使用 Go 标准库 archive/zip + 正则匹配，无外部依赖。
-package parser
+package local
 
 import (
 	"archive/zip"
@@ -25,8 +25,8 @@ import (
 // pptxTextRegex 匹配 DrawingML 文本节点 <a:t>...</a:t>（忽略命名空间前缀差异）。
 var pptxTextRegex = regexp.MustCompile(`<(?:\w+:)?t[^>]*>([^<]*)</(?:\w+:)?t>`)
 
-// parsePPTX 解析 PPTX 文件：遍历 slide XML 提取文本 + 提取 ppt/media/ 图片。
-func (p *Parser) parsePPTX(reader io.Reader) (*ParseResult, error) {
+// ParsePPTX 解析 PPTX 文件：遍历 slide XML 提取文本 + 提取 ppt/media/ 图片。
+func ParsePPTX(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return nil, fmt.Errorf("读取 PPTX 文件失败: %w", err)

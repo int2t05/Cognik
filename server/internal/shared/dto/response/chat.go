@@ -15,8 +15,8 @@ type ChatSessionResponse struct {
 	DurationMS      int            `json:"duration_ms"`
 	Feedback        int16          `json:"feedback"`
 	CreatedAt       string         `json:"created_at"`
-	Messages        []MessageItem  `json:"messages,omitempty"`   // 多轮对话历史（GetChatDetail 时返回）
-	Pipeline        []PipelineStep `json:"pipeline,omitempty"`   // RAG 管道步骤指标
+	Messages        []MessageItem  `json:"messages,omitempty"` // 多轮对话历史（GetChatDetail 时返回）
+	Pipeline        []PipelineStep `json:"pipeline,omitempty"` // RAG 管道步骤指标
 }
 
 // PipelineStep RAG 管道步骤信息。
@@ -45,7 +45,7 @@ type MessageItem struct {
 // SessionListItem 会话列表条目（不含完整消息，仅摘要）。
 type SessionListItem struct {
 	ID           int64  `json:"id"`
-	KBID         int64  `json:"kb_id"`        // 所属知识库 ID，前端编辑/更换 KB 时使用
+	KBID         int64  `json:"kb_id"`         // 所属知识库 ID，前端编辑/更换 KB 时使用
 	Question     string `json:"question"`      // 首轮问题，兼作会话标题
 	LastAnswer   string `json:"last_answer"`   // 最后一条 assistant 回复（截断）
 	MessageCount int64  `json:"message_count"` // 消息总数
@@ -53,9 +53,7 @@ type SessionListItem struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
-// SourceItem 知识来源条目。
-//
-// Confidence 取自 chunk.ConfRaw（综合置信度：S_qa + BM25 + Rerank 分层组合），范围 [0,1]。
+// SourceItem 知识来源条目。Confidence 为综合置信度 [0,1]。
 type SourceItem struct {
 	DocName      string  `json:"doc_name"`
 	ChunkContent string  `json:"chunk_content"`

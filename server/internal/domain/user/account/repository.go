@@ -1,8 +1,6 @@
-// Package account 封装用户账户领域的数据访问层。
+// Package account 用户账户数据访问。
 //
-// repository.go 管理 users 表 CRUD 及 user_roles 关联查询（角色列表、权限聚合、
-// 管理员安全检查、批量角色分配）。user_roles 关联查询放在此处而非 role 包，
-// 因为其查询入口是 user_id，数据归属以用户为主体。
+// repository.go 管理 users 表 CRUD 及 user_roles 关联查询。
 package account
 
 import (

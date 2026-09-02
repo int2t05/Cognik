@@ -1,11 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// embedder.go 实现批量文本向量化。
-//
-// 为什么需要批量分页：
-// Embedding API 通常有单次请求的文本数量限制（如 OpenAI 限制 2048 tokens），
-// 大批量文本需要拆分为多个小批次调用。
-// batchSize=20 是经验值——在减少 API 往返次数和单次请求大小之间取得平衡。
+// embedder.go 实现批量文本向量化，自动分页调用 Embedding API。
 package rag
 
 import (
@@ -15,19 +10,14 @@ import (
 	"opsmind/internal/infra/adapter"
 )
 
-// Embedder 批量文本向量化器。
-//
-// 封装 EmbeddingClient，自动分批调用 + 部分失败处理。
+// Embedder 批量文本向量化器，封装 EmbeddingClient 的自动分批与部分失败处理。
 type Embedder struct {
 	client    adapter.EmbeddingClient
 	batchSize int
 }
 
-// NewEmbedder 创建 Embedder 实例。
-//
-// client 为 OpenAI-compatible Embedding 客户端。
-// batchSize 控制每批最大文本数，建议 20。
-// client 为 nil 时不立即报错——Embed 调用时会返回明确错误，避免启动期装配顺序问题。
+// NewEmbedder 创建 Embedder 实例。client 为 nil 时延迟到 Embed 调用报错。
+// batchSize 控制每批最大文本数。
 func NewEmbedder(client adapter.EmbeddingClient, batchSize int) *Embedder {
 	if batchSize <= 0 {
 		batchSize = 20
@@ -43,10 +33,7 @@ func (e *Embedder) SetClient(client adapter.EmbeddingClient) {
 	e.client = client
 }
 
-// Embed 将文本列表批量转换为向量。
-//
-// model 为空时使用 EmbeddingClient 的默认模型（全局配置）。
-// 非空时显式指定模型（如 KB 专属 embedding 模型）。
+// Embed 将文本列表批量转换为向量。model 为空时用客户端默认模型。
 func (e *Embedder) Embed(ctx context.Context, texts []string, model string) ([][]float32, int, error) {
 	if len(texts) == 0 {
 		return nil, 0, nil

@@ -1,6 +1,4 @@
-// Package role 封装角色权限领域的 HTTP 请求处理层。
-//
-// handler.go 处理角色 CRUD、菜单列表与权限绑定请求。
+// Package role 角色权限 HTTP 请求处理。
 package role
 
 import (
@@ -15,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+// parsePagination 解析分页参数。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -28,7 +26,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// parseID 从路径参数中解析 int64 ID，解析失败时自动返回错误响应。
+// parseID 从路径参数解析 int64 ID，失败时返回错误响应。
 func parseID(c *gin.Context, key string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(key), 10, 64)
 	if err != nil {
@@ -38,7 +36,7 @@ func parseID(c *gin.Context, key string) (int64, bool) {
 	return id, true
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

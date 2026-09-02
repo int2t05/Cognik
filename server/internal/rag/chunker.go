@@ -1,11 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// chunker.go 实现 ChineseRecursiveTextSplitter：
-//  1. splitText — 按分隔符优先级递归切分
-//  2. mergeSplits — 干净合并至 ≤ chunkSize（不做 overlap）
-//  3. addOverlap — 后置追加前后 overlap（前缀+后缀）
-//
-// 参考：LangChain ChineseRecursiveTextSplitter 核心算法
+// chunker.go 实现递归字符文本分块（参考 LangChain ChineseRecursiveTextSplitter）。
 package rag
 
 import (

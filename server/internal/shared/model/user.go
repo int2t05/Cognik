@@ -22,23 +22,18 @@ type User struct {
 
 func (User) TableName() string { return "users" }
 
-// RoleNameAdmin 系统管理员角色名（唯一可识别来源，避免硬编码字符串分散）。
-// 所有需要根据角色名做判断的逻辑均应引用此常量。
+// RoleNameAdmin 系统管理员角色名常量。
 const RoleNameAdmin = "系统管理员"
 
 // Role 角色表
-//
-// Permissions 使用 JSONB 存储权限列表，例如 ["ticket:read", "ticket:write"]。
-// 选择 JSONB 而非 text[] 的原因：JSONB 可直接在 Go 中用 datatypes.JSON 序列化/反序列化，
-// 无需自定义 Scanner/Valuer。
 type Role struct {
-	ID          int64           `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name        string          `gorm:"type:varchar(64);uniqueIndex;not null" json:"name"`
-	Description string          `gorm:"type:varchar(255)" json:"description"`
-	Permissions datatypes.JSON  `gorm:"type:jsonb" json:"permissions"`
-	IsSystem    bool            `gorm:"not null;default:false;column:is_system" json:"is_system"`
-	CreatedAt   time.Time       `gorm:"not null" json:"created_at"`
-	UpdatedAt   time.Time       `gorm:"not null" json:"updated_at"`
+	ID          int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string         `gorm:"type:varchar(64);uniqueIndex;not null" json:"name"`
+	Description string         `gorm:"type:varchar(255)" json:"description"`
+	Permissions datatypes.JSON `gorm:"type:jsonb" json:"permissions"`
+	IsSystem    bool           `gorm:"not null;default:false;column:is_system" json:"is_system"`
+	CreatedAt   time.Time      `gorm:"not null" json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"not null" json:"updated_at"`
 }
 
 func (Role) TableName() string { return "roles" }
