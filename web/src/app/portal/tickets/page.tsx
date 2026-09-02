@@ -5,33 +5,21 @@ import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { TicketPlus, FileText } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
-  const [keyword, setKeyword] = useState('');
-  const debouncedKeyword = useDebounce(keyword, 300);
   const router = useRouter();
   const { data, error } = useSWR(`portal-tickets-${page}`, () => getMyTickets(page));
 
-  const tickets = useMemo(() => {
-    const items = data?.items ?? [];
-    if (!debouncedKeyword) return items;
-    const kw = debouncedKeyword.toLowerCase();
-    return items.filter((t: { title?: string; ticket_no?: string }) =>
-      (t.title?.toLowerCase().includes(kw)) ||
-      (t.ticket_no?.toLowerCase().includes(kw))
-    );
-  }, [data, debouncedKeyword]);
+  const tickets = data?.items ?? [];
   const isEmpty = !error && data && tickets.length === 0;
 
   return (
@@ -42,10 +30,6 @@ export default function TicketQueryPage() {
       </div>
 
       {error && <InlineError />}
-
-      <div className="mb-4">
-        <Input className="rounded-[var(--radius-pill)]" placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
-      </div>
 
       {isEmpty ? (
         <EmptyState

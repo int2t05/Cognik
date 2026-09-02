@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
@@ -25,9 +24,7 @@ import { UserPlus, Pencil, Lock, Unlock, Loader2, Users } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
-  const [keyword, setKeyword] = useState('');
-  const debouncedKeyword = useDebounce(keyword, 300);
-  const { data, error, mutate } = useSWR(`users-${page}-${debouncedKeyword}`, () => getUserList(page, debouncedKeyword));
+  const { data, error, mutate } = useSWR(`users-${page}`, () => getUserList(page));
   const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
   const items = data?.items || [];
 
@@ -99,12 +96,11 @@ export default function UserListPage() {
         <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
       </div>
       {error && <InlineError />}
-      <div className="mb-4"><Input className="rounded-[var(--radius-pill)]" placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
       {isEmpty ? (
         <EmptyState
           icon={<Users size={40} />}
           title="暂无用户"
-          description={debouncedKeyword ? '未找到匹配的用户' : '点击右上角新建用户'}
+          description="点击右上角新建用户"
         />
       ) : (
         <>
