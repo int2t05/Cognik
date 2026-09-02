@@ -1,10 +1,10 @@
 'use client';
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
-import { getStats, getTrends } from '@/lib/api/dashboard';
+import { getStats, getTrends, type TrendPoint } from '@/lib/api/dashboard';
 import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
 import { StatCard } from '@/components/shared/StatCard';
-import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
+import { TrendChart } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';

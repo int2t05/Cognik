@@ -5,7 +5,7 @@
 ## 1. 设计目标
 
 - **组件库统一**：采用 shadcn/ui（组件代码生成进仓库，非黑盒依赖）+ 定制 variant；AppShell 内含内联搜索组件。
-- **专业工具风格**：对齐 Linear / Vercel / GitHub——正文 13px 高信息密度、中性灰阶、靛蓝强调色、中性小圆角、克制阴影。
+- **专业工具风格**：正文 13px 高信息密度、中性灰阶、靛蓝强调色、中性小圆角、克制阴影。
 - **统一 Shell**：顶栏（品牌+内联全局搜索+主题+账号）+ 可折叠侧栏（分区 nav）+ main。Portal/Admin 共用单一 `AppShell`。
 
 ## 2. Token 映射（shadcn 语义 → 项目 Token）
@@ -43,7 +43,7 @@ button / card / input / textarea / label / table / dialog / badge / select / dro
 | `card.tsx` | Card base：10px radius + hairline border + canvas bg + p-6 |
 | `dialog.tsx` | DialogContent `bg-card`，overlay 用 `var(--color-overlay)` |
 | `sonner.tsx` | 用 `@/hooks/useTheme`，配置 top-right/richColors/closeButton/visibleToasts=3 |
-| `data-table-pagination.tsx` | GitHub 风格分页：左侧计数+页大小 + 居中页码导航 |
+| `data-table-pagination.tsx` | 居中页码分页：左侧计数+页大小 + 居中页码导航 |
 
 ### 定制组件
 | 组件 | 说明 |
@@ -57,7 +57,7 @@ button / card / input / textarea / label / table / dialog / badge / select / dro
 
 `components/layout/AppShell.tsx`：Portal/Admin 共用。
 - **顶栏**：品牌 + 内联全局搜索（输入即时过滤导航+快捷操作，⌘K 聚焦）+ 主题切换 + 跨跳 + AccountSwitcher
-- **侧栏**：可折叠（68/220px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
+- **侧栏**：可折叠（56/240px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
 - **main**：`flex-1 min-h-0 overflow-hidden`，内容由页面自行管理 padding 和滚动
 
 `PortalLayout`：静态 NAV（用户菜单 + 消息未读 badge）+ 管理员条件渲染管理分区（来自 `useAuth().menus`，`hasAdminAccess` 判断）。
@@ -87,7 +87,7 @@ UI 层组件按功能分类：
 
 ### 数据展示类
 - `DataTable`（shadcn Table + TanStack Table v9，内置 skeleton/empty 态）
-- `DataTablePagination`（GitHub 风格分页 + Select 页大小）
+- `DataTablePagination`（居中页码分页 + Select 页大小）
 - `Badge` / `StatusBadge`（5 语义 variant，颜色+图标双编码）
 - `Card`（10px radius + hairline border + canvas bg）
 - `StatCard` / `TrendChart`（指标卡 + 趋势图）

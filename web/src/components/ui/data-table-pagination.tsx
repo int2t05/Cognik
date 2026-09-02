@@ -1,5 +1,5 @@
 'use client';
-// DataTablePagination — GitHub 风格分页：左侧计数+页大小 + 居中页码导航。
+// DataTablePagination — 居中页码分页：左侧计数+页大小 + 居中页码导航。
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,7 @@ export function DataTablePagination({
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
 
-  // 页码按钮基础样式 — GitHub 风格：无边框、方形、hover 静音背景
+  // 页码按钮基础样式 — 无边框、方形、hover 静音背景
   const btnBase = 'inline-flex items-center justify-center min-w-[28px] h-7 px-2 text-caption rounded-[var(--radius-sm)] transition-colors';
   const btnIdle = 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)]';
   const btnActive = 'bg-[var(--color-tile-1)] text-[var(--color-ink)] font-medium';
