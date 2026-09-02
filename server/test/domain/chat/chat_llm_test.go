@@ -103,13 +103,13 @@ func TestEmbeddingClient_CreateEmbeddings(t *testing.T) {
 // TestChatService_LLMConfigIntegration 验证 LLM 配置管理集成。
 func TestChatService_LLMConfigIntegration(t *testing.T) {
 	// 清理
-	knowledgeSvcDB.Exec("DELETE FROM chat_messages")
-	knowledgeSvcDB.Exec("DELETE FROM chat_sessions")
-	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
+	chatSvcDB.Exec("DELETE FROM chat_messages")
+	chatSvcDB.Exec("DELETE FROM chat_sessions")
+	chatSvcDB.Exec("DELETE FROM llm_configs")
 
 	// 创建 LLM 配置
-	llmConfigRepo := llmconfig.NewLlmConfigRepo(knowledgeSvcDB)
-	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
+	llmConfigRepo := llmconfig.NewLlmConfigRepo(chatSvcDB)
+	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, chatSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}
@@ -188,11 +188,11 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 // TestChatService_SessionFlow 验证带有 LLM 配置的会话完整流程。
 func TestChatService_SessionFlow(t *testing.T) {
 	// 清理
-	knowledgeSvcDB.Exec("DELETE FROM chat_messages")
-	knowledgeSvcDB.Exec("DELETE FROM chat_sessions")
-	knowledgeSvcDB.Exec("DELETE FROM knowledge_articles")
-	knowledgeSvcDB.Exec("DELETE FROM knowledge_bases")
-	knowledgeSvcDB.Exec("DELETE FROM users WHERE username LIKE 'chattest_%'")
+	chatSvcDB.Exec("DELETE FROM chat_messages")
+	chatSvcDB.Exec("DELETE FROM chat_sessions")
+	chatSvcDB.Exec("DELETE FROM knowledge_articles")
+	chatSvcDB.Exec("DELETE FROM knowledge_bases")
+	chatSvcDB.Exec("DELETE FROM users WHERE username LIKE 'chattest_%'")
 
 	// 创建用户
 	now := time.Now()
@@ -201,7 +201,7 @@ func TestChatService_SessionFlow(t *testing.T) {
 		RealName: "Chat测试", Phone: "10000000300", Status: 1,
 		CreatedAt: now, UpdatedAt: now,
 	}
-	if err := knowledgeSvcDB.Create(user).Error; err != nil {
+	if err := chatSvcDB.Create(user).Error; err != nil {
 		t.Fatalf("创建用户失败: %v", err)
 	}
 
@@ -211,14 +211,14 @@ func TestChatService_SessionFlow(t *testing.T) {
 		VectorDimension: 1024, CreatedBy: user.ID,
 		CreatedAt: now, UpdatedAt: now,
 	}
-	if err := knowledgeSvcDB.Create(kb).Error; err != nil {
+	if err := chatSvcDB.Create(kb).Error; err != nil {
 		t.Fatalf("创建知识库失败: %v", err)
 	}
 
 	// 创建 ChatService
-	knowledgeRepo := knowledge.NewKnowledgeRepo(knowledgeSvcDB)
-	chatRepo := session.NewChatRepo(knowledgeSvcDB)
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{TopK: 3}, nil, nil, nil)
+	knowledgeRepo := knowledge.NewKnowledgeRepo(chatSvcDB)
+	chatRepo := session.NewChatRepo(chatSvcDB)
+	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{TopK: 3}, nil, nil, nil)
 
 	// 创建会话
 	session, err := chatSvc.CreateSession(bgCtx, request.CreateSessionRequest{

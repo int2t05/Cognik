@@ -16,7 +16,6 @@ package rag
 
 import (
 	"context"
-	"io"
 )
 
 // =============================================================================
@@ -40,12 +39,6 @@ type Retriever interface {
 // Chunker 实现此接口；Pipeline 和 Processor 通过此接口解耦分块策略。
 type TextChunker interface {
 	Split(text string) []string
-}
-
-// DocumentParser 文档解析接口。
-// DocParser 实现此接口；Processor 通过此接口解耦解析实现。
-type DocumentParser interface {
-	Parse(reader io.Reader, fileType string) (string, error)
 }
 
 // TextEmbedder 文本向量化接口。

@@ -45,7 +45,7 @@ func setupRoleHandler(t *testing.T) *role.RoleHandler {
 	repo := role.NewRoleRepo(roleHandlerDB)
 	menuRepo := role.NewMenuRepo(roleHandlerDB)
 	auditRepo := audit.NewAuditRepo(roleHandlerDB)
-	svc := user.NewRoleService(repo, menuRepo, audit.NewAuditService(auditRepo), roleHandlerDB)
+	svc := role.NewRoleService(repo, menuRepo, audit.NewAuditService(auditRepo), roleHandlerDB)
 	return role.NewRoleHandler(svc)
 }
 

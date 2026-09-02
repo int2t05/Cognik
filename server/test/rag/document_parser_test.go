@@ -7,69 +7,69 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/rag"
+	"opsmind/internal/parser"
 )
 
 // =============================================================================
 // TXT / MD 解析测试
 // =============================================================================
 
-// TestDocParser_TXT 验证纯文本文件解析。
-func TestDocParser_TXT(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_TXT 验证纯文本文件解析。
+func TestParser_TXT(t *testing.T) {
+	p := parser.NewParser()
 
 	text := "这是运维系统的使用说明文档。\n包含多行内容。"
 	reader := strings.NewReader(text)
 
-	result, err := parser.Parse(reader, "txt")
+	result, err := p.Parse(reader, "txt")
 	if err != nil {
 		t.Fatalf("TXT 解析失败: %v", err)
 	}
-	if result != text {
-		t.Errorf("TXT 内容应原样输出:\n  期望: %q\n  实际: %q", text, result)
+	if result.Markdown != text {
+		t.Errorf("TXT 内容应原样输出:\n  期望: %q\n  实际: %q", text, result.Markdown)
 	}
 }
 
-// TestDocParser_MD 验证 Markdown 文件解析。
-func TestDocParser_MD(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_MD 验证 Markdown 文件解析。
+func TestParser_MD(t *testing.T) {
+	p := parser.NewParser()
 
 	md := "# 运维手册\n\n## VPN 配置\n\n1. 下载客户端\n2. 输入服务器地址\n"
 	reader := strings.NewReader(md)
 
-	result, err := parser.Parse(reader, "md")
+	result, err := p.Parse(reader, "md")
 	if err != nil {
 		t.Fatalf("MD 解析失败: %v", err)
 	}
-	if !strings.Contains(result, "运维手册") {
+	if !strings.Contains(result.Markdown, "运维手册") {
 		t.Error("MD 解析应保留标题")
 	}
-	if !strings.Contains(result, "VPN 配置") {
+	if !strings.Contains(result.Markdown, "VPN 配置") {
 		t.Error("MD 解析应保留标题")
 	}
-	if !strings.Contains(result, "下载客户端") {
+	if !strings.Contains(result.Markdown, "下载客户端") {
 		t.Error("MD 解析应保留列表内容")
 	}
-	if !strings.Contains(result, "\n") {
+	if !strings.Contains(result.Markdown, "\n") {
 		t.Error("MD 解析应保留换行")
 	}
 }
 
-// TestDocParser_TXT_UTF8 验证 UTF-8 编码文本正确解析。
-func TestDocParser_TXT_UTF8(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_TXT_UTF8 验证 UTF-8 编码文本正确解析。
+func TestParser_TXT_UTF8(t *testing.T) {
+	p := parser.NewParser()
 
 	text := "运维 OpsMind 系统 - 账号 Account 管理"
 	reader := strings.NewReader(text)
 
-	result, err := parser.Parse(reader, "txt")
+	result, err := p.Parse(reader, "txt")
 	if err != nil {
 		t.Fatalf("UTF-8 文本解析失败: %v", err)
 	}
-	if !strings.Contains(result, "OpsMind") {
+	if !strings.Contains(result.Markdown, "OpsMind") {
 		t.Error("UTF-8 英文内容应保留")
 	}
-	if !strings.Contains(result, "账号") {
+	if !strings.Contains(result.Markdown, "账号") {
 		t.Error("UTF-8 中文内容应保留")
 	}
 }
@@ -78,23 +78,23 @@ func TestDocParser_TXT_UTF8(t *testing.T) {
 // DOCX 解析测试
 // =============================================================================
 
-// TestDocParser_DOCX 验证 DOCX 解析基本功能。
+// TestParser_DOCX 验证 DOCX 解析基本功能。
 //
 // DOCX 是 ZIP 压缩包，构造最小的合法结构进行测试。
-func TestDocParser_DOCX(t *testing.T) {
-	parser := rag.NewDocParser()
+func TestParser_DOCX(t *testing.T) {
+	p := parser.NewParser()
 
 	docxBytes := createMinimalDocx(t)
 	reader := bytes.NewReader(docxBytes)
 
-	result, err := parser.Parse(reader, "docx")
+	result, err := p.Parse(reader, "docx")
 	if err != nil {
 		t.Fatalf("DOCX 解析失败: %v", err)
 	}
-	if !strings.Contains(result, "DOCX") {
+	if !strings.Contains(result.Markdown, "DOCX") {
 		t.Error("DOCX 解析应包含文档内容")
 	}
-	if !strings.Contains(result, "运维文档测试") {
+	if !strings.Contains(result.Markdown, "运维文档测试") {
 		t.Error("DOCX 解析应包含中文内容")
 	}
 }
@@ -146,12 +146,12 @@ func createMinimalDocx(t *testing.T) []byte {
 // 错误处理测试
 // =============================================================================
 
-// TestDocParser_UnsupportedType 验证不支持的文件类型返回错误。
-func TestDocParser_UnsupportedType(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_UnsupportedType 验证不支持的文件类型返回错误。
+func TestParser_UnsupportedType(t *testing.T) {
+	p := parser.NewParser()
 
 	reader := strings.NewReader("test")
-	_, err := parser.Parse(reader, "xlsx")
+	_, err := p.Parse(reader, "xlsx")
 	if err == nil {
 		t.Error("不支持的文件类型应返回错误")
 	}
@@ -160,17 +160,17 @@ func TestDocParser_UnsupportedType(t *testing.T) {
 	}
 }
 
-// TestDocParser_EmptyFile 验证空文件处理。
-func TestDocParser_EmptyFile(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_EmptyFile 验证空文件处理。
+func TestParser_EmptyFile(t *testing.T) {
+	p := parser.NewParser()
 
 	reader := strings.NewReader("")
-	result, err := parser.Parse(reader, "txt")
+	result, err := p.Parse(reader, "txt")
 	if err != nil {
 		t.Fatalf("空文件解析不应报错: %v", err)
 	}
-	if result != "" {
-		t.Errorf("空文件返回空字符串, 实际: %q", result)
+	if result.Markdown != "" {
+		t.Errorf("空文件返回空字符串, 实际: %q", result.Markdown)
 	}
 }
 
@@ -178,19 +178,19 @@ func TestDocParser_EmptyFile(t *testing.T) {
 // PDF 解析测试
 // =============================================================================
 
-// TestDocParser_PDF 验证 PDF 解析基本功能。
-func TestDocParser_PDF(t *testing.T) {
-	parser := rag.NewDocParser()
+// TestParser_PDF 验证 PDF 解析基本功能。
+func TestParser_PDF(t *testing.T) {
+	p := parser.NewParser()
 
 	// 构造最小 PDF 文件
 	pdfContent := createMinimalPDF(t)
 	reader := bytes.NewReader(pdfContent)
 
-	result, err := parser.Parse(reader, "pdf")
+	result, err := p.Parse(reader, "pdf")
 	if err != nil {
 		t.Fatalf("PDF 解析失败: %v", err)
 	}
-	if result == "" {
+	if result.Markdown == "" {
 		t.Error("PDF 解析不应返回空内容")
 	}
 }

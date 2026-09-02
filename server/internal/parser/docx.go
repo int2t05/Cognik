@@ -1,143 +1,66 @@
-// Package rag 实现自建 RAG 检索引擎。
+// Package parser 实现多格式文档解析。
 //
-// document_parser.go 实现多格式文档解析器。
+// docx.go 实现 DOCX (OOXML) 文件的文本与图片提取。
 //
-// 支持格式：PDF / DOCX / MD / TXT
-//
-// 为什么使用 ledongthuc/pdf 而非其他 PDF 库：
-// ledongthuc/pdf 是纯 Go 实现，无 CGO 依赖，交叉编译友好。
-// 虽然高级功能（表格、图片）不如 poppler，但 MVP 阶段仅需文本提取即可。
-//
-// DOCX 解析使用 Go 标准库 archive/zip + encoding/xml，
-// 直接解析 OOXML 格式，优先按命名空间匹配，
-// 命名空间不匹配时回退到标签名匹配（兼容非标准生成器）。
-package rag
+// 文本提取使用 Go 标准库 archive/zip + encoding/xml，
+// 优先按命名空间匹配，命名空间不匹配时回退到标签名正则匹配（兼容非标准生成器）。
+// 图片提取遍历 ZIP 中 word/media/ 前缀的文件，按原始扩展名命名。
+package parser
 
 import (
-	"fmt"
-	"io"
-	"log/slog"
-	"strings"
-
 	"archive/zip"
 	"bytes"
 	"encoding/xml"
+	"fmt"
+	"io"
+	"path/filepath"
 	"regexp"
-
-	"github.com/ledongthuc/pdf"
+	"sort"
+	"strings"
 )
 
-// maxDocumentSize 文档最大解析大小（100MB），防止恶意文件导致 OOM。
-const maxDocumentSize = 100 * 1024 * 1024
-
-// DocParser 多格式文档解析器。
-type DocParser struct{}
-
-// NewDocParser 创建文档解析器实例。
-func NewDocParser() *DocParser {
-	return &DocParser{}
-}
-
-// Parse 根据文件类型解析文档并返回纯文本内容。
-//
-// reader 在解析完成后不会关闭，由调用方负责关闭。
-// fileType 支持：pdf / docx / md / txt（大小写不敏感）。
-func (p *DocParser) Parse(reader io.Reader, fileType string) (string, error) {
-	switch strings.ToLower(fileType) {
-	case "txt":
-		return p.parseTxt(reader)
-	case "md", "markdown":
-		return p.parseTxt(reader)
-	case "docx":
-		return p.parseDocx(reader)
-	case "pdf":
-		return p.parsePDF(reader)
-	default:
-		return "", fmt.Errorf("不支持的文件类型: %s（支持的格式：pdf / docx / md / txt）", fileType)
-	}
-}
-
-// parseTxt 读取纯文本/Markdown 文件。
-func (p *DocParser) parseTxt(reader io.Reader) (string, error) {
+// parseDocx 解析 DOCX (OOXML) 文件：提取文本 + 提取 word/media/ 图片。
+func (p *Parser) parseDocx(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
-		return "", fmt.Errorf("读取文本文件失败: %w", err)
-	}
-	// 检测是否达到上限
-	if len(b) >= maxDocumentSize {
-		return "", fmt.Errorf("文档超过大小上限 %dMB", maxDocumentSize/(1024*1024))
-	}
-	return string(b), nil
-}
-
-// parsePDF 解析 PDF 文件，逐页提取文本。
-//
-// 使用 bytes.NewReader 而非 strings.NewReader(string(b))，
-// 避免非 UTF-8 二进制字节在 Go string 往返中损坏。
-func (p *DocParser) parsePDF(reader io.Reader) (string, error) {
-	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
-	if err != nil {
-		return "", fmt.Errorf("读取 PDF 文件失败: %w", err)
+		return nil, fmt.Errorf("读取 DOCX 文件失败: %w", err)
 	}
 	if len(b) >= maxDocumentSize {
-		return "", fmt.Errorf("PDF 超过大小上限 %dMB", maxDocumentSize/(1024*1024))
+		return nil, fmt.Errorf("DOCX 超过大小上限 %dMB", maxDocumentSize/(1024*1024))
 	}
 
-	pdfReader, err := pdf.NewReader(bytes.NewReader(b), int64(len(b)))
+	zipReader, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
-		return "", fmt.Errorf("打开 PDF 失败: %w", err)
+		return nil, fmt.Errorf("打开 DOCX ZIP 失败: %w", err)
 	}
 
-	var buf strings.Builder
-	var pageErrors int
-	for i := 1; i <= pdfReader.NumPage(); i++ {
-		page := pdfReader.Page(i)
-		if page.V.IsNull() {
-			continue
+	text, err := extractDocxTextFromZip(zipReader)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &ParseResult{Markdown: text}
+
+	// 图片提取
+	imgEntries := extractDocxImages(zipReader)
+	if len(imgEntries) > 0 {
+		images := make(map[string][]byte, len(imgEntries))
+		var refs strings.Builder
+		for _, e := range imgEntries {
+			images[e.name] = e.data
+			refs.WriteString("\n\n![](images/")
+			refs.WriteString(e.name)
+			refs.WriteString(")")
 		}
-		text, err := page.GetPlainText(nil)
-		if err != nil {
-			pageErrors++
-			slog.Warn("PDF 页面解析失败", "page", i, "error", err)
-			continue
-		}
-		buf.WriteString(text)
-		buf.WriteByte('\n')
-	}
-
-	if pageErrors > 0 {
-		slog.Warn("PDF 部分页面解析失败", "total_pages", pdfReader.NumPage(), "failed_pages", pageErrors)
-	}
-
-	result := strings.TrimSpace(buf.String())
-	if result == "" && pageErrors == pdfReader.NumPage() {
-		return "", fmt.Errorf("PDF 所有页面解析均失败")
+		result.Images = images
+		result.Markdown = text + refs.String()
 	}
 
 	return result, nil
 }
 
-// parseDocx 解析 DOCX (OOXML) 文件。
-//
-// 优先按命名空间解析，解析结果为空时回退到正则提取（兼容非标准命名空间）。
-func (p *DocParser) parseDocx(reader io.Reader) (string, error) {
-	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
-	if err != nil {
-		return "", fmt.Errorf("读取 DOCX 文件失败: %w", err)
-	}
-	if len(b) >= maxDocumentSize {
-		return "", fmt.Errorf("DOCX 超过大小上限 %dMB", maxDocumentSize/(1024*1024))
-	}
-	return parseDocxFromBytes(b)
-}
-
-// parseDocxFromBytes 从字节数组中解析 DOCX 内容。
-func parseDocxFromBytes(data []byte) (string, error) {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return "", fmt.Errorf("打开 DOCX ZIP 失败: %w", err)
-	}
-
+// extractDocxTextFromZip 从 ZIP 中定位 word/document.xml 并提取文本。
+func extractDocxTextFromZip(zipReader *zip.Reader) (string, error) {
 	var documentXML []byte
 	for _, f := range zipReader.File {
 		if f.Name == "word/document.xml" {
@@ -176,9 +99,65 @@ func parseDocxFromBytes(data []byte) (string, error) {
 	return text, nil
 }
 
-// docxDocument DOCX document.xml 的 XML 结构。
+// extractDocxImages 遍历 ZIP 中 word/media/ 前缀的文件，提取图片字节。
 //
-// 支持标准 OOXML 命名空间。
+// 返回有序的图片列表，命名 img{N}.{ext}（按原始扩展名）。
+func extractDocxImages(zipReader *zip.Reader) []imageEntry {
+	var mediaNames []string
+	for _, f := range zipReader.File {
+		if strings.HasPrefix(f.Name, "word/media/") && !f.FileInfo().IsDir() {
+			mediaNames = append(mediaNames, f.Name)
+		}
+	}
+	if len(mediaNames) == 0 {
+		return nil
+	}
+	// 排序保证命名稳定
+	sort.Strings(mediaNames)
+
+	var entries []imageEntry
+	for i, name := range mediaNames {
+		f := findZipFile(zipReader, name)
+		if f == nil {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		ext := strings.TrimPrefix(filepath.Ext(name), ".")
+		if ext == "" {
+			ext = "png"
+		}
+		entries = append(entries, imageEntry{
+			name: fmt.Sprintf("img%d.%s", i+1, ext),
+			data: data,
+		})
+	}
+
+	return entries
+}
+
+// findZipFile 在 ZIP 中按名称查找文件。
+func findZipFile(zipReader *zip.Reader, name string) *zip.File {
+	for _, f := range zipReader.File {
+		if f.Name == name {
+			return f
+		}
+	}
+	return nil
+}
+
+// =============================================================================
+// DOCX XML 结构化解析
+// =============================================================================
+
+// docxDocument DOCX document.xml 的 XML 结构，支持标准 OOXML 命名空间。
 type docxDocument struct {
 	XMLName xml.Name   `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main document"`
 	Body    docxBody   `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main body"`
@@ -194,9 +173,9 @@ type docxParagraph struct {
 }
 
 type docxRun struct {
-	Text     string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main t"`
-	TabChar  string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main tab"`  // 制表符
-	LineBrk  string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main br"`    // 换行
+	Text    string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main t"`
+	TabChar string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main tab"` // 制表符
+	LineBrk string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main br"`   // 换行
 }
 
 type docxTable struct {
@@ -212,8 +191,6 @@ type docxTableCell struct {
 }
 
 // extractDocxText 从 DOCX XML 中提取文本（结构化解析）。
-//
-// 解析段落和表格，提取所有文本节点。
 func extractDocxText(xmlData []byte) (string, error) {
 	var doc docxDocument
 	if err := xml.Unmarshal(xmlData, &doc); err != nil {
@@ -267,12 +244,16 @@ func extractParagraphText(para docxParagraph) string {
 	return strings.TrimSpace(buf.String())
 }
 
+// =============================================================================
+// DOCX 正则回退解析
+// =============================================================================
+
 // extractDocxTextRegex 正则回退提取 DOCX 文本（兼容非标准命名空间）。
 //
 // 当命名空间不匹配导致结构化解析为空时启用此回退。
 // 直接匹配 <w:t...>...</w:t> 标签，忽略命名空间前缀差异。
 //
-// 段落边界检测：判断 </w:p> 是否落在当前文本节点与下一个 w:t 之间（而非硬编码 200 字节窗口），
+// 段落边界检测：判断 </w:p> 是否落在当前文本节点与下一个 w:t 之间，
 // 避免长文本节点中后段的段落标记被遗漏。
 var docxTextRegex = regexp.MustCompile(`<w:t[^>]*>([^<]*)</w:t>`)
 var docxTabRegex = regexp.MustCompile(`<w:tab[^>]*/>`)

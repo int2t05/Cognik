@@ -18,6 +18,7 @@ import (
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
+	"opsmind/internal/parser"
 	"opsmind/internal/rag"
 
 	"gorm.io/gorm"
@@ -108,11 +109,11 @@ func TestProcessor_SingleDocument(t *testing.T) {
 	store := ragMustVectorStore(t)
 	ctx := context.Background()
 
-	parser := rag.NewDocParser()
+	p := parser.NewParser()
 	chunker := rag.NewChunker(1000, 200)
 	emb := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 
-	proc := rag.NewProcessor(parser, chunker, emb, store, nil, 2)
+	proc := rag.NewProcessor(p, chunker, emb, store, nil, 2)
 
 	// 准备测试数据
 	articleID := int64(99950)
@@ -155,10 +156,10 @@ func TestProcessor_MultipleDocuments(t *testing.T) {
 	store := ragMustVectorStore(t)
 	ctx := context.Background()
 
-	parser := rag.NewDocParser()
+	p := parser.NewParser()
 	chunker := rag.NewChunker(500, 100)
 	emb := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
-	proc := rag.NewProcessor(parser, chunker, emb, store, nil, 2)
+	proc := rag.NewProcessor(p, chunker, emb, store, nil, 2)
 
 	baseID := int64(99960)
 
@@ -199,10 +200,10 @@ func TestProcessor_StopGraceful(t *testing.T) {
 	store := ragMustVectorStore(t)
 	ctx := context.Background()
 
-	parser := rag.NewDocParser()
+	p := parser.NewParser()
 	chunker := rag.NewChunker(1000, 200)
 	emb := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
-	proc := rag.NewProcessor(parser, chunker, emb, store, nil, 1) // 单 worker
+	proc := rag.NewProcessor(p, chunker, emb, store, nil, 1) // 单 worker
 
 	articleID := int64(99980)
 	_ = store.DeleteByArticle(ctx, articleID)

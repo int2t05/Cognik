@@ -40,7 +40,7 @@ func setupRoleService(t *testing.T) *role.RoleService {
 	repo := role.NewRoleRepo(roleSvcDB)
 	menuRepo := role.NewMenuRepo(roleSvcDB)
 	auditRepo := audit.NewAuditRepo(roleSvcDB)
-	return user.NewRoleService(repo, menuRepo, audit.NewAuditService(auditRepo), roleSvcDB)
+	return role.NewRoleService(repo, menuRepo, audit.NewAuditService(auditRepo), roleSvcDB)
 }
 
 func seedTestRole(t *testing.T, name string) *model.Role {

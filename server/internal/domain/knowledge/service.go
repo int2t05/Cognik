@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
+	"opsmind/internal/parser"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/dto/response"
 	"opsmind/internal/shared/model"
@@ -78,7 +80,7 @@ type knowledgeEmbedder interface {
 }
 
 type knowledgeDocParser interface {
-	Parse(reader io.Reader, fileType string) (string, error)
+	Parse(reader io.Reader, fileType string) (*parser.ParseResult, error)
 }
 
 // knowledgeRepo KnowledgeService 使用的仓库方法子集。
@@ -429,7 +431,7 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
+	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content), nil)
 	return article, nil
 }
 
@@ -457,7 +459,7 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
 	}
 
-	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content))
+	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content), nil)
 	return nil
 }
 
@@ -782,10 +784,11 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	if s.docParser == nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "文档解析器未初始化"}
 	}
-	text, err := s.docParser.Parse(bytes.NewReader(data), fileType)
+	result, err := s.docParser.Parse(bytes.NewReader(data), fileType)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档解析失败: " + err.Error()}
 	}
+	text := result.Markdown
 	if strings.TrimSpace(text) == "" {
 		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文档内容为空"}
 	}
@@ -811,7 +814,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	key := articleContentKey(article.Title)
 	article.MinioPath = minioBucketDocs + "/" + key
 	_ = s.repo.UpdateArticle(ctx, article)
-	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text))
+	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text), result.Images)
 
 	return article, nil
 }
@@ -1001,14 +1004,20 @@ func (s *KnowledgeService) cleanupArticleFiles(article *model.KnowledgeArticle) 
 	s.deleteArticleDir(bg, minioBucketPublished, key)
 }
 
-// uploadArticleFilesAsync 异步上传正文到存储（目录式 markdown.md），不阻塞主流程。
-func (s *KnowledgeService) uploadArticleFilesAsync(bucket, dir, content string) {
+// uploadArticleFilesAsync 异步上传正文和图片到存储（目录式 markdown.md + images/{name}），不阻塞主流程。
+func (s *KnowledgeService) uploadArticleFilesAsync(bucket, dir, content string, images map[string][]byte) {
 	if s.storage == nil {
 		return
 	}
 	go func() {
-		if err := s.storage.UploadFile(context.Background(), bucket, dir, "markdown.md", strings.NewReader(content), int64(len(content)), "text/markdown"); err != nil {
+		bg := context.Background()
+		if err := s.storage.UploadFile(bg, bucket, dir, "markdown.md", strings.NewReader(content), int64(len(content)), "text/markdown"); err != nil {
 			slog.Warn("异步上传文章失败", "bucket", bucket, "dir", dir, "error", err)
+		}
+		for name, data := range images {
+			if err := s.storage.UploadFile(bg, bucket, dir, "images/"+name, bytes.NewReader(data), int64(len(data)), imageContentType(name)); err != nil {
+				slog.Warn("异步上传图片失败", "bucket", bucket, "dir", dir, "name", name, "error", err)
+			}
 		}
 	}()
 }
@@ -1056,5 +1065,25 @@ func (s *KnowledgeService) deleteArticleDir(ctx context.Context, bucket, dir str
 	}
 	if err := s.storage.DeleteDir(ctx, bucket, dir); err != nil {
 		slog.Warn("删除文章目录失败", "bucket", bucket, "dir", dir, "error", err)
+	}
+}
+
+// imageContentType 根据文件扩展名推断 HTTP Content-Type。
+func imageContentType(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".bmp":
+		return "image/bmp"
+	case ".webp":
+		return "image/webp"
+	case ".tiff", ".tif":
+		return "image/tiff"
+	default:
+		return "application/octet-stream"
 	}
 }
