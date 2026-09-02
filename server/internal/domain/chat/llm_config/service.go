@@ -9,17 +9,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )
-
-// AuditWriter 审计日志写入接口（消费者接口）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
 
 // llmConfigRepo LLM 配置仓库接口（消费者定义）。
 type llmConfigRepo interface {
@@ -81,12 +77,12 @@ type LLMConfigService struct {
 	repo        llmConfigRepo
 	newRepo     txRepoFactory
 	manager     *LLMConfigManager
-	auditWriter AuditWriter
+	auditWriter audit.AuditWriter
 	db          *gorm.DB
 }
 
 // NewLLMConfigService 创建 LLMConfigService 实例。
-func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditWriter AuditWriter) (*LLMConfigService, error) {
+func NewLLMConfigService(repo llmConfigRepo, db *gorm.DB, auditWriter audit.AuditWriter) (*LLMConfigService, error) {
 	svc := &LLMConfigService{
 		repo:        repo,
 		manager:     NewLLMConfigManager(),

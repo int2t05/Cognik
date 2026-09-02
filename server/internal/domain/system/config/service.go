@@ -7,16 +7,12 @@ import (
 	"errors"
 	"fmt"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
-
-// AuditWriter 审计日志写入接口（消费者接口）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
 
 // confidenceScoreQuerier 置信度分数查询接口（chat/session.ChatRepo 自动满足）。
 type confidenceScoreQuerier interface {
@@ -47,7 +43,7 @@ var validConfigKeys = map[string]configKeyMeta{
 // ConfigService 系统配置管理服务。
 type ConfigService struct {
 	repo        *ConfigRepo
-	auditWriter AuditWriter
+	auditWriter audit.AuditWriter
 	chatRepo    confidenceScoreQuerier
 }
 
@@ -57,7 +53,7 @@ func (s *ConfigService) SetChatRepo(r confidenceScoreQuerier) {
 }
 
 // NewConfigService 创建 ConfigService 实例。
-func NewConfigService(repo *ConfigRepo, auditWriter AuditWriter) *ConfigService {
+func NewConfigService(repo *ConfigRepo, auditWriter audit.AuditWriter) *ConfigService {
 	return &ConfigService{repo: repo, auditWriter: auditWriter}
 }
 
