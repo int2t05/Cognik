@@ -10,7 +10,7 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/domain/user"
+		"opsmind/internal/domain/user/role"
 
 	"gorm.io/gorm"
 )
@@ -45,7 +45,7 @@ func setupMenuTestDB(t *testing.T) *gorm.DB {
 
 func TestMenuRepo_ListMenus(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type, sort_order) VALUES
@@ -67,7 +67,7 @@ func TestMenuRepo_ListMenus(t *testing.T) {
 
 func TestMenuRepo_GetRoleMenus(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type) VALUES
@@ -87,7 +87,7 @@ func TestMenuRepo_GetRoleMenus(t *testing.T) {
 
 func TestMenuRepo_BatchGetRoleMenus(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type) VALUES
@@ -110,7 +110,7 @@ func TestMenuRepo_BatchGetRoleMenus(t *testing.T) {
 
 func TestMenuRepo_BatchGetRoleMenus_Empty(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	menus, err := repo.BatchGetRoleMenus(ctx, []int64{})
@@ -124,7 +124,7 @@ func TestMenuRepo_BatchGetRoleMenus_Empty(t *testing.T) {
 
 func TestMenuRepo_ValidateMenuIDs(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type) VALUES ('test_validate_menu', '/test/vm', 'icon', 'menu')`)
@@ -142,7 +142,7 @@ func TestMenuRepo_ValidateMenuIDs(t *testing.T) {
 
 func TestMenuRepo_UpdateRoleMenus(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type) VALUES
@@ -167,7 +167,7 @@ func TestMenuRepo_UpdateRoleMenus(t *testing.T) {
 
 func TestMenuRepo_UpdateRoleMenus_Clear(t *testing.T) {
 	db := setupMenuTestDB(t)
-	repo := user.NewMenuRepo(db)
+	repo := role.NewMenuRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO menus (name, path, icon, type) VALUES ('test_clearmenu', '/test/cm', 'icon', 'menu')`)

@@ -14,7 +14,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/user"
+		"opsmind/internal/domain/user/role"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -53,7 +53,7 @@ func getEnv(key, def string) string {
 
 func TestRoleRepo_Create(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	role := &model.Role{
@@ -71,7 +71,7 @@ func TestRoleRepo_Create(t *testing.T) {
 
 func TestRoleRepo_GetByID(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, permissions, created_at, updated_at) VALUES ('test_get_role', '测试', '["ticket:read"]', NOW(), NOW())`)
@@ -89,7 +89,7 @@ func TestRoleRepo_GetByID(t *testing.T) {
 
 func TestRoleRepo_GetByID_NotFound(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, 99999)
@@ -100,7 +100,7 @@ func TestRoleRepo_GetByID_NotFound(t *testing.T) {
 
 func TestRoleRepo_ExistsByName(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_exists_check', '测试', NOW(), NOW())`)
@@ -124,7 +124,7 @@ func TestRoleRepo_ExistsByName(t *testing.T) {
 
 func TestRoleRepo_ExistsByName_ExcludeSelf(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_exclude_self', '测试', NOW(), NOW())`)
@@ -143,7 +143,7 @@ func TestRoleRepo_ExistsByName_ExcludeSelf(t *testing.T) {
 
 func TestRoleRepo_List(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES
@@ -161,7 +161,7 @@ func TestRoleRepo_List(t *testing.T) {
 
 func TestRoleRepo_List_Keyword(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES
@@ -183,7 +183,7 @@ func TestRoleRepo_List_Keyword(t *testing.T) {
 
 func TestRoleRepo_Update(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_update_role', '更新前', NOW(), NOW())`)
@@ -203,7 +203,7 @@ func TestRoleRepo_Update(t *testing.T) {
 
 func TestRoleRepo_Delete(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, created_at, updated_at) VALUES ('test_delete_role', '待删除', NOW(), NOW())`)
@@ -221,7 +221,7 @@ func TestRoleRepo_Delete(t *testing.T) {
 
 func TestRoleRepo_Delete_ZeroID(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, 0)
@@ -232,7 +232,7 @@ func TestRoleRepo_Delete_ZeroID(t *testing.T) {
 
 func TestRoleRepo_IsBuiltinRole(t *testing.T) {
 	db := setupRoleTestDB(t)
-	repo := user.NewRoleRepo(db)
+	repo := role.NewRoleRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO roles (name, description, is_system, created_at, updated_at) VALUES ('test_system_role', '系统角色', true, NOW(), NOW())`)

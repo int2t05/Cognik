@@ -18,7 +18,9 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/hash"
-	"opsmind/internal/domain/user"
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/domain/user/role"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +31,7 @@ import (
 // testJWTConfig 返回测试用 JWT 配置，与 config.yaml 默认值一致。
 
 // setupTestRouter 创建测试用 Gin 引擎，绑定认证路由。
-func setupTestRouter(authHandler *user.AuthHandler) *gin.Engine {
+func setupTestRouter(authHandler *auth.AuthHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// 公开路由
@@ -85,13 +87,13 @@ func setupHandlerTestDB(t *testing.T) *gorm.DB {
 }
 
 // setupAuthHandler 创建测试用 Gin 引擎和 Handler。
-func setupAuthHandler(t *testing.T, db *gorm.DB) *user.AuthHandler {
+func setupAuthHandler(t *testing.T, db *gorm.DB) *auth.AuthHandler {
 	t.Helper()
 
-	userRepo := user.NewUserRepo(db)
-	menuRepo := user.NewMenuRepo(db)
-	authService := user.NewAuthService(userRepo, menuRepo, db, testJWTConfig())
-	return user.NewAuthHandler(authService)
+	userRepo := account.NewUserRepo(db)
+	menuRepo := role.NewMenuRepo(db)
+	authService := auth.NewAuthService(userRepo, menuRepo, db, testJWTConfig())
+	return auth.NewAuthHandler(authService)
 }
 
 // seedHandlerUser 创建测试用户并确保唯一手机号。

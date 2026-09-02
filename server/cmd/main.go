@@ -19,21 +19,27 @@ import (
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	"opsmind/internal/domain/chat/llm_config"
+	"opsmind/internal/domain/chat/session"
+	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/domain/system/audit"
+	sysconfig "opsmind/internal/domain/system/config"
+	"opsmind/internal/domain/system/dashboard"
+	"opsmind/internal/domain/system/message"
+	"opsmind/internal/domain/ticket"
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/adapter"
-	"opsmind/internal/infra/storage"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/domain/chat"
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/domain/system"
-	"opsmind/internal/domain/ticket"
-	"opsmind/internal/domain/user"
 	opslog "opsmind/internal/infra/log"
-	"opsmind/internal/shared/model"
+	"opsmind/internal/infra/runtime"
+	"opsmind/internal/infra/storage"
 	"opsmind/internal/rag"
 	"opsmind/internal/router"
-	"opsmind/internal/infra/runtime"
+	"opsmind/internal/shared/model"
 )
 
 // app 持有所有已初始化的组件。
@@ -46,7 +52,7 @@ type app struct {
 	vectorStore   adapter.VectorStore
 	storageClient storage.StorageClient
 	scheduler     *runtime.Scheduler
-	authService   *user.AuthService
+	authService   *auth.AuthService
 	server        *http.Server
 }
 
@@ -201,35 +207,35 @@ func wireApp() (*app, error) {
 	}
 
 	// 4. Repository 层
-	configRepo := system.NewConfigRepo(db)
-	userRepo := user.NewUserRepo(db)
-	roleRepo := user.NewRoleRepo(db)
+	configRepo := sysconfig.NewConfigRepo(db)
+	userRepo := account.NewUserRepo(db)
+	roleRepo := role.NewRoleRepo(db)
 	ticketRepo := ticket.NewTicketRepo(db)
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
-	chatRepo := chat.NewChatRepo(db)
-	messageRepo := chat.NewMessageRepo(db)
-	auditRepo := system.NewAuditRepo(db)
-	auditService := system.NewAuditService(auditRepo)
-	dashboardRepo := system.NewDashboardRepo(db)
+	chatRepo := session.NewChatRepo(db)
+	messageRepo := message.NewMessageRepo(db)
+	auditRepo := audit.NewAuditRepo(db)
+	auditService := audit.NewAuditService(auditRepo)
+	dashboardRepo := dashboard.NewDashboardRepo(db)
 
 	// 5. Service 层（无 RAG 依赖的部分）
 	txManager := runtime.NewGormTxManager(db)
-	menuRepo := user.NewMenuRepo(db)
+	menuRepo := role.NewMenuRepo(db)
 
 	// 用户状态缓存（减少每个 API 请求的 DB 查询）
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
 	slog.Info("用户状态缓存已创建", "ttl", "30s")
 
-	a.authService = user.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
-	userService := user.NewUserService(userRepo, auditService, db, userCache)
-	roleService := user.NewRoleService(roleRepo, menuRepo, auditService, db)
-	messageService := system.NewMessageService(messageRepo)
-	dashboardService := system.NewDashboardService(dashboardRepo)
-	configService := system.NewConfigService(configRepo, auditService)
+	a.authService = auth.NewAuthService(userRepo, menuRepo, db, cfg.JWT)
+	userService := account.NewUserService(userRepo, auditService, db, userCache)
+	roleService := role.NewRoleService(roleRepo, menuRepo, auditService, db)
+	messageService := message.NewMessageService(messageRepo)
+	dashboardService := dashboard.NewDashboardService(dashboardRepo)
+	configService := sysconfig.NewConfigService(configRepo, auditService)
 	configService.SetChatRepo(chatRepo)
 
-	llmConfigRepo := chat.NewLlmConfigRepo(db)
-	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, db, auditService)
+	llmConfigRepo := llmconfig.NewLlmConfigRepo(db)
+	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, auditService)
 	if err != nil {
 		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
 	}
@@ -293,7 +299,7 @@ func wireApp() (*app, error) {
 	// 通过 KnowledgeCandidateSaver 消费者接口注入，消除循环依赖。
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
-	llmService := chat.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
+	llmService := session.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
 
 	// LLM 默认配置变更回调：重建 LLM/Embedding 客户端以反映新的 BaseURL/APIKey/Model
@@ -323,13 +329,13 @@ func wireApp() (*app, error) {
 		)
 	})
 
-	genHub := runtime.NewGenerationHub[chat.StreamEvent](func(e chat.StreamEvent, seq int) chat.StreamEvent {
+	genHub := runtime.NewGenerationHub[session.StreamEvent](func(e session.StreamEvent, seq int) session.StreamEvent {
 		e.Seq = seq
 		return e
 	})
 	slog.Info("GenerationHub 已初始化")
 
-	chatService := chat.NewChatService(knowledgeRepo, chatRepo, llmService, chat.RAGDefaults{
+	chatService := session.NewChatService(knowledgeRepo, chatRepo, llmService, session.RAGDefaults{
 		TopK:         cfg.AI.DefaultTopK,
 		QueryRewrite: cfg.AI.RAGQueryRewrite,
 		MultiRoute:   cfg.AI.RAGMultiRoute,
@@ -346,20 +352,19 @@ func wireApp() (*app, error) {
 		slog.Warn("清理残留 generating 消息失败", "error", err)
 	}
 
-
 	// 6. Handler 层
 	handlers := &router.Handlers{
-		Auth:      user.NewAuthHandler(a.authService),
-		User:      user.NewUserHandler(userService),
-		Role:      user.NewRoleHandler(roleService),
+		Auth:      auth.NewAuthHandler(a.authService),
+		User:      account.NewUserHandler(userService),
+		Role:      role.NewRoleHandler(roleService),
 		Ticket:    ticket.NewTicketHandler(ticketService),
 		Knowledge: knowledge.NewKnowledgeHandler(knowledgeService),
-		Chat:      chat.NewChatHandler(chatService),
-		Message:   system.NewMessageHandler(messageService),
-		Dashboard: system.NewDashboardHandler(dashboardService),
-		Audit:     system.NewAuditHandler(auditService),
-		Config:    system.NewConfigHandler(configService),
-		LLMConfig: chat.NewLLMConfigHandler(llmConfigSvc),
+		Chat:      session.NewChatHandler(chatService),
+		Message:   message.NewMessageHandler(messageService),
+		Dashboard: dashboard.NewDashboardHandler(dashboardService),
+		Audit:     audit.NewAuditHandler(auditService),
+		Config:    sysconfig.NewConfigHandler(configService),
+		LLMConfig: llmconfig.NewLLMConfigHandler(llmConfigSvc),
 	}
 
 	// 7. 调度器
@@ -368,12 +373,12 @@ func wireApp() (*app, error) {
 
 	// 8. HTTP Server
 	r := router.Setup(cfg, userCache, handlers, func() error {
-			sqlDB, err := db.DB()
-			if err != nil {
-				return err
-			}
-			return sqlDB.Ping()
-		})
+		sqlDB, err := db.DB()
+		if err != nil {
+			return err
+		}
+		return sqlDB.Ping()
+	})
 
 	readTimeout := cfg.Server.ReadTimeout
 	if readTimeout <= 0 {

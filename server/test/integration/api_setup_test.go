@@ -30,11 +30,17 @@ import (
 	"opsmind/internal/router"
 	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/pkg/hash"
-	"opsmind/internal/domain/chat"
+	llmconfig "opsmind/internal/domain/chat/llm_config"
+	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/system/audit"
+	"opsmind/internal/domain/system/dashboard"
+	sysconfig "opsmind/internal/domain/system/config"
+	"opsmind/internal/domain/system/message"
 	"opsmind/internal/domain/ticket"
-	"opsmind/internal/domain/user"
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/domain/user/role"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -59,7 +65,7 @@ type apiTestServer struct {
 	ReporterID    int64
 	OperatorToken string
 	OperatorID    int64
-	authSvc       *user.AuthService
+	authSvc       *auth.AuthService
 }
 
 // startAPITestServer 启动完整的 API 测试服务器。
@@ -90,45 +96,45 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	}
 
 	// Repository 层
-	userRepo, roleRepo, menuRepo := user.NewUserRepo(db), user.NewRoleRepo(db), user.NewMenuRepo(db)
+	userRepo, roleRepo, menuRepo := account.NewUserRepo(db), role.NewRoleRepo(db), role.NewMenuRepo(db)
 	ticketRepo := ticket.NewTicketRepo(db)
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
-	chatRepo, messageRepo := chat.NewChatRepo(db), chat.NewMessageRepo(db)
-	auditRepo, dashboardRepo := system.NewAuditRepo(db), system.NewDashboardRepo(db)
-	configRepo, llmConfigRepo := system.NewConfigRepo(db), chat.NewLlmConfigRepo(db)
+	chatRepo, messageRepo := session.NewChatRepo(db), message.NewMessageRepo(db)
+	auditRepo, dashboardRepo := audit.NewAuditRepo(db), dashboard.NewDashboardRepo(db)
+	configRepo, llmConfigRepo := sysconfig.NewConfigRepo(db), llmconfig.NewLlmConfigRepo(db)
 
 	// 缓存
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
 
 	// Service 层
-	authSvc := user.NewAuthService(userRepo, menuRepo, db, jwtCfg)
-	userSvc := user.NewUserService(userRepo, system.NewAuditService(auditRepo), db, userCache)
-	roleSvc := user.NewRoleService(roleRepo, menuRepo, system.NewAuditService(auditRepo), db)
-	messageSvc := system.NewMessageService(messageRepo)
+	authSvc := auth.NewAuthService(userRepo, menuRepo, db, jwtCfg)
+	userSvc := user.NewUserService(userRepo, audit.NewAuditService(auditRepo), db, userCache)
+	roleSvc := user.NewRoleService(roleRepo, menuRepo, audit.NewAuditService(auditRepo), db)
+	messageSvc := message.NewMessageService(messageRepo)
 	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
-	dashboardSvc := system.NewDashboardService(dashboardRepo)
-	configSvc := system.NewConfigService(configRepo, system.NewAuditService(auditRepo))
-	auditSvc := system.NewAuditService(auditRepo)
+	dashboardSvc := dashboard.NewDashboardService(dashboardRepo)
+	configSvc := system.NewConfigService(configRepo, audit.NewAuditService(auditRepo))
+	auditSvc := audit.NewAuditService(auditRepo)
 
-	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, db, system.NewAuditService(auditRepo))
+	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, audit.NewAuditService(auditRepo))
 	require.NoError(t, err)
 
 	knowledgeSvc := knowledge.NewKnowledgeService(knowledgeRepo,
-		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(system.NewAuditService(auditRepo)))
+		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(audit.NewAuditService(auditRepo)))
 	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
 
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
 	}, nil, nil, nil)
 
 	// Handler → Router → HTTP Server
 	handlers := &router.Handlers{
-		Auth: user.NewAuthHandler(authSvc), User: user.NewUserHandler(userSvc),
-		Role: user.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
-		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc), Chat: chat.NewChatHandler(chatSvc),
-		Message: system.NewMessageHandler(messageSvc), Dashboard: system.NewDashboardHandler(dashboardSvc),
-		Audit: system.NewAuditHandler(auditSvc), Config: system.NewConfigHandler(configSvc),
-		LLMConfig: chat.NewLLMConfigHandler(llmConfigSvc),
+		Auth: auth.NewAuthHandler(authSvc), User: account.NewUserHandler(userSvc),
+		Role: role.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
+		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc), Chat: session.NewChatHandler(chatSvc),
+		Message: message.NewMessageHandler(messageSvc), Dashboard: dashboard.NewDashboardHandler(dashboardSvc),
+		Audit: audit.NewAuditHandler(auditSvc), Config: sysconfig.NewConfigHandler(configSvc),
+		LLMConfig: llmconfig.NewLLMConfigHandler(llmConfigSvc),
 	}
 
 	r := router.Setup(&config.AppConfig{

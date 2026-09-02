@@ -16,7 +16,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/domain/system"
+		"opsmind/internal/domain/system/dashboard"
 
 	"gorm.io/gorm"
 )
@@ -39,7 +39,7 @@ func init() {
 	dashboardDB = db
 }
 
-func setupDashboardTest(t *testing.T) *system.DashboardService {
+func setupDashboardTest(t *testing.T) *dashboard.DashboardService {
 	t.Helper()
 
 	// 创建需要的表
@@ -79,7 +79,7 @@ func setupDashboardTest(t *testing.T) *system.DashboardService {
 	dashboardDB.Exec("DELETE FROM chat_sessions")
 	dashboardDB.Exec("DELETE FROM tickets")
 
-	return system.NewDashboardService(system.NewDashboardRepo(dashboardDB))
+	return dashboard.NewDashboardService(dashboard.NewDashboardRepo(dashboardDB))
 }
 
 // 创建测试数据的辅助函数
@@ -248,7 +248,7 @@ func TestDashboardService_GetStats_Empty(t *testing.T) {
 
 func TestDashboardService_GetStats_CancelsRemainingQueriesOnError(t *testing.T) {
 	repo := newCancelAwareDashboardRepo()
-	svc := system.NewDashboardService(repo)
+	svc := dashboard.NewDashboardService(repo)
 
 	_, err := svc.GetStats(bgCtx)
 	if !errors.Is(err, errDashboardRepoInjected) {
@@ -319,11 +319,11 @@ func (r *cancelAwareDashboardRepo) CountFeedbackByType(ctx context.Context, feed
 	return 0, r.waitForCancel(ctx)
 }
 
-func (r *cancelAwareDashboardRepo) GetTicketTrends(context.Context, string, string, string) ([]system.TrendPoint, error) {
+func (r *cancelAwareDashboardRepo) GetTicketTrends(context.Context, string, string, string) ([]dashboard.TrendPoint, error) {
 	return nil, nil
 }
 
-func (r *cancelAwareDashboardRepo) GetChatTrends(context.Context, string, string, string) ([]system.TrendPoint, error) {
+func (r *cancelAwareDashboardRepo) GetChatTrends(context.Context, string, string, string) ([]dashboard.TrendPoint, error) {
 	return nil, nil
 }
 

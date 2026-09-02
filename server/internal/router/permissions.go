@@ -5,19 +5,19 @@
 // router 通过别名引用，避免双维护风险。
 package router
 
-import "opsmind/internal/domain/user"
+import "opsmind/internal/domain/user/role"
 
 const (
-	PermUserManage      = user.PermUserManage
-	PermTicketRead      = user.PermTicketRead
-	PermTicketWrite     = user.PermTicketWrite
-	PermTicketManage    = user.PermTicketManage
-	PermKnowledgeRead   = user.PermKnowledgeRead
-	PermKnowledgeWrite  = user.PermKnowledgeWrite
-	PermKnowledgeCreate = user.PermKnowledgeCreate
-	PermKnowledgeManage = user.PermKnowledgeManage
-	PermKnowledgeReview = user.PermKnowledgeReview
-	PermAuditRead       = user.PermAuditRead
-	PermDashboardRead   = user.PermDashboardRead
-	PermSystemConfig    = user.PermSystemConfig
+	PermUserManage      = role.PermUserManage
+	PermTicketRead      = role.PermTicketRead
+	PermTicketWrite     = role.PermTicketWrite
+	PermTicketManage    = role.PermTicketManage
+	PermKnowledgeRead   = role.PermKnowledgeRead
+	PermKnowledgeWrite  = role.PermKnowledgeWrite
+	PermKnowledgeCreate = role.PermKnowledgeCreate
+	PermKnowledgeManage = role.PermKnowledgeManage
+	PermKnowledgeReview = role.PermKnowledgeReview
+	PermAuditRead       = role.PermAuditRead
+	PermDashboardRead   = role.PermDashboardRead
+	PermSystemConfig    = role.PermSystemConfig
 )

@@ -13,13 +13,13 @@ import (
 	"testing"
 
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/chat"
+		"opsmind/internal/domain/chat/session"
 )
 
 // setupChatRepoTest 准备 ChatRepo 集成测试环境。
 // 复用同包的 chatSvcDB（由 auth_service_test.go 的 init() 初始化），
 // 确保 chat_sessions / chat_messages 两张表存在且包含新字段。
-func setupChatRepoTest(t *testing.T) *chat.ChatRepo {
+func setupChatRepoTest(t *testing.T) *session.ChatRepo {
 	t.Helper()
 
 	// 建表（沿用 chat_service_test.go 的 DDL，补充新字段）
@@ -43,7 +43,7 @@ func setupChatRepoTest(t *testing.T) *chat.ChatRepo {
 	chatSvcDB.Exec("DELETE FROM chat_messages")
 	chatSvcDB.Exec("DELETE FROM chat_sessions")
 
-	return chat.NewChatRepo(chatSvcDB)
+	return session.NewChatRepo(chatSvcDB)
 }
 
 // TestChatRepo_CreateUpdateAndMarkFailed 验证消息单写、更新、残留清理三条路径。

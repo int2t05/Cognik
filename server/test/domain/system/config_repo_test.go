@@ -11,7 +11,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/system"
+		sysconfig "opsmind/internal/domain/system/config"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -39,7 +39,7 @@ func setupConfigRepoTestDB(t *testing.T) *gorm.DB {
 
 func TestConfigRepo_Upsert_Insert(t *testing.T) {
 	db := setupConfigRepoTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	ctx := context.Background()
 
 	err := repo.Upsert(ctx, "test_config_key", "测试配置说明", datatypes.JSON(`"test_value"`), 1)
@@ -58,7 +58,7 @@ func TestConfigRepo_Upsert_Insert(t *testing.T) {
 
 func TestConfigRepo_Upsert_Update(t *testing.T) {
 	db := setupConfigRepoTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	ctx := context.Background()
 
 	repo.Upsert(ctx, "test_update_key", "原始说明", datatypes.JSON(`"old"`), 1)
@@ -78,7 +78,7 @@ func TestConfigRepo_Upsert_Update(t *testing.T) {
 
 func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
 	db := setupConfigRepoTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	ctx := context.Background()
 
 	_, err := repo.GetByKey(ctx, "nonexistent_key_xyz")
@@ -89,7 +89,7 @@ func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
 
 func TestConfigRepo_List(t *testing.T) {
 	db := setupConfigRepoTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	ctx := context.Background()
 
 	repo.Upsert(ctx, "test_list_1", "", datatypes.JSON(`"a"`), 1)
@@ -106,7 +106,7 @@ func TestConfigRepo_List(t *testing.T) {
 
 func TestConfigRepo_List_Empty(t *testing.T) {
 	db := setupConfigRepoTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec("DELETE FROM system_configs WHERE key LIKE 'test_%'")

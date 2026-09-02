@@ -1,0 +1,162 @@
+// Package config 封装系统配置领域的 HTTP 请求处理层。
+//
+// handler.go 处理配置查询、更新、置信度阈值计算请求。
+package config
+
+import (
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"strconv"
+
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/pkg/errcode"
+	resp "opsmind/internal/shared/pkg/response"
+
+	"github.com/gin-gonic/gin"
+)
+
+// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+func parsePagination(c *gin.Context) (int, int) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+	return page, pageSize
+}
+
+// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+func getCurrentUserID(c *gin.Context) (int64, bool) {
+	if val, exists := c.Get("userID"); exists {
+		if id, ok := val.(int64); ok {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// handleServiceError 统一处理 Service 层错误。
+func handleServiceError(c *gin.Context, err error) {
+	var appErr errcode.AppError
+	if errors.As(err, &appErr) {
+		resp.Error(c, appErr.Code, appErr.Message)
+		return
+	}
+	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
+	resp.Error(c, errcode.ErrUnknown, "服务器内部错误")
+}
+
+// ConfigHandler 系统配置管理接口。
+type ConfigHandler struct {
+	svc *ConfigService
+}
+
+// NewConfigHandler 创建 ConfigHandler 实例。
+func NewConfigHandler(svc *ConfigService) *ConfigHandler {
+	return &ConfigHandler{svc: svc}
+}
+
+// GetPublic 获取公开配置值（无需认证）。
+//
+// GET /api/v1/public/configs/:key
+func (h *ConfigHandler) GetPublic(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		resp.Error(c, errcode.ErrParam, "配置 key 不能为空")
+		return
+	}
+	if !h.svc.IsPublicKey(key) {
+		resp.Error(c, errcode.ErrNotFound, "配置不存在")
+		return
+	}
+
+	val, err := h.svc.GetConfig(c.Request.Context(), key)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, val)
+}
+
+// Get 获取指定 key 的配置值。
+//
+// GET /api/v1/admin/configs/:key
+func (h *ConfigHandler) Get(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		resp.Error(c, errcode.ErrParam, "配置 key 不能为空")
+		return
+	}
+
+	val, err := h.svc.GetConfig(c.Request.Context(), key)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	resp.Success(c, val)
+}
+
+// Update 更新或创建系统配置。
+//
+// PUT /api/v1/admin/configs/:key
+func (h *ConfigHandler) Update(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		resp.Error(c, errcode.ErrParam, "配置 key 不能为空")
+		return
+	}
+
+	raw, err := c.GetRawData()
+	if err != nil {
+		resp.Error(c, errcode.ErrParam, "读取请求体失败")
+		return
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		resp.Error(c, errcode.ErrParam, "请求体不是合法 JSON")
+		return
+	}
+	valRaw, ok := m["value"]
+	if !ok {
+		resp.Error(c, errcode.ErrParam, "缺少 value 字段")
+		return
+	}
+
+	var val interface{}
+	if err := json.Unmarshal(valRaw, &val); err != nil {
+		resp.Error(c, errcode.ErrParam, "value 字段解析失败")
+		return
+	}
+
+	updatedBy, _ := getCurrentUserID(c)
+	if err := h.svc.UpdateConfig(c.Request.Context(), key, val, updatedBy); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	resp.Success(c, nil)
+}
+
+// ComputeThresholds 计算置信度阈值分位数。
+//
+// POST /api/v1/admin/confidence/compute-thresholds
+func (h *ConfigHandler) ComputeThresholds(c *gin.Context) {
+	var req request.ComputeThresholdsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, errcode.ErrParam, "参数校验失败")
+		return
+	}
+
+	result, err := h.svc.ComputeThresholds(c.Request.Context(), req.Days)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	resp.Success(c, result)
+}

@@ -11,7 +11,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/chat"
+		llmconfig "opsmind/internal/domain/chat/llm_config"
 
 	"gorm.io/gorm"
 )
@@ -39,7 +39,7 @@ func setupLLMConfigRepoTestDB(t *testing.T) *gorm.DB {
 
 func TestLlmConfigRepo_Create(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	cfg := &model.LlmConfig{
@@ -57,7 +57,7 @@ func TestLlmConfigRepo_Create(t *testing.T) {
 
 func TestLlmConfigRepo_FindByID(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
@@ -76,7 +76,7 @@ func TestLlmConfigRepo_FindByID(t *testing.T) {
 
 func TestLlmConfigRepo_FindByID_NotFound(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	_, err := repo.FindByID(ctx, 99999)
@@ -87,7 +87,7 @@ func TestLlmConfigRepo_FindByID_NotFound(t *testing.T) {
 
 func TestLlmConfigRepo_FindDefault(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, is_default, created_at, updated_at)
@@ -104,7 +104,7 @@ func TestLlmConfigRepo_FindDefault(t *testing.T) {
 
 func TestLlmConfigRepo_List(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at) VALUES
@@ -122,7 +122,7 @@ func TestLlmConfigRepo_List(t *testing.T) {
 
 func TestLlmConfigRepo_Update(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
@@ -144,7 +144,7 @@ func TestLlmConfigRepo_Update(t *testing.T) {
 
 func TestLlmConfigRepo_Delete(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
@@ -163,7 +163,7 @@ func TestLlmConfigRepo_Delete(t *testing.T) {
 
 func TestLlmConfigRepo_ClearDefault(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, is_default, created_at, updated_at) VALUES
@@ -184,7 +184,7 @@ func TestLlmConfigRepo_ClearDefault(t *testing.T) {
 
 func TestLlmConfigRepo_CountReferencingKBs(t *testing.T) {
 	db := setupLLMConfigRepoTestDB(t)
-	repo := chat.NewLlmConfigRepo(db)
+	repo := llmconfig.NewLlmConfigRepo(db)
 	ctx := context.Background()
 
 	db.Exec(`INSERT INTO llm_configs (id, name, llm_base_url, llm_model, embedding_model, max_tokens, vector_dimension, created_at, updated_at)
