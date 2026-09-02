@@ -369,8 +369,8 @@ func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int6
 // =============================================================================
 
 // ListByUser 分页查询当前用户的申告列表。
-func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize)
+func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize, keyword)
 	if err != nil {
 		return nil, err
 	}
@@ -387,8 +387,8 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 }
 
 // ListAll 分页查询全部申告（status=-1 不过滤）。
-func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize)
+func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int, keyword string) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize, keyword)
 	if err != nil {
 		return nil, err
 	}

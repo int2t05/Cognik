@@ -96,8 +96,9 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 func (h *TicketHandler) ListByUser(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	page, pageSize := parsePagination(c)
+	keyword := c.DefaultQuery("keyword", "")
 
-	result, err := h.svc.ListByUser(c.Request.Context(), userID, page, pageSize)
+	result, err := h.svc.ListByUser(c.Request.Context(), userID, page, pageSize, keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -166,8 +167,9 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 func (h *TicketHandler) ListAll(c *gin.Context) {
 	page, pageSize := parsePagination(c)
 	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
+	keyword := c.DefaultQuery("keyword", "")
 
-	result, err := h.svc.ListAll(c.Request.Context(), status, page, pageSize)
+	result, err := h.svc.ListAll(c.Request.Context(), status, page, pageSize, keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return

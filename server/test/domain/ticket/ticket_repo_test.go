@@ -297,7 +297,7 @@ func TestTicketRepo_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	tickets, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10)
+	tickets, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -326,7 +326,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 	}
 
 	// 过滤 status=1
-	result, total, err := repo.ListAll(context.Background(), 1, 1, 10)
+	result, total, err := repo.ListAll(context.Background(), 1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -335,7 +335,7 @@ func TestTicketRepo_ListAll(t *testing.T) {
 	}
 
 	// 全查询
-	result, total, err = repo.ListAll(context.Background(), -1, 1, 10)
+	result, total, err = repo.ListAll(context.Background(), -1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
