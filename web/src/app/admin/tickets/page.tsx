@@ -10,26 +10,28 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
+import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 
-const TICKET_FILTERS: FilterOption<number>[] = [
-  { value: -1, label: '全部', icon: <ListFilter size={16} /> },
-  { value: 1, label: '待处理', icon: <AlertCircle size={16} /> },
-  { value: 2, label: '处理中', icon: <Clock size={16} /> },
-  { value: 3, label: '需补充', icon: <MessageSquare size={16} /> },
-  { value: 4, label: '已解决', icon: <CheckCircle size={16} /> },
-  { value: 5, label: '已关闭', icon: <XCircle size={16} /> },
+const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
+  { value: -1, label: '全部' },
+  { value: 1, label: '待处理' },
+  { value: 2, label: '处理中' },
+  { value: 3, label: '需补充' },
+  { value: 4, label: '已解决' },
+  { value: 5, label: '已关闭' },
 ];
 
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState(-1);
-  const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}`, () => listAllTickets(page, status));
+  const [keyword, setKeyword] = useState('');
+  const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}-${keyword}`, () => listAllTickets(page, status, keyword));
 
   const items = data?.items || [];
 
@@ -48,8 +50,8 @@ export default function AdminTicketListPage() {
         <PageTitle>申告管理</PageTitle>
       </div>
       {error && <InlineError />}
-      <div className="mb-4 flex gap-2 items-center flex-wrap">
-        <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
+      <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
       {isEmpty ? (
@@ -67,7 +69,7 @@ export default function AdminTicketListPage() {
               { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
               { accessorKey: 'submitter_name', header: '提交人' },
               { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
-              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'status', header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
               { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={items} loading={!data && !error}

@@ -166,7 +166,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
             </Button>
           )}
           <span className="text-callout font-semibold text-[var(--color-ink)] shrink-0">{appName || 'OpsMind'}</span>
-          <GlobalSearch nav={nav} crossLink={crossLink} />
+          <GlobalSearch nav={nav} crossLink={crossLink} toggleTheme={toggleTheme} />
           <div className="flex-1" />
           {crossLink && (
             <Button variant="menu" size="icon" onClick={() => router.push(crossLink.path)} aria-label={crossLink.label}>
@@ -192,7 +192,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
 }
 
 /** GlobalSearch — 顶栏内联搜索。输入即时过滤导航项 + 快捷操作，下拉展示结果。 */
-function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { label: string; path: string; icon: ReactNode } }) {
+function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; crossLink?: { label: string; path: string; icon: ReactNode }; toggleTheme: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -230,11 +230,11 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
       }
     }
     const matchedNav = navItems.filter((i) => i.label.toLowerCase().includes(q)).slice(0, 6);
-    const matchedActions: { label: string; icon?: ReactNode; path?: string }[] = [];
-    if ('切换主题'.includes(q) || 'theme'.includes(q)) matchedActions.push({ label: '切换主题', icon: <Moon size={14} /> });
+    const matchedActions: { label: string; icon?: ReactNode; path?: string; onSelect?: () => void }[] = [];
+    if ('切换主题'.includes(q) || 'theme'.includes(q)) matchedActions.push({ label: '切换主题', icon: <Moon size={14} />, onSelect: toggleTheme });
     if (crossLink && crossLink.label.toLowerCase().includes(q)) matchedActions.push({ label: crossLink.label, icon: crossLink.icon, path: crossLink.path });
     return { nav: matchedNav, actions: matchedActions };
-  }, [query, nav, crossLink]);
+  }, [query, nav, crossLink, toggleTheme]);
 
   const hasResults = results.nav.length > 0 || results.actions.length > 0;
 
@@ -245,7 +245,7 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="搜索工单、知识、会话…"
+        placeholder="搜索页面…"
         className="h-8 text-fine pl-9 pr-12 rounded-[var(--radius-md)] bg-[var(--color-tile-1)] border-[var(--color-hairline)]"
         aria-label="全局搜索"
       />
@@ -278,7 +278,7 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
                   {results.actions.map((a) => (
                     <button
                       key={a.label}
-                      onClick={() => { if (a.path) { router.push(a.path); } setQuery(''); setOpen(false); }}
+                      onClick={() => { if (a.onSelect) a.onSelect(); else if (a.path) router.push(a.path); setQuery(''); setOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[var(--color-tile-1)] text-callout text-[var(--color-ink)]"
                     >
                       {a.icon}

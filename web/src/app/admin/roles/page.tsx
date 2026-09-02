@@ -102,7 +102,7 @@ export default function RoleManagePage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>角色管理</PageTitle>
+        <PageTitle className="mb-0">角色管理</PageTitle>
         <Button size="icon" onClick={openCreate} aria-label="新建角色"><ShieldPlus /></Button>
       </div>
       {error && <InlineError />}

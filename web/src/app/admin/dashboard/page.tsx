@@ -100,7 +100,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>数据看板</PageTitle>
+        <PageTitle className="mb-0">数据看板</PageTitle>
         <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
       </div>
       {statsErr && <InlineError />}

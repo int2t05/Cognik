@@ -17,6 +17,7 @@ import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
@@ -88,7 +89,7 @@ export default function AdminTicketDetailPage() {
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
         <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
-        <PageTitle className="!mb-0">{ticket.title}</PageTitle>
+        <PageTitle className="mb-0">{ticket.title}</PageTitle>
       </div>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
@@ -105,7 +106,7 @@ export default function AdminTicketDetailPage() {
       </div>
 
       <Card className="mb-4">
-        <p className="whitespace-pre-wrap">{ticket.description}</p>
+        <Markdown content={ticket.description} />
       </Card>
 
       <div className="mb-5 flex flex-wrap gap-2">
