@@ -1,12 +1,14 @@
 # OpsMind v2 — 运维数字员工系统
 #
-# 必须服务：opsmind-server, opsmind-web, postgres(pgvector), minio
-# 可选服务：llama-cpp + llama-cpp-emb（profile: ai-local）
+# 必须服务：opsmind-server, opsmind-web, postgres(pgvector)
+# 可选服务：minio（profile: storage）, llama-cpp + llama-cpp-emb（profile: ai-local）
 #
 # 启动：
-#   docker compose up -d --build                    # 4 个必须服务
-#   docker compose --profile ai-local up -d --build # 含 LLM + Embedding
-#   docker compose down -v                          # 停止并清除数据
+#   docker compose up -d --build                            # 3 个必须服务（本地存储）
+#   docker compose --profile storage up -d --build         # 含 MinIO 对象存储
+#   docker compose --profile ai-local up -d --build        # 含 LLM + Embedding
+#   docker compose --profile storage --profile ai-local up -d --build  # 全部
+#   docker compose down -v                                  # 停止并清除数据
 
 services:
   # Go 后端
@@ -22,18 +24,21 @@ services:
     environment:
       # 容器内地址覆写（.env 中是 localhost → 容器间 service name）
       OPSMIND_DATABASE_HOST: postgres
-      OPSMIND_MINIO_ENDPOINT: minio:9000
+      OPSMIND_STORAGE_DRIVER: "${OPSMIND_STORAGE_DRIVER:-local}"
+      OPSMIND_STORAGE_LOCAL_BASE_DIR: "/app/data/storage"
+      # MinIO 模式时覆写为容器地址
+      OPSMIND_MINIO_ENDPOINT: "minio:9000"
       # 重排序（MiniLM-L-4-v2 ~80MB，需先 cd server && python models/rerank/download.py）
       OPSMIND_RERANK_ENABLED: "${OPSMIND_RERANK_ENABLED:-true}"
       OPSMIND_RERANK_PYTHON_PATH: python3
       OPSMIND_RERANK_SCRIPT_PATH: /app/rerank_server.py
       RERANK_MODEL: /app/models/rerank
       TZ: Asia/Shanghai
+    volumes:
+      - ./data/storage:/app/data/storage
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
       interval: 15s
@@ -86,8 +91,9 @@ services:
     networks:
       - opsmind
 
-  # MinIO 对象存储
+  # MinIO 对象存储（可选，默认使用本地文件存储）
   minio:
+    profiles: ["storage"]
     image: minio/minio:latest
     container_name: opsmind-minio
     restart: unless-stopped
