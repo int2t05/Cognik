@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { CheckCheck, Mail, ExternalLink, Eye } from 'lucide-react';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -58,7 +59,7 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-5">
         <PageTitle>站内消息</PageTitle>
         {!isEmpty && (
           <Button variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
@@ -70,10 +71,7 @@ export default function MessagesPage() {
       {error && <InlineError />}
 
       {isEmpty ? (
-        <div className="text-center py-16">
-          <Mail size={32} className="mx-auto mb-4 text-[var(--color-text-muted-48)]" />
-          <p className="text-title text-[var(--color-text-muted-48)]">暂无消息</p>
-        </div>
+        <EmptyState icon={<Mail size={40} />} title="暂无消息" />
       ) : (
         <>
           <DataTable

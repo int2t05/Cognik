@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
@@ -85,7 +86,7 @@ export default function AdminTicketDetailPage() {
   return (
     <div className="max-w-content">
       <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
-      <h1 className="mb-2 text-display font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
+      <PageTitle>{ticket.title}</PageTitle>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">

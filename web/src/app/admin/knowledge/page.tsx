@@ -74,7 +74,7 @@ export default function KnowledgeListPage() {
 
       {error && <InlineError />}
 
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
           <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (

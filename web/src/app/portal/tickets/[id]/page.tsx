@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
@@ -104,7 +105,7 @@ export default function TicketDetailPage() {
         </Card>
       ) : (
         <>
-          <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+          <PageTitle>{ticket.title}</PageTitle>
           <div className="flex gap-3 mb-5 items-center flex-wrap">
             <StatusBadge type="ticket" status={ticket.status} />
             <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
@@ -142,7 +143,7 @@ export default function TicketDetailPage() {
             <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
               <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-              <Button size="icon" disabled={sending} aria-label="提交补充" onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>
+              <Button size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</Button>
             </Card>
           )}
         </>

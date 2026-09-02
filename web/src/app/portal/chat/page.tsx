@@ -191,7 +191,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
+    <div className="flex h-[calc(100dvh-44px)]">
       {/* 侧边栏 */}
       <aside className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)] transition-all duration-200 ${sidebarOpen ? 'w-[240px]' : 'w-0 border-r-0'}`}>
         <div className="flex flex-col h-full p-3 w-[240px]">
@@ -210,7 +210,7 @@ export default function ChatPage() {
                       <div role="button" tabIndex={0} onClick={() => selectSession(s.id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSession(s.id); } }}
                         className={cn(
-                          'flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2',
+                          'flex-1 min-w-0 text-left px-2 py-2 rounded-[var(--radius-md)] text-caption transition cursor-pointer flex items-center gap-2',
                           isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
                         )}>
                         <MessageSquare size={12} className={`shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />

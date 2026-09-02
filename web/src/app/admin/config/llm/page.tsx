@@ -166,7 +166,7 @@ export default function LLMConfigPage() {
         <Button size="icon" aria-label="新建 LLM 配置" onClick={openCreate}><Cpu /></Button>
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {!configs ? (
           <Loader2 className="animate-spin" />
         ) : configs.length === 0 ? (
