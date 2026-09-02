@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -66,26 +68,27 @@ export default function ArticleEditPage() {
 
   return (
     <div className="max-w-form">
-      <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回"><ChevronLeft /></Button>
-      </div>
       <div className="flex justify-between items-center mb-5">
         <div>
-          <PageTitle>{article.title}</PageTitle>
+          <div className="flex items-center gap-3 mb-4">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回"><ChevronLeft /></Button>
+            <PageTitle className="!mb-0">{article.title}</PageTitle>
+          </div>
           <div className="flex gap-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
             <span className="text-caption text-[var(--color-text-muted-48)]">创建者: {article.created_by_name} · {formatDate(article.created_at)}</span>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {article.status === 1 && <Button size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交审核</Button>}
           {article.status === 2 && <><Button size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}通过</Button><Button variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}驳回</Button></>}
           {article.status === 3 && <><Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '已发布')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}发布</Button>{article.process_status === 'failed' && <Button variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '正在重试发布')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}重试发布</Button>}</>}
           {article.status === 4 && <Button variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}停用</Button>}
           {article.status === 0 && <Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); }, '已启用')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}启用</Button>}
+          {[0, 1, 2, 3, 4].includes(article.status) && <Separator orientation="vertical" className="h-6" />}
           {(article.status === 0 || article.status === 1 || article.status === 5) && <Button variant="ghost" size="icon" aria-label="编辑" onClick={startEdit}><Pencil /></Button>}
-          <Button variant="destructive" size="icon" aria-label="删除" onClick={() => setDeleteTarget(true)}><Trash2 /></Button>
+          <Button variant="ghost" size="icon" aria-label="删除" onClick={() => setDeleteTarget(true)}><Trash2 /></Button>
         </div>
       </div>
 
@@ -100,9 +103,9 @@ export default function ArticleEditPage() {
         </Card>
       ) : (
         <Card className="mb-4">
-          <h2 className="text-headline font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
           <div className="text-body leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
-          {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <span key={t} className="px-2.5 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-divider-soft)] text-[var(--color-text-muted-80)]">{t}</span>)}</div>}
+          {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <Badge key={t} variant="neutral">{t}</Badge>)}</div>}
         </Card>
       )}
 

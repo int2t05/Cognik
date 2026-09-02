@@ -7,6 +7,8 @@ import { StatCard } from '@/components/shared/StatCard';
 import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -88,6 +90,8 @@ export default function DashboardPage() {
     return v ?? '—';
   };
 
+  const statsLoading = !stats && !statsErr;
+
   const cardDelta = (trendKey?: 'ticket' | 'chat'): number | undefined => {
     if (!trendKey) return undefined;
     return deltas[trendKey];
@@ -102,15 +106,20 @@ export default function DashboardPage() {
       {statsErr && <InlineError />}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[var(--spacing-md-plus)] mb-6">
-        {STAT_CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            label={c.label}
-            value={cardValue(c.key)}
-            icon={c.icon}
-            delta={cardDelta('trendKey' in c ? c.trendKey : undefined)}
-          />
-        ))}
+        {statsLoading
+          ? STAT_CARDS.map((c) => (
+              <Card key={c.key} className="!p-4"><Skeleton className="h-16 w-full" /></Card>
+            ))
+          : STAT_CARDS.map((c) => (
+              <StatCard
+                key={c.key}
+                label={c.label}
+                value={cardValue(c.key)}
+                icon={c.icon}
+                delta={cardDelta('trendKey' in c ? c.trendKey : undefined)}
+              />
+            ))
+        }
       </div>
 
       <TrendChart

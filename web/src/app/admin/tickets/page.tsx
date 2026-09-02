@@ -11,12 +11,13 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, FileText } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 import { InlineError } from '@/components/shared/InlineError';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const TICKET_FILTERS: FilterOption<number>[] = [
   { value: -1, label: '全部', icon: <ListFilter size={16} /> },
@@ -47,6 +48,8 @@ export default function AdminTicketListPage() {
     onError: (msg) => toast.error(msg),
   });
 
+  const isEmpty = !error && data && items.length === 0;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
@@ -58,19 +61,29 @@ export default function AdminTicketListPage() {
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
-      <DataTable
-        columns={[
-          { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-          { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
-          { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-          { accessorKey: 'submitter_name', header: '提交人' },
-          { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
-          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
-          { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
-        ]}
-        data={items} loading={!data && !error}
-      />
-      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {isEmpty ? (
+        <EmptyState
+          icon={<FileText size={40} />}
+          title="暂无申告"
+          description={debouncedKeyword ? '未找到匹配的申告' : '系统中暂无申告记录'}
+        />
+      ) : (
+        <>
+          <DataTable
+            columns={[
+              { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+              { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+              { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
+              { accessorKey: 'submitter_name', header: '提交人' },
+              { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
+              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
+            ]}
+            data={items} loading={!data && !error}
+          />
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+        </>
+      )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
         title="批量删除申告"
         message={`确定要删除 ${batch.selectedIds.size} 条申告吗？此操作不可撤销。`}
