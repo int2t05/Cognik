@@ -67,13 +67,23 @@ type DocumentUploadResponse struct {
 	Documents []DocumentUploadItem `json:"documents"`
 }
 
-// DocumentUploadItem 单个文档上传响应项。
+// UploadConfigResponse 文档上传配置响应（前端据此前置校验文件类型与大小）。
+type UploadConfigResponse struct {
+	MaxUploadSizeKB int      `json:"max_upload_size_kb"` // 上传大小上限(KB)
+	MaxUploadSize   int64    `json:"max_upload_size"`    // 上传大小上限(字节)，前端直接用
+	AllowedTypes    []string `json:"allowed_types"`      // 允许的文件类型列表
+	MaxFiles        int      `json:"max_files"`           // 单次上传文件数上限
+}
+
+// DocumentUploadItem 单个文档上传响应项（并发上传时每个文件独立返回成功/失败）。
 type DocumentUploadItem struct {
-	ArticleID     int64  `json:"article_id"`
+	ArticleID     int64  `json:"article_id"`     // 失败时为 0
 	FileName      string `json:"file_name"`
 	FileSize      int64  `json:"file_size"`
-	FileType      string `json:"file_type"`
-	ProcessStatus string `json:"process_status"`
+	FileType      string `json:"file_type"`       // 失败时可能为空
+	ProcessStatus string `json:"process_status"`  // 失败时为空
+	Success       bool   `json:"success"`         // 该文件是否上传成功
+	ErrorMsg      string `json:"error_msg"`       // 失败原因（成功时为空）
 }
 
 // DocumentStatusResponse 文档处理状态响应。

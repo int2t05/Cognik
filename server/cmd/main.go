@@ -292,6 +292,7 @@ func wireApp() (*app, error) {
 			go knowledge.RebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
 		}),
 		knowledge.WithMessageNotifier(messageService),
+		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
