@@ -1,7 +1,4 @@
-// Package audit 封装审计日志领域的 HTTP 请求处理层。
-//
-// handler.go 处理审计日志查询与批量删除请求。
-// Handler 层职责：参数解析、调用 Service、格式化响应。
+// Package audit 审计日志 HTTP 请求处理。
 package audit
 
 import (
@@ -16,8 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
-// 默认值：page=1, pageSize=10。上限：pageSize≤100。
+// parsePagination 解析分页参数（page 默认 1，pageSize 默认 10，上限 100）。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -32,7 +28,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -42,7 +38,7 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

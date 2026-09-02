@@ -1,8 +1,4 @@
-// Package auth 封装认证领域的业务逻辑层。
-//
-// service.go 实现 AuthService——登录、令牌刷新、密码修改、登出。
-// 依赖 account.UserRepo 和 role.MenuRepo（同领域跨子包引用），
-// 通过 Go 结构化类型系统自动满足消费者接口，避免跨领域循环依赖。
+// Package auth 认证业务逻辑（登录、令牌刷新、密码修改、登出）。
 package auth
 
 import (
@@ -29,9 +25,6 @@ import (
 type AppError = errcode.AppError
 
 // AuthService 认证业务逻辑。
-//
-// jwtCfg 在构造时注入，使得令牌有效期可通过 config 控制。
-// tokenBlacklist 为内存级已失效 refresh token 集合。
 type AuthService struct {
 	userRepo       *account.UserRepo
 	menuRepo       *role.MenuRepo
@@ -63,7 +56,7 @@ func (s *AuthService) Shutdown() {
 	close(s.stopCh)
 }
 
-// blacklistCleanupLoop 每 10 分钟清理一次已到期的黑名单条目。
+// blacklistCleanupLoop 定期清理过期黑名单条目。
 func (s *AuthService) blacklistCleanupLoop() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
@@ -210,7 +203,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPwd, 
 	return nil
 }
 
-// buildLoginResponse 根据用户信息组装登录响应。
+// buildLoginResponse 组装登录响应（含角色、权限、菜单树、双令牌）。
 func (s *AuthService) buildLoginResponse(ctx context.Context, user *model.User) (*respDto.LoginResponse, error) {
 	roles, err := s.userRepo.GetUserRoles(ctx, user.ID)
 	if err != nil {
@@ -268,7 +261,7 @@ func (s *AuthService) buildLoginResponse(ctx context.Context, user *model.User) 
 	}, nil
 }
 
-// buildMenuTree 构建用户的菜单树。
+// buildMenuTree 构建用户菜单树（admin 获取全部，非 admin 按角色聚合）。
 func (s *AuthService) buildMenuTree(ctx context.Context, roles []model.Role) ([]respDto.MenuItem, error) {
 	isAdmin := false
 	for _, role := range roles {
@@ -318,7 +311,7 @@ func buildTree(menus []model.Menu, parentID int64) []respDto.MenuItem {
 	return buildTreeWithMap(childrenMap, parentID)
 }
 
-// buildTreeWithMap 使用预构建的 map 递归构建树结构。
+// buildTreeWithMap 使用预构建 map 递归构建树。
 func buildTreeWithMap(childrenMap map[int64][]model.Menu, parentID int64) []respDto.MenuItem {
 	children := childrenMap[parentID]
 	if len(children) == 0 {

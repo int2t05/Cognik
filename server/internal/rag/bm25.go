@@ -1,21 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// bm25.go 实现 BM25 倒排索引 + 中文分词检索。
-//
-// 架构设计：
-//   - Segmenter 接口：抽象分词器，方便替换不同分词库
-//   - BM25Index：单知识库的倒排索引 + Okapi BM25 评分
-//   - BM25Retriever：管理多知识库索引的生命周期（懒加载 + TTL）
-//
-// 为什么使用 BM25 而非 TF-IDF：
-// BM25 的文档长度归一化（参数 b）比 TF-IDF 更健壮，
-// 长文档不会因为包含更多词条而获得不公平的高分。
-// Okapi 变体是学术界和工业界公认的稀疏检索基线。
-//
-// 为什么懒加载 + TTL：
-// BM25 索引构建需要遍历知识库全量分块并分词，
-// 对于大知识库可能耗时数秒。懒加载（首次检索时构建）
-// 避免启动时全量加载，TTL 保证索引定期刷新。
+// bm25.go 实现 BM25 倒排索引 + 中文分词检索，含单知识库索引懒加载与 TTL 刷新。
 package rag
 
 import (
@@ -43,23 +28,15 @@ type Segmenter interface {
 	Close()
 }
 
-// GseSegmenter 使用 gse 库的中文分词器。
-//
-// 为什么选择 gse：
-// gse 是纯 Go 实现，无 CGO 依赖，交叉编译友好。
-// 支持中文、英文、日文等多语言分词，
-// 内置词典覆盖常见中文词汇，MVP 阶段无需额外训练。
-//
-// 线程安全：Segment 方法通过 mu 保护 gse 内部状态（HMM 标记器在 Cut 时修改内部结构）。
+// GseSegmenter 使用 gse 库的中文分词器，纯 Go 无 CGO 依赖。
+// Segment 线程安全（HMM 标记器在 Cut 时修改内部状态，需 mu 保护）。
 type GseSegmenter struct {
 	seg        gse.Segmenter
 	mu         sync.Mutex
 	dictLoaded bool // 词典是否加载成功，未加载时回退到字符级切分
 }
 
-// NewGseSegmenter 创建 gse 分词器实例。
-//
-// 加载内置中文词典，首次调用约需 100-200ms 加载词典文件。
+// NewGseSegmenter 创建 gse 分词器实例，首次加载词典约 100-200ms。
 func NewGseSegmenter() *GseSegmenter {
 	s := &GseSegmenter{}
 	if err := s.seg.LoadDict(); err != nil {
@@ -70,10 +47,7 @@ func NewGseSegmenter() *GseSegmenter {
 	return s
 }
 
-// Segment 对文本分词（线程安全）。
-//
-// 词典正常加载时使用 gse HMM 分词；加载失败时回退到字符级切分，
-// 确保 BM25 仍能返回检索结果（检索质量降低但不会静默返回空结果）。
+// Segment 对文本分词（线程安全）。词典加载失败时回退字符级切分，确保 BM25 仍可返回结果。
 func (s *GseSegmenter) Segment(text string) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -101,17 +75,13 @@ func (s *GseSegmenter) Loaded() bool {
 // =============================================================================
 
 const (
-	// bm25K1 BM25 词频饱和参数。
-	// k1=1.5 是 Okapi 论文推荐值，平衡了词频的饱和速度和区分度。
+	// bm25K1 BM25 词频饱和参数，Okapi 推荐值 1.5。
 	bm25K1 = 1.5
 
-	// bm25B BM25 文档长度归一化参数。
-	// b=0.75 是 Okapi 论文推荐值，给中等长度文档更多权重。
+	// bm25B BM25 文档长度归一化参数，Okapi 推荐值 0.75。
 	bm25B = 0.75
 
-	// bm25TagBoost 标签词频倍增系数。
-	// 标签是人工标注的高价值关键词，BM25 检索时应对标签匹配给予更高权重。
-	// 标签词加入 tf 但不计入 docLen，再乘以 boost 系数放大 BM25 得分。
+	// bm25TagBoost 标签词频倍增系数，标签匹配权重放大（标签词加入 tf 但不计入 docLen）。
 	bm25TagBoost = 3
 
 	// bm25DefaultTopK topK <= 0 时的默认返回数。
@@ -145,19 +115,11 @@ type bm25Posting struct {
 	TermFreq int   // 该词在该文档中的出现次数
 }
 
-// BM25Index 单知识库的倒排索引。
-//
-// 为什么用 map 而非 B-Tree：
-// MVP 阶段知识库规模有限（< 10万篇），
-// Go 原生 map 的 O(1) 查询性能足够。
-//
-// 超过 10 万篇时 recordLargeIndex 会打 warn 日志，
-// 后续可考虑分片索引或 Roaring Bitmap 压缩 posting list。
+// BM25Index 单知识库的倒排索引。超 10 万篇时 recordLargeIndex 打 warn。
 type BM25Index struct {
 	// 倒排索引：token → posting list
 	inverted map[string][]bm25Posting
-	// 文档长度：ChunkID → 有效 token 数（用 tokenizer 词数代替 rune 计数，
-	// 避免中英文长度拉伸不均导致 BM25 的 b 参数归一化失效）
+	// 文档长度：用 token 数而非 rune 计数，避免中英文长度拉伸导致 b 参数归一化失效
 	docLens map[int64]int
 	// 文档元数据：ChunkID → {ArticleID, ChunkIndex, Content}
 	docMeta map[int64]BM25Document
@@ -180,10 +142,7 @@ func newBM25Index() *BM25Index {
 // BM25Retriever — 多知识库管理
 // =============================================================================
 
-// BM25Retriever 实现 Retriever 接口，管理多知识库的 BM25 索引。
-//
-// 每个知识库有独立的索引，通过懒加载按需构建。
-// 索引在 TTL 后自动失效，下次检索时重建。
+// BM25Retriever 实现 Retriever 接口，管理多知识库 BM25 索引的懒加载与 TTL 刷新。
 type BM25Retriever struct {
 	segmenter Segmenter
 	ttl       time.Duration
@@ -200,9 +159,7 @@ type bm25Entry struct {
 	builtAt   time.Time
 }
 
-// NewBM25Retriever 创建 BM25Retriever 实例。
-//
-// ttl 为索引自动过期时间。设 0 禁用自动过期，索引永久有效。
+// NewBM25Retriever 创建 BM25Retriever 实例。ttl 为索引过期时间，0 禁用自动过期。
 func NewBM25Retriever(seg Segmenter, ttl time.Duration) *BM25Retriever {
 	return &BM25Retriever{
 		segmenter: seg,
@@ -212,10 +169,7 @@ func NewBM25Retriever(seg Segmenter, ttl time.Duration) *BM25Retriever {
 	}
 }
 
-// BuildIndex 为知识库构建（或重建）BM25 索引。
-//
-// 构建期间该 kbID 的并发 BuildIndex 调用会被跳过。
-// 调用方（如 Processor）应在自己的 goroutine 中调用此方法避免阻塞。
+// BuildIndex 为知识库构建（或重建）BM25 索引。构建期间该 kbID 的并发调用被跳过。
 func (r *BM25Retriever) BuildIndex(kbID int64, docs []BM25Document) {
 	r.mu.Lock()
 	if r.building[kbID] {
@@ -262,8 +216,7 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 		idx.docMeta[doc.ChunkID] = doc
 		tokens := r.segmenter.Segment(doc.Content)
 
-		// 统计词频 + 有效词数（用 token 数代替 rune 计数作为文档长度，
-		// 避免中英文长度拉伸不均导致 BM25 的 b 参数归一化失效）
+		// 统计词频 + 有效词数（token 数作文档长度，见 docLens 注释）
 		tf := make(map[string]int)
 		docLen := 0
 		for _, tok := range tokens {
@@ -273,8 +226,7 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 			}
 		}
 
-		// 标签关键词补充：标签词加入 tf 但不计入 docLen，
-		// 同时乘以 bm25TagBoost 放大权重——人工标注的高价值关键词应比正文匹配获得更高 BM25 得分
+		// 标签关键词补充：标签词加入 tf 但不计入 docLen，乘以 bm25TagBoost 放大权重
 		for _, tag := range doc.Tags {
 			for _, tok := range r.segmenter.Segment(tag) {
 				if isValidToken(tok) {
@@ -286,7 +238,6 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 		idx.docLens[doc.ChunkID] = docLen
 		totalLen += docLen
 
-		// 写入倒排索引
 		for tok, freq := range tf {
 			idx.inverted[tok] = append(idx.inverted[tok], bm25Posting{
 				ChunkID:  doc.ChunkID,
@@ -303,9 +254,7 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 	return idx
 }
 
-// Retrieve 执行 BM25 检索，返回 topK 个结果。
-//
-// 如果知识库索引不存在或已过期，返回空结果（不报错）。
+// Retrieve 执行 BM25 检索，返回 topK 个结果。索引不存在或已过期时返回空结果（不报错）。
 func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error) {
 	if topK <= 0 {
 		topK = bm25DefaultTopK
@@ -342,10 +291,8 @@ func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, 
 		}
 	}
 
-	// 计算每个文档的 BM25 分数
 	scores := r.scoreQuery(entry.index, filtered)
 
-	// 按分数降序排列
 	type scoredDoc struct {
 		chunkID int64
 		score   float64
@@ -361,12 +308,10 @@ func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, 
 		return sorted[i].score > sorted[j].score
 	})
 
-	// 截取 topK
 	if len(sorted) > topK {
 		sorted = sorted[:topK]
 	}
 
-	// 转换为 RetrievalResult
 	results := make([]RetrievalResult, 0, len(sorted))
 	for _, s := range sorted {
 		meta := entry.index.docMeta[s.chunkID]
@@ -418,7 +363,6 @@ func (r *BM25Retriever) scoreQuery(idx *BM25Index, queryTokens []string) map[int
 	scores := make(map[int64]float64)
 	N := float64(idx.docCount)
 
-	// 对每个查询 token 累加分数
 	seenTokens := make(map[string]bool)
 	for _, token := range queryTokens {
 		if seenTokens[token] {
@@ -459,10 +403,7 @@ func (r *BM25Retriever) scoreQuery(idx *BM25Index, queryTokens []string) map[int
 // token 过滤
 // =============================================================================
 
-// isValidToken 判断 token 是否有效。
-//
-// 过滤规则：空串、纯空白、纯标点符号、单字节 token（如英文单个字母）。
-// 中文单字保留（如"药"、"税"在特定语境中可能有关键检索价值）。
+// isValidToken 判断 token 是否有效，过滤空串、纯空白、纯标点、单字节 token，保留中文单字。
 func isValidToken(tok string) bool {
 	if tok == "" {
 		return false

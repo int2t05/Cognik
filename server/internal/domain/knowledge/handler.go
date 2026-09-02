@@ -1,8 +1,4 @@
-// Package knowledge 实现知识库领域的业务逻辑、数据访问与 HTTP 处理。
-//
-// handler.go 提供知识库管理相关接口（KB/文章/审核/发布/文档上传）。
-// parseID / parsePagination / getCurrentUserID 为本领域 Handler 自用的本地副本，
-// 与 handler/common.go 中的同名函数行为一致——领域包独立编译，不依赖 handler 包。
+// handler.go 知识库管理 HTTP 接口（参数校验、调用 Service、格式化响应）。
 package knowledge
 
 import (
@@ -29,9 +25,7 @@ import (
 // Handler 共享工具
 // =============================================================================
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
-//
-// 默认值：page=1, pageSize=10。上限：pageSize≤100。
+// parsePagination 解析分页参数（page 默认 1，pageSize 默认 10，上限 100）。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -46,9 +40,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// parseID 从路径参数中解析 int64 ID，解析失败时自动返回错误响应。
-//
-// 返回值 ok=false 表示解析失败，调用方应直接 return。
+// parseID 从路径参数解析 int64 ID，失败时返回错误响应。
 func parseID(c *gin.Context, key string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(key), 10, 64)
 	if err != nil {
@@ -58,9 +50,7 @@ func parseID(c *gin.Context, key string) (int64, bool) {
 	return id, true
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
-//
-// JWTAuth 中间件将当前用户 ID 以 int64 类型写入 context，key 为 "userID"。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -70,16 +60,13 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
-//
-// AppError 类型提取业务码，其他错误视为 500。
+// handleServiceError 统一处理 Service 错误（AppError 提取业务码，其余 500）。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {
 		response.Error(c, appErr.Code, appErr.Message)
 		return
 	}
-	// 非 AppError 说明是未预期的内部错误，记录真实原因方便排查
 	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
 	response.Error(c, errcode.ErrUnknown, "服务器内部错误")
 }
@@ -468,12 +455,8 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 	response.Success(c, dto.DocumentUploadResponse{Documents: items})
 }
 
-// sniffFileType 通过 MIME sniffing 检测文件类型。
-//
-// 为什么用 MIME sniffing 而非仅信任扩展名：恶意文件可通过改扩展名绕过格式白名单。
-// http.DetectContentType 读取前 512 字节进行内容嗅探，比扩展名更可靠。
-// 文本类型（md/txt）MIME 无法区分，回退到扩展名判断。
-// 返回的 reader 包含完整文件内容（嗅探字节 + 剩余部分），调用方负责关闭。
+// sniffFileType 通过 MIME sniffing 检测文件类型（比扩展名更可靠，文本类型回退扩展名）。
+// 返回的 reader 含完整文件内容，调用方负责关闭。
 func sniffFileType(fh *multipart.FileHeader) (string, io.ReadCloser, error) {
 	src, err := fh.Open()
 	if err != nil {

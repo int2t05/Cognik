@@ -1,7 +1,4 @@
-// Package response 提供统一的 JSON 响应格式封装。
-//
-// 所有 API 响应使用统一格式：{"code": 0, "message": "success", "data": {...}}
-// 错误响应根据错误码自动映射 HTTP 状态码，映射规则见 mapHTTPStatus 函数。
+// Package response 提供统一的 JSON 响应封装。
 package response
 
 import (
@@ -39,10 +36,7 @@ func Success(c *gin.Context, data interface{}) {
 	})
 }
 
-// Error 返回错误响应，根据错误码自动映射 HTTP 状态码。
-//
-// 同时将 errCode 写入 Gin context 供 Logger 中间件使用，
-// 并附加 request_id 便于前端报错与后端日志关联。
+// Error 返回错误响应，自动映射 HTTP 状态码并附加 request_id。
 func Error(c *gin.Context, code int, message string) {
 	c.Set("errCode", code)
 	c.JSON(mapHTTPStatus(code), Response{
@@ -55,7 +49,7 @@ func Error(c *gin.Context, code int, message string) {
 
 // SuccessWithPage 返回分页成功响应
 func SuccessWithPage(c *gin.Context, data interface{}, total int64, page, pageSize int) {
-		c.JSON(http.StatusOK, PageResponse{
+	c.JSON(http.StatusOK, PageResponse{
 		Code:     errcode.Success,
 		Message:  "success",
 		Data:     data,

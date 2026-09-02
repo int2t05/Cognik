@@ -1,6 +1,4 @@
 // Package middleware 提供 Gin 中间件。
-//
-// 本文件实现 CORS 跨域中间件。
 package middleware
 
 import (
@@ -13,11 +11,7 @@ import (
 )
 
 // CORS 返回 CORS 跨域中间件。
-//
-// 非 release 模式：通过 AllowOriginFunc 动态回显请求 Origin，实现"允许一切调用"，
-// 避免开发/调试时反复配置 OPSMIND_CORS_ALLOW_ORIGINS。
-//
-// release 模式：严格使用配置的 allowOrigins 列表 + DNS 重绑定防护。
+// 非 release 模式动态回 Echo Origin，release 模式严格使用配置列表 + DNS 重绑定防护。
 func CORS(allowOrigins []string, mode string) gin.HandlerFunc {
 	isRelease := mode == "release"
 
@@ -47,7 +41,7 @@ func CORS(allowOrigins []string, mode string) gin.HandlerFunc {
 	if isRelease {
 		cfg.AllowOrigins = allowOrigins
 	} else {
-		// 开发/调试模式：允许任意 Origin（包括 localhost:3000、Docker 内网 IP 等）
+		// 开发模式：允许任意 Origin
 		cfg.AllowOriginFunc = func(origin string) bool {
 			return true
 		}

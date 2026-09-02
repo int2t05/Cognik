@@ -1,7 +1,4 @@
 // Package adapter 提供外部服务的适配层。
-//
-// llm_client.go 定义 LLMClient 接口和 OpenAI-compatible HTTP 实现。
-// 所有 LLM 调用（文本生成、流式输出）必须通过此适配层，禁止直接 HTTP 调用。
 package adapter
 
 import (
@@ -117,8 +114,7 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 		Model: req.Model, Messages: req.Messages, MaxTokens: req.MaxTokens,
 		Temperature: req.Temperature, Stream: false,
 	}
-	// 同步调用默认禁用思考（管道步骤需要干净输出）；
-	// 复杂分析任务（如反馈分析）可显式设置 EnableThinking=true 开启思考
+	// 同步调用默认禁用思考；复杂分析任务可设 EnableThinking=true 开启
 	if !req.EnableThinking {
 		body.ChatTemplateKwargs = map[string]any{"enable_thinking": false}
 	}
@@ -137,8 +133,7 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 		return nil, fmt.Errorf("LLM 返回空 choices")
 	}
 
-	// 思考模式已通过 chat_template_kwargs 禁用，content 即为实际回答。
-	// reasoning_content 作为兜底：部分旧版 llama.cpp 可能将回答放在此处。
+	// content 为实际回答；reasoning_content 兜底兼容旧版 llama.cpp
 	content := apiResp.Choices[0].Message.Content
 	if content == "" {
 		content = apiResp.Choices[0].Message.ReasoningContent
@@ -158,8 +153,8 @@ func (c *OpenAIClient) ChatCompletion(ctx context.Context, req ChatRequest) (*Ch
 
 type openAIStreamChunk struct {
 	Choices []struct {
-		Index        int     `json:"index"`
-		Delta        struct {
+		Index int `json:"index"`
+		Delta struct {
 			Content          string `json:"content"`
 			ReasoningContent string `json:"reasoning_content"`
 		} `json:"delta"`
@@ -376,7 +371,7 @@ func isRetryable(err error) bool {
 }
 
 // doHTTPRequest 发送 HTTP 请求并返回响应体（供 Embedding 客户端复用）。
-// 返回 retryableError 使 EmbeddingClient 的 isRetryable 能正确识别 429/503。
+// 返回 retryableError 以便复用方识别 429/503。
 func doHTTPRequest(ctx context.Context, baseURL, apiKey, path string, jsonBody []byte, client *http.Client) ([]byte, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(jsonBody))
 	if err != nil {

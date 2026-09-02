@@ -10,10 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// AutoMigrate 自动迁移所有数据模型和必要索引。
-//
-// 向量维度固定为 1024（pgvector halfvec 列 + HNSW 索引）。
-// 更换 embedding 模型时必须使用同为 1024 维的模型（如 bge-m3、bge-large-zh-v1.5）。
+// AutoMigrate 自动迁移所有数据模型和索引。
+// 向量维度固定 1024（halfvec + HNSW），更换 embedding 模型须保持同维度。
 func AutoMigrate(db *gorm.DB) error {
 	db.Exec("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -63,10 +61,8 @@ func AutoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-// AutoSeed 加载种子数据（角色/用户/菜单/LLM 配置/系统配置）。
-//
-// 通过检查 roles 表是否有数据来判断是否已加载，避免重复执行。
-// 种子 SQL 文件路径默认为 ./migrations/seed_essential.sql（Docker 镜像内 /app/migrations/）。
+// AutoSeed 加载种子数据（角色/用户/菜单/LLM 配置）。
+// 通过检查 roles 表判断是否已加载，避免重复执行。
 func AutoSeed(db *gorm.DB) error {
 	var count int64
 	if err := db.Table("roles").Count(&count).Error; err != nil {

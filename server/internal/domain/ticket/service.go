@@ -1,14 +1,5 @@
-// Package ticket 实现申告领域的业务逻辑。
-//
-// service.go 提供申告 CRUD、状态机转换、处理记录管理功能。
-//
-// 申告状态机：待处理(1) → 处理中(2) → 需补充信息(3) → 处理中(2) → 已解决(4) / 已关闭(5)
-// 为什么使用显式状态转换而非隐式条件判断：
-// 状态转换规则是申告核心流程，显式状态机便于审计和调试。
-//
-// AuditWriter / MessageNotifier / KnowledgeCandidateSaver / FeedbackMarker
-// 均通过消费者接口注入——本包只依赖接口而非具体实现，
-// Go 结构化类型系统使外部 Service 自动满足这些接口，无需显式 import，避免跨领域循环依赖。
+// Package ticket 实现申告领域业务逻辑：CRUD、状态机转换、处理记录管理。
+// 依赖通过消费者接口注入，避免跨领域循环依赖。
 package ticket
 
 import (
@@ -35,41 +26,25 @@ import (
 // AppError 是 errcode.AppError 的类型别名，供本包内使用。
 type AppError = errcode.AppError
 
-// AuditWriter 定义审计日志写入接口（消费者接口模式——本包只依赖接口而非具体实现）。
-//
-// TicketService 通过此接口写入审计日志，而非直接依赖 AuditRepo。
-// Go 结构化类型系统使任何实现了这两个方法的类型自动满足此接口，
-// 无需显式 import system 包，避免跨领域循环依赖。
+// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
 type AuditWriter interface {
-	// Write 写入一条审计日志（使用默认 DB 连接）。
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	// WriteWithTx 在事务中写入审计日志，与业务操作在同一事务中提交或回滚。
 	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// MessageNotifier 定义申告通知接口（消费者接口模式）。
-//
-// TicketService 通过此接口发送状态变更通知（补充信息/已解决/已关闭），
-// 而非直接依赖 MessageService，避免跨领域循环依赖。
+// MessageNotifier 申告通知接口（消费者接口）。
 type MessageNotifier interface {
 	NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 	NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 	NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 }
 
-// KnowledgeCandidateSaver 知识候选保存接口。
-//
-// TicketService 仅需从申告创建知识候选文章，不需要完整的 KnowledgeService。
-// 消费者接口模式消除了两阶段构造（New + Setter）的循环依赖 workaround。
+// KnowledgeCandidateSaver 知识候选保存接口（消费者接口）。
 type KnowledgeCandidateSaver interface {
 	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error)
 }
 
 // FeedbackMarker 隐式反馈标记接口——申告创建后自动标记相关 AI 回答为"无帮助"。
-//
-// 为什么放在 TicketService 而非 ChatService：
-// "用户看完 AI 回答后提交申告"是申告上下文中的隐式反馈信号，
-// TicketService 拥有 ChatContext 信息，是最自然的触发点。
 type FeedbackMarker interface {
 	MarkLastAssistantUnhelpful(ctx context.Context, sessionID int64) error
 }
@@ -85,23 +60,16 @@ type TicketService struct {
 }
 
 // NewTicketService 创建 TicketService 实例。
-//
-// knowledgeCandidate 为知识候选保存接口，KnowledgeService 隐式满足该接口。
-// feedbackMarker 为隐式反馈标记接口，ChatService 隐式满足该接口。
-// 所有依赖在构造时注入，对象始终处于有效状态。
 func NewTicketService(repo *TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
 	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
 }
 
-// SetKnowledgeCandidate 延迟注入知识候选保存接口。
-// 仅用于集成测试等需要两阶段构造的场景。
+// SetKnowledgeCandidate 延迟注入知识候选保存接口（两阶段构造场景）。
 func (s *TicketService) SetKnowledgeCandidate(kc KnowledgeCandidateSaver) {
 	s.knowledgeCandidate = kc
 }
 
-// SetFeedbackMarker 延迟注入隐式反馈标记接口。
-// ChatService 创建在 TicketService 之后（因依赖 LLMService），
-// 通过 Setter 解决构造顺序问题。
+// SetFeedbackMarker 延迟注入反馈标记接口（ChatService 在 TicketService 之后构造）。
 func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
 	s.feedbackMarker = fm
 }
@@ -110,13 +78,7 @@ func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
 // CreateTicket
 // =============================================================================
 
-// CreateTicket 创建申告工单。
-//
-// 业务规则：
-//   - title、description、contact_phone 为必填
-//   - tags 为用户提交的逗号分隔标签
-//   - ticket_no 格式：TK-YYYYMMDD-XXXX（XXXX 为随机 6 位后缀）
-//   - 新建申告 status=TicketStatusPending、source=TicketSourcePortal
+// CreateTicket 创建申告工单（status=Pending, source=Portal, ticket_no=TK-YYYYMMDD-NNNNNN）。
 func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTicketRequest, userID int64) error {
 	// 参数校验
 	if strings.TrimSpace(req.Title) == "" {
@@ -129,9 +91,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		return AppError{Code: errcode.ErrParam, Message: "联系电话不能为空"}
 	}
 
-	// 生成唯一 ticket_no：日期 + 加密随机 6 位数字。
-	// 为什么用 crypto/rand 而非纳秒时间戳：纳秒取模在并发场景碰撞风险不可控，
-	// crypto/rand 提供真随机 + 数据库唯一索引兜底，碰撞后自动重试（最多 3 次）。
+	// 生成唯一 ticket_no：日期 + crypto/rand 6 位随机数，唯一索引兜底。
 	ticketNo, err := generateTicketNo()
 	if err != nil {
 		return AppError{Code: errcode.ErrUnknown, Message: "生成工单编号失败，请重试"}
@@ -154,25 +114,23 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 	}
 
 	ticket := &model.Ticket{
-		TicketNo:        ticketNo,
-		UserID:          userID,
-		Title:           req.Title,
-		Description:     req.Description,
-		Tags:            tagsJSON,
-		ContactPhone:    req.ContactPhone,
-		ContactEmail:    req.ContactEmail,
-		ChatContext:     chatCtxJSON,
-		Status:          model.TicketStatusPending,
-		Source:          model.TicketSourcePortal,
+		TicketNo:     ticketNo,
+		UserID:       userID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Tags:         tagsJSON,
+		ContactPhone: req.ContactPhone,
+		ContactEmail: req.ContactEmail,
+		ChatContext:  chatCtxJSON,
+		Status:       model.TicketStatusPending,
+		Source:       model.TicketSourcePortal,
 	}
 
 	if err := s.repo.Create(ctx, ticket); err != nil {
 		return err
 	}
 
-	// 隐式反馈：用户提交申告意味着 AI 回答未能解决其问题，
-	// 若带有 ChatContext 则自动标记对应会话的最后一条 AI 消息为"无帮助"。
-	// 失败不影响申告创建（非关键路径），仅记录日志。
+	// 隐式反馈：带 ChatContext 时标记最后一条 AI 回答为"无帮助"，失败仅记日志。
 	if req.ChatContext != nil && req.ChatContext.SessionID > 0 && s.feedbackMarker != nil {
 		if err := s.feedbackMarker.MarkLastAssistantUnhelpful(ctx, req.ChatContext.SessionID); err != nil {
 			slog.Warn("隐式反馈标记失败（申告已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
@@ -186,10 +144,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 // UpdateTicket / SupplementTicket
 // =============================================================================
 
-// UpdateTicket 编辑申告（仅申告人可操作，仅待处理/处理中状态可编辑）。
-//
-// 仅更新请求中非空的字段，空字段保持原值不变。
-// 这样前端可以只发送需要修改的字段，避免覆盖未修改的数据。
+// UpdateTicket 编辑申告（仅申告人，仅 Pending/Processing 状态，仅更新非空字段）。
 func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64, req request.UpdateTicketRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -226,13 +181,7 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64
 	return s.repo.Update(ctx, ticket)
 }
 
-// SupplementTicket 补充申告信息。
-//
-// 业务规则：
-//   - 仅申告人本人可补充
-//   - 仅"需补充信息"状态可补充
-//   - 补充后状态变为"处理中"，使用 CAS 防止并发双重操作
-//   - CreateRecord + UpdateStatus 在同一事务中原子执行
+// SupplementTicket 补充申告信息（仅申告人，仅 NeedSupplement 状态，CAS 转 Processing，事务原子）。
 func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID int64, req request.SupplementTicketRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -242,17 +191,15 @@ func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID i
 		return err
 	}
 
-	// 仅申告人可补充
 	if ticket.UserID != userID {
 		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可补充信息"}
 	}
 
-	// 仅"需补充信息"状态可操作
 	if ticket.Status != model.TicketStatusNeedSupplement {
 		return AppError{Code: errcode.ErrParam, Message: "仅需补充信息状态可补充"}
 	}
 
-	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)，避免孤立记录
+	// 事务内原子执行：CreateRecord + UpdateStatus(CAS)
 	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txRepo := NewTicketRepo(tx)
 
@@ -282,17 +229,8 @@ func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID i
 // UpdateStatus
 // =============================================================================
 
-// UpdateStatus 执行申告状态转换（CAS 防护）。
-//
-// 状态机规则（使用 model 常量，编译期约束）：
-//
-//	start:        TicketStatusPending     → TicketStatusProcessing
-//	request_info: TicketStatusProcessing  → TicketStatusNeedSupplement（supplement_count < 3）
-//	resolve:      TicketStatusProcessing  → TicketStatusResolved
-//	close:        TStatus≠Closed/Resolved → TicketStatusClosed
-//
-// 所有转换使用 CAS（WHERE id=? AND status=?），防止并发双重操作。
-// 每次状态转换都会创建 TicketRecord。
+// UpdateStatus 执行申告状态转换（CAS 防并发，每次转换创建 TicketRecord）。
+// Pending→Processing / Processing→NeedSupplement(count<3) / Processing→Resolved / 非Closed/Resolved→Closed
 func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID int64, req request.UpdateTicketStatusRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -354,7 +292,7 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 	err = s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txRepo := NewTicketRepo(tx)
 
-		// CAS: 仅在状态未变化时执行更新，防止并发双重操作
+		// CAS 防并发
 		rows, err := txRepo.UpdateStatus(ctx, id, int(ticket.Status), int(newStatus))
 		if err != nil {
 			return err
@@ -372,7 +310,7 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 		if err := txRepo.CreateRecord(ctx, record); err != nil {
 			return err
 		}
-		// 通过 AuditWriter 接口写入审计日志，与业务操作在同一事务中提交或回滚
+		// 审计日志（同事务）
 		if err := s.auditWriter.WriteWithTx(ctx, tx, operatorID, "ticket."+req.Action, "ticket", id, ""); err != nil {
 			return err
 		}
@@ -409,18 +347,12 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 // AddRecord
 // =============================================================================
 
-// AddRecord 添加处理记录（不影响状态）。
-//
-// 用于记录处理过程中的备注、沟通记录等。
-// action 仅允许白名单值，防止审计数据污染。
-// detail 若提供则校验为合法 JSON。
+// AddRecord 添加处理记录（不影响状态，action 白名单校验，detail 校验 JSON）。
 func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int64, req request.CreateTicketRecordRequest) error {
-	// action 白名单校验
 	if !isValidRecordAction(req.Action) {
 		return AppError{Code: errcode.ErrParam, Message: "不支持的记录类型: " + req.Action}
 	}
 
-	// 验证申告存在
 	_, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -469,9 +401,7 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 	}, nil
 }
 
-// ListAll 分页查询全部申告（支持按状态筛选）。
-//
-// status=-1 表示不过滤。
+// ListAll 分页查询全部申告（status=-1 不过滤）。
 func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int) (*response.TicketListResponse, error) {
 	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize)
 	if err != nil {
@@ -489,11 +419,7 @@ func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int)
 	}, nil
 }
 
-// GetDetail 获取申告详情（含提交人信息和处理记录时间线）。
-//
-// userID 用于门户端越权检查：
-//   - userID > 0（门户端）：仅允许查自己的申告，非本人返回 ErrForbidden
-//   - userID == 0（后台管理）：跳过所有权检查，可查全部
+// GetDetail 获取申告详情（含处理记录时间线）。userID>0 做所有权检查，=0 跳过（后台）。
 func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (*response.TicketDetailResponse, error) {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -503,7 +429,6 @@ func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (
 		return nil, err
 	}
 
-	// 门户端越权检查：仅允许查自己的申告
 	if userID > 0 && ticket.UserID != userID {
 		return nil, AppError{Code: errcode.ErrForbidden, Message: "无权查看此申告"}
 	}
@@ -564,9 +489,7 @@ func toTicketItem(t *model.Ticket) response.TicketItem {
 	}
 }
 
-// marshalTicketTags 将字符串切片序列化为 JSON。
-//
-// 使用 json.Marshal 保证正确转义。
+// marshalTicketTags 将标签切片序列化为 JSON。
 func marshalTicketTags(items []string) datatypes.JSON {
 	if len(items) == 0 {
 		return datatypes.JSON("[]")
@@ -578,9 +501,7 @@ func marshalTicketTags(items []string) datatypes.JSON {
 	return datatypes.JSON(data)
 }
 
-// unmarshalTicketTags 将 JSON 反序列化为字符串切片。
-//
-// 使用 json.Unmarshal 正确处理转义字符。
+// unmarshalTicketTags 将 JSON 反序列化为标签切片。
 func unmarshalTicketTags(data datatypes.JSON) []string {
 	if len(data) == 0 {
 		return nil
@@ -596,11 +517,7 @@ func unmarshalTicketTags(data datatypes.JSON) []string {
 // AutoClose（定时任务 — Scheduler 调用）
 // =============================================================================
 
-// AutoClose 自动关闭超期申告（由 Scheduler 定时调用）。
-//
-// 业务规则：status IN (1,2,3) AND created_at < olderThan 的申告自动关闭。
-// UPDATE + TicketRecord 创建在同一事务中原子执行，
-// 避免工单已关闭但缺少 auto_close 时间线记录。
+// AutoClose 自动关闭超期申告（Scheduler 调用，事务内 UPDATE + TicketRecord）。
 func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int64, error) {
 	var closedCount int64
 
@@ -641,9 +558,6 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 // =============================================================================
 
 // CreateKnowledgeCandidate 从申告内容生成知识库候选文章。
-//
-// 为什么放在 TicketService 而非 Handler 直接调用 KnowledgeService：
-// 统一的 Service 层编排便于加入事务边界和审计日志，避免 Handler 层跨 Service 调用。
 func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, kbID int64, userID int64) error {
 	detail, err := s.GetDetail(ctx, id, 0)
 	if err != nil {
@@ -675,10 +589,7 @@ func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, 
 // 工具函数
 // =============================================================================
 
-// generateTicketNo 生成唯一工单编号。
-//
-// 格式 TK-YYYYMMDD-NNNNNN，其中 NNNNNN 为 crypto/rand 生成的 6 位随机数。
-// 数据库 ticket_no 唯一索引兜底，调用方应在 Create 失败时重试。
+// generateTicketNo 生成工单编号 TK-YYYYMMDD-NNNNNN（crypto/rand 6 位随机数）。
 func generateTicketNo() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
 	if err != nil {
@@ -693,9 +604,7 @@ func isValidJSON(s string) bool {
 	return json.Unmarshal([]byte(s), &js) == nil
 }
 
-// isValidRecordAction 校验处理记录 action 是否为白名单值。
-//
-// 白名单之外的 action 拒绝写入，防止审计数据被任意字符串污染。
+// validRecordActions 处理记录 action 白名单。
 var validRecordActions = map[string]bool{
 	"note":     true,
 	"callback": true,

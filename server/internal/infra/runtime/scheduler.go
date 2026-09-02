@@ -1,7 +1,5 @@
-// Package runtime 提供后台调度器等运行时基础设施。
-//
-// Scheduler 提供定时任务管理功能，当前包含：
-// - TicketAutoCloseJob：每小时检查，关闭超过 7 天的申告
+// Package runtime 提供运行时基础设施。
+// Scheduler 后台调度器，当前含 TicketAutoCloseJob（每小时关闭超 7 天申告）。
 package runtime
 
 import (
@@ -29,10 +27,7 @@ func NewScheduler(svc ticketAutoCloseService) *Scheduler {
 	return &Scheduler{ticketSvc: svc}
 }
 
-// Start 启动调度器（幂等——重复调用无副作用）。
-//
-// 启动时立即执行一次 AutoClose，避免频繁重启时长期不清理超期申告。
-// 随后每小时执行一次。
+// Start 启动调度器（幂等）。启动即执行一次 AutoClose 避免重启堆积，随后每小时一次。
 func (s *Scheduler) Start(ctx context.Context) {
 	s.once.Do(func() {
 		ctx, s.cancel = context.WithCancel(ctx)
@@ -50,9 +45,8 @@ func (s *Scheduler) Stop() {
 	}
 }
 
-// runAutoCloseLoop 启动时立即执行一次，随后每小时执行 AutoClose。
+// runAutoCloseLoop 启动即执行一次，随后每小时触发 AutoClose。
 func (s *Scheduler) runAutoCloseLoop(ctx context.Context) {
-	// 启动时立即执行一次，防止频繁重启导致超期工单堆积
 	s.doAutoClose()
 
 	ticker := time.NewTicker(1 * time.Hour)

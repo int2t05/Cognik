@@ -1,6 +1,4 @@
-// Package auth 封装认证领域的 HTTP 请求处理层。
-//
-// handler.go 处理登录、令牌刷新、密码修改、登出请求。
+// Package auth 认证 HTTP 请求处理。
 package auth
 
 import (
@@ -15,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+// parsePagination 解析分页参数。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -28,7 +26,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

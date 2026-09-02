@@ -1,10 +1,4 @@
-// Package errcode 定义全局错误码常量。
-//
-// 错误码分段约定：
-// - 0: 成功
-// - 1xxxx: 认证和授权
-// - 2xxxx: 外部服务不可用
-// - 99999: 未知错误
+// Package errcode 定义全局错误码常量（0=成功, 1xxxx=认证, 2xxxx=外部服务, 99999=未知）。
 package errcode
 
 // 成功

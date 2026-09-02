@@ -1,9 +1,4 @@
-// Package config 负责加载和管理 OpsMind 后端配置。
-//
-// 使用 Viper 读取 config.yaml，支持环境变量覆盖。
-// 环境变量前缀为 OPSMIND，例如 OPSMIND_DATABASE_HOST 覆盖 database.host。
-// 这样做的原因：Docker Compose 通过环境变量注入运行时配置，
-// 本地开发使用 config.yaml 默认值，两者互不冲突。
+// Package config 负责加载配置（Viper 读取 config.yaml + 环境变量覆盖，前缀 OPSMIND）。
 package config
 
 import (
@@ -25,13 +20,10 @@ type AppConfig struct {
 	Rerank    RerankConfig    `mapstructure:"rerank"`
 	AI        AIConfig        `mapstructure:"ai"`
 	CORS      CORSConfig      `mapstructure:"cors"`
-	Parser    ParserConfig   `mapstructure:"parser"`
+	Parser    ParserConfig    `mapstructure:"parser"`
 }
 
-// CORSConfig 是跨域资源共享配置。
-//
-// AllowOrigins 为逗号分隔的允许来源列表（如 "http://localhost:5173,https://opsmind.example.com"）。
-// 为空时默认使用 http://localhost:5173（本地开发环境）。
+// CORSConfig 跨域配置，AllowOrigins 为逗号分隔列表。
 type CORSConfig struct {
 	AllowOrigins string `mapstructure:"allow_origins"`
 }
@@ -73,10 +65,9 @@ type MinIOConfig struct {
 	UseSSL    bool   `mapstructure:"use_ssl"`
 }
 
-// StorageConfig 是文件存储层配置。
-// Driver 选择存储驱动：local（本地文件系统）或 minio（S3-compatible）。
+// StorageConfig 文件存储配置，Driver 选择驱动：local | minio。
 type StorageConfig struct {
-	Driver  string             `mapstructure:"driver"`   // local | minio
+	Driver  string             `mapstructure:"driver"` // local | minio
 	Local   LocalStorageConfig `mapstructure:"local"`
 	MinIO   MinIOConfig        `mapstructure:"minio"`
 	Buckets BucketConfig       `mapstructure:"buckets"`
@@ -93,11 +84,7 @@ type BucketConfig struct {
 	Published string `mapstructure:"published"`
 }
 
-// LLMConfig 是大语言模型调用配置。
-//
-// 支持任意 OpenAI-compatible API（llama.cpp / OpenAI / DeepSeek 等）。
-// BaseURL 指向 /v1 根路径（如 http://llama-cpp:8080/v1），
-// APIKey 对 llama.cpp 本地部署可为空。
+// LLMConfig 大语言模型配置（支持任意 OpenAI-compatible API）。
 type LLMConfig struct {
 	BaseURL   string        `mapstructure:"base_url"`
 	APIKey    string        `mapstructure:"api_key"`
@@ -106,26 +93,16 @@ type LLMConfig struct {
 	Timeout   time.Duration `mapstructure:"timeout"` // LLM 调用超时，默认 60s
 }
 
-// RerankConfig 是 cross-encoder 重排序子进程配置。
-//
-// 使用 Python 子进程运行 sentence-transformers CrossEncoder，
-// 通过 stdin/stdout JSON Lines 协议通信。
-// Enabled 为 false 时 Pipeline 降级跳过重排序步骤。
+// RerankConfig cross-encoder 重排序子进程配置（Python stdin/stdout JSON Lines 通信）。
+// Enabled 为 false 时 Pipeline 降级跳过重排序。
 type RerankConfig struct {
 	Enabled    bool   `mapstructure:"enabled"`     // 是否启用 cross-encoder 重排序，默认 true
 	PythonPath string `mapstructure:"python_path"` // Python 解释器路径，如 "python3"
 	ScriptPath string `mapstructure:"script_path"` // rerank_server.py 绝对路径
 }
 
-// EmbeddingConfig 是文本向量化配置。
-//
-// LLM 和 Embedding 可独立配置 Base URL 和 API Key，支持以下场景：
-//   - OpenAI LLM + 本地 bge-m3 Embedding（无需 Embedding API Key）
-//   - DeepSeek LLM + Moonshot Embedding（需要各自的 API Key）
-//   - OpenAI LLM + DashScope Embedding（跨服务商，需要独立 API Key）
-//
-// BaseURL 为空时回退到 llm.base_url。
-// APIKey 为空时回退到 llm.api_key。
+// EmbeddingConfig 文本向量化配置，可独立于 LLM 配置 BaseURL/APIKey。
+// 为空时回退到 llm.base_url / llm.api_key。
 type EmbeddingConfig struct {
 	BaseURL   string        `mapstructure:"base_url"`
 	APIKey    string        `mapstructure:"api_key"`
@@ -134,10 +111,7 @@ type EmbeddingConfig struct {
 	Timeout   time.Duration `mapstructure:"timeout"` // Embedding 调用超时，默认 30s
 }
 
-// AIConfig 是 AI 问答相关配置。
-//
-// RAG 管道步骤可通过 rag_* 开关单独控制，均默认启用。
-// ConfidenceThreshold 低于此阈值的问答结果会引导用户提交申告（can_submit_ticket=true）。
+// AIConfig AI 问答配置，RAG 管道步骤可单独控制，ConfidenceThreshold 低于阈值引导提交工单。
 type AIConfig struct {
 	DefaultTopK         int     `mapstructure:"default_top_k"`
 	ConfidenceThreshold float64 `mapstructure:"confidence_threshold"`
@@ -150,20 +124,14 @@ type AIConfig struct {
 	RAGRerank           bool    `mapstructure:"rag_rerank"`
 }
 
-// ParserConfig 是文档解析引擎配置。
-//
-// Engine 选择解析后端：mineru（云端高精度，需 API Key）或 local（纯 Go 本地库）。
-// mineru 不可用时自动降级到 local，保证解析链路不中断。
+// ParserConfig 文档解析引擎配置（mineru 云端高精度 / local 本地库），mineru 不可用时自动降级。
 type ParserConfig struct {
-	Engine string        `mapstructure:"engine"` // mineru | local，默认 mineru
-	MinerU MinerUConfig  `mapstructure:"mineru"`
-	Python PythonConfig  `mapstructure:"python"`
+	Engine string       `mapstructure:"engine"` // mineru | local，默认 mineru
+	MinerU MinerUConfig `mapstructure:"mineru"`
+	Python PythonConfig `mapstructure:"python"`
 }
 
-// MinerUConfig 是 MinerU 云端结构化提取服务配置。
-//
-// APIKey 为空时 MinerU 引擎不启用，自动降级到本地解析。
-// Endpoint 指向 MinerU Precise API 根路径（含 /api/v4）。
+// MinerUConfig MinerU 云端结构化提取配置，APIKey 为空时降级到本地解析。
 type MinerUConfig struct {
 	APIKey   string        `mapstructure:"api_key"`
 	Endpoint string        `mapstructure:"endpoint"` // 默认 https://mineru.net/api/v4
@@ -176,12 +144,9 @@ type PythonConfig struct {
 }
 
 // Load 加载配置文件并应用环境变量覆盖。
-//
 // configPath 为空时使用默认路径 ./internal/config/config.yaml。
-// 环境变量前缀为 OPSMIND，例如 OPSMIND_DATABASE_HOST 覆盖 database.host。
-// 使用 BindEnv 显式绑定关键配置项，确保 Unmarshal 时能正确读取环境变量。
 func Load(configPath string) (*AppConfig, error) {
-	// 加载 .env 文件（本地开发使用；Docker Compose 已自动注入环境变量，godotenv.Load 找不到文件时不报错）
+	// 加载 .env 文件（Docker Compose 已注入环境变量，找不到文件不报错）
 	_ = godotenv.Load("../.env")
 	_ = godotenv.Load()
 
@@ -197,8 +162,7 @@ func Load(configPath string) (*AppConfig, error) {
 		v.AddConfigPath("./internal/config")
 	}
 
-	// 配置文件不存在不报错（使用默认值和环境变量），
-	// 但 YAML 格式错误等非 NotFound 错误必须暴露。
+	// 配置文件不存在不报错，但格式错误必须暴露
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, fmt.Errorf("读取配置文件失败: %w", err)
@@ -279,12 +243,12 @@ func bindEnvs(v *viper.Viper) {
 	// CORS
 	v.BindEnv("cors.allow_origins", "OPSMIND_CORS_ALLOW_ORIGINS")
 
-	// Rerank（cross-encoder 子进程）
+	// Rerank
 	v.BindEnv("rerank.enabled", "OPSMIND_RERANK_ENABLED")
 	v.BindEnv("rerank.python_path", "OPSMIND_RERANK_PYTHON_PATH")
 	v.BindEnv("rerank.script_path", "OPSMIND_RERANK_SCRIPT_PATH")
 
-	// Parser（文档解析引擎）
+	// Parser
 	v.BindEnv("parser.engine", "OPSMIND_PARSER_ENGINE")
 	v.BindEnv("parser.mineru.api_key", "MINERU_API_KEY")
 	v.BindEnv("parser.mineru.endpoint", "OPSMIND_MINERU_ENDPOINT")
@@ -293,13 +257,6 @@ func bindEnvs(v *viper.Viper) {
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
-//
-// 校验项：
-//   - server.mode 只能是 debug 或 release
-//   - server.port 在有效范围 1-65535
-//   - release 模式下 JWT secret 必须非空
-//   - AI 阈值在合理范围（top_k 1-100, confidence_threshold 0-1）
-//   - duration 零值检测（提示可能是 env 格式问题——裸数字 "3600" 而非 "2h"）
 func (c *AppConfig) Validate() error {
 	if c.Server.Mode != "debug" && c.Server.Mode != "release" {
 		return fmt.Errorf("server.mode 必须为 debug 或 release，当前值: %q", c.Server.Mode)
@@ -319,7 +276,7 @@ func (c *AppConfig) Validate() error {
 		return fmt.Errorf("ai.confidence_threshold 必须在 0-1 范围内，当前值: %f", c.AI.ConfidenceThreshold)
 	}
 
-	// 检测 duration 零值：可能由 env 裸数字格式导致（Viper 要求 duration 为字符串如 "2h"）
+	// duration 零值可能由 env 裸数字格式导致（需 "2h" 而非 3600）
 	if c.JWT.AccessExpire == 0 {
 		return fmt.Errorf("jwt.access_expire 为零值，可能是 env 格式错误（需字符串如 \"2h\"，而非裸数字 3600）")
 	}
@@ -346,8 +303,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.password", "")
 	v.SetDefault("database.dbname", "opsmind")
 	v.SetDefault("database.sslmode", "disable")
-	v.SetDefault("database.max_open_conns", 0)  // 0 = 不限，由 PostgreSQL max_connections 控制
-	v.SetDefault("database.max_idle_conns", 0)  // 0 = 不限
+	v.SetDefault("database.max_open_conns", 0) // 0 = 不限，由 PostgreSQL max_connections 控制
+	v.SetDefault("database.max_idle_conns", 0) // 0 = 不限
 	v.SetDefault("database.conn_max_lifetime", "5m")
 
 	// JWT
@@ -390,7 +347,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ai.rag_hybrid", true)
 	v.SetDefault("ai.rag_rerank", true)
 
-	// Rerank（cross-encoder 子进程）
+	// Rerank
 	v.SetDefault("rerank.enabled", true)
 	v.SetDefault("rerank.python_path", "python")
 	v.SetDefault("rerank.script_path", "rerank_server.py")
@@ -398,7 +355,7 @@ func setDefaults(v *viper.Viper) {
 	// CORS
 	v.SetDefault("cors.allow_origins", "http://localhost:5173,http://localhost:3000")
 
-	// Parser（文档解析引擎）
+	// Parser
 	v.SetDefault("parser.engine", "mineru")
 	v.SetDefault("parser.mineru.api_key", "")
 	v.SetDefault("parser.mineru.endpoint", "https://mineru.net/api/v4")

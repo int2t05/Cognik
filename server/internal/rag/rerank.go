@@ -1,15 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// rerank.go 实现 cross-encoder 驱动的候选文档重排序。
-// 对应适配层为 adapter/rerank_client.go。
-//
-// 为什么使用 cross-encoder：
-// Cross-encoder 对每个 (query, passage) 对独立打分，
-// 速度快（~50ms）、分数稳定、不需要 token 消耗。
-//
-// 降级策略：
-// cross-encoder 服务不可用时降级为原始排序，
-// Pipeline 在 Execute 中统一处理降级逻辑。
+// rerank.go 实现 cross-encoder 驱动的候选文档重排序。对应适配层 adapter/rerank_client.go。
 package rag
 
 import (
@@ -20,16 +11,8 @@ import (
 )
 
 // Rerank 使用 cross-encoder 对候选文档按与 query 的相关性重新排序。
-//
-// 内部逻辑：
-//  1. 单候选直接返回（无需重排）
-//  2. 构建 []RerankPassage 并调用 Reranker.Rerank
-//  3. 按返回 order 重新排列 candidates
-//
-// 重排序后将 cross-encoder 相关性分数写入每个结果的 RerankScore 字段，
-// 供后续 computeConfidenceScores 加权混合使用。
-//
-// reranker 为 nil 时降级返回原始排序（不报错，RerankScore 保持 0）。
+// 重排序分数写入每个结果的 RerankScore，供 computeConfidenceScores 加权使用。
+// reranker 为 nil 时降级返回原始排序，不报错。
 func Rerank(ctx context.Context, reranker adapter.Reranker, query string, candidates []RetrievalResult) ([]RetrievalResult, error) {
 	if len(candidates) <= 1 {
 		return candidates, nil
@@ -40,7 +23,6 @@ func Rerank(ctx context.Context, reranker adapter.Reranker, query string, candid
 		return candidates, nil
 	}
 
-	// 构建 passage 列表
 	passages := make([]adapter.RerankPassage, len(candidates))
 	for i, c := range candidates {
 		passages[i] = adapter.RerankPassage{ID: i, Text: c.Content}

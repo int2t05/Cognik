@@ -1,8 +1,4 @@
-// Package llmconfig 封装 LLM 配置领域的业务逻辑层。
-//
-// service.go 实现 LLMConfigService——配置 CRUD、默认配置热替换、连接测试。
-// LLMConfigManager 使用 atomic.Value 实现零锁读取，配置变更通过 onChange 回调触发客户端重建。
-// AuditWriter 通过消费者接口注入——本包只依赖接口而非具体实现。
+// Package llmconfig LLM 配置业务逻辑（配置 CRUD、热替换、连接测试）。
 package llmconfig
 
 import (
@@ -20,12 +16,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuditWriter 定义 LLM 配置审计日志写入接口（消费者接口模式）。
+// AuditWriter 审计日志写入接口（消费者接口）。
 type AuditWriter interface {
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// llmConfigRepo 定义 LLM 配置仓库接口（消费者定义接口）。
+// llmConfigRepo LLM 配置仓库接口（消费者定义）。
 type llmConfigRepo interface {
 	Create(ctx context.Context, cfg *model.LlmConfig) error
 	FindByID(ctx context.Context, id int64) (*model.LlmConfig, error)
@@ -43,9 +39,7 @@ type txRepoFactory func(tx *gorm.DB) llmConfigRepo
 // LLMConfigManager — 配置热替换
 // =============================================================================
 
-// LLMConfigManager 管理当前生效的 LLM 配置（热替换）。
-//
-// onChange 在默认配置变更时被调用，用于触发 LLM/Embedding 客户端重建。
+// LLMConfigManager 管理当前生效的 LLM 配置（atomic.Value 零锁热替换）。
 type LLMConfigManager struct {
 	current  atomic.Value // *model.LlmConfig
 	onChange func()
@@ -55,12 +49,12 @@ func NewLLMConfigManager() *LLMConfigManager {
 	return &LLMConfigManager{}
 }
 
-// OnChange 注册默认配置变更回调。仅允许注册一次（覆盖式）。
+// OnChange 注册配置变更回调（覆盖式）。
 func (m *LLMConfigManager) OnChange(fn func()) {
 	m.onChange = fn
 }
 
-// GetConfig 返回当前生效的配置（零锁读取），可能为 nil。
+// GetConfig 返回当前生效配置（零锁，可能为 nil）。
 func (m *LLMConfigManager) GetConfig() *model.LlmConfig {
 	v := m.current.Load()
 	if v == nil {
@@ -69,7 +63,7 @@ func (m *LLMConfigManager) GetConfig() *model.LlmConfig {
 	return v.(*model.LlmConfig)
 }
 
-// store 原子替换配置并触发变更回调。
+// store 原子替换配置并触发回调。
 func (m *LLMConfigManager) store(cfg *model.LlmConfig) {
 	clone := *cfg
 	m.current.Store(&clone)

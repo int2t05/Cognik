@@ -3,11 +3,7 @@ package errcode
 
 import "fmt"
 
-// AppError 业务错误，携带错误码供 Handler 层按不同 HTTP 状态码响应。
-//
-// 为什么放在 errcode 包而非 service 包：
-// AppError 被所有 service 包文件使用。与错误码常量放在同一包中，调用方 import 即可同时获得
-// 错误码常量和 AppError 类型。
+// AppError 业务错误，携带错误码供 Handler 层映射 HTTP 状态码。
 type AppError struct {
 	Code    int
 	Message string

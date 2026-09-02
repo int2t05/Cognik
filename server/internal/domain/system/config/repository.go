@@ -1,6 +1,6 @@
-// Package config 封装系统配置领域的数据访问层。
+// Package config 系统配置数据访问。
 //
-// repository.go 管理 system_configs 表的读写，支持按 key 查询与 Upsert。
+// repository.go 管理 system_configs 表读写。
 package config
 
 import (
@@ -34,7 +34,7 @@ func (r *ConfigRepo) GetByKey(ctx context.Context, key string) (*model.SystemCon
 	return &cfg, nil
 }
 
-// Upsert 更新或插入配置，同时写入 description。
+// Upsert 更新或插入配置（含 description）。
 func (r *ConfigRepo) Upsert(ctx context.Context, key, description string, value datatypes.JSON, updatedBy int64) error {
 	cfg := model.SystemConfig{
 		Key:         key,

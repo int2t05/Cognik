@@ -1,7 +1,4 @@
 // Package adapter 提供外部服务的适配层。
-//
-// embedding_client.go 定义 EmbeddingClient 接口和 OpenAI-compatible HTTP 实现。
-// 所有 Embedding 调用必须通过此适配层，禁止直接 HTTP 调用。
 package adapter
 
 import (
@@ -44,9 +41,7 @@ type EmbeddingResponse struct {
 // =============================================================================
 
 // OpenAIEmbeddingClient 对接 OpenAI-compatible /v1/embeddings。
-//
-// DashScope "兼容模式" 不完全兼容：缺少 encoding_format 时拒绝数组 input。
-// 通过 isDashScope 标记自动附加 "encoding_format":"float"。
+// DashScope 兼容模式需附加 encoding_format，通过 isDashScope 标记自动处理。
 type OpenAIEmbeddingClient struct {
 	baseURL      string
 	apiKey       string
@@ -56,9 +51,7 @@ type OpenAIEmbeddingClient struct {
 	isDashScope  bool
 }
 
-// NewOpenAIEmbeddingClient 创建客户端实例。
-//
-// defaultModel 用于 EmbeddingRequest.Model 为空时的回退模型名称。
+// NewOpenAIEmbeddingClient 创建客户端实例。defaultModel 为请求未指定模型时的回退。
 func NewOpenAIEmbeddingClient(baseURL, apiKey, defaultModel string, timeout time.Duration) *OpenAIEmbeddingClient {
 	return &OpenAIEmbeddingClient{
 		baseURL:      strings.TrimRight(baseURL, "/"),

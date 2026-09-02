@@ -1,8 +1,6 @@
-// Package ticket 实现申告领域的数据访问、业务逻辑与 HTTP Handler。
+// Package ticket 申告领域数据访问、业务逻辑与 HTTP Handler。
 //
-// repository.go 封装 tickets 和 ticket_records 表的 CRUD 操作。
-// TicketRepo 涉及状态筛选、分页查询、批量关闭等复杂操作，
-// 独立 Repo 更利于维护和测试。
+// repository.go 封装 tickets / ticket_records 表 CRUD。
 package ticket
 
 import (
@@ -53,7 +51,6 @@ func (r *TicketRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	// 先删关联记录，再删申告
 	if err := r.db.WithContext(ctx).Where("ticket_id IN ?", ids).Delete(&model.TicketRecord{}).Error; err != nil {
 		return 0, err
 	}
@@ -74,8 +71,7 @@ func (r *TicketRepo) UpdateStatus(ctx context.Context, id int64, expectedStatus,
 	return result.RowsAffected, result.Error
 }
 
-// IncrementSupplementCount 原子自增补充信息计数。
-// WHERE supplement_count < 3 提供 SQL 级 CAS 并发安全，配合 Service 层前置检查形成纵深防御。
+// IncrementSupplementCount 原子自增补充信息计数（WHERE supplement_count < 3，SQL 级 CAS）。
 func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bool, error) {
 	result := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("id = ? AND supplement_count < 3", id).
 		UpdateColumn("supplement_count", gorm.Expr("supplement_count + 1"))

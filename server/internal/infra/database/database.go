@@ -1,7 +1,4 @@
-// Package database 负责初始化 PostgreSQL 数据库连接。
-//
-// 使用 GORM 作为 ORM 框架，通过 gorm.io/driver/postgres 连接 PostgreSQL。
-// RAG 向量检索由 pgvector 扩展承担，通过 adapter/pgvector_store.go 访问。
+// Package database 负责初始化 PostgreSQL 连接（GORM + pgvector）。
 package database
 
 import (
@@ -16,19 +13,15 @@ import (
 	"opsmind/internal/infra/config"
 )
 
-// Init 初始化数据库连接。
-//
-// DSN 使用 URL 格式（postgres://）避免密码中特殊字符导致的连接失败。
-// 连接池参数由配置控制，默认值适配单实例 MVP 部署。
+// Init 初始化数据库连接，DSN 使用 URL 格式以处理密码中特殊字符。
 func Init(cfg config.DatabaseConfig) (*gorm.DB, error) {
-	// 使用 URL 格式构造 DSN，自动处理密码中空格、单引号等特殊字符
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		url.PathEscape(cfg.User),
 		url.QueryEscape(cfg.Password),
 		cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode,
 	)
 
-	// 生产环境降低日志级别，避免 SQL 泄露到标准输出
+	// SSL 模式为 require 时降低日志级别，避免 SQL 泄露
 	logLevel := logger.Info
 	if cfg.SSLMode == "require" || cfg.SSLMode == "verify-full" {
 		logLevel = logger.Warn
@@ -40,15 +33,13 @@ func Init(cfg config.DatabaseConfig) (*gorm.DB, error) {
 		return nil, fmt.Errorf("连接数据库失败: %w", err)
 	}
 
-	// 配置连接池
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, fmt.Errorf("获取底层 sql.DB 失败: %w", err)
 	}
 	maxOpen := cfg.MaxOpenConns
-	// 0 = 不限制（PostgreSQL 服务端 max_connections 兜底）
 	maxIdle := cfg.MaxIdleConns
-	// 0 = 不限制
+	// 0 = 不限制（PostgreSQL max_connections 兜底）
 	connLifetime := cfg.ConnMaxLifetime
 	if connLifetime <= 0 {
 		connLifetime = 5 * time.Minute

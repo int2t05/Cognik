@@ -1,12 +1,4 @@
 // Package adapter 提供外部服务的适配层。
-//
-// vector_store.go 定义 VectorStore 接口和 pgvector 实现。
-// 使用 pgvector halfvec 类型 + HNSW 索引存储和检索向量。
-//
-// 设计决策：
-// 接口明确暴露 pgvector 概念（halfvec、cosine），不追求数据库无关抽象。
-// pgvector 的 halfvec/HNSW/<=> 算子是不可替代的核心能力，
-// 过度抽象反而限制性能优化空间。
 package adapter
 
 import (
@@ -41,17 +33,13 @@ type VectorStore interface {
 	// CountByKB 统计知识库的分块总数。
 	CountByKB(ctx context.Context, kbID int64) (int64, error)
 
-	// ReplaceVectors 原子替换文章向量：事务内写入新向量后删除旧向量。
+	// ReplaceVectors 原子替换文章向量（事务内先删旧后写新）。
 	ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error
 
 	// GetChunksByArticle 获取指定文章的所有分块内容（不含向量）。
 	GetChunksByArticle(ctx context.Context, articleID int64) ([]ChunkContent, error)
 
-	// GetChunkSnapshots 获取指定文章的所有分块快照（含 chunk_hash 和 embedding 文本表示）。
-	//
-	// 为什么需要 embedding 文本表示：增量发布时需要复用旧 chunk 的 embedding，
-	// halfvec 列通过 ::text 强制转换为 pgvector 数组字面量字符串（如 [0.1,0.2,...]），
-	// 可被 float32ToPgVector 的逆向解析还原为 []float32。
+	// GetChunkSnapshots 获取分块快照（含 chunk_hash 和 embedding::text），用于增量发布复用旧 embedding。
 	GetChunkSnapshots(ctx context.Context, articleID int64) ([]ChunkSnapshot, error)
 }
 
@@ -87,10 +75,8 @@ type ChunkContent struct {
 	ChunkIndex int    `json:"chunk_index"`
 }
 
-// ChunkSnapshot 分块快照（含 chunk_hash 和 embedding 文本表示，用于增量发布比对）。
-//
-// EmbeddingText 是 pgvector halfvec 列的 ::text 形式（如 [0.123,0.456,...]），
-// 由 parsePgVectorText 还原为 []float32。
+// ChunkSnapshot 分块快照（含 chunk_hash 和 embedding::text），用于增量发布比对。
+// EmbeddingText 由 ParsePgVectorText 还原为 []float32。
 type ChunkSnapshot struct {
 	ChunkHash     string `json:"chunk_hash"`
 	EmbeddingText string `json:"embedding_text"`
@@ -100,9 +86,7 @@ type ChunkSnapshot struct {
 // pgvector 实现
 // =============================================================================
 
-// PgvectorStore 实现 VectorStore，使用 pgvector 扩展。
-//
-// 复用 GORM 的 *sql.DB 连接池，避免创建独立连接池造成双池浪费。
+// PgvectorStore 实现 VectorStore，复用 GORM 连接池。
 type PgvectorStore struct {
 	db         *sql.DB
 	maxRetries int
@@ -128,18 +112,12 @@ func (s *PgvectorStore) Close() error { return nil }
 // =============================================================================
 
 // BatchInsert 批量写入分块向量。
-//
-// SQL: INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index,
-//
-//	embedding, embedding_model, vector_dimension, created_at)
-//	VALUES ($1, $2, $3, $4, $5::halfvec, $6, $7, NOW())
 func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) error {
 	if len(chunks) == 0 {
 		return nil
 	}
 
-	// 校验所有 chunk 的 embedding 维度一致，维度不匹配时在应用层提前报错，
-	// 避免到 pgvector 层才失败（错误信息不友好且难以定位是哪个 chunk 的问题）。
+	// 维度校验在应用层做，避免到 pgvector 才失败、难以定位
 	var expectedDim int
 	for i, c := range chunks {
 		if len(c.Embedding) == 0 {
@@ -151,14 +129,12 @@ func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) e
 			return fmt.Errorf("chunk %d embedding 维度不一致: 预期 %d, 实际 %d (article_id=%d, chunk_index=%d)",
 				i, expectedDim, len(c.Embedding), c.ArticleID, c.ChunkIndex)
 		}
-		// VectorDimension 字段应与实际 embedding 长度一致
 		if c.VectorDimension != 0 && c.VectorDimension != len(c.Embedding) {
 			return fmt.Errorf("chunk %d VectorDimension 与实际 embedding 长度不匹配: VectorDimension=%d, len(embedding)=%d (article_id=%d)",
 				i, c.VectorDimension, len(c.Embedding), c.ArticleID)
 		}
 	}
 
-	// 构建批量 INSERT（含 chunk_hash 用于增量比对）
 	query := `INSERT INTO knowledge_chunks
 		(article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, chunk_hash, created_at)
 		VALUES `
@@ -186,23 +162,11 @@ func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) e
 // CosineSearch — 余弦相似度检索
 // =============================================================================
 
-// CosineSearch 使用 cosine 距离算子 (<=>) 检索最相似的 topK 个向量。
-//
-// SQL: SELECT id, article_id, content, chunk_index,
-//
-//	1 - (embedding <=> $1::halfvec) AS score
-//	FROM knowledge_chunks
-//	WHERE kb_id = $2
-//	ORDER BY embedding <=> $1::halfvec
-//	LIMIT $3
-//
-// <=> 算子返回余弦距离（越小越相似），1 - distance 转换为相似度分数。
+// CosineSearch 使用 <=> 算子检索 topK 相似向量；1 - 距离 = 相似度分数。
 func (s *PgvectorStore) CosineSearch(ctx context.Context, kbID int64, embedding []float32, topK int) ([]SearchResult, error) {
-	// 空 embedding 防护：空向量检索无意义，提前报错避免数据库报错
 	if len(embedding) == 0 {
 		return nil, fmt.Errorf("embedding 为空，无法执行向量检索 (kb_id=%d)", kbID)
 	}
-	// topK 范围钳位：过小无意义，过大会拖慢检索且超出业务需求
 	if topK <= 0 {
 		topK = 10
 	} else if topK > 100 {
@@ -258,8 +222,7 @@ func (s *PgvectorStore) DeleteByKB(ctx context.Context, kbID int64) error {
 	return nil
 }
 
-// ReplaceVectors 原子替换文章向量：事务内先删旧向量，再写新向量。
-// 先删后写：删除成功但写入失败时事务回滚，旧向量完整恢复。
+// ReplaceVectors 原子替换文章向量（事务内先删旧后写新，回滚时旧向量完整恢复）。
 func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -323,10 +286,7 @@ func (s *PgvectorStore) GetChunksByArticle(ctx context.Context, articleID int64)
 	return chunks, rows.Err()
 }
 
-// GetChunkSnapshots 获取指定文章的所有分块快照（含 chunk_hash 和 embedding 文本表示）。
-//
-// embedding 列通过 ::text 强制转换为 pgvector 数组字面量字符串，
-// 由 parsePgVectorText 还原为 []float32 供增量发布复用。
+// GetChunkSnapshots 获取分块快照（含 chunk_hash 和 embedding::text），用于增量发布复用。
 func (s *PgvectorStore) GetChunkSnapshots(ctx context.Context, articleID int64) ([]ChunkSnapshot, error) {
 	rows, err := s.db.QueryContext(ctx,
 		"SELECT chunk_hash, embedding::text FROM knowledge_chunks WHERE article_id = $1 ORDER BY chunk_index",
@@ -351,11 +311,7 @@ func (s *PgvectorStore) GetChunkSnapshots(ctx context.Context, articleID int64) 
 // 辅助函数
 // =============================================================================
 
-// ParsePgVectorText 将 pgvector ::text 输出（如 "[0.123,0.456,...]"）还原为 []float32。
-//
-// 为什么需要此函数：增量发布时需要复用旧 chunk 的 embedding，
-// halfvec 列通过 ::text 输出为 pgvector 数组字面量字符串，
-// 解析后可直接用于 VectorChunk.Embedding。
+// ParsePgVectorText 将 pgvector ::text 输出还原为 []float32，用于增量发布复用旧 embedding。
 func ParsePgVectorText(text string) ([]float32, error) {
 	text = strings.TrimSpace(text)
 	if len(text) < 2 || text[0] != '[' || text[len(text)-1] != ']' {
@@ -381,14 +337,8 @@ func ParsePgVectorText(text string) ([]float32, error) {
 	return result, nil
 }
 
-// float32ToPgVector 将 []float32 转换为 pgvector 兼容的数组字面量字符串。
-//
-// pgvector 接受 ARRAY[...] 或 [val1,val2,...] 格式。
-// 使用 [val1,val2,...] 格式配合 ::halfvec 显式类型转换。
-//
-// 对 NaN 和 ±Inf 使用 0.0 替代——pgvector 不接受非有限浮点数，
-// 而 NaN/Inf 在 normalized embedding 中不应出现（出现意味着上游 bug），
-// 0.0 替代是最小伤害的降级策略（不影响向量维度），同时记录 Warn 便于排查上游问题。
+// float32ToPgVector 将 []float32 转为 pgvector 数组字面量（配合 ::halfvec）。
+// NaN/Inf 用 0.0 替代（pgvector 不接受非有限值），记 Warn 以排查上游。
 func float32ToPgVector(v []float32) string {
 	if len(v) == 0 {
 		return "[]"
@@ -400,8 +350,6 @@ func float32ToPgVector(v []float32) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		// 使用 math.IsNaN 和 math.IsInf 精确检测非有限浮点数
-		// pgvector 不接受 NaN/Inf，0.0 替代是最小伤害的降级策略
 		if math.IsNaN(float64(f)) || math.IsInf(float64(f), 0) {
 			f = 0.0
 			slog.Warn("向量含 NaN/Inf，已替换为 0.0", "index", i)

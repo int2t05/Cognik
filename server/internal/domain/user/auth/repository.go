@@ -1,25 +1,17 @@
-// Package auth 封装认证领域的内存数据存储层。
-//
-// repository.go 管理登录限流器与 token 黑名单——两者均为内存级数据结构，
-// MVP 阶段单实例部署足够，避免引入 Redis 等额外依赖。
+// Package auth 认证领域内存数据存储（登录限流器、token 黑名单）。
 package auth
 
 import (
 	"time"
 )
 
-// loginFailRecord 记录单个用户的登录失败信息。
-//
-// 使用滑动窗口计数：firstAt 为窗口起始时间，count 为窗口内失败次数。
+// loginFailRecord 登录失败记录（滑动窗口计数）。
 type loginFailRecord struct {
 	count   int
 	firstAt time.Time
 }
 
-// loginRateLimiter 基于内存的登录失败限流器。
-//
-// 限制策略：同一用户名在 window 内连续失败 maxFails 次后，后续尝试直接拒绝。
-// 成功登录会清除该用户的失败记录。
+// loginRateLimiter 内存登录限流器（窗口内失败超限后拒绝，成功清除记录）。
 type loginRateLimiter struct {
 	attempts map[string]*loginFailRecord
 	maxFails int

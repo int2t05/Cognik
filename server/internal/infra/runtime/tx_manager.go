@@ -6,11 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TxManager 事务管理器接口。
-//
-// 回调签名使用 *gorm.DB——Repository 层已直接依赖 GORM，TickerService
-// 事务内创建 txRepo := repository.NewXxxRepo(tx) 依赖 GORM 具体类型。
-// MVP 阶段保持此耦合，后续若解耦可引入 domain.Tx 接口。
+// TxManager 事务管理器接口。回调签名用 *gorm.DB，与 Repository 层 GORM 耦合。
 type TxManager interface {
 	Transaction(ctx context.Context, fn func(tx *gorm.DB) error) error
 }

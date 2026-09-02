@@ -1,14 +1,9 @@
 // Package router 负责注册 Gin 路由。
-//
-// 本文件注册门户端路由，所有路由需要 JWT 认证。
 package router
 
 import "github.com/gin-gonic/gin"
 
-// registerPortalRoutes 注册门户端路由。
-//
-// 门户端面向报障人用户，提供智能问答、申告提交、进度查询等功能。
-// 仅需 JWT 认证，不做角色校验——任何已登录用户均可使用门户功能。
+// registerPortalRoutes 注册门户端路由（仅需 JWT 认证）。
 func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 知识库列表（门户端 Chat 需要选择知识库，无需 admin 权限）
 	rg.GET("/knowledge-bases", safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ListKBsForPortal }))

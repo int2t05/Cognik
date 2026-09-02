@@ -1,7 +1,6 @@
-// Package session 封装智能问答会话领域的数据访问层。
+// Package session 问答会话数据访问。
 //
-// repository.go 管理 chat_sessions 与 chat_messages 两张表的 CRUD。
-// 问答会话生命周期：创建 → 流式消息 → 完成/失败/取消。
+// repository.go 管理 chat_sessions / chat_messages 表 CRUD。
 package session
 
 import (
@@ -12,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrNotFound 导出哨兵供跨包错误比较。
+// ErrNotFound 哨兵供跨包错误比较。
 var ErrNotFound = gorm.ErrRecordNotFound
 
 // ChatRepo 问答数据访问。

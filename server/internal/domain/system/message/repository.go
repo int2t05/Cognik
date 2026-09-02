@@ -1,6 +1,6 @@
-// Package message 封装站内消息领域的数据访问层。
+// Package message 站内消息数据访问。
 //
-// repository.go 管理 messages 表的 CRUD：创建、分页查询、标记已读、未读计数。
+// repository.go 管理 messages 表 CRUD。
 package message
 
 import (

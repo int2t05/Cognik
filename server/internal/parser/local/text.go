@@ -1,15 +1,15 @@
-// Package parser 实现多格式文档解析。
+// Package local 实现本地纯 Go 文档解析降级引擎。
 //
 // text.go 实现 TXT/MD 文件的纯文本读取。
-package parser
+package local
 
 import (
 	"fmt"
 	"io"
 )
 
-// parseTxt 读取纯文本/Markdown 文件，原样返回文本内容。
-func (p *Parser) parseTxt(reader io.Reader) (*ParseResult, error) {
+// ParseTxt 读取纯文本/Markdown 文件，原样返回文本内容。
+func ParseTxt(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return nil, fmt.Errorf("读取文本文件失败: %w", err)

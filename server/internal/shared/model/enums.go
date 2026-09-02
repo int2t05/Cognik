@@ -36,11 +36,7 @@ const (
 	TicketActionClose       = "close"        // 关闭
 )
 
-// 知识文章状态（审核状态机，承载人工操作流转）
-//
-// Disabled=0 为已停用状态。
-//
-// 文档处理进度由独立的 ProcessStatus 字段承载，与本枚举互不污染。
+// 知识文章审核状态
 const (
 	ArticleStatusDisabled  int16 = 0 // 已停用（仅允许 Published → Disabled）
 	ArticleStatusDraft     int16 = 1 // 草稿
@@ -50,16 +46,14 @@ const (
 	ArticleStatusRejected  int16 = 5 // 驳回
 )
 
-// 站内消息类型
-//
-// 新增类型时需同步更新前端 web/src/app/portal/messages/page.tsx 的 TYPE_LABEL 映射。
+// 站内消息类型（新增时需同步前端 TYPE_LABEL 映射）
 const (
-	MessageTypeTicketSupplement  = "ticket_supplement"   // 申告补充信息
-	MessageTypeTicketResolved    = "ticket_resolved"     // 申告已解决
-	MessageTypeTicketClosed      = "ticket_closed"       // 申告已关闭
-	MessageTypeKnowledgeApproved = "knowledge_approved"  // 知识文章审核通过
-	MessageTypeKnowledgeRejected = "knowledge_rejected"  // 知识文章审核驳回
-	MessageTypeSystem            = "system"              // 系统通知
+	MessageTypeTicketSupplement  = "ticket_supplement"  // 申告补充信息
+	MessageTypeTicketResolved    = "ticket_resolved"    // 申告已解决
+	MessageTypeTicketClosed      = "ticket_closed"      // 申告已关闭
+	MessageTypeKnowledgeApproved = "knowledge_approved" // 知识文章审核通过
+	MessageTypeKnowledgeRejected = "knowledge_rejected" // 知识文章审核驳回
+	MessageTypeSystem            = "system"             // 系统通知
 )
 
 // MessageTypeText 返回消息类型的中文描述。

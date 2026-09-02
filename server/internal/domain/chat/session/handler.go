@@ -1,6 +1,4 @@
-// Package session 封装智能问答会话领域的 HTTP 请求处理层。
-//
-// handler.go 处理会话 CRUD、流式对话（SSE）、续传、取消、反馈提交请求。
+// Package session 问答会话 HTTP 请求处理。
 package session
 
 import (
@@ -19,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+// parsePagination 解析分页参数。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -32,7 +30,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// parseID 从路径参数中解析 int64 ID，解析失败时自动返回错误响应。
+// parseID 从路径参数解析 int64 ID，失败时返回错误响应。
 func parseID(c *gin.Context, key string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(key), 10, 64)
 	if err != nil {
@@ -42,7 +40,7 @@ func parseID(c *gin.Context, key string) (int64, bool) {
 	return id, true
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -52,7 +50,7 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {
@@ -269,7 +267,7 @@ func (h *ChatHandler) GetChatDetail(c *gin.Context) {
 // SSE 流式对话
 // =============================================================================
 
-// writeSSEEvent 将事件序列化为 JSON 并以 SSE data 帧格式写入。
+// writeSSEEvent 将事件序列化为 SSE data 帧写入。
 func writeSSEEvent(w gin.ResponseWriter, evt any) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
@@ -344,7 +342,7 @@ func (h *ChatHandler) CancelGeneration(c *gin.Context) {
 	resp.Success(c, nil)
 }
 
-// writeStream 把订阅到的历史回放事件 + 实时事件写到 SSE 客户端。
+// writeStream 将历史回放 + 实时事件写入 SSE 客户端。
 func writeStream(c *gin.Context, replay []StreamEvent, ch <-chan StreamEvent, unsub func()) {
 	defer unsub()
 

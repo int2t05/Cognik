@@ -1,7 +1,4 @@
-// Package account 封装用户账户领域的业务逻辑层。
-//
-// service.go 实现 UserService——用户 CRUD、冻结/恢复、管理员安全检查。
-// AuditWriter 通过消费者接口注入——本包只依赖接口而非具体实现。
+// Package account 用户账户业务逻辑（CRUD、冻结/恢复、管理员安全检查）。
 package account
 
 import (
@@ -23,7 +20,7 @@ import (
 // AppError 是 errcode.AppError 的类型别名。
 type AppError = errcode.AppError
 
-// AuditWriter 定义审计日志写入接口（消费者接口模式）。
+// AuditWriter 审计日志写入接口（消费者接口）。
 type AuditWriter interface {
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
@@ -232,14 +229,14 @@ func (s *UserService) Restore(ctx context.Context, id int64) error {
 	return nil
 }
 
-// invalidateCache 清除指定用户的缓存条目（状态变更后调用）。
+// invalidateCache 清除用户缓存（状态变更后调用）。
 func (s *UserService) invalidateCache(userID int64) {
 	if s.userCache != nil {
 		s.userCache.Invalidate(userID)
 	}
 }
 
-// assertNotLastAdmin 检查目标用户是否为最后一个系统管理员。
+// assertNotLastAdmin 检查目标用户是否为最后一个管理员。
 func (s *UserService) assertNotLastAdmin(ctx context.Context, targetUserID int64) error {
 	roles, err := s.repo.GetUserRoles(ctx, targetUserID)
 	if err != nil {
@@ -266,7 +263,7 @@ func (s *UserService) assertNotLastAdmin(ctx context.Context, targetUserID int64
 	return nil
 }
 
-// validateUserInput 校验用户输入字段格式并做空白裁剪前检查。
+// validateUserInput 校验用户输入字段格式。
 func validateUserInput(username, realName, phone, email string) error {
 	if strings.TrimSpace(username) == "" {
 		return AppError{Code: errcode.ErrParam, Message: "用户名不能为空"}
@@ -290,7 +287,7 @@ func validateUserInput(username, realName, phone, email string) error {
 	return nil
 }
 
-// toDetailResponse 将 User 模型转换为 UserDetailResponse。
+// toDetailResponse 将 User 模型转为 UserDetailResponse。
 func (s *UserService) toDetailResponse(ctx context.Context, user *model.User) (*respDto.UserDetailResponse, error) {
 	roles, err := s.repo.GetUserRoles(ctx, user.ID)
 	if err != nil {

@@ -1,7 +1,4 @@
-// Package message 封装站内消息领域的业务逻辑层。
-//
-// service.go 实现 MessageService——消息通知、已读标记、未读计数（含短 TTL 缓存）。
-// 通知方法（NotifySupplement / NotifyTicketResolved 等）被 ticket / knowledge 领域调用。
+// Package message 站内消息业务逻辑（通知、已读标记、未读计数）。
 package message
 
 import (

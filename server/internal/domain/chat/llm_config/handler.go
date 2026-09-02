@@ -1,6 +1,4 @@
-// Package llmconfig 封装 LLM 配置领域的 HTTP 请求处理层。
-//
-// handler.go 处理 LLM 配置 CRUD 与连接测试请求。
+// Package llmconfig LLM 配置 HTTP 请求处理。
 package llmconfig
 
 import (
@@ -17,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// llmConfigService 定义 Handler 需要的 Service 方法（消费者定义接口）。
+// llmConfigService Handler 需要的 Service 方法（消费者定义）。
 type llmConfigService interface {
 	CreateConfig(ctx context.Context, name, llmBaseURL, llmAPIKey, embeddingBaseURL, embeddingAPIKey, llmModel, embeddingModel, systemPrompt string, maxTokens, vectorDimension int, isDefault bool) (*model.LlmConfig, error)
 	ListConfigs(ctx context.Context) ([]LlmConfigResponse, error)
@@ -28,7 +26,7 @@ type llmConfigService interface {
 	GetManager() *LLMConfigManager
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

@@ -1,11 +1,11 @@
-// Package parser 实现多格式文档解析。
+// Package local 实现本地纯 Go 文档解析降级引擎。
 //
 // docx.go 实现 DOCX (OOXML) 文件的文本与图片提取。
 //
 // 文本提取使用 Go 标准库 archive/zip + encoding/xml，
 // 优先按命名空间匹配，命名空间不匹配时回退到标签名正则匹配（兼容非标准生成器）。
 // 图片提取遍历 ZIP 中 word/media/ 前缀的文件，按原始扩展名命名。
-package parser
+package local
 
 import (
 	"archive/zip"
@@ -19,8 +19,8 @@ import (
 	"strings"
 )
 
-// parseDocx 解析 DOCX (OOXML) 文件：提取文本 + 提取 word/media/ 图片。
-func (p *Parser) parseDocx(reader io.Reader) (*ParseResult, error) {
+// ParseDocx 解析 DOCX (OOXML) 文件：提取文本 + 提取 word/media/ 图片。
+func ParseDocx(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return nil, fmt.Errorf("读取 DOCX 文件失败: %w", err)
@@ -159,8 +159,8 @@ func findZipFile(zipReader *zip.Reader, name string) *zip.File {
 
 // docxDocument DOCX document.xml 的 XML 结构，支持标准 OOXML 命名空间。
 type docxDocument struct {
-	XMLName xml.Name   `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main document"`
-	Body    docxBody   `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main body"`
+	XMLName xml.Name `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main document"`
+	Body    docxBody `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main body"`
 }
 
 type docxBody struct {
@@ -175,7 +175,7 @@ type docxParagraph struct {
 type docxRun struct {
 	Text    string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main t"`
 	TabChar string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main tab"` // 制表符
-	LineBrk string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main br"`   // 换行
+	LineBrk string `xml:"http://schemas.openxmlformats.org/wordprocessingml/2006/main br"`  // 换行
 }
 
 type docxTable struct {

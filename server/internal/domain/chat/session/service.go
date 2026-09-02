@@ -1,9 +1,4 @@
-// Package session 封装智能问答会话领域的业务逻辑层。
-//
-// service.go 实现 ChatService（会话生命周期）与 LLMService（RAG+LLM 编排）。
-// auditLogWriter / ragConfigReader / ragPipeline 均通过消费者接口注入——
-// 本包只依赖接口而非具体实现，Go 结构化类型系统使外部 Service 自动满足这些接口。
-// LLMConfigManager 来自同领域 llm_config 子包，用于配置热替换。
+// Package session 问答会话业务逻辑（会话生命周期 + RAG/LLM 编排）。
 package session
 
 import (

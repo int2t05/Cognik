@@ -1,6 +1,4 @@
-// Package message 封装站内消息领域的 HTTP 请求处理层。
-//
-// handler.go 处理消息列表查询、标记已读、未读计数请求。
+// Package message 站内消息 HTTP 请求处理。
 package message
 
 import (
@@ -15,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// parsePagination 从查询参数中解析分页参数（page, pageSize）。
+// parsePagination 解析分页参数。
 func parsePagination(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -28,7 +26,7 @@ func parsePagination(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
-// getCurrentUserID 从 Gin context 中获取当前用户 ID。
+// getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
 	if val, exists := c.Get("userID"); exists {
 		if id, ok := val.(int64); ok {
@@ -38,7 +36,7 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
-// handleServiceError 统一处理 Service 层错误。
+// handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
 	if errors.As(err, &appErr) {

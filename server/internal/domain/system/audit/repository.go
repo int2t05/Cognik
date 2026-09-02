@@ -1,6 +1,6 @@
-// Package audit 封装审计日志领域的数据访问层。
+// Package audit 审计日志数据访问。
 //
-// repository.go 管理 audit_logs 表的读写，支持多维过滤查询与批量删除。
+// repository.go 管理 audit_logs 表读写。
 package audit
 
 import (
@@ -22,7 +22,7 @@ type AuditFilter struct {
 	PageSize   int
 }
 
-// AuditLogRow 审计日志查询结果行，包含 LEFT JOIN users 得到的操作人姓名。
+// AuditLogRow 审计日志查询结果行（含 LEFT JOIN users 的操作人姓名）。
 type AuditLogRow struct {
 	ID           int64  `json:"id"`
 	OperatorID   int64  `json:"operator_id"`
@@ -50,7 +50,7 @@ func (r *AuditRepo) Create(ctx context.Context, log interface{}) error {
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-// List 分页查询审计日志（LEFT JOIN users 获取操作人姓名），支持多维过滤。
+// List 分页查询审计日志（LEFT JOIN users，支持多维过滤）。
 func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]AuditLogRow, int64, error) {
 	query := r.db.WithContext(ctx).Table("audit_logs").
 		Select(`audit_logs.id, audit_logs.operator_id, audit_logs.action,

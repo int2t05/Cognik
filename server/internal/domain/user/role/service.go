@@ -1,7 +1,4 @@
-// Package role 封装角色权限领域的业务逻辑层。
-//
-// service.go 实现 RoleService——角色 CRUD、菜单权限绑定、权限白名单校验。
-// AuditWriter 通过消费者接口注入——本包只依赖接口而非具体实现。
+// Package role 角色权限业务逻辑（角色 CRUD、菜单绑定、权限校验）。
 package role
 
 import (
@@ -20,13 +17,13 @@ import (
 // AppError 是 errcode.AppError 的类型别名。
 type AppError = errcode.AppError
 
-// AuditWriter 定义审计日志写入接口（消费者接口模式）。
+// AuditWriter 审计日志写入接口（消费者接口）。
 type AuditWriter interface {
 	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
 	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
 }
 
-// 权限标识常量——router/permissions.go 通过别名引用此处。
+// 权限标识常量
 const (
 	PermUserManage      = "user:manage"
 	PermTicketRead      = "ticket:read"
@@ -168,9 +165,7 @@ func (s *RoleService) Update(ctx context.Context, id int64, name, description st
 	return nil
 }
 
-// Delete 删除角色。
-//
-// 使用事务包裹存在性检查+删除，防止 TOCTOU 竞态。
+// Delete 删除角色（事务内存在性检查+删除，防止 TOCTOU 竞态）。
 func (s *RoleService) Delete(ctx context.Context, id int64) error {
 	if isBuiltin, err := s.repo.IsBuiltinRole(ctx, id); err != nil {
 		return err

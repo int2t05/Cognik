@@ -22,8 +22,7 @@ type ChatSession struct {
 
 func (ChatSession) TableName() string { return "chat_sessions" }
 
-// 消息生成状态：generating 表示后台仍在生成（刷新后据此续传），
-// completed/failed 为终态。默认值 completed，用于未显式设置状态的消息。
+// 消息生成状态
 const (
 	MessageStatusGenerating = "generating"
 	MessageStatusCompleted  = "completed"
@@ -37,8 +36,8 @@ type ChatMessage struct {
 	Role            string         `gorm:"type:varchar(16);not null" json:"role"`
 	Content         string         `gorm:"type:text;not null" json:"content"`
 	Sources         datatypes.JSON `gorm:"type:jsonb" json:"sources"`
-	PipelineMetrics datatypes.JSON `gorm:"type:jsonb" json:"pipeline_metrics"` // RAG 管道各步骤耗时（JSONB）
-	ConfidenceRaw   float64        `gorm:"column:confidence_raw" json:"confidence_raw"` // 原始综合置信度 [0,1]，落库后供分位数统计
+	PipelineMetrics datatypes.JSON `gorm:"type:jsonb" json:"pipeline_metrics"`          // RAG 管道各步骤耗时（JSONB）
+	ConfidenceRaw   float64        `gorm:"column:confidence_raw" json:"confidence_raw"` // 原始综合置信度 [0,1]
 	Feedback        int16          `gorm:"default:0" json:"feedback"`
 	Status          string         `gorm:"type:varchar(16);not null;default:completed" json:"status"`
 	CreatedAt       time.Time      `gorm:"not null" json:"created_at"`
@@ -46,8 +45,7 @@ type ChatMessage struct {
 
 func (ChatMessage) TableName() string { return "chat_messages" }
 
-// FeedbackSample 反馈样本：一条有反馈的 AI 回答 + 对应的用户问题。
-// 用于 LLM 知识盲区分析。
+// FeedbackSample 反馈样本，用于 LLM 知识盲区分析。
 type FeedbackSample struct {
 	MessageID  int64   `json:"message_id"`
 	SessionID  int64   `json:"session_id"`
@@ -57,4 +55,3 @@ type FeedbackSample struct {
 	Confidence float64 `json:"confidence"`
 	CreatedAt  string  `json:"created_at"`
 }
-

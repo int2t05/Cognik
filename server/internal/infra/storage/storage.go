@@ -1,5 +1,4 @@
-// Package storage 定义文件存储适配接口（目录式存储）。
-// 实现：minio.go（MinIO S3）、local.go（本地文件系统）。
+// Package storage 定义文件存储适配接口（目录式，MinIO/本地双实现）。
 package storage
 
 import (
@@ -7,8 +6,7 @@ import (
 	"io"
 )
 
-// StorageClient 定义对象存储适配器接口（目录式）。
-// 每篇文章存储为 bucket/{dir}/ 下的多文件目录（markdown.md + images/）。
+// StorageClient 对象存储适配接口（目录式：每篇文档存为 bucket/{dir}/ 多文件目录）。
 type StorageClient interface {
 	// UploadFile 上传单文件到 bucket/{dir}/{filename}。
 	UploadFile(ctx context.Context, bucket, dir, filename string, reader io.Reader, size int64, contentType string) error

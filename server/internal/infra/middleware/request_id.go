@@ -9,19 +9,16 @@ import (
 )
 
 const (
-	// RequestIDKey 是请求 ID 在 Gin Context 和响应头中的键名。
-	RequestIDKey = "X-Request-ID"
-	// maxRequestIDLength 定义 Request-ID 的最大允许长度。
+	// RequestIDKey 请求 ID 在 Gin Context 和响应头中的键名。
+	RequestIDKey       = "X-Request-ID"
 	maxRequestIDLength = 128
 )
 
-// validRequestIDPattern 定义合法的 Request-ID 字符集：字母、数字、连字符、下划线、点号。
+// validRequestIDPattern 合法 Request-ID 字符集：字母、数字、连字符、下划线、点号。
 var validRequestIDPattern = regexp.MustCompile(`^[a-zA-Z0-9\-_.]+$`)
 
 // RequestID 为每个请求生成唯一 ID 并写入响应头。
-//
-// 如果客户端已通过请求头传递 X-Request-ID，则直接复用（支持链路透传）。
-// 否则生成 UUID v4 作为请求 ID。
+// 客户端已传 X-Request-ID 则复用（链路透传），否则生成 UUID v4。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rid := c.GetHeader(RequestIDKey)

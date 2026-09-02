@@ -1,11 +1,11 @@
-// Package parser 实现多格式文档解析。
+// Package local 实现本地纯 Go 文档解析降级引擎。
 //
 // xlsx.go 实现 XLSX (Excel) 文件的文本与图片提取。
 //
 // 文本提取使用 excelize（github.com/xuri/excelize/v2），
 // 遍历所有 sheet 的行，单元格值以 Markdown 表格格式输出。
 // 图片提取使用 GetPictureCells + GetPictures，按 img{N}.{ext} 命名。
-package parser
+package local
 
 import (
 	"bytes"
@@ -16,8 +16,8 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// parseXLSX 解析 XLSX 文件：遍历所有 sheet 生成 Markdown 表格 + 提取嵌入图片。
-func (p *Parser) parseXLSX(reader io.Reader) (*ParseResult, error) {
+// ParseXLSX 解析 XLSX 文件：遍历所有 sheet 生成 Markdown 表格 + 提取嵌入图片。
+func ParseXLSX(reader io.Reader) (*ParseResult, error) {
 	b, err := io.ReadAll(io.LimitReader(reader, maxDocumentSize))
 	if err != nil {
 		return nil, fmt.Errorf("读取 XLSX 文件失败: %w", err)

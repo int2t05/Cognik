@@ -1,15 +1,6 @@
 // Package rag 实现自建 RAG 检索引擎。
 //
-// processor.go 实现文档异步处理管线。
-//
-// 为什么使用 goroutine pool 而非直接同步处理：
-// 文档处理（解析→分块→embedding→pgvector 写入）可能耗时数十秒甚至数分钟，
-// 同步处理会阻塞 HTTP 请求。goroutine pool 模式将耗时任务异步化，
-// 客户端通过 process_status 轮询进度。
-//
-// 优雅关闭设计：
-// Stop() 通过 stopped 标志位 + close(taskCh) 双重防护，
-// 两次 Stop 调用安全（幂等），Submit 在 Stop 后返回错误。
+// processor.go 实现文档异步处理管线（goroutine pool）。Stop 通过 stopped 标志位 + close(taskCh) 幂等关闭。
 package rag
 
 import (
@@ -34,22 +25,17 @@ const defaultTaskTimeout = 5 * time.Minute
 // ProcessTask — 处理任务
 // =============================================================================
 
-// ProcessTask 单个文档处理任务。
-//
-// 支持两种来源：
-//   - MinIO 路径：设置 Bucket/Key/FileType，worker 自动下载并解析
-//   - 纯文本：设置 Content，worker 直接分块（手动创建的文章）
-//
-// EmbeddingModel 为空时使用全局默认模型（回退行为）。
+// ProcessTask 单个文档处理任务。支持 MinIO 路径（Bucket/Key/FileType）或纯文本（Content）。
+// EmbeddingModel 为空时回退全局默认模型。
 type ProcessTask struct {
-	ArticleID      int64                                          `json:"article_id"`
-	KBID           int64                                          `json:"kb_id"`
-	Content        string                                         `json:"content"`
-	Bucket         string                                         `json:"bucket"`
-	Key            string                                         `json:"key"`
-	FileType       string                                         `json:"file_type"`
-	EmbeddingModel string                                         `json:"embedding_model"` // KB 绑定模型，空则回退全局默认
-	OnStatusChange func(articleID int64, status, errMsg string) `json:"-"`
+	ArticleID      int64                                            `json:"article_id"`
+	KBID           int64                                            `json:"kb_id"`
+	Content        string                                           `json:"content"`
+	Bucket         string                                           `json:"bucket"`
+	Key            string                                           `json:"key"`
+	FileType       string                                           `json:"file_type"`
+	EmbeddingModel string                                           `json:"embedding_model"` // KB 绑定模型，空则回退全局默认
+	OnStatusChange func(articleID int64, status, errMsg string)     `json:"-"`
 	OnMetrics      func(articleID int64, wordCount, chunkCount int) `json:"-"`
 }
 
@@ -71,14 +57,11 @@ type Processor struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 
-	stopped  atomic.Bool   // Stop 幂等防护
-	closeOnce sync.Once    // taskCh 安全关闭
+	stopped   atomic.Bool // Stop 幂等防护
+	closeOnce sync.Once   // taskCh 安全关闭
 }
 
-// NewProcessor 创建文档处理器实例。
-//
-// storage 可以为 nil（MinIO 不可用时自动降级到 Content 模式）。
-// poolSize 为 worker goroutine 数量，建议 2-4。
+// NewProcessor 创建文档处理器实例。storage 为 nil 时降级到 Content 模式。
 func NewProcessor(parser *parser.Parser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
 		poolSize = 2
@@ -139,10 +122,7 @@ func (p *Processor) Stop() {
 	p.wg.Wait()
 }
 
-// worker 处理任务循环。
-//
-// 内置 panic recovery，崩溃后自动恢复继续处理后续任务。
-// 每个任务派生带独立超时的子 context。
+// worker 处理任务循环，内置 panic recovery，每任务派生独立超时 context。
 func (p *Processor) worker(id int) {
 	defer p.wg.Done()
 
