@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/dto/response"
@@ -25,12 +26,6 @@ import (
 
 // AppError 是 errcode.AppError 的类型别名，供本包内使用。
 type AppError = errcode.AppError
-
-// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
 
 // MessageNotifier 申告通知接口（消费者接口）。
 type MessageNotifier interface {
@@ -52,7 +47,7 @@ type FeedbackMarker interface {
 // TicketService 申告管理服务。
 type TicketService struct {
 	repo               *TicketRepo
-	auditWriter        AuditWriter
+	auditWriter        audit.AuditWriter
 	txManager          runtime.TxManager
 	msgSvc             MessageNotifier
 	knowledgeCandidate KnowledgeCandidateSaver
@@ -60,18 +55,8 @@ type TicketService struct {
 }
 
 // NewTicketService 创建 TicketService 实例。
-func NewTicketService(repo *TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+func NewTicketService(repo *TicketRepo, auditWriter audit.AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
 	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
-}
-
-// SetKnowledgeCandidate 延迟注入知识候选保存接口（两阶段构造场景）。
-func (s *TicketService) SetKnowledgeCandidate(kc KnowledgeCandidateSaver) {
-	s.knowledgeCandidate = kc
-}
-
-// SetFeedbackMarker 延迟注入反馈标记接口（ChatService 在 TicketService 之后构造）。
-func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
-	s.feedbackMarker = fm
 }
 
 // =============================================================================

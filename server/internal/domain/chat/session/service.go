@@ -13,6 +13,7 @@ import (
 	"time"
 
 	llmconfig "opsmind/internal/domain/chat/llm_config"
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/runtime"
 	"opsmind/internal/rag"
@@ -21,7 +22,6 @@ import (
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -64,10 +64,6 @@ type ragConfigReader interface {
 	GetInt(ctx context.Context, key string) (int, bool)
 	GetFloat(ctx context.Context, key string) (float64, bool)
 	GetBool(ctx context.Context, key string) (bool, bool)
-}
-
-type auditLogWriter interface {
-	Create(ctx context.Context, log any) error
 }
 
 type ragPipeline interface {
@@ -137,11 +133,11 @@ type ChatService struct {
 	knowledgeRepo chatKnowledgeRepo
 	chatRepo      chatSessionRepo
 	llmService    *LLMService
-	auditRepo     auditLogWriter
+	auditRepo     audit.AuditWriter
 	hub           *runtime.GenerationHub[StreamEvent]
 }
 
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo auditLogWriter, hub *runtime.GenerationHub[StreamEvent]) *ChatService {
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo audit.AuditWriter, hub *runtime.GenerationHub[StreamEvent]) *ChatService {
 	if ragDefaults.TopK <= 0 {
 		ragDefaults.TopK = 5
 	}
@@ -423,14 +419,7 @@ func (s *ChatService) writeFeedbackAudit(ctx context.Context, userID, sessionID,
 		"feedback":   feedback,
 		"source":     source,
 	})
-	auditLog := &model.AuditLog{
-		OperatorID: userID,
-		Action:     "chat.feedback",
-		TargetType: "chat_message",
-		TargetID:   messageID,
-		Detail:     datatypes.JSON(detail),
-	}
-	if err := s.auditRepo.Create(ctx, auditLog); err != nil {
+	if err := s.auditRepo.Write(ctx, userID, "chat.feedback", "chat_message", messageID, string(detail)); err != nil {
 		slog.Warn("反馈审计日志写入失败", "message_id", messageID, "error", err)
 	}
 }

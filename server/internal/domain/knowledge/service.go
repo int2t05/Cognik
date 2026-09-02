@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
 	"opsmind/internal/parser"
@@ -56,23 +57,6 @@ func formatArticleText(title, content string) string {
 	return "# " + title + "\n\n" + content
 }
 
-// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
-
-type knowledgeChunker interface {
-	Split(text string) []string
-}
-
-type knowledgeEmbedder interface {
-	Embed(ctx context.Context, texts []string, model string) ([][]float32, int, error)
-}
-
-type knowledgeDocParser interface {
-	Parse(reader io.Reader, fileType string) (*parser.ParseResult, error)
-}
-
 // knowledgeRepo KnowledgeService 使用的仓库方法子集。
 type knowledgeRepo interface {
 	FindKBByID(ctx context.Context, id int64) (*model.KnowledgeBase, error)
@@ -113,13 +97,13 @@ type knowledgeMsgNotifier interface {
 type KnowledgeService struct {
 	repo                  knowledgeRepo
 	userNames             userNameResolver
-	chunker               knowledgeChunker
-	embedder              knowledgeEmbedder
+	chunker               rag.TextChunker
+	embedder              rag.TextEmbedder
 	store                 adapter.VectorStore
-	docParser             knowledgeDocParser
+	docParser             *parser.Parser
 	processor             *rag.Processor
 	storage               storage.StorageClient
-	auditWriter           AuditWriter
+	auditWriter           audit.AuditWriter
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string           // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
@@ -134,12 +118,12 @@ func WithUserNames(u userNameResolver) KnowledgeServiceOption {
 }
 
 // WithChunker 设置文本分块器（发布/启用文章时使用）。
-func WithChunker(c knowledgeChunker) KnowledgeServiceOption {
+func WithChunker(c rag.TextChunker) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.chunker = c }
 }
 
 // WithEmbedder 设置向量嵌入器（发布/启用文章时使用）。
-func WithEmbedder(e knowledgeEmbedder) KnowledgeServiceOption {
+func WithEmbedder(e rag.TextEmbedder) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.embedder = e }
 }
 
@@ -149,7 +133,7 @@ func WithVectorStore(vs adapter.VectorStore) KnowledgeServiceOption {
 }
 
 // WithDocParser 设置文档解析器（上传时非 MinIO 降级路径使用）。
-func WithDocParser(dp knowledgeDocParser) KnowledgeServiceOption {
+func WithDocParser(dp *parser.Parser) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.docParser = dp }
 }
 
@@ -164,7 +148,7 @@ func WithStorage(sc storage.StorageClient) KnowledgeServiceOption {
 }
 
 // WithAuditWriter 设置审计日志写入器（Publish/Disable 时写入审计记录）。
-func WithAuditWriter(aw AuditWriter) KnowledgeServiceOption {
+func WithAuditWriter(aw audit.AuditWriter) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.auditWriter = aw }
 }
 
@@ -1034,4 +1018,51 @@ func imageContentType(name string) string {
 	default:
 		return "application/octet-stream"
 	}
+}
+
+// RebuildBM25ForKB 从 DB 加载 KB 下所有已发布文章的分块和标签，重建 BM25 索引。
+func RebuildBM25ForKB(repo *KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
+	ctx := context.Background()
+
+	// 查询该 KB 下所有已发布文章
+	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
+	if err != nil {
+		slog.Warn("BM25 索引重建：查询文章列表失败", "kb_id", kbID, "error", err)
+		return
+	}
+
+	var docs []rag.BM25Document
+	for _, a := range articles {
+		chunks, err := store.GetChunksByArticle(ctx, a.ID)
+		if err != nil {
+			slog.Warn("BM25 索引重建：查询分块失败", "article_id", a.ID, "error", err)
+			continue
+		}
+
+		// 解析标签 JSONB → []string
+		var tagList []string
+		if len(a.Tags) > 0 {
+			_ = json.Unmarshal(a.Tags, &tagList)
+		}
+
+		for _, c := range chunks {
+			docs = append(docs, rag.BM25Document{
+				ChunkID:    c.ID,
+				ArticleID:  a.ID,
+				KBID:       kbID,
+				Content:    c.Content,
+				ChunkIndex: c.ChunkIndex,
+				Tags:       tagList,
+			})
+		}
+	}
+
+	if len(docs) == 0 {
+		// 无已发布文章 → 清空索引
+		bm25.BuildIndex(kbID, nil)
+		return
+	}
+
+	bm25.BuildIndex(kbID, docs)
+	slog.Info("BM25 索引重建完成", "kb_id", kbID, "docs", len(docs))
 }
