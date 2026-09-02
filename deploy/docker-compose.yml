@@ -1,0 +1,126 @@
+# OpsMind — 开发环境 Docker Compose
+#
+# 仅 PostgreSQL + pgvector 单容器，供本地 Go / Next.js 开发使用。
+# 后端和前端在宿主机直接运行（go run + npm run dev），热重载更快。
+#
+# 启动：docker compose -f deploy/docker-compose.yml up -d
+# 停止：docker compose -f deploy/docker-compose.yml down
+# 清除数据：docker compose -f deploy/docker-compose.yml down -v
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: opsmind-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-opsmind}
+      POSTGRES_USER: ${POSTGRES_USER:-opsmind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsmind_dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opsmind"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - opsmind
+
+  # MinIO 对象存储（可选，仅 storage.driver=minio 时启用）
+  # 默认使用本地文件存储，无需启动 MinIO
+  minio:
+    profiles: ["storage"]
+    image: minio/minio:latest
+    container_name: opsmind-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - opsmind
+
+  # LLM 推理（Qwen3-4B Q4_K_M, ~2.5GB, CPU-only）
+  # 仅 ai-local profile 启用；本地开发也可用远程 OpenAI-compatible API
+  llama-cpp:
+    profiles: ["ai-local"]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: opsmind-llama-cpp
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ${LLAMA_MODELS_DIR:-./models}:/models:ro
+    command:
+      - "--model"
+      - "/models/${OPSMIND_LLM_MODEL:-Qwen3-4B-Q4_K_M}.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8081"
+      - "--n-gpu-layers"
+      - "0"
+      - "--threads"
+      - "4"
+      - "--ctx-size"
+      - "${OPSMIND_LLM_CTX_SIZE:-32768}"
+      - "--flash-attn"
+      - "on"
+      - "--parallel"
+      - "1"
+    networks:
+      - opsmind
+
+  # Embedding 向量化（Qwen3-Embedding-0.6B Q8_0, ~639MB, CPU-only）
+  llama-cpp-emb:
+    profiles: ["ai-local"]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: opsmind-llama-cpp-emb
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    volumes:
+      - ${LLAMA_MODELS_DIR:-./models}:/models:ro
+    command:
+      - "--model"
+      - "/models/${OPSMIND_EMBEDDING_MODEL:-Qwen3-Embedding-0.6B-Q8_0}.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8082"
+      - "--n-gpu-layers"
+      - "0"
+      - "--threads"
+      - "1"
+      - "--ctx-size"
+      - "1024"
+      - "--batch-size"
+      - "128"
+      - "--embeddings"
+      - "--parallel"
+      - "1"
+    networks:
+      - opsmind
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  opsmind:
+    driver: bridge

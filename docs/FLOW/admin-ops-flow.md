@@ -1,6 +1,6 @@
 # 管理运维数据流 — 每个 API 端点
 
-> 涉及文件: `handler/dashboard.go`, `handler/audit.go`, `handler/config.go`, `handler/message.go`, `service/dashboard_service.go`, `service/audit_service.go`, `service/config_service.go`, `service/message_service.go`, `repository/audit_repo.go`, `repository/config_repo.go`, `repository/message_repo.go`, `model/audit.go`, `model/config.go`, `model/message.go`
+> 涉及文件: `domain/system/dashboard/handler.go`, `domain/system/audit/handler.go`, `domain/system/config/handler.go`, `domain/system/message/handler.go`, `domain/system/dashboard/service.go`, `domain/system/audit/service.go`, `domain/system/config/service.go`, `domain/system/message/service.go`, `domain/system/audit/repository.go`, `domain/system/config/repository.go`, `domain/system/message/repository.go`, `shared/model/audit.go`, `shared/model/system.go`, `shared/model/message.go`
 
 ---
 
@@ -9,8 +9,8 @@
 ### GET /api/v1/admin/dashboard/stats &emsp; 统计概览 &emsp; [PermDashboardRead]
 
 ```
-DashboardHandler.GetStats (handler/dashboard.go:30)
-  → DashboardService.GetStats (service/dashboard_service.go:42)
+DashboardHandler.GetStats (domain/system/dashboard/handler.go:30)
+  → DashboardService.GetStats (domain/system/dashboard/service.go:42)
     ├─ dashboardRepo.CountTodayTickets → SELECT COUNT(*) FROM tickets WHERE DATE(created_at)=CURRENT_DATE
     ├─ dashboardRepo.CountByStatus(1) → Pending
     ├─ dashboardRepo.CountByStatus(2) → Processing
@@ -27,8 +27,8 @@ DashboardHandler.GetStats (handler/dashboard.go:30)
 **输入** `?start_date=2026-06-15&end_date=2026-06-22&granularity=day`
 
 ```
-DashboardHandler.GetTrends (handler/dashboard.go:43)
-  → DashboardService.GetTrends (service/dashboard_service.go:141)
+DashboardHandler.GetTrends (domain/system/dashboard/handler.go:43)
+  → DashboardService.GetTrends (domain/system/dashboard/service.go:141)
     ├─ dashboardRepo.GetTicketTrends (repository 内部)
     │   → SELECT DATE(created_at), COUNT(*) FROM tickets WHERE DATE(created_at) BETWEEN ? AND ?
     │     GROUP BY DATE(created_at) ORDER BY 1
@@ -48,10 +48,10 @@ DashboardHandler.GetTrends (handler/dashboard.go:43)
 **输入** `?page=1&page_size=20&user_id=1&action=user.create&resource_type=user&start_date=2026-06-01&end_date=2026-06-22`
 
 ```
-AuditHandler.List (handler/audit.go:30)
+AuditHandler.List (domain/system/audit/handler.go:30)
   └─ parsePagination → page, pageSize
-  → AuditService.List (service/audit_service.go:24)
-    └─ AuditRepo.List (repository/audit_repo.go:55)
+  → AuditService.List (domain/system/audit/service.go:24)
+    └─ AuditRepo.List (domain/system/audit/repository.go:55)
         → SELECT COUNT(*) FROM audit_logs [WHERE 动态过滤]
         → SELECT * FROM audit_logs [WHERE ...] ORDER BY created_at DESC LIMIT ? OFFSET ?
 ```
@@ -65,10 +65,10 @@ AuditHandler.List (handler/audit.go:30)
 ### GET /api/v1/admin/configs/:key &emsp; 获取配置 &emsp; [PermSystemConfig]
 
 ```
-ConfigHandler.Get (handler/config.go:29)
-  → ConfigService.GetConfig (service/config_service.go:55)
+ConfigHandler.Get (domain/system/config/handler.go:29)
+  → ConfigService.GetConfig (domain/system/config/service.go:55)
     ├─ validConfigKeys[key] → 白名单校验 (app_name / ai.top_k / ai.threshold)
-    └─ ConfigRepo.GetByKey (repository/config_repo.go:27)
+    └─ ConfigRepo.GetByKey (domain/system/config/repository.go:27)
         → SELECT * FROM system_configs WHERE config_key=?
 ```
 
@@ -77,11 +77,11 @@ ConfigHandler.Get (handler/config.go:29)
 **输入** `{"value":"运维数字员工系统 v2"}`
 
 ```
-ConfigHandler.Update (handler/config.go:51)
-  → ConfigService.UpdateConfig (service/config_service.go:80)
+ConfigHandler.Update (domain/system/config/handler.go:51)
+  → ConfigService.UpdateConfig (domain/system/config/service.go:80)
     ├─ validConfigKeys[key] → 白名单校验 (app_name: string / ai.top_k: number / ai.threshold: number)
     ├─ configKeyMeta.ValueType → 值类型校验（string/number）
-    ├─ ConfigRepo.Upsert (repository/config_repo.go:37)
+    ├─ ConfigRepo.Upsert (domain/system/config/repository.go:37)
     │   → INSERT INTO system_configs (...) ON CONFLICT(config_key) DO UPDATE ...
     └─ AuditRepo.Create → "config.update"
 ```
@@ -95,10 +95,10 @@ ConfigHandler.Update (handler/config.go:51)
 **输入** `?page=1&page_size=20&is_read=false&type=ticket_supplement`
 
 ```
-MessageHandler.ListMessages (handler/message.go:35)
+MessageHandler.ListMessages (domain/system/message/handler.go:35)
   └─ parsePagination → page, pageSize
-  → MessageService.ListMessages (service/message_service.go:90)
-    └─ MessageRepo.ListByUser (repository/message_repo.go:34)
+  → MessageService.ListMessages (domain/system/message/service.go:90)
+    └─ MessageRepo.ListByUser (domain/system/message/repository.go:34)
         → SELECT COUNT(*) FROM messages WHERE user_id=?
         → SELECT * FROM messages WHERE user_id=? [AND is_read=?] [AND type=?]
           ORDER BY created_at DESC LIMIT ? OFFSET ?
@@ -107,9 +107,9 @@ MessageHandler.ListMessages (handler/message.go:35)
 ### PUT /api/v1/portal/messages/:id/read &emsp; 标记已读
 
 ```
-MessageHandler.MarkAsRead (handler/message.go:61)
-  → MessageService.MarkAsRead (service/message_service.go:101)
-    ├─ MessageRepo.MarkAsRead (repository/message_repo.go:59)
+MessageHandler.MarkAsRead (domain/system/message/handler.go:61)
+  → MessageService.MarkAsRead (domain/system/message/service.go:101)
+    ├─ MessageRepo.MarkAsRead (domain/system/message/repository.go:59)
     │   → UPDATE messages SET is_read=true WHERE id=? AND user_id=?
     └─ invalidateUnread → 清除 unread 缓存
 ```
@@ -117,12 +117,12 @@ MessageHandler.MarkAsRead (handler/message.go:61)
 ### GET /api/v1/portal/messages/unread-count &emsp; 未读计数
 
 ```
-MessageHandler.CountUnread (handler/message.go:82)
-  → MessageService.CountUnread (service/message_service.go:132)
-    ├─ getCachedUnread (service/message_service.go 内部)
+MessageHandler.CountUnread (domain/system/message/handler.go:82)
+  → MessageService.CountUnread (domain/system/message/service.go:132)
+    ├─ getCachedUnread (domain/system/message/service.go 内部)
     │   → unreadCountCache 内存 map, TTL 可配 → 命中直接返回
     └─ 未命中:
-        MessageRepo.CountUnread (repository/message_repo.go:71)
+        MessageRepo.CountUnread (domain/system/message/repository.go:71)
           → SELECT COUNT(*) FROM messages WHERE user_id=? AND is_read=false
         └─ setCachedUnread → 写入缓存
 ```

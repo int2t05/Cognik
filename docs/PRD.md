@@ -48,9 +48,10 @@ flowchart TD
     Client["浏览器"] --> Web["opsmind-web :3000<br/>Next.js standalone"]
     Web --> Server["opsmind-server :8080<br/>Go Gin"]
     Server --> Postgres[("postgres :5432<br/>pgvector + HNSW")]
-    Server --> Minio[("minio :9000/:9001<br/>S3-compatible")]
+    Server -.->|storage profile| Minio[("minio :9000/:9001<br/>S3-compatible<br/>可选，默认 Local")]
     Server -.->|ai-local profile| LlamaCpp["llama-cpp :8080/v1<br/>可选"]
 
+    style Minio stroke-dasharray: 5 5
     style LlamaCpp stroke-dasharray: 5 5
 ```
 

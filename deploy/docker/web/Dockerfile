@@ -1,5 +1,8 @@
 # Next.js standalone 模式 Dockerfile
 # 多阶段构建：依赖安装 → 构建 → 运行
+#
+# 构建（从项目根目录执行）：
+#   docker build -f deploy/docker/web/Dockerfile -t opsmind-web web/
 
 FROM node:22-alpine AS deps
 WORKDIR /app

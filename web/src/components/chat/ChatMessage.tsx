@@ -32,12 +32,7 @@ interface ChatMessageProps {
   feedbackLoading?: boolean;
 }
 
-/**
- * renderContent 将 AI 回复中的 [N] 引用标记渲染为可点击徽章。
- *
- * 为什么用正则拆分而非 marked/dangerouslySetInnerHTML：
- * 只需要处理 [N] 这一种模式，正则足够且无 XSS 风险。
- */
+/** renderContent 将 AI 回复中的 [N] 引用标记渲染为可点击徽章（正则拆分，无 XSS 风险）。 */
 function CitationBadge({ n, onClick }: { n: number; onClick: () => void }) {
   return (
     <Badge

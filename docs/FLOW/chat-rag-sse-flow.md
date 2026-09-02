@@ -1,6 +1,6 @@
 # Chat RAG SSE 数据流 — 每个 API 端点
 
-> 涉及文件: `handler/chat.go`, `service/chat_service.go`, `service/llm_service.go`, `repository/chat_repo.go`, `rag/pipeline.go`, `rag/query_rewrite.go`, `rag/multi_route.go`, `rag/hybrid.go`, `rag/bm25.go`, `rag/rerank.go`, `rag/embedder.go`, `rag/retriever.go`, `rag/types.go`, `adapter/llm_client.go`, `adapter/embedding_client.go`, `adapter/vector_store.go`, `model/chat.go`
+> 涉及文件: `domain/chat/session/handler.go`, `domain/chat/session/service.go`, `domain/chat/session/service.go`, `domain/chat/session/repository.go`, `rag/pipeline.go`, `rag/query_rewrite.go`, `rag/multi_route.go`, `rag/hybrid.go`, `rag/bm25.go`, `rag/rerank.go`, `rag/embedder.go`, `rag/retriever.go`, `rag/types.go`, `infra/adapter/llm_client.go`, `infra/adapter/embedding_client.go`, `infra/adapter/vector_store.go`, `shared/model/chat.go`
 
 ---
 
@@ -9,12 +9,12 @@
 **输入** `{"kb_id":1, "title":"VPN问题"}`
 
 ```
-1. ChatHandler.CreateChatSession (handler/chat.go:38)
+1. ChatHandler.CreateChatSession (domain/chat/session/handler.go:38)
 
-2. ChatService.CreateSession (service/chat_service.go:87)
-   ├─ KnowledgeRepo.FindKBByID (repository/knowledge_repo.go:33)
+2. ChatService.CreateSession (domain/chat/session/service.go:87)
+   ├─ KnowledgeRepo.FindKBByID (domain/knowledge/repository.go:33)
    │   → SELECT * FROM knowledge_bases WHERE id = ?
-   └─ ChatRepo.Create (repository/chat_repo.go:26)
+   └─ ChatRepo.Create (domain/chat/session/repository.go:26)
        → INSERT INTO chat_sessions (user_id, kb_id, question)
 ```
 
@@ -29,7 +29,7 @@
 ### 阶段 1 — Handler: SSE 连接建立
 
 ```
-ChatHandler.StreamChatMessage (handler/chat.go:162)
+ChatHandler.StreamChatMessage (domain/chat/session/handler.go:162)
   ├─ strconv.ParseInt(idStr) → sessionID
   ├─ c.ShouldBindJSON → request.SendMessageRequest
   ├─ getCurrentUserID → userID
@@ -42,27 +42,27 @@ ChatHandler.StreamChatMessage (handler/chat.go:162)
 ### 阶段 2 — ChatService: 会话校验 + 历史加载
 
 ```
-ChatService.StreamChat (service/chat_service.go:121)
-  ├─ ChatRepo.FindByID (repository/chat_repo.go:30)
+ChatService.StreamChat (domain/chat/session/service.go:121)
+  ├─ ChatRepo.FindByID (domain/chat/session/repository.go:30)
   │   → SELECT * FROM chat_sessions WHERE id = ?
   │   → session.UserID != userID → ErrForbidden
-  ├─ ChatRepo.FindMessagesBySession (repository/chat_repo.go:74)
+  ├─ ChatRepo.FindMessagesBySession (domain/chat/session/repository.go:74)
   │   → SELECT * FROM chat_messages WHERE session_id=? ORDER BY created_at ASC LIMIT 50
   │   → 失败 → slog.Warn 降级为单轮对话
   ├─ 构建 rag.RAGOptions{TopK,QueryRewrite,MultiRoute,Hybrid,Rerank,RouteCount,RerankCount,History}
-  └─ LLMService.StreamChat (service/llm_service.go:188) → 代理 goroutine:
+  └─ LLMService.StreamChat (domain/chat/session/service.go:188) → 代理 goroutine:
         done 事件时:
-          ├─ ChatRepo.UpdateSession (repository/chat_repo.go:82)
+          ├─ ChatRepo.UpdateSession (domain/chat/session/repository.go:82)
           │   → UPDATE chat_sessions SET answer,sources,confidence,duration_ms
-          └─ ChatRepo.CreateBatch (repository/chat_repo.go:67)
+          └─ ChatRepo.CreateBatch (domain/chat/session/repository.go:67)
               → INSERT INTO chat_messages (user + assistant)
 ```
 
 ### 阶段 3 — LLMService: RAG 管道 + LLM 生成
 
 ```
-LLMService.StreamChat (service/llm_service.go:188) — goroutine:
-  ├─ executeRAG (service/llm_service.go 内部)
+LLMService.StreamChat (domain/chat/session/service.go:188) — goroutine:
+  ├─ executeRAG (domain/chat/session/service.go 内部)
   │   └─ Pipeline.Execute (rag/pipeline.go:75)
   │       ├─ Step 1: QueryRewrite (rag/query_rewrite.go:26)
   │       │    LLM.ChatCompletion(t=0.1,max_tokens=256)
@@ -74,21 +74,21 @@ LLMService.StreamChat (service/llm_service.go:188) — goroutine:
   │       │    ├─ 混合模式: VectorRetriever.Retrieve (rag/retriever.go:29)
   │       │    │   ├─ Embedder.Embed (rag/embedder.go:57)
   │       │    │   │   → EmbeddingClient.CreateEmbeddings → POST /v1/embeddings
-  │       │    │   └─ PgvectorStore.CosineSearch (adapter/vector_store.go:179)
+  │       │    │   └─ PgvectorStore.CosineSearch (infra/adapter/vector_store.go:179)
   │       │    │       → SELECT ... ORDER BY embedding <=> $1::halfvec LIMIT N
   │       │    ├─ BM25Retriever.Retrieve (rag/bm25.go:292)
   │       │    │   → GseSegmenter.Segment → BM25 评分 (k1=1.5,b=0.75)
   │       │    └─ HybridFuse (rag/hybrid.go:35)
   │       │        → RRF 融合 (k=60) → 降序排列 → 去重
   │       └─ Step 4: Rerank (rag/rerank.go:38)
-  │            → Reranker.Rerank (adapter/rerank_client.go:209)
+  │            → Reranker.Rerank (infra/adapter/rerank_client.go:209)
   │            → cross-encoder 重排; 失败 → 保持原序
   │
-  ├─ buildMessages (service/llm_service.go 内部)
+  ├─ buildMessages (domain/chat/session/service.go 内部)
   │   → system prompt(DB热配置或默认) + 滑动窗口历史(10条) + 知识库上下文
   ├─ getModelConfig → model + maxTokens(DB > config.yaml > 默认)
   │
-  └─ llmClient.ChatCompletionStream (adapter/llm_client.go:158)
+  └─ llmClient.ChatCompletionStream (infra/adapter/llm_client.go:158)
       → POST /chat/completions (stream:true; 429/503 重试3次)
       → readSSEStream → 逐 token 读 SSE → ch ← StreamChunk{Content}
 ```
@@ -119,16 +119,16 @@ LLMService.StreamChat (service/llm_service.go:188) — goroutine:
 ### GET /api/v1/portal/chat-sessions &emsp; 会话列表
 
 ```
-ChatHandler.ListSessions → ChatService.ListSessions (service/chat_service.go:318)
+ChatHandler.ListSessions → ChatService.ListSessions (domain/chat/session/service.go:318)
   ├─ ChatRepo.ListByUser → SELECT ... WHERE user_id=? ORDER BY created_at DESC
-  └─ ChatRepo.CountMessagesBySessions (repository/chat_repo.go:104)
+  └─ ChatRepo.CountMessagesBySessions (domain/chat/session/repository.go:104)
       → SELECT session_id, COUNT(*) ... GROUP BY session_id (批量, 消除N+1)
 ```
 
 ### GET /api/v1/portal/chat-sessions/:id &emsp; 会话详情
 
 ```
-ChatHandler.GetChatDetail → ChatService.GetChatDetail (service/chat_service.go:257)
+ChatHandler.GetChatDetail → ChatService.GetChatDetail (domain/chat/session/service.go:257)
   ├─ ChatRepo.FindByID → 归属校验 (session.UserID != userID → 403)
   ├─ json.Unmarshal(session.Sources) → []SourceItem
   └─ ChatRepo.FindMessagesBySession → 最多 50 条, CanSubmitTicket=conf<0.6
@@ -137,7 +137,7 @@ ChatHandler.GetChatDetail → ChatService.GetChatDetail (service/chat_service.go
 ### POST /api/v1/portal/chat-sessions/:id/feedback &emsp; 反馈
 
 ```
-ChatHandler.SubmitFeedback → ChatService.SubmitFeedback (service/chat_service.go:231)
+ChatHandler.SubmitFeedback → ChatService.SubmitFeedback (domain/chat/session/service.go:231)
   ├─ feedback ∈ [1,2] (禁止0覆盖)
   └─ ChatRepo.UpdateFeedback → UPDATE chat_sessions SET feedback=?
 ```
@@ -145,6 +145,6 @@ ChatHandler.SubmitFeedback → ChatService.SubmitFeedback (service/chat_service.
 ### DELETE /api/v1/portal/chat-sessions/:id &emsp; 删除会话
 
 ```
-ChatHandler.DeleteSession → ChatService.DeleteSession (service/chat_service.go:354)
+ChatHandler.DeleteSession → ChatService.DeleteSession (domain/chat/session/service.go:354)
   └─ ChatRepo.DeleteSession → DELETE chat_messages + DELETE chat_sessions (级联, 含 user_id 校验)
 ```

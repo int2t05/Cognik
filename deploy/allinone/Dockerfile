@@ -1,9 +1,9 @@
 # OpsMind All-in-One 镜像
 # 合并：PostgreSQL+pgvector、MinIO、Go 后端、Next.js 前端
 #
-# 构建：
+# 构建（从项目根目录执行）：
 #   cd server && python models/rerank/download.py   # 下载重排序模型（仅需一次）
-#   docker build -t opsmind-allinone .
+#   docker build -f deploy/allinone/Dockerfile -t opsmind-allinone .
 #
 # 运行：
 #   docker run -d --name opsmind \
@@ -89,8 +89,8 @@ COPY --from=web-builder /app/.next/static/ /app/web/.next/static/
 COPY --from=web-builder /app/public/ /app/web/public/
 
 # ---- 配置与脚本 ----
-COPY docker/allinone/supervisord.conf /etc/supervisor/supervisord.conf
-COPY docker/allinone/entrypoint.sh /app/entrypoint.sh
+COPY deploy/allinone/supervisord.conf /etc/supervisor/supervisord.conf
+COPY deploy/allinone/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # ---- 运行时 ----

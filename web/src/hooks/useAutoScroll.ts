@@ -1,10 +1,4 @@
-/**
- * useAutoScroll — 对话区自动滚动到底部。
- * 规则：
- * - 首次加载后强制滚动到底部
- * - 流式生成中始终跟随
- * - 非流式时仅当用户已在底部附近（< 120px）才跟随
- */
+/** useAutoScroll 对话区自动滚动：首次强制到底，流式跟随，非流式仅底部附近跟随。 */
 
 import { useRef, useEffect, useCallback } from 'react';
 
