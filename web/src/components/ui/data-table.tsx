@@ -33,7 +33,7 @@ export function DataTable<TData extends RowData>({
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className="border-b border-[var(--color-hairline)]">
               {hg.headers.map((h) => (
-                <TableHead key={h.id} className="text-fine uppercase tracking-wide text-[var(--color-text-muted-48)] font-medium h-10 px-3">
+                <TableHead key={h.id} className="text-fine uppercase tracking-wide text-[var(--color-text-muted-48)] font-medium h-9 px-3">
                   {h.isPlaceholder ? null : <table.FlexRender header={h} />}
                 </TableHead>
               ))}
@@ -45,13 +45,13 @@ export function DataTable<TData extends RowData>({
             Array.from({ length: skeletonRows }).map((_, i) => (
               <TableRow key={i} className="border-b border-[var(--color-divider-soft)]">
                 {columns.map((_, j) => (
-                  <TableCell key={j} className="px-3 py-3"><Skeleton className="h-4 w-full" /></TableCell>
+                  <TableCell key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></TableCell>
                 ))}
               </TableRow>
             ))
           ) : table.getRowModel().rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center text-[var(--color-text-muted-48)] text-caption">
+              <TableCell colSpan={columns.length} className="h-20 text-center text-[var(--color-text-muted-48)] text-caption">
                 {emptyText}
               </TableCell>
             </TableRow>
@@ -59,7 +59,7 @@ export function DataTable<TData extends RowData>({
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id} className="border-b border-[var(--color-divider-soft)] hover:bg-[var(--color-pearl)]">
                 {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-3 py-3 text-callout text-[var(--color-ink)]">
+                  <TableCell key={cell.id} className="px-3 py-2.5 text-callout text-[var(--color-ink)]">
                     <table.FlexRender cell={cell} />
                   </TableCell>
                 ))}
