@@ -15,19 +15,17 @@ OpsMind 是面向企业 IT 运维的**私有部署 AI 数字员工系统**。核
 ```mermaid
 flowchart LR
     V1["V1.0<br/>固定管道 RAG<br/>(已交付)"] --> V11["V1.1<br/>存储简化"]
-    V11 --> V12["V1.2<br/>RAG 引擎增强"]
-    V12 --> V13["V1.3<br/>知识库与申告增强"]
-    V13 --> V14["V1.4<br/>Agent 基础设施"]
-    V14 --> V2["V2.0<br/>Agentic RAG<br/>(终点)"]
+    V11 --> V12["V1.2<br/>业务完善"]
+    V12 --> V13["V1.3<br/>Agent 基座"]
+    V13 --> V2["V2.0<br/>Agentic RAG<br/>(终点)"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
 |------|------|---------|------|
 | V1.0 | 固定管道 RAG | 7 步 RAG 管道 + 申告状态机 + 知识库 CRUD + RBAC + SSE 流式 | ✅ 已交付 |
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | 📋 规划中 |
-| V1.2 | RAG 引擎增强 | BM25 增量更新；文档处理重试+死信；流式解析 | 📋 规划中 |
-| V1.3 | 知识库与申告增强 | 上传配置化；DOCX 分割文档；看板增强；满意度评价 | 📋 规划中 |
-| V1.4 | Agent 基础设施 | Pi Agent 桥接；SearXNG 部署；Go Internal API；SSE 事件扩展 | 📋 规划中 |
+| V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | 📋 规划中 |
+| V1.3 | Agent 基座 | Pi Agent 桥接；SearXNG 部署；Go Internal API；SSE 事件扩展 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；网络搜索+深度搜索；Agent 事件 UI | 📋 规划中 |
 
 ---
@@ -110,7 +108,7 @@ flowchart LR
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| `LocalFSClient` | 新增本地 FS 适配器，原子写（temp+rename），UUID 文件名 | `StorageClient` 接口不变；MinIO 数据迁移脚本可用 |
+| `LocalFSClient` | 本地 FS 适配器，原子写（temp+rename），UUID 文件名 | `StorageClient` 接口不变；MinIO 数据迁移脚本可用 |
 | 后端代理下载 | `GET /api/storage/:bucket/:key` 替代 Presigned URL | 认证后 `http.ServeFile`；权限校验通过 |
 | Docker 简化 | 移除 minio 服务，加 `storage_data` volume | `docker compose up` 仅 3 必须服务 |
 | 配置统一 | `storage.type` (local/minio) + `storage.root_path` | 切换配置即可换后端，无需改代码 |
@@ -126,108 +124,63 @@ flowchart LR
 
 ---
 
-## 5. V1.2 — RAG 引擎增强
+## 5. V1.2 — 业务完善
 
-**目标**：提升 RAG 管道的可靠性、性能和检索质量。
+**目标**：完善知识库、申告、看板等业务功能与前端体验，为 Agent 基座夯实业务基础。
 
-### 5.1 BM25 索引增量更新
-
-当前每次刷新全量重建 BM25 索引，大知识库耗时数秒。
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 增量索引 | 文章发布/更新时增量更新 BM25 倒排索引，非全量重建 | 10 万 chunk KB 增量更新 < 500ms |
-| 并发安全 | 索引读写不阻塞检索请求 | RWMutex；检索不等待索引写 |
-
-### 5.2 文档处理重试与死信
-
-当前 embedding API 瞬时失败直接中止整个文档处理。
-
-```mermaid
-flowchart TD
-    P["parse"] --> C["chunk"]
-    C --> E["embed (batch)"]
-    E -->|"瞬时失败"| R{"重试 ≤3 次?"}
-    R -->|"是"| E
-    R -->|"否"| DL["死信队列<br/>process_status=failed"]
-    DL -->|"手动重试"| P
-    E -->|"成功"| I["index → pgvector"]
-```
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 阶段内重试 | embed/chunk 阶段瞬时失败自动重试（指数退避，max 3） | 429/503 自动重试；非瞬时错误跳过 |
-| 死信队列 | 超过重试次数标记 `failed`，记录 `process_error` | 前端显示失败原因；支持手动重试 |
-| 重试不重复 | 重试基于 chunk hash 跳过已成功的 chunk | 增量重试，非从头开始 |
-
-### 5.3 流式文档解析
-
-当前 PDF/DOCX 全量读入内存（`io.ReadAll`），大文件 OOM 风险。
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| PDF 流式解析 | 逐页解析，不全量读入 | 50MB PDF 内存峰值 < 20MB |
-| DOCX 流式解析 | 流式读取 XML，不全量 `io.ReadAll` | 50MB DOCX 内存峰值 < 20MB |
-| DOCX 分割文档 | 支持 `word/document2.xml` 分割文档 | 多部分 DOCX 正确解析 |
-
-### 5.4 RAG 历史截断优化
-
-当前按消息条数截断，改为按 token 数。
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| Token 计数 | 使用 tokenizer 精确计数 | 超出 `max_history_tokens` 时从最早开始截断 |
-| 配置化 | `ai.max_history_tokens` 替代 `ai.max_history_messages` | 兼容旧配置 |
-
----
-
-## 6. V1.3 — 知识库与申告增强
-
-**目标**：完善业务功能，提升用户体验和闭环能力。
-
-### 6.1 知识库上传增强
+### 5.1 知识库上传增强
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
 | 上传上限配置化 | 50MB 硬编码改为按 KB 粒度配置 | `kb.max_upload_size` 可配置 |
-| 批量上传 | 支持多文件批量上传 | 前端批量选择；后端并发处理 |
-| 上传进度 | 前端显示上传进度条 | 实时进度反馈 |
-| 文件类型校验 | 前端+后端双重校验文件类型 | 非 PDF/DOCX/MD/TXT 拒绝 |
+| 批量上传 | 支持多文件拖拽批量上传 | 前端 react-dropzone 拖拽；后端并发处理 |
+| 上传进度 | 前端显示上传进度条 | XMLHttpRequest upload progress 实时反馈 |
+| 文件类型校验 | 前端+后端双重校验文件类型 | 非 PDF/DOCX/XLSX/PPTX/MD/TXT 拒绝 |
 
-### 6.2 申告管理增强
+### 5.2 申告管理增强
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| 满意度评价 | 申告解决后用户评价（满意/不满意+反馈） | 状态机增加评价环节；看板统计满意度 |
-| 申告标签 | 申告支持标签分类（复用 Tags 字段） | 前端标签选择；按标签筛选 |
+| 申告标签 | 申告支持标签分类（复用 Tags 字段） | TagsInput 组件；回车/逗号/粘贴自动分割 |
+| 批量操作 | 申告批量删除/关闭 | 多选 + 批量操作确认 |
 | 处理时限 | 申告可设处理时限，超时预警 | 配置时限；超时站内消息通知 |
-| 批量操作 | 申告批量关闭/转派 | 多选+批量操作确认 |
 
-### 6.3 看板增强
+### 5.3 看板增强
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
 | 自定义日期范围 | 看板支持自定义起止日期 | 日期选择器；趋势图按范围刷新 |
-| 数据导出 | 看板数据 CSV 导出 | 导出当前筛选条件下的数据 |
-| 满意度统计 | 看板新增满意度统计卡片 | 满意率趋势；按运维人员分组 |
+| 数据导出 | 看板数据 CSV 导出 | PapaParse 生成 CSV + BOM 头防 Excel 乱码 |
 | `granularity` 生效 | 趋势查询 `granularity` 参数实际生效 | day/week 切换正常 |
 
-### 6.4 前端体验优化
+### 5.4 前端体验优化
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| 代码分割 | `next/dynamic` 按路由懒加载 | 首屏加载体积减少 50%+ |
-| 虚拟列表高度 | 变长消息 `estimateSize` 动态测量 | 滚动位置准确 |
-| 表单 required 标记 | 前端表单必填字段标记 | 视觉标识 + 校验提示 |
-| 搜索无结果提示 | 用户/申告搜索无结果时提示 | 空状态 UI |
+| 代码分割 | `next/dynamic` 按路由懒加载重组件 | TrendChart / ChatPipeline / Markdown 组件按需加载 |
+| 虚拟列表高度 | 变长消息 `estimateSize` 动态测量 | 按内容长度估算；滚动位置准确 |
+| 表单 required 标记 | 前端表单必填字段标记 `*` | Field 组件 required prop 全覆盖 |
+| 搜索空状态 | 列表搜索无结果显示 EmptyState | 4 个列表页空状态统一 |
+| 组件一致性 | 全项目统一使用设计系统组件 | raw `<label>`/`<a>`/`<h1>` 替换为 Field/Link/PageTitle |
+
+### 5.5 Markdown 富文本编辑
+
+| 项 | 说明 | 验收标准 |
+|----|------|---------|
+| MarkdownViewer | react-markdown + remark-gfm + remark-math + rehype-katex | 标题/列表/表格/代码块/公式正确渲染 |
+| 代码高亮 | Shiki 异步高亮，主题感知 | 12+ 语言高亮；dark/light 自动切换 |
+| Mermaid 图表 | ```mermaid 代码块渲染为 SVG | flowchart/sequence/class 等正确渲染；主题感知 |
+| MarkdownEditor | @uiw/react-md-editor 分屏编辑 | 工具栏操作 + 实时预览 |
+| 图片粘贴上传 | 粘贴/拖拽图片自动上传 + 插入 Markdown | 调用存储上传 API |
+| 模式切换确认 | 未保存内容弹确认框 | diff 检测 + ConfirmDialog |
 
 ---
 
-## 7. V1.4 — Agent 基础设施
+## 6. V1.3 — Agent 基座
 
 **目标**：为 V2.0 Agentic RAG 铺设基础设施，不改变用户可见行为。
 
-### 7.1 Pi Agent 桥接层
+### 6.1 Pi Agent 桥接层
 
 ```mermaid
 flowchart TB
@@ -256,7 +209,7 @@ flowchart TB
 | Pi Provider 配置 | Pi `--provider` / `--model` 参数从 DB 读取 | 配置热替换生效 |
 | 兜底方案验证 | 验证自建 Go Agent Loop（~500 行）可行性 | RPC 不可用时可回退 |
 
-### 7.2 SearXNG 自托管搜索
+### 6.2 SearXNG 自托管搜索
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
@@ -265,7 +218,7 @@ flowchart TB
 | Ops 域配置 | 预配置技术搜索引擎优先 | StackOverflow/GitHub/厂商域名 |
 | 私有搜索验证 | 查询不出域，无 API 密钥 | 日志确认无第三方数据发送 |
 
-### 7.3 Go Internal API
+### 6.3 Go Internal API
 
 供 Pi Agent 工具回调的内部端点，RBAC 内部令牌认证。
 
@@ -276,9 +229,9 @@ flowchart TB
 | `/api/v1/internal/sql` | POST | 受限 SQL 查询 | 白名单表；只读；行数限制 |
 | `/api/v1/internal/escalate` | POST | 触发申告升级 | 创建申告 + 通知 |
 
-### 7.4 SSE 事件扩展
+### 6.4 SSE 事件扩展
 
-当前 SSE 事件：`step` / `chunks` / `token` / `done` / `error`。V1.4 预留 Agent 事件类型。
+当前 SSE 事件：`step` / `chunks` / `token` / `done` / `error`。V1.3 预留 Agent 事件类型。
 
 | 新增事件类型 | 说明 |
 |-------------|------|
@@ -288,15 +241,15 @@ flowchart TB
 | `tool_call` | 工具调用详情（V2.0 启用） |
 | `tool_result` | 工具返回摘要（V2.0 启用） |
 
-V1.4 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染（V2.0 启用）。
+V1.3 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染（V2.0 启用）。
 
 ---
 
-## 8. V2.0 — Agentic RAG（终点）
+## 7. V2.0 — Agentic RAG（终点）
 
 **目标**：Agent ReAct 循环替代固定 7 步管道，实现自主检索决策、网络搜索、多步推理。
 
-### 8.1 核心变化
+### 7.1 核心变化
 
 V1 的 RAG 是**固定 7 步线性管道**，V2.0 引入 **Agent 基座**让 AI 自主决策。
 
@@ -320,7 +273,7 @@ flowchart TD
     V1 -->|演进| V2
 ```
 
-### 8.2 Agent 基座：Pi Agent
+### 7.2 Agent 基座：Pi Agent
 
 | 维度 | Pi (earendil-works/pi) |
 |------|----------------------|
@@ -329,15 +282,15 @@ flowchart TD
 | 多 Provider | 30+（llama.cpp / DeepSeek / OpenAI / Anthropic） |
 | RAG 能力 | 无内置（OpsMind Go 引擎互补作为工具后端） |
 
-**桥接**：V1.4 已铺设 RPC 子进程桥接层，V2.0 切换为 HTTP Sidecar（`createAgentSession` SDK）用于生产。
+**桥接**：V1.3 已铺设 RPC 子进程桥接层，V2.0 切换为 HTTP Sidecar（`createAgentSession` SDK）用于生产。
 
-### 8.3 网络搜索与深度搜索
+### 7.3 网络搜索与深度搜索
 
 ```mermaid
 flowchart LR
     AG["Pi Agent"] -->|"快速查询"| EXA["Exa (高亮模式)"]
     AG -->|"深度研究"| FC["Firecrawl Agent"]
-    AG -->|"私有搜索"| SX["SearXNG (自托管, V1.4 部署)"]
+    AG -->|"私有搜索"| SX["SearXNG (自托管, V1.3 部署)"]
     AG -->|"页面提取"| WF["WebFetch / firecrawl_scrape"]
 ```
 
@@ -345,10 +298,10 @@ flowchart LR
 |------|------|------|
 | 快速网络搜索 | Exa MCP / Firecrawl | 高亮模式 10x token 效率 |
 | 深度研究 | `firecrawl_agent` / GPT-Researcher MCP | 多轮迭代搜索→阅读→综合 |
-| 自托管搜索 | SearXNG + MCP（V1.4 部署） | 聚合 130+ 引擎，无 API 密钥，私有部署 |
+| 自托管搜索 | SearXNG + MCP（V1.3 部署） | 聚合 130+ 引擎，无 API 密钥，私有部署 |
 | Ops 域过滤 | SearXNG `it`/`science` 类别 | 优先 StackOverflow / GitHub / 厂商域名 |
 
-### 8.4 Agent 场景
+### 7.4 Agent 场景
 
 | 场景 | Agent 模式 | 工具 |
 |------|-----------|------|
@@ -356,22 +309,22 @@ flowchart LR
 | 根因分析 | Plan-then-Execute | 日志查询、拓扑探索、指标查询、知识检索 |
 | 自助修复 | ReAct + Tool Use | API 调用、脚本执行（需人工审批门） |
 
-### 8.5 目标架构
+### 7.5 目标架构
 
 ```mermaid
 flowchart TB
     FE["Frontend (Next.js)<br/>Agent 事件 UI"]
     FE -->|"SSE"| GO["Go Backend (Gin)<br/>Auth/RBAC + Ticket + Knowledge"]
     GO --> RAG["RAG Engine (保留)<br/>BM25 + pgvector + RRF + rerank"]
-    GO --> IA["Internal API (V1.4 铺设)<br/>/api/v1/internal/rag/search<br/>/api/v1/internal/tickets<br/>/api/v1/internal/sql"]
+    GO --> IA["Internal API (V1.3 铺设)<br/>/api/v1/internal/rag/search<br/>/api/v1/internal/tickets<br/>/api/v1/internal/sql"]
     IA -->|"HTTP 回调"| PI["Pi Agent (Node.js)<br/>ReAct 循环 + Tool Registry"]
-    PI -->|"web_search"| SX["SearXNG (V1.4 部署)"]
+    PI -->|"web_search"| SX["SearXNG (V1.3 部署)"]
     PI -->|"LLM"| LLM["llama.cpp / DeepSeek / OpenAI"]
     PI -->|"SSE 事件"| GO
     RAG --> PG[("PostgreSQL + pgvector")]
 ```
 
-### 8.6 废弃与新增
+### 7.6 废弃与新增
 
 | 废弃（V1） | 替代（V2.0） |
 |-----------|------------|
@@ -387,18 +340,18 @@ flowchart TB
 | RAG 引擎（BM25 + vector + RRF + rerank） | Pi 无 RAG，Go 引擎作为工具后端 |
 | pgvector + PostgreSQL | 向量存储 + 业务数据不变 |
 | Document Processor | 文档处理管道不变 |
-| SSE 流式 + GenerationHub | 扩展事件类型（V1.4 预留） |
+| SSE 流式 + GenerationHub | 扩展事件类型（V1.3 预留） |
 | Auth/RBAC/Ticket/Knowledge | 领域逻辑不变 |
 
 | 新增 | 说明 |
 |------|------|
-| Pi HTTP Sidecar | 生产级 Agent 运行时（V1.4 RPC 升级） |
+| Pi HTTP Sidecar | 生产级 Agent 运行时（V1.3 RPC 升级） |
 | Pi Extension（TS） | 自定义 tools：search_kb / ticket_lookup / sql_query / web_search |
 | 前端 Agent 事件 UI | thinking/action/observation/tool_call/tool_result 渲染 |
 | 人工审批门（HITL） | 敏感操作（自助修复）必须人工确认 |
 | 事件知识自进化 | 已解决申告生成知识条目 → 嵌入 pgvector → RAG 检索历史经验 |
 
-### 8.7 验收标准
+### 7.7 验收标准
 
 | 验收项 | 标准 |
 |--------|------|
@@ -411,7 +364,7 @@ flowchart TB
 
 ---
 
-## 9. 里程碑
+## 8. 里程碑
 
 ```mermaid
 gantt
@@ -426,23 +379,18 @@ gantt
     MinIO→本地 FS        :v11a, 2026-09-15, 14d
     配置体系统一          :v11b, 2026-09-15, 7d
 
-    section V1.2 RAG 引擎增强
-    BM25 增量更新        :v12a, 2026-10-01, 21d
-    文档处理重试+死信     :v12b, 2026-10-01, 14d
-    流式文档解析          :v12c, 2026-10-15, 14d
-    RAG 历史截断优化      :v12d, 2026-10-15, 7d
+    section V1.2 业务完善
+    知识库上传增强        :v12a, 2026-10-01, 14d
+    申告管理增强          :v12b, 2026-10-01, 14d
+    看板增强+导出         :v12c, 2026-10-15, 14d
+    Markdown 富文本       :v12d, 2026-10-15, 21d
+    前端体验优化          :v12e, 2026-11-01, 14d
 
-    section V1.3 知识库与申告增强
-    上传配置化+批量       :v13a, 2026-11-01, 14d
-    申告满意度评价        :v13b, 2026-11-01, 14d
-    看板增强+导出         :v13c, 2026-11-15, 14d
-    前端体验优化          :v13d, 2026-11-15, 14d
-
-    section V1.4 Agent 基础设施
-    Pi Agent 桥接层      :v14a, 2026-12-01, 21d
-    SearXNG 部署+MCP     :v14b, 2026-12-01, 14d
-    Go Internal API      :v14c, 2026-12-15, 14d
-    SSE 事件扩展          :v14d, 2026-12-15, 7d
+    section V1.3 Agent 基座
+    Pi Agent 桥接层      :v13a, 2026-12-01, 21d
+    SearXNG 部署+MCP     :v13b, 2026-12-01, 14d
+    Go Internal API      :v13c, 2026-12-15, 14d
+    SSE 事件扩展          :v13d, 2026-12-15, 7d
 
     section V2.0 Agentic RAG
     Pi HTTP Sidecar      :v20a, 2027-01-15, 14d
@@ -454,7 +402,7 @@ gantt
 
 ---
 
-## 10. 技术决策记录
+## 9. 技术决策记录
 
 | 决策 | 选择 | 依据 |
 |------|------|------|
@@ -466,12 +414,12 @@ gantt
 | 网络搜索 | SearXNG（自托管）+ Exa/Firecrawl | 私有部署无 API 密钥；深度研究用 Firecrawl Agent |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
 | LLM Provider | 多 Provider（llama.cpp/DeepSeek/OpenAI） | Pi 管理 Provider 路由，保留本地部署能力 |
-| 桥接策略 | V1.4 RPC 子进程 → V2.0 HTTP Sidecar | MVP 用 RPC 快速验证，生产用 Sidecar 稳定 |
-| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.4 |
+| 桥接策略 | V1.3 RPC 子进程 → V2.0 HTTP Sidecar | MVP 用 RPC 快速验证，生产用 Sidecar 稳定 |
+| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.3 |
 
 ---
 
-## 11. 关联文档
+## 10. 关联文档
 
 | 文档 | 用途 |
 |------|------|
