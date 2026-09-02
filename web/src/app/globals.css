@@ -11,39 +11,46 @@
   --font-sans: system-ui, -apple-system, 'Segoe UI', 'Inter Variable', sans-serif;
   --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
 
+  /* 字号 — caption 提到 12px（三家下限） */
   --font-size-hero: 1.75rem;
   --font-size-display: 1.5rem;
-  --font-size-display-md: 1.25rem;
-  --font-size-headline: 1.0625rem;
-  --font-size-title: 0.9375rem;
-  --font-size-body: 0.8125rem;
-  --font-size-callout: 0.75rem;
-  --font-size-caption: 0.6875rem;
-  --font-size-fine: 0.625rem;
+  --font-size-display-md: 1.125rem;    /* 18px，原 20px 降，对齐 Linear */
+  --font-size-headline: 1rem;           /* 16px，原 17px 降 */
+  --font-size-title: 0.875rem;         /* 14px，原 15px 降 */
+  --font-size-body: 0.8125rem;         /* 13px，保持 */
+  --font-size-callout: 0.75rem;        /* 12px，保持 */
+  --font-size-caption: 0.75rem;        /* 12px，原 11px 提升 */
+  --font-size-fine: 0.625rem;          /* 10px，仅 badge */
 
-  --font-size-metric: 1.25rem;
+  --font-size-metric: 1.5rem;          /* 24px，原 20px 升，对齐 Vercel stat */
 
   --line-height-hero: 1.2;
   --line-height-display: 1.25;
   --line-height-display-md: 1.3;
-  --line-height-headline: 1.35;
+  --line-height-headline: 1.4;
   --line-height-lead-airy: 1.4;
   --line-height-title: 1.4;
   --line-height-body: 1.5;
   --line-height-callout: 1.5;
   --line-height-caption: 1.4;
 
+  /* 间距 — 对齐 4px 偶数节奏 */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-md-plus: 16px;
-  --spacing-lg: 20px;
-  --spacing-xl: 24px;
-  --spacing-xxl: 32px;
+  --spacing-lg: 24px;     /* 原 20px */
+  --spacing-xl: 32px;     /* 原 24px */
+  --spacing-xxl: 48px;    /* 原 32px */
 
   --max-w-wide: 1280px;
   --max-w-content: 768px;
   --max-w-form: 480px;
+
+  /* 结构性 token — 对齐 Linear/GitHub */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 56px;
+  --header-height: 44px;
 }
 
 /* ===== shadcn 语义色 → Tailwind utility 暴露 =====
@@ -125,7 +132,7 @@
   --focus-ring: 0 0 0 2px rgba(99, 99, 241, 0.2);
 
   /* 布局尺寸 */
-  --header-height: 48px;
+  --header-height: 44px;
 
   /* 圆角 — 中性小圆角 */
   --radius-sm: 6px;
@@ -167,6 +174,9 @@
   --border: var(--color-hairline);
   --input: var(--color-hairline);
   --ring: var(--color-accent-focus);
+
+  /* shadow-as-border — Vercel 技法，卡片用 */
+  --shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 /* ===== 暗色主题 ===== */

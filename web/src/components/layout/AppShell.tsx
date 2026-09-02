@@ -39,8 +39,8 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const COLLAPSED = 68;
-const EXPANDED = 220;
+const COLLAPSED = 56;
+const EXPANDED = 240;
 
 /** 顶层 active 逻辑：精确匹配或前缀（但若有更精确的 sibling 匹配则不激活） */
 function isActive(itemPath: string, pathname: string, siblings: NavItem[]): boolean {
@@ -183,7 +183,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
             {subbar}
           </div>
         )}
-        <main className={`flex-1 min-h-0 w-full overflow-hidden ${padded ? 'max-w-wide mx-auto' : ''}`}>
+        <main className={`flex-1 min-h-0 w-full overflow-hidden ${padded ? 'p-6' : ''}`}>
           <SectionErrorBoundary>{children}</SectionErrorBoundary>
         </main>
       </div>
