@@ -6,13 +6,11 @@ import { listAllTickets, batchDeleteTickets } from '@/lib/api/ticket';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
 import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, FileText } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
@@ -31,15 +29,9 @@ const TICKET_FILTERS: FilterOption<number>[] = [
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState(-1);
-  const [keyword, setKeyword] = useState('');
-  const debouncedKeyword = useDebounce(keyword, 300);
   const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}`, () => listAllTickets(page, status));
 
-  const items = (data?.items || []).filter((t: { title?: string; ticket_no?: string; submitter_name?: string }) => {
-    if (!debouncedKeyword) return true;
-    const kw = debouncedKeyword.toLowerCase();
-    return (t.title?.toLowerCase().includes(kw)) || (t.ticket_no?.toLowerCase().includes(kw)) || (t.submitter_name?.toLowerCase().includes(kw));
-  });
+  const items = data?.items || [];
 
   const batch = useBatchSelection({
     items,
@@ -57,7 +49,6 @@ export default function AdminTicketListPage() {
       </div>
       {error && <InlineError />}
       <div className="mb-4 flex gap-2 items-center flex-wrap">
-        <Input className="rounded-[var(--radius-pill)] min-w-[100px]" placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
@@ -65,7 +56,7 @@ export default function AdminTicketListPage() {
         <EmptyState
           icon={<FileText size={40} />}
           title="暂无申告"
-          description={debouncedKeyword ? '未找到匹配的申告' : '系统中暂无申告记录'}
+          description="系统中暂无申告记录"
         />
       ) : (
         <>

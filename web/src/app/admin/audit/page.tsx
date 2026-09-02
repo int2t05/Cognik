@@ -4,23 +4,19 @@ import { useState } from 'react';
 import { getAuditLogs, batchDeleteAuditLogs } from '@/lib/api/audit';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Input } from '@/components/ui/input';
-import { Field } from '@/components/ui/form-field';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { ScrollText } from 'lucide-react';
 
 export default function AuditLogPage() {
-  const [params, setParams] = useState<Record<string, string | number>>({ page: 1, page_size: 10 });
-  const debouncedParams = useDebounce(params, 300);
-  const { data, error, mutate } = useSWR(`audit-${JSON.stringify(debouncedParams)}`, () => getAuditLogs(debouncedParams));
+  const [page, setPage] = useState(1);
+  const { data, error, mutate } = useSWR(`audit-${page}`, () => getAuditLogs({ page, page_size: 10 }));
 
   const items = data?.items || [];
   const batch = useBatchSelection({
@@ -30,21 +26,11 @@ export default function AuditLogPage() {
     onError: (msg) => toast.error(msg),
   });
 
-  const updateParam = (k: string, v: string) => setParams((prev) => ({ ...prev, [k]: v, page: 1, page_size: 10 }));
-  const changePage = (p: number) => setParams((prev) => ({ ...prev, page: p }));
-
   return (
     <div>
       <div className="flex items-center gap-2 mb-5">
         <PageTitle>审计日志</PageTitle>
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
-      </div>
-      <div className="flex gap-2 flex-wrap items-end">
-        <Field label="操作人"><Input placeholder="ID" type="number" className="h-8 w-24" onChange={(e) => updateParam('operator_id', e.target.value)} /></Field>
-        <Field label="操作"><Input placeholder="类型" className="h-8 w-28" onChange={(e) => updateParam('action', e.target.value)} /></Field>
-        <Field label="对象"><Input placeholder="类型" className="h-8 w-24" onChange={(e) => updateParam('target_type', e.target.value)} /></Field>
-        <Field label="开始"><Input type="date" className="h-8 w-32" onChange={(e) => updateParam('date_from', e.target.value)} /></Field>
-        <Field label="结束"><Input type="date" className="h-8 w-32" onChange={(e) => updateParam('date_to', e.target.value)} /></Field>
       </div>
       {error && <InlineError />}
       {!error && data?.items?.length === 0 ? (
@@ -62,7 +48,7 @@ export default function AuditLogPage() {
             ]}
             data={items} loading={!data && !error}
           />
-          {data && <DataTablePagination page={Number(params.page)} pageSize={10} total={data.total} onChange={changePage} />}
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={setPage} />}
         </>
       )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
