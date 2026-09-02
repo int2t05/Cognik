@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"

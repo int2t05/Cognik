@@ -16,6 +16,7 @@ import (
 
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
+	"opsmind/internal/parser"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/rag"
@@ -50,8 +51,8 @@ func init() {
 func setupKnowledgeHandler(t *testing.T) *knowledge.KnowledgeHandler {
 	t.Helper()
 	repo := knowledge.NewKnowledgeRepo(knowledgeHandlerDB)
-	// 使用真实 DocParser（纯 Go）和 Chunker（纯 Go），无需外部依赖
-	docParser := rag.NewDocParser()
+	// 使用真实 Parser（纯 Go）和 Chunker（纯 Go），无需外部依赖
+	docParser := parser.NewParser()
 	chunker := rag.NewChunker(1000, 200)
 	svc := knowledge.NewKnowledgeService(repo, knowledge.WithChunker(chunker), knowledge.WithDocParser(docParser))
 	return knowledge.NewKnowledgeHandler(svc)

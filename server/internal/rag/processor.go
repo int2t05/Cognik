@@ -24,6 +24,7 @@ import (
 
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
+	"opsmind/internal/parser"
 )
 
 // defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。
@@ -58,7 +59,7 @@ type ProcessTask struct {
 
 // Processor 管理文档处理的 goroutine pool。
 type Processor struct {
-	parser   DocumentParser
+	parser   *parser.Parser
 	chunker  TextChunker
 	embedder TextEmbedder
 	store    adapter.VectorStore
@@ -78,7 +79,7 @@ type Processor struct {
 //
 // storage 可以为 nil（MinIO 不可用时自动降级到 Content 模式）。
 // poolSize 为 worker goroutine 数量，建议 2-4。
-func NewProcessor(parser DocumentParser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
+func NewProcessor(parser *parser.Parser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
 		poolSize = 2
 	}
@@ -213,7 +214,11 @@ func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (strin
 	if fileType == "" {
 		fileType = "md"
 	}
-	return p.parser.Parse(reader, fileType)
+	result, err := p.parser.Parse(reader, fileType)
+	if err != nil {
+		return "", err
+	}
+	return result.Markdown, nil
 }
 
 // loadOldEmbeddings 查询旧分块 snapshot，构建 hash→向量映射以复用未变 chunk。

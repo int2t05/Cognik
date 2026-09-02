@@ -17,9 +17,9 @@ const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899a
 // setupLLMConfigService 使用真实 DB 创建 LLMConfigService 实例。
 func setupLLMConfigService(t *testing.T) *llmconfig.LLMConfigService {
 	t.Helper()
-	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
-	repo := llmconfig.NewLlmConfigRepo(knowledgeSvcDB)
-	svc, err := llmconfig.NewLLMConfigService(repo, knowledgeSvcDB, nil)
+	chatSvcDB.Exec("DELETE FROM llm_configs")
+	repo := llmconfig.NewLlmConfigRepo(chatSvcDB)
+	svc, err := llmconfig.NewLLMConfigService(repo, chatSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 	}
 
 	var rawBefore string
-	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawBefore).Error; err != nil {
+	if err := chatSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawBefore).Error; err != nil {
 		t.Fatalf("查询原始 api_key 失败: %v", err)
 	}
 	if !strings.HasPrefix(rawBefore, "cipher:") {
@@ -223,7 +223,7 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 	}
 
 	var rawAfter string
-	if err := knowledgeSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawAfter).Error; err != nil {
+	if err := chatSvcDB.Raw("SELECT api_key FROM llm_configs WHERE id = ?", created.ID).Scan(&rawAfter).Error; err != nil {
 		t.Fatalf("查询更新后原始 api_key 失败: %v", err)
 	}
 	if !strings.HasPrefix(rawAfter, "cipher:") {

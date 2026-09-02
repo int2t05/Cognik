@@ -108,12 +108,12 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 
 	// Service 层
 	authSvc := auth.NewAuthService(userRepo, menuRepo, db, jwtCfg)
-	userSvc := user.NewUserService(userRepo, audit.NewAuditService(auditRepo), db, userCache)
-	roleSvc := user.NewRoleService(roleRepo, menuRepo, audit.NewAuditService(auditRepo), db)
+	userSvc := account.NewUserService(userRepo, audit.NewAuditService(auditRepo), db, userCache)
+	roleSvc := role.NewRoleService(roleRepo, menuRepo, audit.NewAuditService(auditRepo), db)
 	messageSvc := message.NewMessageService(messageRepo)
 	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
 	dashboardSvc := dashboard.NewDashboardService(dashboardRepo)
-	configSvc := system.NewConfigService(configRepo, audit.NewAuditService(auditRepo))
+	configSvc := sysconfig.NewConfigService(configRepo, audit.NewAuditService(auditRepo))
 	auditSvc := audit.NewAuditService(auditRepo)
 
 	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, audit.NewAuditService(auditRepo))
@@ -123,7 +123,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(audit.NewAuditService(auditRepo)))
 	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
 
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
+	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
 		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
 	}, nil, nil, nil)
 

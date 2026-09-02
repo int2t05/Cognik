@@ -95,7 +95,7 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 	// 组装依赖链
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
 	chatRepo := session.NewChatRepo(db)
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
+	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
 		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
 	}, nil, nil, nil)
 	chatH := session.NewChatHandler(chatSvc)

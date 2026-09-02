@@ -42,7 +42,7 @@ func setupUserHandler(t *testing.T) (*account.UserHandler, *model.User) {
 	t.Helper()
 	repo := account.NewUserRepo(userHandlerDB)
 	auditRepo := audit.NewAuditRepo(userHandlerDB)
-	svc := user.NewUserService(repo, audit.NewAuditService(auditRepo), userHandlerDB, nil)
+	svc := account.NewUserService(repo, audit.NewAuditService(auditRepo), userHandlerDB, nil)
 	h := account.NewUserHandler(svc)
 
 	// 清理同用户名的旧数据
