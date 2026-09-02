@@ -2,6 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
@@ -24,7 +25,8 @@ import { UserPlus, Pencil, Lock, Unlock, Loader2, Users } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
-  const { data, error, mutate } = useSWR(`users-${page}`, () => getUserList(page));
+  const [keyword, setKeyword] = useState('');
+  const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword));
   const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
   const items = data?.items || [];
 
@@ -90,12 +92,15 @@ export default function UserListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
-          <PageTitle>用户管理</PageTitle>
+          <PageTitle className="mb-0">用户管理</PageTitle>
           <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
         <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
       </div>
       {error && <InlineError />}
+      <div className="mb-4">
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索用户名、姓名…" />
+      </div>
       {isEmpty ? (
         <EmptyState
           icon={<Users size={40} />}
@@ -141,7 +146,7 @@ export default function UserListPage() {
               ))}
             </div>
           </Field>
-          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

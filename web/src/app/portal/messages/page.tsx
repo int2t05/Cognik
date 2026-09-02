@@ -60,7 +60,7 @@ export default function MessagesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <PageTitle>站内消息</PageTitle>
+        <PageTitle className="mb-0">站内消息</PageTitle>
         {!isEmpty && (
           <Button variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
             <CheckCheck size={16} />全部已读

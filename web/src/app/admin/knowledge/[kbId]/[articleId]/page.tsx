@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
@@ -67,12 +68,12 @@ export default function ArticleEditPage() {
   if (!article) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="max-w-form">
+    <div className="max-w-[48rem]">
       <div className="flex justify-between items-center mb-5">
         <div>
           <div className="flex items-center gap-3 mb-4">
             <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回"><ChevronLeft /></Button>
-            <PageTitle className="!mb-0">{article.title}</PageTitle>
+            <PageTitle className="mb-0">{article.title}</PageTitle>
           </div>
           <div className="flex gap-2">
             <StatusBadge type="article" status={article.status} />
@@ -97,14 +98,21 @@ export default function ArticleEditPage() {
       {editing ? (
         <Card className="mb-4">
           <Field label="标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="正文"><Textarea rows={15} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
+          <Field label="正文">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <Textarea rows={20} value={content} onChange={(e) => setContent(e.target.value)} placeholder="支持 Markdown：# 标题、**粗体**、```mermaid、$E=mc^2$…" className="font-[var(--font-mono)] text-fine resize-y" />
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-4 overflow-y-auto min-h-[300px] max-h-[560px]">
+                {content ? <Markdown content={content} /> : <span className="text-fine text-[var(--color-text-muted-48)]">实时预览…</span>}
+              </div>
+            </div>
+          </Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
           <div className="flex gap-2"><Button size="lg" disabled={editSaving} onClick={handleSave}>{editSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}保存</Button><Button variant="ghost" size="sm" onClick={() => setEditing(false)}><XCircle size={16} />取消</Button></div>
         </Card>
       ) : (
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
-          <div className="text-body leading-[1.47] whitespace-pre-wrap text-[var(--color-ink)]">{article.content || '(无内容)'}</div>
+          {article.content ? <Markdown content={article.content} /> : <div className="text-body text-[var(--color-text-muted-48)]">(无内容)</div>}
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <Badge key={t} variant="neutral">{t}</Badge>)}</div>}
         </Card>
       )}

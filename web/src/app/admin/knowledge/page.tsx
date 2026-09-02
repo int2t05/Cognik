@@ -68,7 +68,7 @@ export default function KnowledgeListPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>知识库管理</PageTitle>
+        <PageTitle className="mb-0">知识库管理</PageTitle>
         <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
       </div>
 

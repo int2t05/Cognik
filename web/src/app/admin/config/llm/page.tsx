@@ -161,7 +161,7 @@ export default function LLMConfigPage() {
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
-        <PageTitle>LLM 配置</PageTitle>
+        <PageTitle className="mb-0">LLM 配置</PageTitle>
         <Button size="icon" aria-label="新建 LLM 配置" onClick={openCreate}><Cpu /></Button>
       </div>
 

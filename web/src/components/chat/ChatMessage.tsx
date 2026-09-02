@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Markdown } from '@/components/shared/Markdown';
 import type { ChunkDisplay } from '@/contexts/ChatStreamProvider';
 
 interface SourceItem { doc_name: string; chunk_content: string; confidence: number; }
@@ -69,24 +70,21 @@ export function ChatMessage({
     }
   }, []);
 
-  // 将 AI 回复文本按 [N] 正则拆分为文本段 + 可点击徽章
+  // AI 完成后渲染 Markdown；流式中纯文本（避免每 token 重解析）；用户消息纯文本
   const renderContent = () => {
     if (!content) return isStreaming ? <Loader2 size={16} className="animate-spin" /> : null;
-    // 流式中不渲染引用徽章（token 片段可能不完整）
-    if (isStreaming) return <>{content}</>;
-
-    const parts = content.split(/(\[\d+\])/g);
-    return parts.map((part, i) => {
-      const m = part.match(/^\[(\d+)\]$/);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        const idx = n - 1;
-        // 引用号超出来源范围则渲染为纯文本
-        if (idx < 0 || !sources || idx >= sources.length) return <span key={i}>{part}</span>;
-        return <CitationBadge key={i} n={n} onClick={() => toggleSource(idx)} />;
-      }
-      return <span key={i}>{part}</span>;
-    });
+    if (isStreaming || isUser) return <>{content}</>;
+    return (
+      <Markdown
+        content={content}
+        renderCitation={(n) => {
+          const idx = n - 1;
+          // 引用号超出来源范围则渲染为纯文本标记
+          if (idx < 0 || !sources || idx >= sources.length) return <span>[{n}]</span>;
+          return <CitationBadge n={n} onClick={() => toggleSource(idx)} />;
+        }}
+      />
+    );
   };
 
   return (
@@ -97,9 +95,9 @@ export function ChatMessage({
         </div>
       )}
 
-      <div className={`px-4 py-3 text-body leading-relaxed whitespace-pre-wrap ${
+      <div className={`px-4 py-3 text-body leading-relaxed ${
         isUser
-          ? 'max-w-[70%] bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)]'
+          ? 'max-w-[70%] bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] whitespace-pre-wrap'
           : 'w-full bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       }`}>
         {renderContent()}

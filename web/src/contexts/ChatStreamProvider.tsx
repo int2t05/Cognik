@@ -20,7 +20,7 @@ export interface ChatMessage {
   dbId?: number; // 后端落库后的真实消息 ID，生成完成后可用于反馈
 }
 interface PipelineStep { id: string; label: string; duration_ms?: number; }
-interface SessionStream {
+export interface SessionStream {
   messages: ChatMessage[]; status: 'idle' | 'streaming' | 'error';
   lastSeq: number; pipelineSteps: PipelineStep[]; currentStep: string | null;
   thinking: boolean; // 思考模式进行中

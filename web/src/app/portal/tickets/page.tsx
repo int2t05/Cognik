@@ -25,7 +25,7 @@ export default function TicketQueryPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>我的申告</PageTitle>
+        <PageTitle className="mb-0">我的申告</PageTitle>
         <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
       </div>
 

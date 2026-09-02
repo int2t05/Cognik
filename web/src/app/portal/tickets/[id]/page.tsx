@@ -9,6 +9,7 @@ import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
@@ -122,7 +123,7 @@ export default function TicketDetailPage() {
 
           <Card className="mb-5">
             <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题描述</h2>
-            <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
+            <Markdown content={ticket.description} />
           </Card>
 
           {ticket.records && ticket.records.length > 0 && (

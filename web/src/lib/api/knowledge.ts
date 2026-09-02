@@ -29,10 +29,13 @@ export function disableArticle(id: number) { return apiFetch<null>(`/api/v1/admi
 export function enableArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}/enable`, { method: 'POST' }); }
 export function deleteArticle(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}`, { method: 'DELETE' }); }
 
-// 文档
-export function uploadDocuments(kbId: number, files: FileList, tags?: string) {
-  const fd = new FormData();
-  Array.from(files).forEach((f) => fd.append('files', f));
-  if (tags) fd.append('tags', tags);
-  return apiFetch<{ documents: { article_id: number; file_name: string; process_status: string; process_error: string }[] }>(`/api/v1/admin/knowledge-bases/${kbId}/documents/upload`, { method: 'POST', body: fd, headers: {} as Record<string, string> });
+// 上传配置
+export interface UploadConfig {
+  max_upload_size_kb: number;
+  max_upload_size: number;
+  allowed_types: string[];
+  max_files: number;
+}
+export function getUploadConfig() {
+  return apiFetch<UploadConfig>('/api/v1/config/upload');
 }
