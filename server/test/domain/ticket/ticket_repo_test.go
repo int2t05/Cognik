@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/ticket"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/ticket"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -65,11 +65,11 @@ func cleanTicketTables(t *testing.T, db *gorm.DB) {
 	// 按 FK 依赖逆序清理，避免外键约束冲突
 	db.Exec("DELETE FROM ticket_records")
 	db.Exec("DELETE FROM tickets")
-	db.Exec("DELETE FROM chat_messages")          // FK → chat_sessions
-	db.Exec("DELETE FROM chat_sessions")          // FK → users/knowledge_bases
-	db.Exec("DELETE FROM knowledge_chunks")       // FK → knowledge_articles
-	db.Exec("DELETE FROM knowledge_articles")     // FK → knowledge_bases
-	db.Exec("DELETE FROM knowledge_bases")        // FK → users
+	db.Exec("DELETE FROM chat_messages")      // FK → chat_sessions
+	db.Exec("DELETE FROM chat_sessions")      // FK → users/knowledge_bases
+	db.Exec("DELETE FROM knowledge_chunks")   // FK → knowledge_articles
+	db.Exec("DELETE FROM knowledge_articles") // FK → knowledge_bases
+	db.Exec("DELETE FROM knowledge_bases")    // FK → users
 	db.Exec("DELETE FROM users WHERE username LIKE 'test_%'")
 }
 
@@ -368,7 +368,7 @@ func TestTicketRepo_AutoCloseTickets(t *testing.T) {
 	requireNoErr(t, db.Create(&recent).Error)
 
 	// 关闭 7 天前的申告
-	ids, err := repo.AutoCloseTickets(context.Background(), time.Now().Add(-7 * 24 * time.Hour))
+	ids, err := repo.AutoCloseTickets(context.Background(), time.Now().Add(-7*24*time.Hour))
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

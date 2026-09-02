@@ -3,9 +3,10 @@
 // api_ticket_test.go — 申告管理接口集成测试（tickets.md 全覆盖）。
 //
 // 测试端点：
-//   门户端: POST /portal/tickets | GET /portal/tickets | GET /portal/tickets/:id | PATCH /portal/tickets/:id/supplement
-//   后台:   GET /admin/tickets | GET /admin/tickets/:id | PATCH /admin/tickets/:id/status
-//           POST /admin/tickets/:id/records | POST /admin/tickets/:id/knowledge-candidate
+//
+//	门户端: POST /portal/tickets | GET /portal/tickets | GET /portal/tickets/:id | PATCH /portal/tickets/:id/supplement
+//	后台:   GET /admin/tickets | GET /admin/tickets/:id | PATCH /admin/tickets/:id/status
+//	        POST /admin/tickets/:id/records | POST /admin/tickets/:id/knowledge-candidate
 package integration_test
 
 import (

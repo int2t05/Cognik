@@ -14,13 +14,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"opsmind/internal/domain/knowledge"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/parser"
+	"opsmind/internal/rag"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/rag"
-	"opsmind/internal/domain/knowledge"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -177,9 +177,9 @@ func TestKnowledgeHandler_CreateArticle(t *testing.T) {
 	r.POST("/api/v1/admin/knowledge-bases/:kb_id/articles", h.CreateArticle)
 
 	body, _ := json.Marshal(request.CreateArticleRequest{
-		KBID:     kb.ID,
-		Title: "问题",
-		Content:   "答案",
+		KBID:    kb.ID,
+		Title:   "问题",
+		Content: "答案",
 	})
 	req := httptest.NewRequest("POST", "/api/v1/admin/knowledge-bases/"+itoa(kb.ID)+"/articles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -260,7 +260,11 @@ func TestKnowledgeHandler_Enable(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code == 503 { t.Skipf("RAG 依赖未注入，跳过 Enable 测试: %s", w.Body.String()); return }; if w.Code != 200 {
+	if w.Code == 503 {
+		t.Skipf("RAG 依赖未注入，跳过 Enable 测试: %s", w.Body.String())
+		return
+	}
+	if w.Code != 200 {
 		t.Errorf("期望 200, got %d: %s", w.Code, w.Body.String())
 	}
 

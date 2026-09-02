@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/chat/session"
 
 	"gorm.io/gorm"
 )
@@ -70,11 +70,11 @@ func cleanChatTables(t *testing.T, db *gorm.DB) {
 	// 按 FK 依赖逆序清理，避免外键约束冲突
 	db.Exec("DELETE FROM chat_messages")
 	db.Exec("DELETE FROM chat_sessions")
-	db.Exec("DELETE FROM knowledge_chunks")       // FK → knowledge_articles
-	db.Exec("DELETE FROM knowledge_articles")     // FK → knowledge_bases
+	db.Exec("DELETE FROM knowledge_chunks")   // FK → knowledge_articles
+	db.Exec("DELETE FROM knowledge_articles") // FK → knowledge_bases
 	db.Exec("DELETE FROM knowledge_bases")
-	db.Exec("DELETE FROM ticket_records")         // FK → tickets
-	db.Exec("DELETE FROM tickets")                // FK → users
+	db.Exec("DELETE FROM ticket_records") // FK → tickets
+	db.Exec("DELETE FROM tickets")        // FK → users
 	db.Exec("DELETE FROM users WHERE username LIKE 'test_%'")
 }
 

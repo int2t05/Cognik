@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/ticket"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/infra/middleware"
-	"opsmind/internal/shared/model"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/domain/ticket"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -336,4 +336,3 @@ func cleanupHandlerTables(t *testing.T, db *gorm.DB) {
 	db.Exec("DELETE FROM tickets")
 	db.Exec("DELETE FROM users WHERE username LIKE 'htest_%'")
 }
-

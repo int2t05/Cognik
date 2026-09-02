@@ -13,13 +13,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/hash"
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
-	"opsmind/internal/domain/user/role"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

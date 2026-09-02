@@ -244,7 +244,18 @@ func wireApp() (*app, error) {
 
 	// RAG 引擎组件
 	embedder := rag.NewEmbedder(embeddingClient, 5)
-	docParser := parser.NewParser()
+
+	// 文档解析器：MinerU 云端高精度优先，本地纯 Go 库兜底
+	var mineruEngine *parser.MinerUEngine
+	if cfg.Parser.Engine == "mineru" {
+		mineruEngine = parser.NewMinerUEngine(cfg.Parser.MinerU)
+		if mineruEngine != nil {
+			slog.Info("MinerU 云端解析引擎已启用", "endpoint", cfg.Parser.MinerU.Endpoint)
+		} else {
+			slog.Warn("MinerU API Key 为空，降级到本地解析", "engine", cfg.Parser.Engine)
+		}
+	}
+	docParser := parser.NewParser(parser.WithMinerU(mineruEngine))
 	chunker := rag.NewChunker(cfg.AI.ChunkSize, cfg.AI.ChunkOverlap)
 
 	// 向量检索器仅当 vectorStore 可用时创建

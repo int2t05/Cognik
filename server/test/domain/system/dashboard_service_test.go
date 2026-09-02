@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/system/dashboard"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
-		"opsmind/internal/domain/system/dashboard"
 
 	"gorm.io/gorm"
 )

@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-		"opsmind/internal/domain/user/role"
 
 	"gorm.io/gorm"
 )

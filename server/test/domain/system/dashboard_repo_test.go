@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
+	"opsmind/internal/domain/system/dashboard"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-		"opsmind/internal/domain/system/dashboard"
 
 	"gorm.io/gorm"
 )

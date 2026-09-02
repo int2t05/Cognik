@@ -10,25 +10,18 @@ import (
 	"opsmind/internal/infra/adapter"
 )
 
-// VectorRetriever 向量检索器：将查询文本向量化后调用 pgvector cosine 检索。
-//
-// 实现 Retriever 接口，供 Pipeline 在 vector_retrieve 步骤中使用。
+// VectorRetriever 向量检索器，将查询向量化后调用 pgvector cosine 检索。
 type VectorRetriever struct {
 	embedder *Embedder
 	store    adapter.VectorStore
 }
 
-// NewVectorRetriever 创建向量检索器实例。
-//
-// store 可以为 nil（pgvector 不可用时向量检索返回空结果）。
+// NewVectorRetriever 创建向量检索器实例。store 为 nil 时降级返回空结果。
 func NewVectorRetriever(embedder *Embedder, store adapter.VectorStore) *VectorRetriever {
 	return &VectorRetriever{embedder: embedder, store: store}
 }
 
-// Retrieve 执行向量检索：embedding 查询 → pgvector cosine 搜索。
-//
-// r 为 nil（pgvector 初始化失败时 main.go 传入 nil 值）
-// 或 store 为 nil 时静默降级返回空结果，不阻塞管道。
+// Retrieve 执行向量检索。r 或 store 为 nil 时降级返回空结果，不阻塞管道。
 func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error) {
 	if r == nil || r.store == nil {
 		return nil, nil

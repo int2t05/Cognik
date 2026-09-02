@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/ticket"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
+	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/infra/runtime"
-	"opsmind/internal/domain/ticket"
 
 	"gorm.io/gorm"
 )
@@ -378,7 +378,7 @@ func TestTicketService_UpdateStatus_RequestInfoAtomicCheck(t *testing.T) {
 	// supplement_count=3 时，原子 UPDATE 不应生效
 	ticket := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-ATOM-%d", time.Now().UnixNano()),
-		UserID: user.ID, Title: "原子检查测试", Description: "描述",
+		UserID:   user.ID, Title: "原子检查测试", Description: "描述",
 		SupplementCount: 3,
 	}
 	requireNoErr(t, db.Create(ticket).Error)

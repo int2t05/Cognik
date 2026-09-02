@@ -10,11 +10,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"opsmind/internal/domain/system/message"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/infra/middleware"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/system/message"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -87,8 +87,8 @@ func TestMessageHandler_ListMessages(t *testing.T) {
 	}
 
 	var resp struct {
-		Code int              `json:"code"`
-		Data []model.Message  `json:"data"`
+		Code int             `json:"code"`
+		Data []model.Message `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp.Code != 0 {

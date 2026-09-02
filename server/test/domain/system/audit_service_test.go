@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"testing"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/system/audit"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -22,9 +22,9 @@ func setupAuditServiceTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	port, _ := strconv.Atoi(envOrDefault("TEST_DB_PORT", "5432"))
 	db, err := database.Init(config.DatabaseConfig{
-		Host:     envOrDefault("TEST_DB_HOST", "localhost"), Port: port,
-		User:     envOrDefault("TEST_DB_USER", "opsmind"), Password: envOrDefault("TEST_DB_PASSWORD", "opsmind_dev"),
-		DBName:   envOrDefault("TEST_DB_NAME", "opsmind_test"), SSLMode: envOrDefault("TEST_DB_SSLMODE", "disable"),
+		Host: envOrDefault("TEST_DB_HOST", "localhost"), Port: port,
+		User: envOrDefault("TEST_DB_USER", "opsmind"), Password: envOrDefault("TEST_DB_PASSWORD", "opsmind_dev"),
+		DBName: envOrDefault("TEST_DB_NAME", "opsmind_test"), SSLMode: envOrDefault("TEST_DB_SSLMODE", "disable"),
 	})
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
@@ -50,7 +50,9 @@ func setupAuditServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 func envOrDefault(key, def string) string {
-	if v := os.Getenv(key); v != "" { return v }
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
 	return def
 }
 

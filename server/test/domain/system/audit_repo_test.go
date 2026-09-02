@@ -7,15 +7,14 @@ package system_test
 
 import (
 	"context"
-	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/system/audit"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -51,7 +50,6 @@ func getTestDB(t *testing.T) *gorm.DB {
 	}
 	return db
 }
-
 
 func setupAuditRepoTest(t *testing.T) (*audit.AuditRepo, *gorm.DB) {
 	t.Helper()

@@ -6,12 +6,12 @@ package user_test
 import (
 	"testing"
 
+	"opsmind/internal/domain/system/audit"
+	"opsmind/internal/domain/user/account"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
-		"opsmind/internal/domain/system/audit"
-		"opsmind/internal/domain/user/account"
 
 	"gorm.io/gorm"
 )

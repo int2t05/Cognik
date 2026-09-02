@@ -34,7 +34,7 @@ import (
 const MaxDocumentSize = 50 * 1024 * 1024
 
 // allowedDocumentTypes 支持上传的文档格式白名单。
-var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "md": true, "txt": true}
+var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "xlsx": true, "pptx": true, "md": true, "txt": true}
 
 // 存储两桶模型：
 //   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
@@ -753,7 +753,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	}
 
 	if !allowedDocumentTypes[fileType] {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/md/txt）"}
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/xlsx/pptx/md/txt）"}
 	}
 
 	if fileSize > MaxDocumentSize {

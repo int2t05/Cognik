@@ -35,7 +35,7 @@ func (m *mockReranker) Rerank(ctx context.Context, query string, passages []adap
 func TestQueryRewrite_Success(t *testing.T) {
 	llm := &mockLLMClient{
 		chatResponse: &adapter.ChatResponse{
-			Content: "如何配置 VPN 客户端连接",
+			Content:      "如何配置 VPN 客户端连接",
 			FinishReason: "stop",
 		},
 	}
@@ -74,7 +74,7 @@ func TestQueryRewrite_LLMFail(t *testing.T) {
 func TestQueryRewrite_WithHistory(t *testing.T) {
 	llm := &mockLLMClient{
 		chatResponse: &adapter.ChatResponse{
-			Content: "如何重置已过期的 VPN 密码",
+			Content:      "如何重置已过期的 VPN 密码",
 			FinishReason: "stop",
 		},
 	}
@@ -101,7 +101,7 @@ func TestQueryRewrite_WithHistory(t *testing.T) {
 func TestMultiRoute_Success(t *testing.T) {
 	llm := &mockLLMClient{
 		chatResponse: &adapter.ChatResponse{
-			Content: `["VPN连接故障排查", "VPN客户端配置", "VPN证书问题"]`,
+			Content:      `["VPN连接故障排查", "VPN客户端配置", "VPN证书问题"]`,
 			FinishReason: "stop",
 		},
 	}

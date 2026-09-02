@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/infra/runtime"
-		"opsmind/internal/domain/chat/session"
 )
 
 // newTestHub 构造带 Seq 对齐回调的测试 Hub（复刻运行时 Publish 内 Seq 赋值行为）。
@@ -140,7 +140,10 @@ func TestHub_ConcurrentRace(t *testing.T) {
 			if !ok {
 				return
 			}
-			go func() { for range ch {} }()
+			go func() {
+				for range ch {
+				}
+			}()
 			time.Sleep(10 * time.Millisecond)
 			unsub()
 		}()

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/user/account"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/user/account"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

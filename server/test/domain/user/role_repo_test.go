@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"testing"
 
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/user/role"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -47,7 +47,9 @@ func setupRoleTestDB(t *testing.T) *gorm.DB {
 }
 
 func getEnv(key, def string) string {
-	if v := os.Getenv(key); v != "" { return v }
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
 	return def
 }
 

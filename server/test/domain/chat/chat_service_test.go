@@ -9,12 +9,12 @@ package chat_test
 import (
 	"testing"
 
+	"opsmind/internal/domain/chat/session"
+	"opsmind/internal/domain/knowledge"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/chat/session"
-	"opsmind/internal/domain/knowledge"
 
 	"gorm.io/gorm"
 )
