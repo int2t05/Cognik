@@ -15,7 +15,7 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/system"
+		"opsmind/internal/domain/system/audit"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -53,7 +53,7 @@ func getTestDB(t *testing.T) *gorm.DB {
 }
 
 
-func setupAuditRepoTest(t *testing.T) (*system.AuditRepo, *gorm.DB) {
+func setupAuditRepoTest(t *testing.T) (*audit.AuditRepo, *gorm.DB) {
 	t.Helper()
 
 	db := getTestDB(t)
@@ -85,10 +85,10 @@ func setupAuditRepoTest(t *testing.T) (*system.AuditRepo, *gorm.DB) {
 		`INSERT INTO users (id, username, password_hash, real_name, phone, status, first_login)
 		 VALUES (2, 'operator', '$2a$10$test', '运维人员', '13800000002', 1, false)`)
 
-	return system.NewAuditRepo(db), db
+	return audit.NewAuditRepo(db), db
 }
 
-func seedAuditLogs(t *testing.T, repo *system.AuditRepo) {
+func seedAuditLogs(t *testing.T, repo *audit.AuditRepo) {
 	t.Helper()
 
 	logs := []model.AuditLog{
@@ -159,7 +159,7 @@ func TestAuditRepo_List_All(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -175,7 +175,7 @@ func TestAuditRepo_List_ByOperator(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{OperatorID: 1, Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{OperatorID: 1, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -194,7 +194,7 @@ func TestAuditRepo_List_ByAction(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{Action: "user.create", Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{Action: "user.create", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -210,7 +210,7 @@ func TestAuditRepo_List_ByOperatorAndAction(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{OperatorID: 2, Action: "ticket.create", Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{OperatorID: 2, Action: "ticket.create", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -224,7 +224,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 	seedAuditLogs(t, repo)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{Page: 1, PageSize: 2})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{Page: 1, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -235,7 +235,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 		t.Errorf("第1页: 期望 2 条, got %d", len(logs))
 	}
 
-	logs, total, err = repo.List(context.Background(), system.AuditFilter{Page: 2, PageSize: 2})
+	logs, total, err = repo.List(context.Background(), audit.AuditFilter{Page: 2, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -246,7 +246,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 		t.Errorf("第2页: 期望 2 条, got %d", len(logs))
 	}
 
-	logs, total, err = repo.List(context.Background(), system.AuditFilter{Page: 3, PageSize: 2})
+	logs, total, err = repo.List(context.Background(), audit.AuditFilter{Page: 3, PageSize: 2})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -258,7 +258,7 @@ func TestAuditRepo_List_Pagination(t *testing.T) {
 func TestAuditRepo_List_Empty(t *testing.T) {
 	repo, _ := setupAuditRepoTest(t)
 
-	logs, total, err := repo.List(context.Background(), system.AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

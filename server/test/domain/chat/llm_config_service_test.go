@@ -9,17 +9,17 @@ import (
 
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/crypto"
-	"opsmind/internal/domain/chat"
+		llmconfig "opsmind/internal/domain/chat/llm_config"
 )
 
 const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 // setupLLMConfigService 使用真实 DB 创建 LLMConfigService 实例。
-func setupLLMConfigService(t *testing.T) *chat.LLMConfigService {
+func setupLLMConfigService(t *testing.T) *llmconfig.LLMConfigService {
 	t.Helper()
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
-	repo := chat.NewLlmConfigRepo(knowledgeSvcDB)
-	svc, err := chat.NewLLMConfigService(repo, knowledgeSvcDB, nil)
+	repo := llmconfig.NewLlmConfigRepo(knowledgeSvcDB)
+	svc, err := llmconfig.NewLLMConfigService(repo, knowledgeSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 
 // TestLLMConfigResponse_MarshalJSON_MasksAPIKey 验证 MarshalJSON 自动脱敏。
 func TestLLMConfigResponse_MarshalJSON_MasksAPIKey(t *testing.T) {
-	resp := chat.LlmConfigResponse{
+	resp := llmconfig.LlmConfigResponse{
 		ID:       1,
 		Name:     "openai",
 		LLMAPIKey: "sk-1234567890abcdefghij",

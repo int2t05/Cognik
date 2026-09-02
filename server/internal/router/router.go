@@ -12,29 +12,35 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	llmconfig "opsmind/internal/domain/chat/llm_config"
+	"opsmind/internal/domain/chat/session"
+	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/domain/system/audit"
+	sysconfig "opsmind/internal/domain/system/config"
+	"opsmind/internal/domain/system/dashboard"
+	"opsmind/internal/domain/system/message"
+	"opsmind/internal/domain/ticket"
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
-	"opsmind/internal/domain/chat"
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/domain/system"
-	"opsmind/internal/domain/ticket"
-	"opsmind/internal/domain/user"
 	"opsmind/internal/infra/middleware"
 )
 
 // Handlers 聚合所有 Handler 实例，供路由注册使用。
 type Handlers struct {
-	Auth      *user.AuthHandler
-	User      *user.UserHandler
-	Role      *user.RoleHandler
+	Auth      *auth.AuthHandler
+	User      *account.UserHandler
+	Role      *role.RoleHandler
 	Knowledge *knowledge.KnowledgeHandler
 	Ticket    *ticket.TicketHandler
-	Chat      *chat.ChatHandler
-	Message   *system.MessageHandler
-	Dashboard *system.DashboardHandler
-	Audit     *system.AuditHandler
-	Config    *system.ConfigHandler
-	LLMConfig *chat.LLMConfigHandler
+	Chat      *session.ChatHandler
+	Message   *message.MessageHandler
+	Dashboard *dashboard.DashboardHandler
+	Audit     *audit.AuditHandler
+	Config    *sysconfig.ConfigHandler
+	LLMConfig *llmconfig.LLMConfigHandler
 }
 
 // Setup 初始化 Gin 引擎并注册所有路由。

@@ -10,8 +10,8 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/domain/system"
-	"opsmind/internal/domain/user"
+		"opsmind/internal/domain/system/audit"
+		"opsmind/internal/domain/user/role"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -35,12 +35,12 @@ func init() {
 	roleSvcDB = db
 }
 
-func setupRoleService(t *testing.T) *user.RoleService {
+func setupRoleService(t *testing.T) *role.RoleService {
 	t.Helper()
-	repo := user.NewRoleRepo(roleSvcDB)
-	menuRepo := user.NewMenuRepo(roleSvcDB)
-	auditRepo := system.NewAuditRepo(roleSvcDB)
-	return user.NewRoleService(repo, menuRepo, system.NewAuditService(auditRepo), roleSvcDB)
+	repo := role.NewRoleRepo(roleSvcDB)
+	menuRepo := role.NewMenuRepo(roleSvcDB)
+	auditRepo := audit.NewAuditRepo(roleSvcDB)
+	return user.NewRoleService(repo, menuRepo, audit.NewAuditService(auditRepo), roleSvcDB)
 }
 
 func seedTestRole(t *testing.T, name string) *model.Role {

@@ -10,8 +10,8 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/domain/system"
-	"opsmind/internal/domain/user"
+		"opsmind/internal/domain/system/audit"
+		"opsmind/internal/domain/user/account"
 
 	"gorm.io/gorm"
 )
@@ -34,11 +34,11 @@ func init() {
 	userSvcDB = db
 }
 
-func setupUserService(t *testing.T) (*user.UserService, *model.User) {
+func setupUserService(t *testing.T) (*account.UserService, *model.User) {
 	t.Helper()
-	repo := user.NewUserRepo(userSvcDB)
-	auditRepo := system.NewAuditRepo(userSvcDB)
-	svc := user.NewUserService(repo, system.NewAuditService(auditRepo), userSvcDB, nil)
+	repo := account.NewUserRepo(userSvcDB)
+	auditRepo := audit.NewAuditRepo(userSvcDB)
+	svc := user.NewUserService(repo, audit.NewAuditService(auditRepo), userSvcDB, nil)
 
 	// 创建测试用户
 	user := &model.User{

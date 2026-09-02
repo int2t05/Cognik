@@ -12,7 +12,8 @@ import (
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/chat"
+	llmconfig "opsmind/internal/domain/chat/llm_config"
+	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/domain/knowledge"
 )
 
@@ -107,8 +108,8 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 	knowledgeSvcDB.Exec("DELETE FROM llm_configs")
 
 	// 创建 LLM 配置
-	llmConfigRepo := chat.NewLlmConfigRepo(knowledgeSvcDB)
-	llmConfigSvc, err := chat.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
+	llmConfigRepo := llmconfig.NewLlmConfigRepo(knowledgeSvcDB)
+	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, knowledgeSvcDB, nil)
 	if err != nil {
 		t.Fatalf("NewLLMConfigService 失败: %v", err)
 	}
@@ -216,8 +217,8 @@ func TestChatService_SessionFlow(t *testing.T) {
 
 	// 创建 ChatService
 	knowledgeRepo := knowledge.NewKnowledgeRepo(knowledgeSvcDB)
-	chatRepo := chat.NewChatRepo(knowledgeSvcDB)
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{TopK: 3}, nil, nil, nil)
+	chatRepo := session.NewChatRepo(knowledgeSvcDB)
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{TopK: 3}, nil, nil, nil)
 
 	// 创建会话
 	session, err := chatSvc.CreateSession(bgCtx, request.CreateSessionRequest{

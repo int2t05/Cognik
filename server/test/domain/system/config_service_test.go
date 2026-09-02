@@ -14,7 +14,8 @@ import (
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/system"
+	"opsmind/internal/domain/system/audit"
+	sysconfig "opsmind/internal/domain/system/config"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -64,7 +65,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 func TestConfigRepo_GetByKey_Existing(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	value := datatypes.JSON(`{"threshold":0.6}`)
 	cfg := &model.SystemConfig{Key: "ai.confidence_threshold", Value: value, Description: "AI 置信度阈值", UpdatedBy: 1}
 	if err := db.Create(cfg).Error; err != nil {
@@ -81,7 +82,7 @@ func TestConfigRepo_GetByKey_Existing(t *testing.T) {
 
 func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	_, err := repo.GetByKey(bgCtx, "nonexistent.key")
 	if err == nil {
 		t.Fatal("期望返回错误, 实际为 nil")
@@ -90,7 +91,7 @@ func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
 
 func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	db.Create(&model.SystemConfig{Key: "ai.confidence_threshold", Value: datatypes.JSON(`{"threshold":0.6}`), UpdatedBy: 1})
 	err := repo.Upsert(bgCtx, "ai.confidence_threshold", "AI 置信度阈值", datatypes.JSON(`{"threshold":0.8}`), 2)
 	if err != nil {
@@ -105,7 +106,7 @@ func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 
 func TestConfigRepo_Upsert_InsertNew(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	err := repo.Upsert(bgCtx, "system.max_retries", "系统最大重试次数", datatypes.JSON(`{"max_retries":3}`), 1)
 	if err != nil {
 		t.Fatalf("Upsert 插入失败: %v", err)
@@ -121,7 +122,7 @@ func TestConfigRepo_Upsert_InsertNew(t *testing.T) {
 
 func TestConfigRepo_List(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	configs := []model.SystemConfig{
 		{Key: "ai.confidence_threshold", Value: datatypes.JSON(`{"threshold":0.6}`), UpdatedBy: 1},
 		{Key: "ai.default_top_k", Value: datatypes.JSON(`{"top_k":5}`), UpdatedBy: 1},
@@ -141,7 +142,7 @@ func TestConfigRepo_List(t *testing.T) {
 
 func TestConfigRepo_List_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
+	repo := sysconfig.NewConfigRepo(db)
 	result, err := repo.List(bgCtx)
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
@@ -155,12 +156,12 @@ func TestConfigRepo_List_Empty(t *testing.T) {
 // ConfigService 测试（Task 34）
 // =============================================================================
 
-func setupConfigService(t *testing.T) *system.ConfigService {
+func setupConfigService(t *testing.T) *sysconfig.ConfigService {
 	t.Helper()
 	db := setupTestDB(t)
-	repo := system.NewConfigRepo(db)
-	auditRepo := system.NewAuditRepo(db)
-	return system.NewConfigService(repo, system.NewAuditService(auditRepo))
+	repo := sysconfig.NewConfigRepo(db)
+	auditRepo := audit.NewAuditRepo(db)
+	return system.NewConfigService(repo, audit.NewAuditService(auditRepo))
 }
 
 // TestConfigService_GetConfig_Existing 验证获取已有配置返回正确的值。

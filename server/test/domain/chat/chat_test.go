@@ -21,7 +21,7 @@ import (
 	respDto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/infra/middleware"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/chat"
+		"opsmind/internal/domain/chat/session"
 	"opsmind/internal/domain/knowledge"
 
 	"github.com/gin-gonic/gin"
@@ -94,11 +94,11 @@ func setupChatHandlerTest(t *testing.T) *chatHandlerEnv {
 
 	// 组装依赖链
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
-	chatRepo := chat.NewChatRepo(db)
-	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{
+	chatRepo := session.NewChatRepo(db)
+	chatSvc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
 		TopK: 5, QueryRewrite: true, MultiRoute: true, Hybrid: true, Rerank: true,
 	}, nil, nil, nil)
-	chatH := chat.NewChatHandler(chatSvc)
+	chatH := session.NewChatHandler(chatSvc)
 
 	// 路由
 	r := gin.New()

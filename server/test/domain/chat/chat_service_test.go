@@ -13,7 +13,7 @@ import (
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/chat"
+		"opsmind/internal/domain/chat/session"
 	"opsmind/internal/domain/knowledge"
 
 	"gorm.io/gorm"
@@ -32,7 +32,7 @@ func init() {
 	chatSvcDB = db
 }
 
-func setupChatServiceTest(t *testing.T) (*chat.ChatService, *model.KnowledgeBase) {
+func setupChatServiceTest(t *testing.T) (*session.ChatService, *model.KnowledgeBase) {
 	t.Helper()
 
 	chatSvcDB.Exec(`CREATE TABLE IF NOT EXISTS users (
@@ -64,8 +64,8 @@ func setupChatServiceTest(t *testing.T) (*chat.ChatService, *model.KnowledgeBase
 	chatSvcDB.Exec("DELETE FROM knowledge_bases")
 
 	knowledgeRepo := knowledge.NewKnowledgeRepo(chatSvcDB)
-	chatRepo := chat.NewChatRepo(chatSvcDB)
-	svc := chat.NewChatService(knowledgeRepo, chatRepo, nil, chat.RAGDefaults{TopK: 5}, nil, nil, nil)
+	chatRepo := session.NewChatRepo(chatSvcDB)
+	svc := chat.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{TopK: 5}, nil, nil, nil)
 
 	kb := &model.KnowledgeBase{
 		Name:            "测试知识库",
