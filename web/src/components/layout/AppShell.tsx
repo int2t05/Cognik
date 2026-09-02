@@ -2,7 +2,7 @@
 // AppShell — 统一 Shell：顶栏（品牌 + 内联全局搜索 + 主题 + 账号）+ 可折叠侧栏（分区 nav）+ main。
 // 搜索框内联下拉即时结果（导航项 + 快捷操作过滤），非独立弹窗。
 // Portal/Admin 共用：管理员分区由调用方通过 nav 传入（权限判断在 layout 层）。
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useTheme } from '@/hooks/useTheme';
@@ -50,29 +50,54 @@ function isActive(itemPath: string, pathname: string, siblings: NavItem[]): bool
   return !exactMatch;
 }
 
+/** 侧栏折叠状态：useSyncExternalStore 读写 localStorage，SSR 安全。 */
+function useSidebarCollapsed(): [boolean, (value: boolean) => void] {
+  const collapsed = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('sidebar-collapsed-change', cb);
+      window.addEventListener('storage', cb);
+      return () => {
+        window.removeEventListener('sidebar-collapsed-change', cb);
+        window.removeEventListener('storage', cb);
+      };
+    },
+    () => {
+      const pref = localStorage.getItem('sidebar-collapsed');
+      if (pref === 'true') return true;
+      if (pref === 'false') return false;
+      // 无偏好时移动端自动折叠
+      return window.matchMedia('(max-width: 1023px)').matches;
+    },
+    () => false,
+  );
+  const setCollapsed = useCallback((value: boolean) => {
+    localStorage.setItem('sidebar-collapsed', String(value));
+    window.dispatchEvent(new Event('sidebar-collapsed-change'));
+  }, []);
+  return [collapsed, setCollapsed];
+}
+
+/** 客户端就绪检测：SSR 时 false，hydration 后 true。 */
+function useIsClient(): boolean {
+  return useSyncExternalStore(() => () => {}, () => true, () => false);
+}
+
 export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded = true, children }: AppShellProps) {
   const { theme, toggleTheme } = useTheme();
   const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
-  const [collapsedReady, setCollapsedReady] = useState(false);
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
+  const isClient = useIsClient();
 
-  useEffect(() => {
-    setCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-    setCollapsedReady(true);
-  }, []);
-  useEffect(() => {
-    if (collapsedReady) localStorage.setItem('sidebar-collapsed', String(collapsed));
-  }, [collapsed, collapsedReady]);
+  // 移动端 viewport 变化时自动折叠（初始检查由 getSnapshot 处理，effect 仅注册监听）
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
-    const h = (e: MediaQueryListEvent) => { if (e.matches) setCollapsed(true); };
-    if (mq.matches) setCollapsed(true);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, []);
+    const handler = (e: MediaQueryListEvent) => { if (e.matches) setCollapsed(true); };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [setCollapsed]);
 
   const toggleSubmenu = (id: string) =>
     setExpandedMenus((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -151,7 +176,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
           <Button variant="menu" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun /> : <Moon />}
           </Button>
-          {collapsedReady && <AccountSwitcher />}
+          {isClient && <AccountSwitcher />}
         </header>
         {subbar && (
           <div className="h-[var(--header-height)] flex items-center gap-3 px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)]">

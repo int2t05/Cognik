@@ -1,10 +1,12 @@
 /** useAccountSwitcher 历史登录会话管理，登录自动保存账号，7 天过期。 */
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useAuth } from './useAuth';
 import { getUnreadCount } from '@/lib/api/message';
 import { STORAGE_KEY, MAX_ACCOUNTS, EXPIRE_MS, type SavedAccount } from '@/lib/account-store';
+
+const ACCOUNTS_EVENT = 'opsmind-accounts-change';
 
 function loadAccounts(): SavedAccount[] {
   if (typeof window === 'undefined') return [];
@@ -22,21 +24,49 @@ function saveAccounts(accounts: SavedAccount[]) {
   } catch { /* ignore */ }
 }
 
+/** 缓存快照引用，避免 useSyncExternalStore 因每次新数组引用触发无限重渲染。 */
+let cachedRaw: string | null | undefined = undefined;
+let cachedSnapshot: SavedAccount[] = [];
+
+function subscribeAccounts(cb: () => void): () => void {
+  window.addEventListener(ACCOUNTS_EVENT, cb);
+  window.addEventListener('storage', cb);
+  return () => {
+    window.removeEventListener(ACCOUNTS_EVENT, cb);
+    window.removeEventListener('storage', cb);
+  };
+}
+
+function getAccountsSnapshot(): SavedAccount[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  const all: SavedAccount[] = raw ? JSON.parse(raw) : [];
+  const now = Date.now();
+  cachedSnapshot = all
+    .filter((a) => now - a.savedAt < EXPIRE_MS)
+    .sort((a, b) => b.savedAt - a.savedAt);
+  return cachedSnapshot;
+}
+
+function getAccountsServerSnapshot(): SavedAccount[] {
+  return [];
+}
+
 /** 保存当前登录会话到历史列表（去重、7 天过期自动清除）。 */
 export function useAccountSwitcher() {
   const { user, token, refreshToken, roles, permissions, menus, login, logout } = useAuth();
-  const [version, setVersion] = useState(0);
-  const bump = useCallback(() => setVersion((v) => v + 1), []);
+  const accounts = useSyncExternalStore(subscribeAccounts, getAccountsSnapshot, getAccountsServerSnapshot);
 
-  const accounts = useMemo(() => {
+  // 清理过期账号（在 effect 中写 localStorage，不在 render 中产生副作用）
+  useEffect(() => {
     const all = loadAccounts();
-    const now = Date.now();
-    // 过期清除 + 按时间倒序
-    const valid = all.filter((a) => now - a.savedAt < EXPIRE_MS).sort((a, b) => b.savedAt - a.savedAt);
-    if (valid.length !== all.length) saveAccounts(valid);
-    return valid;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
+    if (all.length !== accounts.length) {
+      saveAccounts(accounts);
+      window.dispatchEvent(new Event(ACCOUNTS_EVENT));
+    }
+  }, [accounts]);
 
   const saveCurrent = useCallback(() => {
     if (!user || !token) return;
@@ -55,14 +85,15 @@ export function useAccountSwitcher() {
       savedAt: now,
     });
     saveAccounts(filtered);
+    window.dispatchEvent(new Event(ACCOUNTS_EVENT));
   }, [user, token, refreshToken, roles, permissions, menus]);
 
   /** 删除单条记录并立即刷新列表。 */
   const removeAccount = useCallback((username: string) => {
     const all = loadAccounts().filter((a) => a.username !== username);
     saveAccounts(all);
-    bump();
-  }, [bump]);
+    window.dispatchEvent(new Event(ACCOUNTS_EVENT));
+  }, []);
 
   /** 直接切换到已保存的会话（免密登录）。切换后立即验证 token，冻结账号自动登出。 */
   const switchTo = useCallback(

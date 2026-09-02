@@ -123,15 +123,19 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
   // URL 恢复：页面加载时从 ?sid=X 加载消息。
   // 使用 ref 追踪当前 sessionId，避免快速切换时 stale .catch() 覆盖当前会话。
   const sessionIdRef = useRef(sessionId);
-  sessionIdRef.current = sessionId;
 
   const urlRestoredRef = useRef(false);
+
+  // 同步 ref 到当前 sessionId（effect 内更新，不在 render 中写 ref）
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId || sessionsLoading) return;
     if (urlRestoredRef.current) return;
     if (store.getStream(sessionId)?.messages.length) { urlRestoredRef.current = true; return; }
-    if (!sessions.some(s => s.id === sessionId)) { setSessionId(null); return; }
+    if (!sessions.some(s => s.id === sessionId)) { queueMicrotask(() => setSessionId(null)); return; }
 
     urlRestoredRef.current = true;
     getChatDetail(sessionId).then(detail => {
