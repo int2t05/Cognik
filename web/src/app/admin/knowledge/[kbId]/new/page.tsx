@@ -131,8 +131,8 @@ export default function NewArticlePage() {
           <Field label="标签（逗号分隔，最多 10 个）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
         </Card>
         <div className="flex gap-3">
-          <Button type="submit" size="icon" disabled={saving} aria-label="创建">{saving ? <Loader2 className="animate-spin" /> : <FilePlus />}</Button>
-          <Button variant="ghost" type="button" size="icon" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消"><X /></Button>
+          <Button type="submit" size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" size={18} /> : <FilePlus size={18} />}创建</Button>
+          <Button variant="ghost" type="button" size="sm" onClick={() => router.push("/admin/knowledge/" + kbId)}><X size={16} />取消</Button>
         </div>
       </form>
     </div>

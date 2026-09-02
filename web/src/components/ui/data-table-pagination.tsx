@@ -45,7 +45,7 @@ export function DataTablePagination({
   const btnDisabled = 'pointer-events-none opacity-30';
 
   return (
-    <div className="flex items-center py-2 px-4">
+    <div className="flex items-center py-2 px-4 border-t border-[var(--color-divider-soft)]">
       {/* 左：计数 + 页大小 */}
       <div className="flex items-center gap-3 flex-1">
         <span className="text-fine text-[var(--color-text-muted-48)]">

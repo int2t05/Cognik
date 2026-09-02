@@ -10,6 +10,7 @@ import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
@@ -70,8 +71,8 @@ export default function ArticleEditPage() {
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
-          <h1 className="text-display font-semibold text-[var(--color-ink)]">{article.title}</h1>
-          <div className="flex gap-2 mt-2">
+          <PageTitle>{article.title}</PageTitle>
+          <div className="flex gap-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
             <span className="text-caption text-[var(--color-text-muted-48)]">创建者: {article.created_by_name} · {formatDate(article.created_at)}</span>

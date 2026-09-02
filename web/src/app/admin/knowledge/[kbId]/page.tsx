@@ -2,6 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getArticleList } from '@/lib/api/knowledge';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
@@ -43,13 +44,13 @@ export default function ArticleListPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <FilterBar options={ARTICLE_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} className="!mb-0" />
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
           <Input
             type="text"
             placeholder="搜索标题或标签…"
             value={keyword}
             onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-            className="w-56 py-2 pl-8 pr-8 text-caption rounded-[var(--radius-pill)]"
+            className="h-9 pl-10 pr-4 text-caption rounded-[var(--radius-pill)]"
           />
           {keyword && (
             <Button type="button" variant="ghost" size="icon" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-1 top-1/2 -translate-y-1/2 size-7 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
@@ -60,7 +61,7 @@ export default function ArticleListPage() {
       </div>
       <DataTable
         columns={[
-          { accessorKey: 'title', header: '标题', cell: ({ row }) => <a href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</a> },
+          { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
           { id: 'source_type_text', header: '来源', cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
           { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
           { accessorKey: 'process_status', header: '处理', cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },

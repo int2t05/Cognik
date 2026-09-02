@@ -124,9 +124,9 @@ export default function DashboardPage() {
       {/* 知识健康度分析 */}
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
+          <h2 className="text-title font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
           <Button
-            size="lg"
+            size="sm"
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"

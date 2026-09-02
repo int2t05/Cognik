@@ -7,12 +7,11 @@ import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare, Search, X } from 'lucide-react';
+import { ListFilter, Clock, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -55,15 +54,7 @@ export default function AdminTicketListPage() {
       </div>
       {error && <InlineError />}
       <div className="mb-4 flex gap-2 items-center flex-wrap">
-        <div className="relative">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] pointer-events-none" />
-          <Input placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} className="h-11 rounded-[var(--radius-pill)] pl-10 pr-10 min-w-[100px]" />
-          {keyword && (
-            <Button type="button" variant="ghost" size="icon" onClick={() => { setKeyword(''); setPage(1); }} aria-label="清除搜索" className="absolute right-1 top-1/2 -translate-y-1/2 size-7 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
-              <X size={12} />
-            </Button>
-          )}
-        </div>
+        <Input className="rounded-[var(--radius-pill)] min-w-[100px]" placeholder="搜索编号/标题/提交人..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
         <FilterBar options={TICKET_FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
