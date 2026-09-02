@@ -21,6 +21,7 @@ type AppConfig struct {
 	AI        AIConfig        `mapstructure:"ai"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 	Parser    ParserConfig    `mapstructure:"parser"`
+	Knowledge KnowledgeConfig `mapstructure:"kb"`
 }
 
 // CORSConfig 跨域配置，AllowOrigins 为逗号分隔列表。
@@ -143,6 +144,11 @@ type PythonConfig struct {
 	Path string `mapstructure:"path"` // 默认 python3
 }
 
+// KnowledgeConfig 知识库配置。
+type KnowledgeConfig struct {
+	MaxUploadSizeKB int `mapstructure:"max_upload_size"` // 上传大小上限(KB)，默认 51200(50MB)
+}
+
 // Load 加载配置文件并应用环境变量覆盖。
 // configPath 为空时使用默认路径 ./internal/config/config.yaml。
 func Load(configPath string) (*AppConfig, error) {
@@ -254,6 +260,9 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("parser.mineru.endpoint", "OPSMIND_MINERU_ENDPOINT")
 	v.BindEnv("parser.mineru.timeout", "OPSMIND_MINERU_TIMEOUT")
 	v.BindEnv("parser.python.path", "OPSMIND_PARSER_PYTHON_PATH")
+
+	// Knowledge
+	v.BindEnv("kb.max_upload_size", "OPSMIND_KB_MAX_UPLOAD_SIZE")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -282,6 +291,10 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.JWT.RefreshExpire == 0 {
 		return fmt.Errorf("jwt.refresh_expire 为零值，可能是 env 格式错误（需字符串如 \"168h\"）")
+	}
+
+	if c.Knowledge.MaxUploadSizeKB <= 0 {
+		return fmt.Errorf("kb.max_upload_size 必须大于 0，当前值: %d", c.Knowledge.MaxUploadSizeKB)
 	}
 
 	return nil
@@ -361,4 +374,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("parser.mineru.endpoint", "https://mineru.net/api/v4")
 	v.SetDefault("parser.mineru.timeout", "180s")
 	v.SetDefault("parser.python.path", "python3")
+
+	// Knowledge
+	v.SetDefault("kb.max_upload_size", 51200)
 }

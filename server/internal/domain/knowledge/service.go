@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,11 +28,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// MaxDocumentSize 文档上传大小上限（50MB）。
-const MaxDocumentSize = 50 * 1024 * 1024
-
-// allowedDocumentTypes 支持上传的文档格式白名单。
-var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "xlsx": true, "pptx": true, "md": true, "txt": true}
+// allowedDocumentTypes 支持上传的文档格式白名单（图片格式仅 MinerU 引擎可解析，本地降级不支持）。
+var allowedDocumentTypes = map[string]bool{
+	"pdf": true, "docx": true, "xlsx": true, "pptx": true, "md": true, "txt": true,
+	"jpg": true, "png": true, "gif": true, "bmp": true, "webp": true,
+}
 
 // 存储两桶模型：
 //   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
@@ -107,6 +108,7 @@ type KnowledgeService struct {
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string           // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
+	maxUploadSize         int64            // 上传大小上限(字节)，由 config 注入
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -165,6 +167,11 @@ func WithDefaultEmbeddingModel(model string) KnowledgeServiceOption {
 // WithMessageNotifier 注入消息通知服务（审核结果通知文章作者）。
 func WithMessageNotifier(msg knowledgeMsgNotifier) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.msgSvc = msg }
+}
+
+// WithMaxUploadSize 设置文档上传大小上限（字节，由 config 的 KB 值转换注入）。
+func WithMaxUploadSize(bytes int64) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.maxUploadSize = bytes }
 }
 
 // SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
@@ -697,11 +704,11 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	}
 
 	if !allowedDocumentTypes[fileType] {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/xlsx/pptx/md/txt）"}
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/xlsx/pptx/md/txt/jpg/png/gif/bmp/webp）"}
 	}
 
-	if fileSize > MaxDocumentSize {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件大小超过限制（最大 50MB）"}
+	if fileSize > s.maxUploadSize {
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: fmt.Sprintf("文件大小超过限制（最大 %d MB）", s.maxUploadSize/1024/1024)}
 	}
 
 	title := strings.TrimSuffix(filename, "."+fileType)
@@ -713,7 +720,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, err
 	}
 
-	data, err := io.ReadAll(io.LimitReader(content, MaxDocumentSize))
+	data, err := io.ReadAll(io.LimitReader(content, s.maxUploadSize))
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "读取上传文件失败: " + err.Error()}
 	}
@@ -756,6 +763,21 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text), result.Images)
 
 	return article, nil
+}
+
+// GetUploadConfig 返回文档上传配置（大小上限、允许类型、文件数上限）。
+func (s *KnowledgeService) GetUploadConfig() response.UploadConfigResponse {
+	types := make([]string, 0, len(allowedDocumentTypes))
+	for t := range allowedDocumentTypes {
+		types = append(types, t)
+	}
+	sort.Strings(types)
+	return response.UploadConfigResponse{
+		MaxUploadSizeKB: int(s.maxUploadSize / 1024),
+		MaxUploadSize:   s.maxUploadSize,
+		AllowedTypes:    types,
+		MaxFiles:        10,
+	}
 }
 
 // GetDocumentStatus 查询文档处理状态。

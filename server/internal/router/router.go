@@ -93,6 +93,13 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 	admin.Use(middleware.JWTAuth(userCache, cfg.JWT.Secret))
 	registerAdminRoutes(admin, h)
 
+	// 上传配置（仅需 JWT 认证，供前端前置校验文件类型与大小）
+	if h != nil && h.Knowledge != nil {
+		r.GET("/api/v1/config/upload", middleware.JWTAuth(userCache, cfg.JWT.Secret), h.Knowledge.GetUploadConfig)
+	} else {
+		r.GET("/api/v1/config/upload", middleware.JWTAuth(userCache, cfg.JWT.Secret), placeholder())
+	}
+
 	return r
 }
 
