@@ -118,7 +118,7 @@ func TestTicketService_CreateTicket(t *testing.T) {
 	}
 
 	// 验证申告已创建
-	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10)
+	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "")
 	if err != nil {
 		t.Fatalf("查询申告失败: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestTicketService_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10)
+	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -591,7 +591,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 status=1 筛选
-	result, err := svc.ListAll(bgCtx, 1, 1, 10)
+	result, err := svc.ListAll(bgCtx, 1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -600,7 +600,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 urgency=3 筛选
-	result, err = svc.ListAll(bgCtx, -1, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -609,7 +609,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 全部
-	result, err = svc.ListAll(bgCtx, -1, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

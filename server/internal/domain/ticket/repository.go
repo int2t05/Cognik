@@ -5,6 +5,7 @@ package ticket
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"opsmind/internal/shared/model"
@@ -20,6 +21,14 @@ type TicketRepo struct {
 // NewTicketRepo 创建 TicketRepo 实例
 func NewTicketRepo(db *gorm.DB) *TicketRepo {
 	return &TicketRepo{db: db}
+}
+
+// escapeLike 转义 LIKE/ILIKE 模式中的通配符（%、_、\），配合 ESCAPE '\' 子句实现字面量搜索。
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
 // =============================================================================
@@ -79,11 +88,15 @@ func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bo
 }
 
 // ListByUser 分页查询指定用户的申告列表。
-func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("user_id = ?", userID)
+	if keyword != "" {
+		like := "%" + escapeLike(keyword) + "%"
+		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -98,13 +111,17 @@ func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSiz
 }
 
 // ListAll 分页查询全部申告，支持按状态筛选。
-func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int, keyword string) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{})
 	if status >= 0 {
 		query = query.Where("status = ?", status)
+	}
+	if keyword != "" {
+		like := "%" + escapeLike(keyword) + "%"
+		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
