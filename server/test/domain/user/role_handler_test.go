@@ -11,11 +11,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"opsmind/internal/domain/system/audit"
+	"opsmind/internal/domain/user/role"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/system/audit"
-		"opsmind/internal/domain/user/role"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"

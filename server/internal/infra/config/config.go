@@ -25,6 +25,7 @@ type AppConfig struct {
 	Rerank    RerankConfig    `mapstructure:"rerank"`
 	AI        AIConfig        `mapstructure:"ai"`
 	CORS      CORSConfig      `mapstructure:"cors"`
+	Parser    ParserConfig   `mapstructure:"parser"`
 }
 
 // CORSConfig 是跨域资源共享配置。
@@ -149,6 +150,31 @@ type AIConfig struct {
 	RAGRerank           bool    `mapstructure:"rag_rerank"`
 }
 
+// ParserConfig 是文档解析引擎配置。
+//
+// Engine 选择解析后端：mineru（云端高精度，需 API Key）或 local（纯 Go 本地库）。
+// mineru 不可用时自动降级到 local，保证解析链路不中断。
+type ParserConfig struct {
+	Engine string        `mapstructure:"engine"` // mineru | local，默认 mineru
+	MinerU MinerUConfig  `mapstructure:"mineru"`
+	Python PythonConfig  `mapstructure:"python"`
+}
+
+// MinerUConfig 是 MinerU 云端结构化提取服务配置。
+//
+// APIKey 为空时 MinerU 引擎不启用，自动降级到本地解析。
+// Endpoint 指向 MinerU Precise API 根路径（含 /api/v4）。
+type MinerUConfig struct {
+	APIKey   string        `mapstructure:"api_key"`
+	Endpoint string        `mapstructure:"endpoint"` // 默认 https://mineru.net/api/v4
+	Timeout  time.Duration `mapstructure:"timeout"`  // 轮询超时，默认 180s
+}
+
+// PythonConfig 是本地解析可能调用的 Python 解释器路径。
+type PythonConfig struct {
+	Path string `mapstructure:"path"` // 默认 python3
+}
+
 // Load 加载配置文件并应用环境变量覆盖。
 //
 // configPath 为空时使用默认路径 ./internal/config/config.yaml。
@@ -257,6 +283,13 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("rerank.enabled", "OPSMIND_RERANK_ENABLED")
 	v.BindEnv("rerank.python_path", "OPSMIND_RERANK_PYTHON_PATH")
 	v.BindEnv("rerank.script_path", "OPSMIND_RERANK_SCRIPT_PATH")
+
+	// Parser（文档解析引擎）
+	v.BindEnv("parser.engine", "OPSMIND_PARSER_ENGINE")
+	v.BindEnv("parser.mineru.api_key", "MINERU_API_KEY")
+	v.BindEnv("parser.mineru.endpoint", "OPSMIND_MINERU_ENDPOINT")
+	v.BindEnv("parser.mineru.timeout", "OPSMIND_MINERU_TIMEOUT")
+	v.BindEnv("parser.python.path", "OPSMIND_PARSER_PYTHON_PATH")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -364,4 +397,11 @@ func setDefaults(v *viper.Viper) {
 
 	// CORS
 	v.SetDefault("cors.allow_origins", "http://localhost:5173,http://localhost:3000")
+
+	// Parser（文档解析引擎）
+	v.SetDefault("parser.engine", "mineru")
+	v.SetDefault("parser.mineru.api_key", "")
+	v.SetDefault("parser.mineru.endpoint", "https://mineru.net/api/v4")
+	v.SetDefault("parser.mineru.timeout", "180s")
+	v.SetDefault("parser.python.path", "python3")
 }

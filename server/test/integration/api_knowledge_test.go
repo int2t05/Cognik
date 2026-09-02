@@ -3,11 +3,12 @@
 // api_knowledge_test.go — 知识库管理接口集成测试（knowledge.md 全覆盖）。
 //
 // 测试端点：
-//   知识库: CRUD + 门户列表
-//   文章:   CRUD + 状态筛选
-//   审核:   submit-review / review (approve+reject)
-//   发布:   publish / disable / enable
-//   文档:   upload / status / retry
+//
+//	知识库: CRUD + 门户列表
+//	文章:   CRUD + 状态筛选
+//	审核:   submit-review / review (approve+reject)
+//	发布:   publish / disable / enable
+//	文档:   upload / status / retry
 package integration_test
 
 import (

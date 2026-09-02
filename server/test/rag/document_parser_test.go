@@ -151,7 +151,7 @@ func TestParser_UnsupportedType(t *testing.T) {
 	p := parser.NewParser()
 
 	reader := strings.NewReader("test")
-	_, err := p.Parse(reader, "xlsx")
+	_, err := p.Parse(reader, "csv")
 	if err == nil {
 		t.Error("不支持的文件类型应返回错误")
 	}

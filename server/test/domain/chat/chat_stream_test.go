@@ -12,8 +12,8 @@ import (
 	"context"
 	"testing"
 
+	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/chat/session"
 )
 
 // setupChatRepoTest 准备 ChatRepo 集成测试环境。

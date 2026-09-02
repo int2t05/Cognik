@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/ticket"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/domain/ticket"
+	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
 )
@@ -56,7 +56,7 @@ func setupSchedulerTest(t *testing.T) (*runtime.Scheduler, *model.User) {
 
 	// 清理旧数据
 	schedDB.Exec("DELETE FROM ticket_records")
-		schedDB.Exec("DELETE FROM tickets")
+	schedDB.Exec("DELETE FROM tickets")
 	schedDB.Exec("DELETE FROM users WHERE username LIKE 'sched_%'")
 
 	// 创建测试用户
@@ -92,7 +92,7 @@ func TestScheduler_RunAutoClose_ClosesOldTickets(t *testing.T) {
 	oldTime := time.Now().Add(-8 * 24 * time.Hour)
 	oldTicket := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-OLD-%d", time.Now().UnixNano()),
-		UserID: user.ID, Title: "旧申告", Description: "旧描述",
+		UserID:   user.ID, Title: "旧申告", Description: "旧描述",
 		ContactPhone: "13800000001", Status: 1, Source: 1,
 		CreatedAt: oldTime, UpdatedAt: oldTime,
 	}
@@ -124,7 +124,7 @@ func TestScheduler_RunAutoClose_SkipsRecentTickets(t *testing.T) {
 	recentTime := time.Now().Add(-6 * 24 * time.Hour)
 	recent := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-REC-%d", time.Now().UnixNano()),
-		UserID: user.ID, Title: "新申告", Description: "新描述",
+		UserID:   user.ID, Title: "新申告", Description: "新描述",
 		ContactPhone: "13800000001", Status: 1, Source: 1,
 		CreatedAt: recentTime, UpdatedAt: recentTime,
 	}
@@ -156,7 +156,7 @@ func TestScheduler_RunAutoClose_SkipsResolvedStatus(t *testing.T) {
 	// 创建已解决状态的旧申告（不应被关闭）
 	resolved := &model.Ticket{
 		TicketNo: fmt.Sprintf("TK-RES-%d", time.Now().UnixNano()),
-		UserID: user.ID, Title: "已解决", Description: "已解决",
+		UserID:   user.ID, Title: "已解决", Description: "已解决",
 		ContactPhone: "13800000001", Status: 4, Source: 1,
 		CreatedAt: oldTime, UpdatedAt: oldTime,
 	}
@@ -188,7 +188,7 @@ func TestScheduler_RunAutoClose_OnlyPendingProcessingSupplement(t *testing.T) {
 	for _, status := range []int16{1, 2, 3} {
 		ticket := &model.Ticket{
 			TicketNo: fmt.Sprintf("TK-S%d-%d", status, time.Now().UnixNano()),
-			UserID: user.ID, Title: "待关闭", Description: "描述",
+			UserID:   user.ID, Title: "待关闭", Description: "描述",
 			ContactPhone: "13800000001", Status: status, Source: 1,
 			CreatedAt: oldTime, UpdatedAt: oldTime,
 		}

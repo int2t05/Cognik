@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/user/account"
+	"opsmind/internal/domain/user/auth"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/hash"
 	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
+	"opsmind/internal/shared/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -197,7 +197,7 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd", "Test@1234", "13800001005", 1)
 
-	err := svc.ChangePassword(bgCtx,user.ID, "Test@1234", "NewPass@123")
+	err := svc.ChangePassword(bgCtx, user.ID, "Test@1234", "NewPass@123")
 	assert.NoError(t, err)
 
 	// 验证新密码可用
@@ -214,7 +214,7 @@ func TestAuthService_ChangePassword_WrongOldPassword(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd_old", "Test@1234", "13800001006", 1)
 
-	err := svc.ChangePassword(bgCtx,user.ID, "WrongOld@123", "NewPass@123")
+	err := svc.ChangePassword(bgCtx, user.ID, "WrongOld@123", "NewPass@123")
 	assert.Error(t, err)
 	assert.Equal(t, 10003, err.(errcode.AppError).Code, "旧密码错误应返回 10003")
 }
@@ -227,7 +227,7 @@ func TestAuthService_ChangePassword_WeakNewPassword(t *testing.T) {
 
 	user := seedTestUser(t, db, "test_auth_chpwd_weak", "Test@1234", "13800001007", 1)
 
-	err := svc.ChangePassword(bgCtx,user.ID, "Test@1234", "weak")
+	err := svc.ChangePassword(bgCtx, user.ID, "Test@1234", "weak")
 	assert.Error(t, err)
 	assert.Equal(t, 10003, err.(errcode.AppError).Code, "弱密码应返回 10003")
 }

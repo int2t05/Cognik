@@ -10,8 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	llmconfig "opsmind/internal/domain/chat/llm_config"
 	"opsmind/internal/shared/model"
-		llmconfig "opsmind/internal/domain/chat/llm_config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,9 +20,9 @@ import (
 func setupLLMConfigHandler(t *testing.T) *llmconfig.LLMConfigHandler {
 	t.Helper()
 	// 每次测试前清空表，避免默认配置唯一索引冲突
-	knowledgeHandlerDB.Exec("DELETE FROM llm_configs")
-	repo := llmconfig.NewLlmConfigRepo(knowledgeHandlerDB)
-	svc, err := llmconfig.NewLLMConfigService(repo, knowledgeHandlerDB, nil)
+	chatSvcDB.Exec("DELETE FROM llm_configs")
+	repo := llmconfig.NewLlmConfigRepo(chatSvcDB)
+	svc, err := llmconfig.NewLLMConfigService(repo, chatSvcDB, nil)
 	if err != nil {
 		t.Fatalf("创建 LLMConfigService 失败: %v", err)
 	}
@@ -47,8 +47,8 @@ func TestLLMConfigHandler_ListConfigs(t *testing.T) {
 	r := setupLLMTestRouter(h)
 
 	// 预创建 2 个配置
-	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "llama.cpp", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "qwen3-4b", EmbeddingModel: "bge-m3", IsDefault: true})
-	knowledgeHandlerDB.Create(&model.LlmConfig{Name: "OpenAI", LLMBaseURL: "https://api.openai.com/v1", LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small"})
+	chatSvcDB.Create(&model.LlmConfig{Name: "llama.cpp", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "qwen3-4b", EmbeddingModel: "bge-m3", IsDefault: true})
+	chatSvcDB.Create(&model.LlmConfig{Name: "OpenAI", LLMBaseURL: "https://api.openai.com/v1", LLMModel: "gpt-4o", EmbeddingModel: "text-embedding-3-small"})
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/admin/llm-configs", nil)
@@ -59,7 +59,7 @@ func TestLLMConfigHandler_ListConfigs(t *testing.T) {
 	}
 
 	var resp struct {
-		Code int                       `json:"code"`
+		Code int                           `json:"code"`
 		Data []llmconfig.LlmConfigResponse `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)
@@ -105,7 +105,7 @@ func TestLLMConfigHandler_CreateConfig(t *testing.T) {
 
 	// 验证 DB 中已创建
 	var cfg model.LlmConfig
-	if err := knowledgeHandlerDB.Where("name = ?", "DeepSeek").First(&cfg).Error; err != nil {
+	if err := chatSvcDB.Where("name = ?", "DeepSeek").First(&cfg).Error; err != nil {
 		t.Fatalf("配置应已创建: %v", err)
 	}
 	if cfg.LLMModel != "deepseek-chat" {
@@ -119,7 +119,7 @@ func TestLLMConfigHandler_GetConfig(t *testing.T) {
 	r := setupLLMTestRouter(h)
 
 	cfg := &model.LlmConfig{Name: "详情测试", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "test-model", EmbeddingModel: "emb-model"}
-	knowledgeHandlerDB.Create(cfg)
+	chatSvcDB.Create(cfg)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/admin/llm-configs/"+itoa(cfg.ID), nil)
@@ -137,7 +137,7 @@ func TestLLMConfigHandler_DeleteConfig(t *testing.T) {
 
 	// 非默认配置可以删除
 	cfg := &model.LlmConfig{Name: "待删除", LLMBaseURL: "http://localhost:8080/v1", LLMModel: "x", EmbeddingModel: "y", IsDefault: false}
-	knowledgeHandlerDB.Create(cfg)
+	chatSvcDB.Create(cfg)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("DELETE", "/api/v1/admin/llm-configs/"+itoa(cfg.ID), nil)
@@ -149,7 +149,7 @@ func TestLLMConfigHandler_DeleteConfig(t *testing.T) {
 
 	// 验证已删除
 	var count int64
-	knowledgeHandlerDB.Model(&model.LlmConfig{}).Where("id = ?", cfg.ID).Count(&count)
+	chatSvcDB.Model(&model.LlmConfig{}).Where("id = ?", cfg.ID).Count(&count)
 	if count != 0 {
 		t.Error("配置应已删除")
 	}
@@ -163,7 +163,7 @@ func TestLLMConfigHandler_TestConnection(t *testing.T) {
 	r := setupLLMTestRouter(h)
 
 	cfg := &model.LlmConfig{Name: "测试连接", LLMBaseURL: "http://localhost:9999/v1", LLMModel: "test", EmbeddingModel: "e", IsDefault: false}
-	knowledgeHandlerDB.Create(cfg)
+	chatSvcDB.Create(cfg)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/admin/llm-configs/"+itoa(cfg.ID)+"/test", nil)

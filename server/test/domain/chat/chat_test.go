@@ -16,13 +16,13 @@ import (
 	"strings"
 	"testing"
 
+	"opsmind/internal/domain/chat/session"
+	"opsmind/internal/domain/knowledge"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
-	respDto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/infra/middleware"
+	respDto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/chat/session"
-	"opsmind/internal/domain/knowledge"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -143,8 +143,8 @@ func TestChatHandler_CreateSession_Success(t *testing.T) {
 	}
 
 	var resp struct {
-		Code int                           `json:"code"`
-		Data respDto.ChatSessionResponse   `json:"data"`
+		Code int                         `json:"code"`
+		Data respDto.ChatSessionResponse `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 
@@ -174,8 +174,8 @@ func TestChatHandler_CreateSession_LowConfidence(t *testing.T) {
 	}
 
 	var resp struct {
-		Code int                           `json:"code"`
-		Data respDto.ChatSessionResponse   `json:"data"`
+		Code int                         `json:"code"`
+		Data respDto.ChatSessionResponse `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp.Data.SessionID == 0 {

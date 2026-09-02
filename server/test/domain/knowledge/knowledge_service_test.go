@@ -10,11 +10,11 @@ package knowledge_test
 import (
 	"testing"
 
+	"opsmind/internal/domain/knowledge"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/knowledge"
 
 	"gorm.io/gorm"
 )
@@ -78,8 +78,8 @@ func createTestArticle(t *testing.T, _ *knowledge.KnowledgeService, kbID int64, 
 	t.Helper()
 	article := &model.KnowledgeArticle{
 		KBID:      kbID,
-		Title:  "测试问题",
-		Content:    "测试答案",
+		Title:     "测试问题",
+		Content:   "测试答案",
 		Status:    status,
 		CreatedBy: 1,
 	}
@@ -175,10 +175,10 @@ func TestKnowledgeService_CreateArticle(t *testing.T) {
 	kb := createTestKB(t, svc, "文章测试库")
 
 	article, err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
-		KBID:     kb.ID,
-		Title: "如何重置密码？",
-		Content:   "请访问设置页面。",
-		Tags:     []string{"密码", "账号"},
+		KBID:    kb.ID,
+		Title:   "如何重置密码？",
+		Content: "请访问设置页面。",
+		Tags:    []string{"密码", "账号"},
 	}, 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
@@ -198,9 +198,9 @@ func TestKnowledgeService_CreateArticle_KBNotFound(t *testing.T) {
 	svc := setupKnowledgeService(t)
 
 	_, err := svc.CreateArticle(bgCtx, request.CreateArticleRequest{
-		KBID:     99999,
-		Title: "问题",
-		Content:   "答案",
+		KBID:    99999,
+		Title:   "问题",
+		Content: "答案",
 	}, 1)
 	if err == nil {
 		t.Fatal("期望错误, got nil")
@@ -214,8 +214,8 @@ func TestKnowledgeService_UpdateArticle_Draft(t *testing.T) {
 	article := createTestArticle(t, svc, kb.ID, 1) // 草稿
 
 	err := svc.UpdateArticle(bgCtx, article.ID, request.UpdateArticleRequest{
-		Title: "更新后的问题",
-		Content:   "更新后的答案",
+		Title:   "更新后的问题",
+		Content: "更新后的答案",
 	})
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
@@ -235,8 +235,8 @@ func TestKnowledgeService_UpdateArticle_NotEditable(t *testing.T) {
 	article := createTestArticle(t, svc, kb.ID, 3) // 已发布
 
 	err := svc.UpdateArticle(bgCtx, article.ID, request.UpdateArticleRequest{
-		Title: "尝试修改",
-		Content:   "应该失败",
+		Title:   "尝试修改",
+		Content: "应该失败",
 	})
 	if err == nil {
 		t.Fatal("期望错误, got nil")

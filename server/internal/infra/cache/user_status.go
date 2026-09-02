@@ -1,7 +1,4 @@
-// Package cache 提供后端内存缓存基础设施。
-//
-// UserStatusCache 缓存用户冻结/正常状态，减少高并发下每个 API 请求的 DB 查询。
-// TTL 默认 30 秒，缓存未命中时回退到 DB 查询。
+// Package cache 提供用户状态内存缓存。
 package cache
 
 import (
@@ -12,11 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserStatusCache 用户状态内存缓存。
-//
-// 为什么用 sync.RWMutex + map 而非 sync.Map：
-// sync.Map 适合读多写少且 key 集合稳定的场景，
-// 但用户状态缓存的 key 集合动态变化且需要 TTL 清理，普通 map + RWMutex 更直观。
+// UserStatusCache 用户状态内存缓存，减少高并发下 DB 查询。
 type UserStatusCache struct {
 	db      *gorm.DB
 	mu      sync.RWMutex

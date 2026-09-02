@@ -1,15 +1,7 @@
 // Package adapter 提供外部服务的适配层。
-//
-// rerank_client.go 定义 Reranker 接口和子进程实现。
-//
-// 为什么用子进程而非 HTTP 服务：
-// Cross-encoder 推理是纯 CPU 计算，子进程方案零网络开销，
-// stdin/stdout JSON Lines 协议比 HTTP 更轻量，且进程生命周期
-// 与 Go 主进程绑定（随 Go 启停），无需额外编排。
 package adapter
 
 import (
-	"time"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -20,16 +12,14 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // =============================================================================
 // 接口定义
 // =============================================================================
 
-// Reranker 定义 cross-encoder 重排序接口。
-//
-// 与 LLMClient/EmbeddingClient 同级设计：通过接口解耦实现，
-// Pipeline 不感知底层是子进程还是 HTTP 服务。
+// Reranker 定义 cross-encoder 重排序接口，解耦实现细节。
 type Reranker interface {
 	// Rerank 对候选 passages 按与 query 的相关性重新排序。
 	//
@@ -58,25 +48,15 @@ type RerankResult struct {
 // 子进程实现
 // =============================================================================
 
-// SubprocessReranker 通过子进程调用 Python cross-encoder 推理脚本。
-//
-// 通信协议：stdin/stdout JSON Lines
-//   → 每行 {"query":"...","passages":[...]} 对应一个请求
-//   ← 每行 {"order":[...],"scores":[...]} 对应一个响应
-//
-// 线程安全：所有对 stdin 的写操作通过 mu 串行化；
-// stdout 由单一 goroutine 读取并分发到各请求的 channel。
-//
-// 子进程崩溃处理：
-// monitorProcess 检测到退出后通知所有等待中的请求返回错误，
-// 调用方（rag.Rerank）在收到错误后降级为原始排序，
-// Pipeline 无需感知子进程生命周期。
+// SubprocessReranker 通过子进程调用 Python cross-encoder 推理。
+// 通信协议为 stdin/stdout JSON Lines；stdin 写入串行化，stdout 单 goroutine 分发。
+// 子进程崩溃时通知等待请求返回错误，调用方降级为原始排序。
 type SubprocessReranker struct {
 	cmd        *exec.Cmd
 	pythonPath string // 保存用于自动重启
 	scriptPath string
 	stdin      io.WriteCloser
-	mu         sync.Mutex // 保护 stdin 写入
+	mu         sync.Mutex                      // 保护 stdin 写入
 	pending    map[string]chan *rerankResponse // reqID → 响应 channel
 	pendingMu  sync.Mutex
 	reqSeq     int
@@ -98,11 +78,7 @@ type rerankResponse struct {
 	Error  string    `json:"error,omitempty"`
 }
 
-// NewSubprocessReranker 创建并启动 Python 推理子进程。
-//
-// pythonPath 为 Python 解释器路径（如 "python3"），
-// scriptPath 为 rerank_server.py 的路径。
-// 返回 nil 表示子进程启动失败（调用方应降级跳过重排序）。
+// NewSubprocessReranker 创建并启动 Python 推理子进程，启动失败返回 nil。
 func NewSubprocessReranker(pythonPath, scriptPath string) *SubprocessReranker {
 	r := &SubprocessReranker{
 		pythonPath: pythonPath,
@@ -139,15 +115,15 @@ func (r *SubprocessReranker) start(pythonPath, scriptPath string) error {
 		return fmt.Errorf("启动子进程失败: %w", err)
 	}
 
-	// 后台 goroutine 读取 stdout 并分发响应
+	// 后台读取 stdout 分发响应
 	go r.readStdout(stdout)
-	// 后台 goroutine 监控子进程退出，通知等待中的请求
+	// 监控子进程退出并重启
 	go r.monitorProcess()
 
 	return nil
 }
 
-// readStdout 持续读取子进程 stdout，解析 JSON Lines 并路由到等待的请求。
+// readStdout 读取子进程 stdout，解析 JSON Lines 并路由到等待的请求。
 func (r *SubprocessReranker) readStdout(stdout io.Reader) {
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
@@ -179,7 +155,7 @@ func (r *SubprocessReranker) readStdout(stdout io.Reader) {
 	}
 }
 
-// monitorProcess 监控子进程退出，通知等待中的请求，并尝试重启。
+// monitorProcess 监控子进程退出，通知等待请求并尝试重启。
 func (r *SubprocessReranker) monitorProcess() {
 	err := r.cmd.Wait()
 	slog.Warn("rerank 子进程已退出，将自动重启", "error", err)
@@ -202,10 +178,7 @@ func (r *SubprocessReranker) monitorProcess() {
 	}
 }
 
-// Rerank 执行重排序。
-//
-// ctx 取消或超时时返回 context.Canceled / context.DeadlineExceeded，
-// 调用方应将此视为降级信号。
+// Rerank 执行重排序，ctx 取消/超时返回错误供调用方降级。
 func (r *SubprocessReranker) Rerank(ctx context.Context, query string, passages []RerankPassage) (*RerankResult, error) {
 	if r == nil || r.closed.Load() {
 		return nil, nil // 降级：返回 nil 让调用方用原排序
@@ -219,7 +192,7 @@ func (r *SubprocessReranker) Rerank(ctx context.Context, query string, passages 
 		return &RerankResult{Order: order, Scores: []float64{1.0}}, nil
 	}
 
-	// 生成请求 ID 并注册响应 channel
+	// 注册请求 ID 与响应 channel
 	r.pendingMu.Lock()
 	r.reqSeq++
 	reqID := fmt.Sprintf("%d", r.reqSeq)
@@ -233,7 +206,6 @@ func (r *SubprocessReranker) Rerank(ctx context.Context, query string, passages 
 		r.pendingMu.Unlock()
 	}()
 
-	// 构建请求
 	req := rerankRequest{
 		ReqID:    reqID,
 		Query:    query,
@@ -270,9 +242,7 @@ func (r *SubprocessReranker) Rerank(ctx context.Context, query string, passages 
 	}
 }
 
-// Close 优雅关闭子进程。
-//
-// 先关闭 stdin 通知 Python 进程退出循环，再发 SIGTERM 确保退出。
+// Close 优雅关闭子进程：关 stdin 通知退出，再发 SIGTERM 兜底。
 func (r *SubprocessReranker) Close() error {
 	if r == nil || r.closed.Load() {
 		return nil

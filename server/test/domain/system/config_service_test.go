@@ -11,11 +11,11 @@ import (
 	"encoding/json"
 	"testing"
 
+	"opsmind/internal/domain/system/audit"
+	sysconfig "opsmind/internal/domain/system/config"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/system/audit"
-	sysconfig "opsmind/internal/domain/system/config"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -80,15 +80,6 @@ func TestConfigRepo_GetByKey_Existing(t *testing.T) {
 	}
 }
 
-func TestConfigRepo_GetByKey_NotFound(t *testing.T) {
-	db := setupTestDB(t)
-	repo := sysconfig.NewConfigRepo(db)
-	_, err := repo.GetByKey(bgCtx, "nonexistent.key")
-	if err == nil {
-		t.Fatal("期望返回错误, 实际为 nil")
-	}
-}
-
 func TestConfigRepo_Upsert_UpdateExisting(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sysconfig.NewConfigRepo(db)
@@ -117,38 +108,6 @@ func TestConfigRepo_Upsert_InsertNew(t *testing.T) {
 	}
 	if result.Key != "system.max_retries" {
 		t.Errorf("Key = %q, 期望 system.max_retries", result.Key)
-	}
-}
-
-func TestConfigRepo_List(t *testing.T) {
-	db := setupTestDB(t)
-	repo := sysconfig.NewConfigRepo(db)
-	configs := []model.SystemConfig{
-		{Key: "ai.confidence_threshold", Value: datatypes.JSON(`{"threshold":0.6}`), UpdatedBy: 1},
-		{Key: "ai.default_top_k", Value: datatypes.JSON(`{"top_k":5}`), UpdatedBy: 1},
-		{Key: "system.max_retries", Value: datatypes.JSON(`{"max_retries":3}`), UpdatedBy: 2},
-	}
-	for i := range configs {
-		db.Create(&configs[i])
-	}
-	result, err := repo.List(bgCtx)
-	if err != nil {
-		t.Fatalf("List 失败: %v", err)
-	}
-	if len(result) != 3 {
-		t.Fatalf("List 返回 %d 条, 期望 3", len(result))
-	}
-}
-
-func TestConfigRepo_List_Empty(t *testing.T) {
-	db := setupTestDB(t)
-	repo := sysconfig.NewConfigRepo(db)
-	result, err := repo.List(bgCtx)
-	if err != nil {
-		t.Fatalf("List 失败: %v", err)
-	}
-	if result == nil {
-		t.Fatal("List 返回 nil, 期望空切片")
 	}
 }
 

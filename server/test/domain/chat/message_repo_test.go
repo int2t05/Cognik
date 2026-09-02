@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
+	"opsmind/internal/domain/system/message"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-		"opsmind/internal/domain/system/message"
 
 	"gorm.io/gorm"
 )

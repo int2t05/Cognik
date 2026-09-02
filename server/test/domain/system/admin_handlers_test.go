@@ -11,12 +11,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"opsmind/internal/domain/system/audit"
+	sysconfig "opsmind/internal/domain/system/config"
+	"opsmind/internal/domain/system/dashboard"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/infra/middleware"
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/domain/system/dashboard"
-	sysconfig "opsmind/internal/domain/system/config"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -105,7 +105,7 @@ func TestDashboardHandler_GetStats(t *testing.T) {
 	}
 
 	var resp struct {
-		Code int            `json:"code"`
+		Code int                    `json:"code"`
 		Data map[string]interface{} `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)

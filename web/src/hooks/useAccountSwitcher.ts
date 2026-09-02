@@ -1,9 +1,4 @@
-/**
- * useAccountSwitcher — 历史登录会话管理。
- *
- * 登录时自动保存账号（token + 角色权限），7 天过期。
- * 过期账号点击后需重新输入密码。
- */
+/** useAccountSwitcher 历史登录会话管理，登录自动保存账号，7 天过期。 */
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
@@ -85,8 +80,7 @@ export function useAccountSwitcher() {
         email: '',
         first_login: false,
       }, account.roles, account.permissions, account.menus as never[]);
-      // 立即发一次请求验证 token——账号可能已被冻结，后台返回 10001
-      // client.ts 捕获 10001 后自动清除认证 + 跳转登录页
+      // 立即验证 token——账号可能已被冻结，后台返回 10001 触发自动登出
       try {
         await getUnreadCount(account.token);
       } catch (err: unknown) {

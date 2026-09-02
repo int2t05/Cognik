@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/infra/adapter"
-	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/shared/model"
 	llmconfig "opsmind/internal/domain/chat/llm_config"
 	"opsmind/internal/domain/chat/session"
 	"opsmind/internal/domain/knowledge"
+	"opsmind/internal/infra/adapter"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 )
 
 // TestLLMClient_ChatCompletion 验证 LLM 客户端可正常调用 llama.cpp。
@@ -116,14 +116,14 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 
 	cfg, err := llmConfigSvc.CreateConfig(bgCtx,
 		"llama.cpp 本地",
-		"http://localhost:8081/v1",  // llmBaseURL
-		"",                           // llmAPIKey
-		"http://localhost:8082/v1",  // embeddingBaseURL
-		"",                           // embeddingAPIKey
-		"qwen3-4b",                   // LLM Model
-		"qwen3-emb",                  // Embedding Model
-		"",                           // SystemPrompt
-		512, 1024, true,              // MaxTokens, VectorDim, IsDefault
+		"http://localhost:8081/v1", // llmBaseURL
+		"",                         // llmAPIKey
+		"http://localhost:8082/v1", // embeddingBaseURL
+		"",                         // embeddingAPIKey
+		"qwen3-4b",                 // LLM Model
+		"qwen3-emb",                // Embedding Model
+		"",                         // SystemPrompt
+		512, 1024, true,            // MaxTokens, VectorDim, IsDefault
 	)
 	if err != nil {
 		t.Fatalf("CreateConfig 失败: %v", err)
@@ -154,10 +154,10 @@ func TestChatService_LLMConfigIntegration(t *testing.T) {
 	// 验证唯一默认约束
 	_, err = llmConfigSvc.CreateConfig(bgCtx,
 		"OpenAI 远程",
-		"https://api.openai.com/v1",  // llmBaseURL
-		"sk-test-key",                // llmAPIKey
-		"",                           // embeddingBaseURL
-		"sk-test-key",                // embeddingAPIKey
+		"https://api.openai.com/v1", // llmBaseURL
+		"sk-test-key",               // llmAPIKey
+		"",                          // embeddingBaseURL
+		"sk-test-key",               // embeddingAPIKey
 		"gpt-4o", "text-embedding-3-small",
 		"", 4096, 1536, true,
 	)

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"opsmind/internal/domain/knowledge"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
-	"opsmind/internal/domain/knowledge"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -104,10 +104,10 @@ func cleanKnowledgeTables(t *testing.T, db *gorm.DB) {
 	db.Exec("DELETE FROM knowledge_chunks")
 	db.Exec("DELETE FROM knowledge_articles")
 	db.Exec("DELETE FROM knowledge_bases")
-	db.Exec("DELETE FROM chat_messages")          // FK → chat_sessions
-	db.Exec("DELETE FROM chat_sessions")          // FK → users/knowledge_bases
-	db.Exec("DELETE FROM ticket_records")         // FK → tickets
-	db.Exec("DELETE FROM tickets")                // FK → users
+	db.Exec("DELETE FROM chat_messages")  // FK → chat_sessions
+	db.Exec("DELETE FROM chat_sessions")  // FK → users/knowledge_bases
+	db.Exec("DELETE FROM ticket_records") // FK → tickets
+	db.Exec("DELETE FROM tickets")        // FK → users
 	db.Exec("DELETE FROM users WHERE username LIKE 'test_%'")
 }
 
@@ -130,7 +130,7 @@ func TestKnowledgeRepo_CreateKB(t *testing.T) {
 
 	err := repo.CreateKB(context.Background(), kb)
 	require.NoError(t, err)
-	assert.NotZero(t, kb.ID,  "创建后应自动填充 ID")
+	assert.NotZero(t, kb.ID, "创建后应自动填充 ID")
 
 	// 验证可查回
 	got, err := repo.FindKBByID(context.Background(), kb.ID)
@@ -207,7 +207,7 @@ func TestKnowledgeRepo_ListKBs(t *testing.T) {
 	require.NoError(t, db.Create(kb1).Error)
 	require.NoError(t, db.Create(kb2).Error)
 
-	kbs, err := repo.ListKBs(context.Background(), )
+	kbs, err := repo.ListKBs(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, kbs, 2)
 	assert.True(t, kbs[0].Name == "知识库1" || kbs[0].Name == "知识库2")
@@ -219,7 +219,7 @@ func TestKnowledgeRepo_ListKBs_Empty(t *testing.T) {
 	cleanKnowledgeTables(t, db)
 	repo := knowledge.NewKnowledgeRepo(db)
 
-	kbs, err := repo.ListKBs(context.Background(), )
+	kbs, err := repo.ListKBs(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, kbs)
 }
@@ -244,7 +244,7 @@ func TestKnowledgeRepo_CreateArticle(t *testing.T) {
 	require.NoError(t, db.Create(kb).Error)
 
 	article := &model.KnowledgeArticle{
-		KBID:      kb.ID, 
+		KBID:      kb.ID,
 		Title:     "如何重置密码？",
 		Content:   "请访问设置页面，点击修改密码。",
 		Tags:      datatypes.JSON(`["运维", "网络"]`),
@@ -265,7 +265,7 @@ func TestKnowledgeRepo_CreateArticle(t *testing.T) {
 	assert.Equal(t, "请访问设置页面，点击修改密码。", got.Content)
 	assert.NotEmpty(t, got.Tags)
 	assert.Equal(t, int16(1), got.Status)
-	assert.Equal(t, kb.ID,  got.KBID)
+	assert.Equal(t, kb.ID, got.KBID)
 	// 验证预加载了 KnowledgeBase
 	assert.NotNil(t, got.KnowledgeBase)
 	assert.Equal(t, "文章测试库", got.KnowledgeBase.Name)
@@ -298,9 +298,9 @@ func TestKnowledgeRepo_UpdateArticle(t *testing.T) {
 	require.NoError(t, db.Create(kb).Error)
 
 	article := &model.KnowledgeArticle{
-		KBID:      kb.ID, 
-		Title:  "旧问题",
-		Content:    "旧答案",
+		KBID:      kb.ID,
+		Title:     "旧问题",
+		Content:   "旧答案",
 		Status:    1,
 		CreatedBy: 1,
 		CreatedAt: now,
@@ -339,9 +339,9 @@ func TestKnowledgeRepo_ListArticles(t *testing.T) {
 	// 创建 3 篇文章：2 篇草稿，1 篇已发布
 	for i := 0; i < 2; i++ {
 		a := &model.KnowledgeArticle{
-			KBID:      kb.ID, 
-			Title:  "问题" + string(rune('A'+i)),
-			Content:    "答案" + string(rune('A'+i)),
+			KBID:      kb.ID,
+			Title:     "问题" + string(rune('A'+i)),
+			Content:   "答案" + string(rune('A'+i)),
 			Status:    1, // 草稿
 			CreatedBy: 1,
 			CreatedAt: now,
@@ -351,9 +351,9 @@ func TestKnowledgeRepo_ListArticles(t *testing.T) {
 	}
 
 	published := &model.KnowledgeArticle{
-		KBID:      kb.ID, 
-		Title:  "已发布问题",
-		Content:    "已发布答案",
+		KBID:      kb.ID,
+		Title:     "已发布问题",
+		Content:   "已发布答案",
 		Status:    3, // 已发布
 		CreatedBy: 1,
 		CreatedAt: now,
@@ -398,9 +398,9 @@ func TestKnowledgeRepo_ListArticles_Pagination(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		a := &model.KnowledgeArticle{
-			KBID:      kb.ID, 
-			Title:  "问题",
-			Content:    "答案",
+			KBID:      kb.ID,
+			Title:     "问题",
+			Content:   "答案",
 			Status:    1,
 			CreatedBy: 1,
 			CreatedAt: now,
@@ -427,6 +427,7 @@ func TestKnowledgeRepo_ListArticles_Pagination(t *testing.T) {
 	assert.Equal(t, int64(5), total)
 	assert.Len(t, articles, 1)
 }
+
 // TestKnowledgeRepo_ListArticles_PreloadKnowledgeBase 验证 Preload KnowledgeBase 避免 N+1 查询。
 //
 // 修复前：ListArticles 缺少 .Preload("KnowledgeBase")，
@@ -447,9 +448,9 @@ func TestKnowledgeRepo_ListArticles_PreloadKnowledgeBase(t *testing.T) {
 	require.NoError(t, db.Create(kb).Error)
 
 	article := &model.KnowledgeArticle{
-		KBID:      kb.ID, 
-		Title:  "Preload测试",
-		Content:    "验证Preload",
+		KBID:      kb.ID,
+		Title:     "Preload测试",
+		Content:   "验证Preload",
 		Status:    1,
 		CreatedBy: 1,
 		CreatedAt: now,
@@ -470,8 +471,6 @@ func TestKnowledgeRepo_ListArticles_PreloadKnowledgeBase(t *testing.T) {
 	}
 }
 
-
-
 // TestKnowledgeRepo_UpdateArticleStatus 更新文章状态
 func TestKnowledgeRepo_UpdateArticleStatus(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
@@ -488,9 +487,9 @@ func TestKnowledgeRepo_UpdateArticleStatus(t *testing.T) {
 	require.NoError(t, db.Create(kb).Error)
 
 	article := &model.KnowledgeArticle{
-		KBID:      kb.ID, 
-		Title:  "状态问题",
-		Content:    "状态答案",
+		KBID:      kb.ID,
+		Title:     "状态问题",
+		Content:   "状态答案",
 		Status:    1, // 草稿
 		CreatedBy: 1,
 		CreatedAt: now,
@@ -510,7 +509,6 @@ func TestKnowledgeRepo_UpdateArticleStatus(t *testing.T) {
 // =============================================================================
 // KnowledgeChunk 测试
 // =============================================================================
-
 
 // TestKnowledgeRepo_FindChunksByArticleID_Empty 无切片时返回空
 func TestKnowledgeRepo_FindChunksByArticleID_Empty(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	llmconfig "opsmind/internal/domain/chat/llm_config"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/crypto"
-		llmconfig "opsmind/internal/domain/chat/llm_config"
 )
 
 const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
@@ -245,10 +245,10 @@ func TestLLMConfigService_UpdateWithoutAPIKeyDoesNotDoubleEncrypt(t *testing.T) 
 // TestLLMConfigResponse_MarshalJSON_MasksAPIKey 验证 MarshalJSON 自动脱敏。
 func TestLLMConfigResponse_MarshalJSON_MasksAPIKey(t *testing.T) {
 	resp := llmconfig.LlmConfigResponse{
-		ID:       1,
-		Name:     "openai",
+		ID:        1,
+		Name:      "openai",
 		LLMAPIKey: "sk-1234567890abcdefghij",
-		LLMModel: "gpt-4o",
+		LLMModel:  "gpt-4o",
 	}
 
 	data, err := json.Marshal(resp)
