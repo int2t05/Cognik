@@ -14,6 +14,7 @@ import { FilePlus, ListFilter, FileText, Clock, CheckCircle, XCircle, ChevronLef
 import { PageTitle } from '@/components/shared/PageTitle';
 import { FilterBar, type FilterOption } from '@/components/shared/FilterBar';
 import { InlineError } from '@/components/shared/InlineError';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const ARTICLE_FILTERS: FilterOption<string>[] = [
   { value: '-1', label: '全部', icon: <ListFilter size={16} /> },
@@ -30,6 +31,8 @@ export default function ArticleListPage() {
   const [status, setStatus] = useState('-1');
   const [keyword, setKeyword] = useState('');
   const { data, error } = useSWR(`articles-${kbId}-${page}-${status}-${keyword}`, () => getArticleList(Number(kbId), page, status, keyword));
+
+  const isEmpty = !error && data && (data.items || []).length === 0;
 
   return (
     <div>
@@ -59,18 +62,28 @@ export default function ArticleListPage() {
           )}
         </div>
       </div>
-      <DataTable
-        columns={[
-          { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-          { id: 'source_type_text', header: '来源', cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
-          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
-          { accessorKey: 'process_status', header: '处理', cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },
-          { id: 'created_at', header: '更新时间', cell: ({ row }) => formatDate(row.original.updated_at) },
-        ]}
-        data={data?.items || []}
-        loading={!data && !error}
-      />
-      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {isEmpty ? (
+        <EmptyState
+          icon={<FileText size={40} />}
+          title="暂无文章"
+          description={keyword ? '未找到匹配的文章' : '点击右上角新建文章'}
+        />
+      ) : (
+        <>
+          <DataTable
+            columns={[
+              { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
+              { id: 'source_type_text', header: '来源', cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
+              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
+              { accessorKey: 'process_status', header: '处理', cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },
+              { id: 'created_at', header: '更新时间', cell: ({ row }) => formatDate(row.original.updated_at) },
+            ]}
+            data={data?.items || []}
+            loading={!data && !error}
+          />
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+        </>
+      )}
     </div>
   );
 }

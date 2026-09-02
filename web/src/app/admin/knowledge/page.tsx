@@ -93,7 +93,7 @@ export default function KnowledgeListPage() {
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil /></Button>
-              <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 /></Button>
+              <Button variant="destructive" size="icon" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 /></Button>
             </div>
           </Card>
         ))}
@@ -106,8 +106,7 @@ export default function KnowledgeListPage() {
           </DialogHeader>
           <Field label="名称"><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
           <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
-          <div>
-            <label className="block text-fine text-[var(--color-text-muted-48)] mb-0.5 pl-2">Embedding 模型</label>
+          <Field label="Embedding 模型">
             <Select value={kbEmbeddingModel} onValueChange={setKbEmbeddingModel}>
               <SelectTrigger aria-label="Embedding 模型" className="w-full h-9 rounded-[var(--radius-pill)]">
                 <SelectValue placeholder="默认（跟随系统配置）" />
@@ -119,7 +118,7 @@ export default function KnowledgeListPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>
       </Dialog>

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
+import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
@@ -113,14 +114,14 @@ export default function TicketDetailPage() {
             {ticket.tags && ticket.tags.length > 0 && (
               <span className="flex flex-wrap gap-1">
                 {ticket.tags.map((t) => (
-                  <span key={t} className="px-2 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-pearl)] text-[var(--color-text-muted-80)]">{t}</span>
+                  <Badge key={t} variant="neutral">{t}</Badge>
                 ))}
               </span>
             )}
           </div>
 
           <Card className="mb-5">
-            <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
+            <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题描述</h2>
             <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
           </Card>
 

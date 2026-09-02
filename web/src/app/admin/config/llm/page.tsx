@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useState, useId } from 'react';
+import { useState } from 'react';
 import {
   createLLMConfig,
   deleteLLMConfig,
@@ -50,7 +50,6 @@ export default function LLMConfigPage() {
   const [testing, setTesting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const systemPromptId = useId();
 
   const openCreate = () => {
     setEditId(null);
@@ -262,16 +261,14 @@ export default function LLMConfigPage() {
             />
           </Field>
 
-          <div className="mb-4">
-            <label htmlFor={systemPromptId} className="mb-1.5 block text-caption font-semibold text-[var(--color-ink)]">System Prompt</label>
+          <Field label="System Prompt">
             <Textarea
-              id={systemPromptId}
               className="min-h-[80px]"
               placeholder="自定义系统提示词，可选"
               value={String(form.system_prompt || '')}
               onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
             />
-          </div>
+          </Field>
 
           {testResult && (
             <p className={`mt-3 text-caption ${testResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
