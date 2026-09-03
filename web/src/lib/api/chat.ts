@@ -18,9 +18,9 @@ export function updateThread(id: number, title: string) {
   return apiFetch<null>(`/api/v1/portal/threads/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
 }
 
-// SSE 流式端点
-const API = process.env.NEXT_PUBLIC_API_URL || '';
-export const streamUrl = (id: number) => `${API}/api/v1/portal/threads/${id}/stream`;
+// SSE 流式端点：直连后端（不走 Next.js proxy，避免 SSE 缓冲）
+const SSE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+export const streamUrl = (id: number) => `${SSE_API}/api/v1/portal/threads/${id}/stream`;
 export const resumeUrl = (id: number, since: number) => `${streamUrl(id)}?since=${since}`;
 export function cancelGeneration(id: number) {
   return apiFetch<null>(`/api/v1/portal/threads/${id}/cancel`, { method: 'POST' });
