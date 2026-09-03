@@ -35,25 +35,25 @@ var allowedDocumentTypes = map[string]bool{
 	"jpg": true, "png": true, "gif": true, "bmp": true, "webp": true,
 }
 
-// 存储两桶模型：
-//   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
-//   - opsmind-published：已发布桶（正文已嵌入 pgvector，RAG 可检索）
+// 存储布局（单桶，三级目录）：
 //
-// 状态由 DB knowledge_articles.status 管理，存储不按状态分桶。
+//	opsmind-documents/kb-{kbID}/{draft|published}/article-{articleID}/{markdown.md, images/}
+//
+// 草稿与已发布由二级目录区分；L1=知识库 ID、L3=文章 ID 均不可变，
+// 标题变更不影响存储路径，消除标题目录孤儿。
 const (
-	minioBucketDocs      = "opsmind-documents"
-	minioBucketPublished = "opsmind-published"
+	minioBucket = "opsmind-documents"
 	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。
 	maxUploadFileCount = 10
 )
 
-// articleContentKey 返回文章在存储中的目录名（title 清洗特殊字符，无扩展名）。
-func articleContentKey(title string) string {
-	safe := strings.NewReplacer(
-		"/", "_", "\\", "_", ":", "_", "*", "_", "?", "_",
-		"\"", "_", "<", "_", ">", "_", "|", "_",
-	).Replace(title)
-	return safe
+// articleDir 返回文章在存储中的目录（kb-{kbID}/{draft|published}/article-{articleID}）。
+func articleDir(kbID, articleID int64, published bool) string {
+	status := "draft"
+	if published {
+		status = "published"
+	}
+	return fmt.Sprintf("kb-%d/%s/article-%d", kbID, status, articleID)
 }
 
 // formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
