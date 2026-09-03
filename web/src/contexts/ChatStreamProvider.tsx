@@ -14,9 +14,17 @@ import type { SessionStream, SSEEvent, ChatMessage } from '@/lib/types';
 // rAF 提交节流间隔（ms）。50 token/秒 → ~20 次 setState/秒。
 const MIN_COMMIT_MS = 50;
 
+interface QueuedMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 interface Store {
   getStream(id: number): SessionStream | undefined;
+  getQueue(id: number): QueuedMessage[];
   getQueueCount(id: number): number;
+  removeQueueItem(id: number, index: number): void;
   setMessages(id: number, msgs: ChatMessage[]): void;
   send(threadId: number, question: string, token: string, onError?: (m: string) => void): Promise<number | null>;
   resume(id: number, since: number, token: string): void;
@@ -51,6 +59,22 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
   const getStream = useCallback((id: number) => streamsRef.current[id], []);
 
   const getQueueCount = useCallback((id: number) => queueRef.current[id]?.length ?? 0, []);
+
+  const getQueue = useCallback((id: number): QueuedMessage[] => {
+    return queueRef.current[id]?.map((content, i) => ({
+      id: `q-${id}-${i}`,
+      content,
+      createdAt: new Date().toISOString(),
+    })) ?? [];
+  }, []);
+
+  const removeQueueItem = useCallback((id: number, index: number) => {
+    const queue = queueRef.current[id];
+    if (queue && index >= 0 && index < queue.length) {
+      queue.splice(index, 1);
+      forceRender((n) => n + 1);
+    }
+  }, []);
 
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => {
     patch(id, () => ({
@@ -239,7 +263,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     });
   }, [cancelRAF, flushBuffer, patch]);
 
-  const store: Store = { getStream, getQueueCount, setMessages, send, resume, cancel, setToken };
+  const store: Store = { getStream, getQueue, getQueueCount, removeQueueItem, setMessages, send, resume, cancel, setToken };
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
