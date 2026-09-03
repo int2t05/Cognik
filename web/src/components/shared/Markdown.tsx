@@ -11,6 +11,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
 
 import 'katex/dist/katex.min.css';
@@ -64,7 +65,7 @@ export function Markdown({ content, className, renderCitation }: MarkdownProps) 
 
   return (
     <div className={cn('md-body', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeHighlight]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]} components={components}>
         {source}
       </ReactMarkdown>
     </div>
