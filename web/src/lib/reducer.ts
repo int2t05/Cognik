@@ -47,10 +47,17 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
   switch (evt.type) {
     case 'reasoning':
       s.thinking = true
-      return updateLastAssistant(s, (msg) => ({
-        ...msg,
-        parts: [...msg.parts, { type: 'reasoning', content: evt.content ?? '' }],
-      }))
+      return updateLastAssistant(s, (msg) => {
+        // 合并到最后一个 reasoning part（若最后是 reasoning 则追加，否则新建）
+        const parts = [...msg.parts]
+        const last = parts[parts.length - 1]
+        if (last && last.type === 'reasoning') {
+          parts[parts.length - 1] = { ...last, content: last.content + (evt.content ?? '') }
+        } else {
+          parts.push({ type: 'reasoning', content: evt.content ?? '' })
+        }
+        return { ...msg, parts }
+      })
 
     case 'token':
       return updateLastAssistant(s, (msg) => {
