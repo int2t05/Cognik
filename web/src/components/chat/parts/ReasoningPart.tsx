@@ -43,7 +43,7 @@ export function ReasoningPart({ part, streaming }: Props) {
         )}
         <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </summary>
-      <div className="mt-1.5 pl-5 text-[13px] text-[var(--color-text-muted-48)] whitespace-pre-wrap border-l-2 border-[var(--color-hairline)] overflow-hidden max-h-60">
+      <div className="mt-1.5 pl-5 text-[13px] text-[var(--color-text-muted-48)] whitespace-pre-wrap break-words border-l-2 border-[var(--color-hairline)] overflow-y-auto max-h-96">
         {part.content}
       </div>
     </details>
