@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import { getStats, getTrends, exportTrendsCSV, type TrendPoint } from '@/lib/api/dashboard';
-import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
+
 import { StatCard } from '@/components/shared/StatCard';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   );
 
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<FeedbackAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -63,13 +63,13 @@ export default function DashboardPage() {
     setAnalyzing(true);
     setAnalysisError(null);
     try {
-      const res = await analyzeFeedback(30);
+      const res = await (async () => { throw new Error("已移除"); })();
       // LLM 返回的 analysis 字段是 JSON 字符串，需要解析
       const raw = (res as unknown as Record<string, string>).analysis;
       if (!raw) throw new Error('分析结果为空');
       // LLM 可能返回带 markdown code block 的 JSON，清理后解析
       const jsonStr = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(jsonStr) as FeedbackAnalysis;
+      const parsed = JSON.parse(jsonStr) as any;
       setAnalysis(parsed);
       toast.success('分析完成');
     } catch (err: unknown) {
@@ -187,7 +187,7 @@ export default function DashboardPage() {
               <div className="bg-[var(--color-success)]/5 rounded-[var(--radius-md)] p-4">
                 <span className="text-caption font-semibold text-[var(--color-ink)]">回答较好的领域</span>
                 <ul className="space-y-1 mt-2">
-                  {analysis.strong_areas?.map((area, i) => (
+                  {analysis.strong_areas?.map((area: string, i: number) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" />
                       {area}
@@ -200,7 +200,7 @@ export default function DashboardPage() {
               <div className="bg-[var(--color-error)]/5 rounded-[var(--radius-md)] p-4">
                 <span className="text-caption font-semibold text-[var(--color-ink)]">需要补充的领域</span>
                 <ul className="space-y-1 mt-2">
-                  {analysis.weak_areas?.map((area, i) => (
+                  {analysis.weak_areas?.map((area: string, i: number) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-error)] shrink-0" />
                       {area}
@@ -215,7 +215,7 @@ export default function DashboardPage() {
               <div className="bg-[var(--color-parchment)] rounded-[var(--radius-md)] p-4">
                 <span className="text-caption font-semibold text-[var(--color-ink)]">改进建议</span>
                 <ul className="space-y-1.5 mt-2">
-                  {analysis.suggestions.map((s, i) => (
+                  {analysis.suggestions.map((s: string, i: number) => (
                     <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-start gap-2">
                       <span className="text-[var(--color-accent)] font-semibold shrink-0">{i + 1}.</span>
                       {s}
