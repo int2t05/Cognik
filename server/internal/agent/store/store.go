@@ -47,12 +47,8 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("打开 SQLite 失败: %w", err)
 	}
-	if err := db.AutoMigrate(&Thread{}, &Message{}); err != nil {
+	if err := db.AutoMigrate(&Thread{}, &Message{}, &task.Task{}); err != nil {
 		return nil, fmt.Errorf("SQLite 迁移失败: %w", err)
-	}
-	// 迁移 Task 表（异步任务）
-	if err := db.AutoMigrate(&task.Task{}); err != nil {
-		return nil, fmt.Errorf("SQLite Task 表迁移失败: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil
 }
