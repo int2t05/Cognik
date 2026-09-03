@@ -37,10 +37,14 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
 
   useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
 
-  const selectSession = useCallback((id: number) => {
-    setSessionId(id);
+  const selectSession = useCallback((id: number | null) => {
     sessionIdRef.current = id;
-    router.push(`/portal/chat?sid=${id}`);
+    setSessionId(id);
+    if (id) {
+      router.push(`/portal/chat?sid=${id}`);
+    } else {
+      router.push('/portal/chat');
+    }
   }, [router]);
 
   // URL 参数同步

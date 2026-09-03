@@ -13,6 +13,7 @@ import { Plus, MessageSquare, Trash2, Loader2, Clock, X, Pencil, PanelLeftClose,
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { updateThread } from '@/lib/api/chat';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 export default function ChatPage() {
   const { token } = useAuth();
@@ -56,9 +57,9 @@ export default function ChatPage() {
   }, [sessionId, store]);
 
   const handleNewChat = useCallback(() => {
-    // 清空当前会话状态 + 回到欢迎页
-    selectSession(0 as unknown as number); // 触发 setSessionId(null) 逻辑
-  }, [selectSession]);
+    // 回到新对话状态（清空 sessionId）
+    router.push('/portal/chat');
+  }, [router]);
 
   const handleStartEdit = (id: number, title: string) => {
     setEditingId(id);
@@ -148,28 +149,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* 删除确认弹窗 */}
-      {deleteId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteId(null)}>
-          <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 max-w-sm w-full mx-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle size={20} className="text-amber-500" />
-              <h3 className="text-[15px] font-medium text-[var(--color-ink)]">确认删除</h3>
-            </div>
-            <p className="text-[13px] text-[var(--color-text-muted-48)] mb-5">删除后无法恢复，该会话的所有消息将被清除。</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setDeleteId(null)}>取消</Button>
-              <Button variant="destructive" size="sm" onClick={async () => {
-                await removeSession(deleteId);
-                setDeleteId(null);
-              }}>
-                <Trash2 size={14} className="mr-1" /> 删除
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 主聊天区 */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* 顶栏：收起时显示展开按钮 + 当前会话名 */}
@@ -252,6 +231,30 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* 删除确认弹窗（复用 shadcn Dialog 组件） */}
+      <Dialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <DialogContent showCloseButton={false} className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[15px]">
+              <AlertTriangle size={18} className="text-amber-500" />
+              确认删除
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-[var(--color-text-muted-48)]">删除后无法恢复，该会话的所有消息将被清除。</p>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">取消</Button>
+            </DialogClose>
+            <Button variant="destructive" size="sm" onClick={async () => {
+              if (deleteId !== null) await removeSession(deleteId);
+              setDeleteId(null);
+            }}>
+              <Trash2 size={14} className="mr-1" /> 删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
