@@ -1,5 +1,5 @@
 'use client';
-// Agent 对话页面 — 适配新 threads API + parts 模型。
+// Agent 对话页面 — 适配新 threads API + parts 模型 + 队列展示。
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,16 +9,21 @@ import { useChatSessions } from '@/hooks/useChatSessions';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Trash2, Loader2, Clock, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Loader2, Clock, X, Pencil, PanelLeftClose, PanelLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
+import { updateThread } from '@/lib/api/chat';
 
 export default function ChatPage() {
   const { token } = useAuth();
   const router = useRouter();
   const store = useChatStreamStore();
-  const { threads, threadsLoading, sessionId, selectSession, createNewSession, removeSession, loadingSession } = useChatSessions({ token });
+  const { threads, threadsLoading, sessionId, selectSession, createNewSession, removeSession, mutateThreads, loadingSession } = useChatSessions({ token });
   const [input, setInput] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
 
   const stream = sessionId ? store.getStream(sessionId) : undefined;
@@ -27,7 +32,6 @@ export default function ChatPage() {
   const queueCount = sessionId ? store.getQueueCount(sessionId) : 0;
   const queuedMessages = sessionId ? store.getQueue(sessionId) : [];
 
-  // 自动滚动：消息变化 + streaming 时滚到底部
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -44,7 +48,6 @@ export default function ChatPage() {
       sid = await createNewSession(question.slice(0, 50));
       if (!sid) return;
     }
-
     store.send(sid, question, token || '', (err) => toast.error(err));
   }, [input, sessionId, createNewSession, store, token]);
 
@@ -52,48 +55,132 @@ export default function ChatPage() {
     if (sessionId) store.cancel(sessionId);
   }, [sessionId, store]);
 
+  const handleNewChat = useCallback(() => {
+    // 清空当前会话状态 + 回到欢迎页
+    selectSession(0 as unknown as number); // 触发 setSessionId(null) 逻辑
+  }, [selectSession]);
+
+  const handleStartEdit = (id: number, title: string) => {
+    setEditingId(id);
+    setEditTitle(title);
+  };
+
+  const handleSaveEdit = async (id: number) => {
+    const title = editTitle.trim();
+    if (title) {
+      try {
+        await updateThread(id, title);
+        mutateThreads();
+      } catch (err) {
+        toast.error(errorMessage(err, '重命名失败'));
+      }
+    }
+    setEditingId(null);
+  };
+
   return (
     <div className="flex h-[calc(100vh-56px)]">
-      {/* 侧边栏：线程列表 */}
-      <div className="w-60 border-r border-[var(--color-hairline)] flex flex-col shrink-0">
-        <div className="p-3">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={() => { router.push('/portal/chat'); }}
-          >
-            <Plus size={16} /> 新对话
-          </Button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-2">
-          {threadsLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 size={20} className="animate-spin text-[var(--color-text-muted-48)]" />
-            </div>
-          )}
-          {threads.map((t) => (
-            <div
-              key={t.id}
-              className={`flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer text-[13px] mb-0.5 group ${
-                sessionId === t.id ? 'bg-[var(--color-accent)]/10 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-canvas)]'
-              }`}
-              onClick={() => selectSession(t.id)}
+      {/* 侧边栏：线程列表（可收起） */}
+      {sidebarOpen && (
+        <div className="w-60 border-r border-[var(--color-hairline)] flex flex-col shrink-0">
+          <div className="p-3 flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 justify-start gap-2"
+              onClick={handleNewChat}
             >
-              <MessageSquare size={14} className="shrink-0" />
-              <span className="truncate flex-1">{t.title}</span>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600"
-                onClick={(e) => { e.stopPropagation(); removeSession(t.id); }}
+              <Plus size={16} /> 新对话
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} aria-label="收起侧边栏">
+              <PanelLeftClose size={16} />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2">
+            {threadsLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={20} className="animate-spin text-[var(--color-text-muted-48)]" />
+              </div>
+            )}
+            {threads.map((t) => (
+              <div
+                key={t.id}
+                className={`group flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer text-[13px] mb-0.5 ${
+                  sessionId === t.id ? 'bg-[var(--color-accent)]/10 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-canvas)]'
+                }`}
+                onClick={() => selectSession(t.id)}
               >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
+                <MessageSquare size={14} className="shrink-0" />
+                {editingId === t.id ? (
+                  <input
+                    className="flex-1 bg-transparent border-b border-[var(--color-accent)] text-[13px] outline-none text-[var(--color-ink)]"
+                    value={editTitle}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => handleSaveEdit(t.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit(t.id);
+                      if (e.key === 'Escape') setEditingId(null);
+                    }}
+                  />
+                ) : (
+                  <span className="truncate flex-1">{t.title}</span>
+                )}
+                {editingId !== t.id && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      className="text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]"
+                      onClick={(e) => { e.stopPropagation(); handleStartEdit(t.id, t.title); }}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      className="text-red-400 hover:text-red-600"
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(t.id); }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 删除确认弹窗 */}
+      {deleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteId(null)}>
+          <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-6 max-w-sm w-full mx-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={20} className="text-amber-500" />
+              <h3 className="text-[15px] font-medium text-[var(--color-ink)]">确认删除</h3>
+            </div>
+            <p className="text-[13px] text-[var(--color-text-muted-48)] mb-5">删除后无法恢复，该会话的所有消息将被清除。</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeleteId(null)}>取消</Button>
+              <Button variant="destructive" size="sm" onClick={async () => {
+                await removeSession(deleteId);
+                setDeleteId(null);
+              }}>
+                <Trash2 size={14} className="mr-1" /> 删除
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 主聊天区 */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* 顶栏：收起时显示展开按钮 */}
+        {!sidebarOpen && (
+          <div className="px-4 py-2 border-b border-[var(--color-hairline)]">
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} aria-label="展开侧边栏">
+              <PanelLeft size={16} />
+            </Button>
+          </div>
+        )}
+
         {/* 消息列表 */}
         <div ref={messagesRef} className="flex-1 overflow-y-auto px-6 py-4">
           <div className="max-w-[900px] mx-auto">
@@ -128,11 +215,11 @@ export default function ChatPage() {
             {/* 排队中的消息（待发送） */}
             {queuedMessages.map((qmsg, i) => (
               <div key={qmsg.id} className="flex gap-3 mb-3 justify-end opacity-60">
-                <div className="max-w-[70%] bg-[var(--color-accent)]/50 text-[var(--color-on-accent)] rounded-[var(--radius-lg)] px-4 py-3 whitespace-pre-wrap flex items-start gap-2">
-                  <Clock size={14} className="shrink-0 mt-0.5 animate-pulse" />
+                <div className="max-w-[70%] bg-zinc-200 dark:bg-zinc-700 text-[var(--color-ink)] rounded-[var(--radius-lg)] px-4 py-3 whitespace-pre-wrap flex items-start gap-2">
+                  <Clock size={14} className="shrink-0 mt-0.5 animate-pulse text-[var(--color-text-muted-48)]" />
                   <span className="flex-1">{qmsg.content}</span>
                   <button
-                    className="shrink-0 text-white/70 hover:text-white"
+                    className="shrink-0 text-[var(--color-text-muted-48)] hover:text-red-500"
                     onClick={() => store.removeQueueItem(sessionId!, i)}
                   >
                     <X size={14} />
