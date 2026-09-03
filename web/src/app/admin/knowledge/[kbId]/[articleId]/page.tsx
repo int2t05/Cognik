@@ -189,7 +189,7 @@ export default function ArticleEditPage() {
       ) : (
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
-          {article.content ? <Markdown content={article.content} /> : <div className="text-body text-[var(--color-text-muted-48)]">(无内容)</div>}
+          {article.content ? <Markdown content={article.content} articleId={Number(articleId)} /> : <div className="text-body text-[var(--color-text-muted-48)]">(无内容)</div>}
           {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <Badge key={t} variant="neutral">{t}</Badge>)}</div>}
         </Card>
       )}
