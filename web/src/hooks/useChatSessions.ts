@@ -56,6 +56,12 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
         sessionIdRef.current = id;
         setSessionId(id);
       }
+    } else {
+      // URL 无 sid → 回到新对话状态
+      if (sessionIdRef.current !== null) {
+        sessionIdRef.current = null;
+        setSessionId(null);
+      }
     }
   }, [searchParams]);
 
