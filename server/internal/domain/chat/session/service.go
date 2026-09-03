@@ -263,10 +263,20 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 	for evt := range agentEvents {
 		switch evt.Type {
 		case agent.EventReasoning:
-			parts = append(parts, store.MessagePart{Type: store.PartReasoning, Content: evt.Content})
+			// 合并到最后一个 reasoning part（若最后是 reasoning 则追加，否则新建）
+			if n := len(parts); n > 0 && parts[n-1].Type == store.PartReasoning {
+				parts[n-1].Content += evt.Content
+			} else {
+				parts = append(parts, store.MessagePart{Type: store.PartReasoning, Content: evt.Content})
+			}
 		case agent.EventToken:
 			answer += evt.Content
-			parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
+			// 合并到最后一个 text part
+			if n := len(parts); n > 0 && parts[n-1].Type == store.PartText {
+				parts[n-1].Content += evt.Content
+			} else {
+				parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
+			}
 		case agent.EventToolCall:
 			parts = append(parts, store.MessagePart{
 				Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
