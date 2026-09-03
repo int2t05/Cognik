@@ -24,7 +24,7 @@ interface Store {
   getStream(id: number): SessionStream | undefined;
   getQueue(id: number): QueuedMessage[];
   getQueueCount(id: number): number;
-  removeQueueItem(id: number, index: number): void;
+  removeQueueItem(id: number, index: number): string | undefined;
   setMessages(id: number, msgs: ChatMessage[]): void;
   send(threadId: number, question: string, token: string, onError?: (m: string) => void): Promise<number | null>;
   resume(id: number, since: number, token: string): void;
@@ -68,12 +68,14 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     })) ?? [];
   }, []);
 
-  const removeQueueItem = useCallback((id: number, index: number) => {
+  const removeQueueItem = useCallback((id: number, index: number): string | undefined => {
     const queue = queueRef.current[id];
     if (queue && index >= 0 && index < queue.length) {
-      queue.splice(index, 1);
+      const content = queue.splice(index, 1)[0];
       forceRender((n) => n + 1);
+      return content;
     }
+    return undefined;
   }, []);
 
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => {

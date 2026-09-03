@@ -30,7 +30,7 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
 
       <div className={`px-4 py-3 text-body leading-relaxed ${
         isUser
-          ? 'max-w-[70%] bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-[var(--radius-lg)] whitespace-pre-wrap'
+          ? 'max-w-[70%] bg-zinc-200 dark:bg-zinc-700 text-[var(--color-ink)] rounded-[var(--radius-lg)] whitespace-pre-wrap'
           : 'w-full bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       } ${isError ? 'border-red-300' : ''}`}>
         {/* parts 数组分发渲染 */}

@@ -57,9 +57,8 @@ export default function ChatPage() {
   }, [sessionId, store]);
 
   const handleNewChat = useCallback(() => {
-    // 回到新对话状态（清空 sessionId）
-    router.push('/portal/chat');
-  }, [router]);
+    selectSession(null);
+  }, [selectSession]);
 
   const handleStartEdit = (id: number, title: string) => {
     setEditingId(id);
@@ -204,7 +203,10 @@ export default function ChatPage() {
                   <span className="flex-1">{qmsg.content}</span>
                   <button
                     className="shrink-0 text-[var(--color-text-muted-48)] hover:text-red-500"
-                    onClick={() => store.removeQueueItem(sessionId!, i)}
+                    onClick={() => {
+                      const text = store.removeQueueItem(sessionId!, i);
+                      if (text) setInput(text);
+                    }}
                   >
                     <X size={14} />
                   </button>
