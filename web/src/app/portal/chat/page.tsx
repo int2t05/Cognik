@@ -172,12 +172,17 @@ export default function ChatPage() {
 
       {/* 主聊天区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶栏：收起时显示展开按钮 */}
+        {/* 顶栏：收起时显示展开按钮 + 当前会话名 */}
         {!sidebarOpen && (
-          <div className="px-4 py-2 border-b border-[var(--color-hairline)]">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-hairline)]">
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} aria-label="展开侧边栏">
               <PanelLeft size={16} />
             </Button>
+            {sessionId && (
+              <span className="text-[13px] text-[var(--color-text-muted-48)] truncate">
+                {threads.find(t => t.id === sessionId)?.title || '对话'}
+              </span>
+            )}
           </div>
         )}
 
