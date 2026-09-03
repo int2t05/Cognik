@@ -164,7 +164,7 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64
 	if len(req.Tags) > 0 {
 		ticket.Tags = marshalTicketTags(req.Tags)
 	}
-	// DeadlineAt 显式区分：nil 清空，非 nil 更新（用指针区分"不传"与"置空"）
+	// DeadlineAt：nil 不更新，非 nil 设置（PATCH 语义，不支持清空）
 	if req.DeadlineAt != nil {
 		ticket.DeadlineAt = req.DeadlineAt
 	}
@@ -555,7 +555,7 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 }
 
 // ScanOverdueTickets 扫描已超时未完结的申告并逐条发送超时通知（Scheduler 调用）。
-// 返回发送通知的条数。同一申告可能被重复扫描——由消息去重或人工处理后自愈，此处不持久化已通知标记。
+// 返回处理的超时申告条数。同一申告可能被重复扫描——由消息去重或人工处理后自愈，此处不持久化已通知标记。
 func (s *TicketService) ScanOverdueTickets(ctx context.Context, now time.Time) (int64, error) {
 	tickets, err := s.repo.ListOverdue(ctx, now)
 	if err != nil {
@@ -653,21 +653,12 @@ func (s *TicketService) BatchClose(ctx context.Context, ids []int64, operatorID 
 		err := s.UpdateStatus(ctx, id, operatorID, request.UpdateTicketStatusRequest{Action: model.TicketActionClose})
 		results[i] = BatchCloseResult{ID: id}
 		if err != nil {
-			results[i].ErrorMsg = extractErrMsg(err)
+			results[i].ErrorMsg = errcode.ExtractErrMsg(err)
 			continue
 		}
 		results[i].Success = true
 	}
 	return results
-}
-
-// extractErrMsg 从 error 提取用户可读消息（AppError 取 Message，其余取 Error()）。
-func extractErrMsg(err error) string {
-	var appErr AppError
-	if errors.As(err, &appErr) {
-		return appErr.Message
-	}
-	return err.Error()
 }
 
 // NotifyTicketOverdue 通知申告处理超时（调度器调用，通知申告创建人）。

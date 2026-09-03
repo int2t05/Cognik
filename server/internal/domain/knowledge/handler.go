@@ -416,8 +416,8 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		response.Error(c, errcode.ErrParam, "未选择文件（字段名: files）")
 		return
 	}
-	if len(files) > 10 {
-		response.Error(c, errcode.ErrParam, "单次最多上传 10 个文件")
+	if len(files) > maxUploadFileCount {
+		response.Error(c, errcode.ErrParam, fmt.Sprintf("单次最多上传 %d 个文件", maxUploadFileCount))
 		return
 	}
 
@@ -456,7 +456,7 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 
 			article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, tags, reader)
 			if err != nil {
-				item.ErrorMsg = extractErrMsg(err)
+				item.ErrorMsg = errcode.ExtractErrMsg(err)
 				results[idx] = item
 				return
 			}
@@ -527,15 +527,6 @@ func (h *KnowledgeHandler) ServeFile(c *gin.Context) {
 		return
 	}
 	c.File(path)
-}
-
-// extractErrMsg 从 error 提取用户可读消息（AppError 取 Message，其余取 Error()）。
-func extractErrMsg(err error) string {
-	var appErr errcode.AppError
-	if errors.As(err, &appErr) {
-		return appErr.Message
-	}
-	return err.Error()
 }
 
 // sniffFileType 通过 MIME sniffing 检测文件类型（比扩展名更可靠，文本类型回退扩展名）。

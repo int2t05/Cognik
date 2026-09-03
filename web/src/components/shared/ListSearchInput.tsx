@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 interface ListSearchInputProps {
-  /** 当前生效的 keyword（受控，用于回环守卫；不主动同步回输入框以避免 effect 内 setState） */
+  /** 当前生效的 keyword（受控，用于回环守卫；仅在外部重置时同步回输入框） */
   value: string;
   /** debounce 后回调，页面据此更新 SWR key */
   onDebouncedChange: (v: string) => void;

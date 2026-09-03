@@ -5,10 +5,10 @@ package ticket
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"opsmind/internal/shared/model"
+	"opsmind/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )
@@ -21,14 +21,6 @@ type TicketRepo struct {
 // NewTicketRepo 创建 TicketRepo 实例
 func NewTicketRepo(db *gorm.DB) *TicketRepo {
 	return &TicketRepo{db: db}
-}
-
-// escapeLike 转义 LIKE/ILIKE 模式中的通配符（%、_、\），配合 ESCAPE '\' 子句实现字面量搜索。
-func escapeLike(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `%`, `\%`)
-	s = strings.ReplaceAll(s, `_`, `\_`)
-	return s
 }
 
 // =============================================================================
@@ -94,7 +86,7 @@ func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSiz
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("user_id = ?", userID)
 	if keyword != "" {
-		like := "%" + escapeLike(keyword) + "%"
+		like := "%" + dbutil.EscapeLike(keyword) + "%"
 		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 
@@ -120,7 +112,7 @@ func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int
 		query = query.Where("status = ?", status)
 	}
 	if keyword != "" {
-		like := "%" + escapeLike(keyword) + "%"
+		like := "%" + dbutil.EscapeLike(keyword) + "%"
 		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 
