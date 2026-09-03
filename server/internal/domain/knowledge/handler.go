@@ -94,7 +94,7 @@ func NewKnowledgeHandler(svc *KnowledgeService) *KnowledgeHandler {
 //
 // GET /api/v1/portal/knowledge-bases
 func (h *KnowledgeHandler) ListKBsForPortal(c *gin.Context) {
-	kbs, err := h.svc.ListKBs(c.Request.Context())
+	kbs, err := h.svc.ListKBs(c.Request.Context(), "")
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -175,7 +175,8 @@ func (h *KnowledgeHandler) DeleteKB(c *gin.Context) {
 //
 // GET /api/v1/admin/knowledge-bases
 func (h *KnowledgeHandler) ListKBs(c *gin.Context) {
-	kbs, err := h.svc.ListKBs(c.Request.Context())
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	kbs, err := h.svc.ListKBs(c.Request.Context(), keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -476,6 +477,56 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 // GET /api/v1/config/upload
 func (h *KnowledgeHandler) GetUploadConfig(c *gin.Context) {
 	response.Success(c, h.svc.GetUploadConfig())
+}
+
+// UploadFile 通用文件上传（文章内嵌图片/附件），存到 article-assets 目录。
+// 返回 { url } 供前端 Markdown 引用，访问走 /api/v1/admin/files/article-assets/{filename}。
+//
+// POST /api/v1/admin/files/upload
+func (h *KnowledgeHandler) UploadFile(c *gin.Context) {
+	fh, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "未选择文件（字段名: file）")
+		return
+	}
+	src, err := fh.Open()
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "打开文件失败: "+err.Error())
+		return
+	}
+	defer src.Close()
+
+	storedName, err := h.svc.UploadAsset(c.Request.Context(), fh.Filename, fh.Header.Get("Content-Type"), fh.Size, src)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"url":      "/api/v1/admin/files/article-assets/" + storedName,
+		"filename": storedName,
+	})
+}
+
+// ServeFile 代理下载 article-assets 目录下的文件（Local 模式 ServeFile，MinIO 预签名重定向）。
+//
+// GET /api/v1/admin/files/article-assets/:filename
+func (h *KnowledgeHandler) ServeFile(c *gin.Context) {
+	filename := c.Param("filename")
+	if filename == "" || strings.ContainsAny(filename, "/\\") {
+		response.Error(c, errcode.ErrParam, "无效的文件名")
+		return
+	}
+	path, err := h.svc.AssetLocalPath(c.Request.Context(), filename)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	// MinIO 预签名 URL（http 开头）重定向；否则本地路径 ServeFile
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		c.Redirect(302, path)
+		return
+	}
+	c.File(path)
 }
 
 // extractErrMsg 从 error 提取用户可读消息（AppError 取 Message，其余取 Error()）。
