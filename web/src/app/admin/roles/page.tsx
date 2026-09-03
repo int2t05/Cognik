@@ -27,7 +27,7 @@ const KNOWN_PERMISSIONS = [
 
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
-  const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page));
+  const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page), { keepPreviousData: true });
   const { data: menus } = useSWR('admin-menus', getMenus);
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
