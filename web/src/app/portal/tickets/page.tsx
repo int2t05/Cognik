@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -16,8 +17,9 @@ import { TicketPlus, FileText } from 'lucide-react';
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState('');
   const router = useRouter();
-  const { data, error } = useSWR(`portal-tickets-${page}`, () => getMyTickets(page));
+  const { data, error } = useSWR(`portal-tickets-${page}-${keyword}`, () => getMyTickets(page, keyword));
 
   const tickets = data?.items ?? [];
   const isEmpty = !error && data && tickets.length === 0;
@@ -29,14 +31,18 @@ export default function TicketQueryPage() {
         <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
       </div>
 
+      <div className="mb-4">
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
+      </div>
+
       {error && <InlineError />}
 
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title="暂无申告记录"
-          description="提交您的第一个运维申告"
-          action={{ label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          title={keyword ? '未找到匹配的申告' : '暂无申告记录'}
+          description={keyword ? `没有标题或描述含"${keyword}"的申告` : '提交您的第一个运维申告'}
+          action={keyword ? undefined : { label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
         />
       ) : (
         <>

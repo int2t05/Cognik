@@ -43,6 +43,8 @@ var allowedDocumentTypes = map[string]bool{
 const (
 	minioBucketDocs      = "opsmind-documents"
 	minioBucketPublished = "opsmind-published"
+	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。
+	maxUploadFileCount = 10
 )
 
 // articleContentKey 返回文章在存储中的目录名（title 清洗特殊字符，无扩展名）。
@@ -777,7 +779,7 @@ func (s *KnowledgeService) GetUploadConfig() response.UploadConfigResponse {
 		MaxUploadSizeKB: int(s.maxUploadSize / 1024),
 		MaxUploadSize:   s.maxUploadSize,
 		AllowedTypes:    types,
-		MaxFiles:        10,
+		MaxFiles:        maxUploadFileCount,
 	}
 }
 

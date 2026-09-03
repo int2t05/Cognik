@@ -317,7 +317,7 @@ func (h *TicketHandler) BatchDelete(c *gin.Context) {
 //
 // POST /api/v1/admin/tickets/batch-close
 func (h *TicketHandler) BatchClose(c *gin.Context) {
-	var req request.BatchCloseRequest
+	var req request.BatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
