@@ -163,11 +163,18 @@ export function parseThreadMessage(tm: {
   } catch {
     parts = []
   }
+  // 后端状态 → 前端状态映射
+  const statusMap: Record<string, ChatMessage['status']> = {
+    generating: 'streaming',
+    completed: 'done',
+    failed: 'error',
+    cancelled: 'cancelled',
+  }
   return {
     id: String(tm.id),
     role: tm.role as 'user' | 'assistant',
     parts,
-    status: tm.status as ChatMessage['status'],
+    status: statusMap[tm.status] ?? (tm.status as ChatMessage['status']),
     error: tm.error || undefined,
     createdAt: tm.created_at,
     dbId: tm.id,

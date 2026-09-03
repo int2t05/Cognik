@@ -9,7 +9,7 @@ import { useChatSessions } from '@/hooks/useChatSessions';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Trash2, Loader2, Clock, X, Pencil, PanelLeftClose, PanelLeft, AlertTriangle } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Loader2, Clock, CornerUpLeft, Pencil, PanelLeftClose, PanelLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { updateThread } from '@/lib/api/chat';
@@ -195,24 +195,26 @@ export default function ChatPage() {
                 />
               ))
             )}
-            {/* 排队中的消息（待发送） */}
-            {queuedMessages.map((qmsg, i) => (
-              <div key={qmsg.id} className="flex gap-3 mb-3 justify-end opacity-60">
-                <div className="max-w-[70%] bg-zinc-200 dark:bg-zinc-700 text-[var(--color-ink)] rounded-[var(--radius-lg)] px-4 py-3 whitespace-pre-wrap flex items-start gap-2">
-                  <Clock size={14} className="shrink-0 mt-0.5 animate-pulse text-[var(--color-text-muted-48)]" />
-                  <span className="flex-1">{qmsg.content}</span>
-                  <button
-                    className="shrink-0 text-[var(--color-text-muted-48)] hover:text-red-500"
-                    onClick={() => {
-                      const text = store.removeQueueItem(sessionId!, i);
-                      if (text) setInput(text);
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+            {/* 排队中的消息（紧靠输入框上方，宽度一致） */}
+            {queuedMessages.length > 0 && (
+              <div className="max-w-[900px] mx-auto mb-2 space-y-1.5">
+                {queuedMessages.map((qmsg, i) => (
+                  <div key={qmsg.id} className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-[var(--radius-lg)] px-4 py-2 opacity-70">
+                    <Clock size={13} className="shrink-0 animate-pulse text-[var(--color-text-muted-48)]" />
+                    <span className="flex-1 text-[13px] text-[var(--color-ink)] truncate">{qmsg.content}</span>
+                    <button
+                      className="shrink-0 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] transition-colors"
+                      onClick={() => {
+                        const text = store.removeQueueItem(sessionId!, i);
+                        if (text) setInput(text);
+                      }}
+                    >
+                      <CornerUpLeft size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
 
