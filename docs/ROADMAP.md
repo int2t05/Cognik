@@ -17,16 +17,18 @@ flowchart LR
     V1["V1.0<br/>固定管道 RAG<br/>(已交付)"] --> V11["V1.1<br/>存储简化"]
     V11 --> V12["V1.2<br/>业务完善"]
     V12 --> V13["V1.3<br/>Agent 基座"]
-    V13 --> V2["V2.0<br/>Agentic RAG<br/>(终点)"]
+    V13 --> V14["V1.4<br/>深度搜索"]
+    V14 --> V2["V2.0<br/>Agentic RAG<br/>(终点)"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
 |------|------|---------|------|
 | V1.0 | 固定管道 RAG | 7 步 RAG 管道 + 申告状态机 + 知识库 CRUD + RBAC + SSE 流式 | ✅ 已交付 |
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | 📋 规划中 |
-| V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | 📋 规划中 |
-| V1.3 | Agent 基座 | Pi Agent 桥接；SearXNG 部署；Go Internal API；SSE 事件扩展 | 📋 规划中 |
-| V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；网络搜索+深度搜索；Agent 事件 UI | 📋 规划中 |
+| V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
+| V1.3 | Agent 基座 | 原生 Go Agent Loop；LLMClient tool calling 扩展；Tool Registry；MCP SDK 集成；SSE 事件扩展 | 📋 规划中 |
+| V1.4 | 深度搜索 | SearXNG 部署；网络搜索工具；深度研究架构（规划器→搜索器→反思器→合成器）；搜索 API 集成 | 📋 规划中 |
+| V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
 
@@ -178,70 +180,114 @@ flowchart LR
 
 ## 6. V1.3 — Agent 基座
 
-**目标**：为 V2.0 Agentic RAG 铺设基础设施，不改变用户可见行为。
+**目标**：铺设原生 Go Agent Loop 基础设施，实现 ReAct 循环 + Tool Calling，不改变用户可见行为。
 
-### 6.1 Pi Agent 桥接层
+**选型决策**：全部使用外部库，不自建。Eino（LLM Provider + Agent Loop + Stream Handling）+ modelcontextprotocol/go-sdk（MCP 工具）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
+
+### 6.1 原生 Go Agent Loop
 
 ```mermaid
 flowchart TB
-    subgraph Go["Go Backend (不变)"]
+    subgraph Go["Go Backend"]
         H["Handler"] --> S["Service"] --> R["Repository"]
-        S --> RAG["RAG Engine"]
+        S --> RAG["RAG Engine (保留)"]
+        S --> AG["agent/ 领域 (新增)"]
     end
-    subgraph Bridge["Agent Bridge (新增)"]
-        AB["AgentBridge<br/>管理 Pi 子进程"]
-        AB -->|"stdin: JSON 命令"| PI["Pi RPC<br/>--mode rpc"]
-        PI -->|"stdout: JSON 事件"| AB
+    subgraph AgentLoop["Agent Loop (~40 行)"]
+        AG -->|"同进程"| LLM["LLMClient<br/>(已有 adapter)"]
+        AG -->|"ReAct 循环"| TOOLS["Tool Registry"]
+        TOOLS -->|"同进程"| RAG
+        TOOLS -->|"同进程"| TK["Ticket Service"]
+        TOOLS -->|"同进程"| SQL["SQL Query"]
+        AG -->|"事件流"| SSE["GenerationHub → SSE → 前端"]
     end
-    subgraph Internal["Internal API (新增)"]
-        IA["/api/v1/internal/rag/search"]
-        IB["/api/v1/internal/tickets"]
-        IC["/api/v1/internal/sql"]
-    end
-    S --> AB
-    AB --> IA
 ```
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| `server/internal/agent/` | Agent Bridge 包：管理 Pi RPC 子进程生命周期 | spawn/monitor/restart；超时取消 |
-| Pi RPC 集成 | `pi --mode rpc` JSONL over stdin/stdout | 基本对话通过 Pi 走通 |
-| Pi Provider 配置 | Pi `--provider` / `--model` 参数从 DB 读取 | 配置热替换生效 |
-| 兜底方案验证 | 验证自建 Go Agent Loop（~500 行）可行性 | RPC 不可用时可回退 |
+| `server/internal/agent/` | Agent 领域包：provider 构造 + tool 注册 + handler | Eino ReactAgent `Stream()` 跑通 |
+| Eino ChatModel | eino-ext/openai 接入 llama.cpp | OpenAI 兼容流式 + tool calling 可用 |
+| Eino ReactAgent | ReAct 循环 + typed tools + parallel execution | 基本对话通过 Agent 走通；可中断 |
+| Gin SSE bridge | `fmt.Fprintf + Flush` 输出 SSE 事件 | 前端 `ChatStreamProvider` 消费成功 |
+| 前端 | 保留现有 `ChatStreamProvider` | 现有 SSE 事件类型无需修改 |
+| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 Eino ChatModel | 配置热替换生效，无需重启 |
 
-### 6.2 SearXNG 自托管搜索
+### 6.2 MCP 工具集成
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| Docker 部署 | `searxng` 服务加入 docker-compose | JSON 输出启用；`it`/`science` 类别 |
-| SearXNG MCP | MCP 服务器封装，供 Pi Agent 调用 | `search`/`fetch_url` 工具可用 |
-| Ops 域配置 | 预配置技术搜索引擎优先 | StackOverflow/GitHub/厂商域名 |
-| 私有搜索验证 | 查询不出域，无 API 密钥 | 日志确认无第三方数据发送 |
+通过官方 Go MCP SDK（`modelcontextprotocol/go-sdk` v1.6.0）消费第三方工具，无需手写集成。V1.3 先集成知识库 / 申告 / SQL 等同进程工具；网络搜索工具在 V1.4 接入。
 
-### 6.3 Go Internal API
+| 工具 | 来源 | 调用方式 | 版本 |
+|------|------|----------|------|
+| `search_knowledge_base` | Go RAG Engine | 同进程 `rag.Pipeline.Search()` | V1.3 |
+| `ticket_lookup` | Go Ticket Service | 同进程 `ticket.Service.Query()` | V1.3 |
+| `sql_query` | Go SQL 执行 | 同进程 `db.Raw()`（只读） | V1.3 |
+| `web_search` | SearXNG MCP | MCP Client → HTTP → SearXNG | V1.4 |
+| `web_fetch` | Firecrawl / Exa MCP | MCP Client → HTTP | V1.4 |
 
-供 Pi Agent 工具回调的内部端点，RBAC 内部令牌认证。
+### 6.3 SSE 事件扩展
 
-| 端点 | 方法 | 说明 | 验收标准 |
-|------|------|------|---------|
-| `/api/v1/internal/rag/search` | POST | 调用 RAG 引擎检索 | 返回 chunks + scores |
-| `/api/v1/internal/tickets` | GET | 查询申告列表 | 支持 status/keyword 筛选 |
-| `/api/v1/internal/sql` | POST | 受限 SQL 查询 | 白名单表；只读；行数限制 |
-| `/api/v1/internal/escalate` | POST | 触发申告升级 | 创建申告 + 通知 |
-
-### 6.4 SSE 事件扩展
-
-当前 SSE 事件：`step` / `chunks` / `token` / `done` / `error`。V1.3 预留 Agent 事件类型。
+当前 SSE 事件：`step` / `chunks` / `token` / `done` / `error`。V1.3 扩展 Agent 事件类型。
 
 | 新增事件类型 | 说明 |
 |-------------|------|
 | `thinking` | Agent 推理过程（V2.0 启用） |
-| `action` | Agent 工具调用（V2.0 启用） |
-| `observation` | 工具返回结果（V2.0 启用） |
-| `tool_call` | 工具调用详情（V2.0 启用） |
-| `tool_result` | 工具返回摘要（V2.0 启用） |
+| `tool_call` | Agent 工具调用详情（V2.0 启用） |
+| `tool_result` | 工具返回结果（V2.0 启用） |
+| `answer` | Agent 最终回答（V2.0 启用） |
 
 V1.3 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染（V2.0 启用）。
+
+---
+
+## 6.5. V1.4 — 深度搜索
+
+**目标**：为 Agent 接入网络搜索与深度研究能力，实现自主决策何时搜网络、从哪个源搜、是否多轮搜索。
+
+### 6.5.1 SearXNG 自托管搜索
+
+| 项 | 说明 | 验收标准 |
+|----|------|---------|
+| Docker 部署 | `searxng` 服务加入 docker-compose | JSON 输出启用；`it`/`science` 类别 |
+| MCP 集成 | 通过官方 Go MCP SDK 消费 SearXNG MCP 服务器 | `search` / `fetch_url` 工具注册到 Tool Registry |
+| Ops 域配置 | 预配置技术搜索引擎优先 | StackOverflow/GitHub/厂商域名 |
+| 私有搜索验证 | 查询不出域，无 API 密钥 | 日志确认无第三方数据发送 |
+
+### 6.5.2 搜索 API 集成
+
+| API | 自托管 | LLM 优化 | 用途 |
+|-----|:---:|:---:|------|
+| **SearXNG** | ✅ | ❌ | 主力：私有部署元搜索 |
+| **Exa** | ❌ | ✅ | 高亮模式 10x token 效率 |
+| **Firecrawl** | ❌ | ✅ | 深度研究 + 单页提取 |
+
+### 6.5.3 深度研究架构
+
+```mermaid
+flowchart TD
+    QUERY["用户复杂查询"] --> PL["规划器<br/>分解为 3-7 个子问题"]
+    PL --> SA["搜索子代理<br/>并行运行, 独立上下文"]
+    SA -->|"广度搜索"| SR["SearXNG / Exa"]
+    SA -->|"深度阅读"| WF["WebFetch / Firecrawl"]
+    SA --> RF["反思器<br/>对比发现与计划"]
+    RF -->|"不足"| PL
+    RF -->|"充足"| SY["合成器<br/>引用注册表 → 最终报告"]
+```
+
+| 项 | 说明 | 验收标准 |
+|----|------|---------|
+| 规划器 | 分解复杂查询为 3-7 个子问题 | 每个子问题含搜索策略 + 成功标准 |
+| 搜索子代理 | 并行运行，每个独立上下文窗口 | 广度搜索 → 深度阅读有潜力 URL |
+| 反思器 | 对抗性评论员识别弱点/矛盾 | 硬性上限防止无限循环 |
+| 合成器 | 引用注册表防合成幻觉 | 压缩发现 + 引用 → 最终报告 |
+
+### 6.5.4 Ops 域搜索场景
+
+| 场景 | 查询示例 | 来源 |
+|------|---------|------|
+| 错误代码查找 | "ORA-00942 error" | Stack Overflow、厂商文档 |
+| CVE 查询 | "CVE-2025-XXXX affected versions" | NVD、厂商安全公告 |
+| 软件版本兼容 | "PostgreSQL 17 pgvector compatibility" | 厂商文档、GitHub releases |
+| 内部 KB 未命中 | 内部无文档的问题 | 回退到网络搜索 |
 
 ---
 
@@ -251,15 +297,15 @@ V1.3 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染�
 
 ### 7.1 核心变化
 
-V1 的 RAG 是**固定 7 步线性管道**，V2.0 引入 **Agent 基座**让 AI 自主决策。
+固定 7 步线性管道 → Agent ReAct 循环自主决策。
 
 ```mermaid
 flowchart TD
-    subgraph V1["V1 固定管道"]
+    subgraph V1["固定管道"]
         Q1["用户提问"] --> R1["改写"] --> R2["路由"] --> R3["混合检索"] --> R4["重排"] --> G1["生成"]
     end
-    subgraph V2["V2.0 Agentic RAG"]
-        Q2["用户提问"] --> AG["Agent 循环"]
+    subgraph V2["Agentic RAG"]
+        Q2["用户提问"] --> AG["Agent Loop (Go 原生)"]
         AG -->|"think"| T1{"需要什么信息?"}
         T1 -->|"内部知识"| KB["search_knowledge_base"]
         T1 -->|"实时信息"| WS["web_search (SearXNG)"]
@@ -273,32 +319,36 @@ flowchart TD
     V1 -->|演进| V2
 ```
 
-### 7.2 Agent 基座：Pi Agent
+### 7.2 Agent 基座：Eino 全栈
 
-| 维度 | Pi (earendil-works/pi) |
-|------|----------------------|
-| 成熟度 | ~10 万 star，265 万周下载，257 releases，MIT |
-| Agent 循环 | ReAct 循环 + tool calling + steering + compaction |
-| 多 Provider | 30+（llama.cpp / DeepSeek / OpenAI / Anthropic） |
-| RAG 能力 | 无内置（OpsMind Go 引擎互补作为工具后端） |
-
-**桥接**：V1.3 已铺设 RPC 子进程桥接层，V2.0 切换为 HTTP Sidecar（`createAgentSession` SDK）用于生产。
+| 维度 | Eino 全栈 |
+|------|---------------------|
+| Agent Loop | Eino ReactAgent；ReAct + Graph 编排 + DeepAgent + HITL interrupt/resume |
+| LLM Provider | eino-ext/openai；OpenAI 兼容（llama.cpp / DeepSeek / OpenAI） |
+| Stream Handling | Eino 框架内自动流拼接/合并/复制 |
+| SSE 输出 | Gin `fmt.Fprintf + Flush` ~20 行（标准库） |
+| 前端消费 | 保留现有 `ChatStreamProvider`（rAF 批处理 + 纯函数 reducer + 单测） |
+| 工具生态 | modelcontextprotocol/go-sdk v1.6.0；MCP client 消费第三方工具 |
+| 部署 | 单二进制；Eino 为 Go 库，无额外运行时 |
+| 成熟度 | 12k star，字节生产级（千级 QPS），Apache-2.0 |
 
 ### 7.3 网络搜索与深度搜索
 
+V1.4 已部署 SearXNG + 深度研究架构。V2.0 启用 Agent 自主调用网络搜索工具。
+
 ```mermaid
 flowchart LR
-    AG["Pi Agent"] -->|"快速查询"| EXA["Exa (高亮模式)"]
-    AG -->|"深度研究"| FC["Firecrawl Agent"]
-    AG -->|"私有搜索"| SX["SearXNG (自托管, V1.3 部署)"]
-    AG -->|"页面提取"| WF["WebFetch / firecrawl_scrape"]
+    AG["Agent Loop"] -->|"快速查询"| EXA["Exa MCP (高亮模式)"]
+    AG -->|"深度研究"| FC["Firecrawl Agent MCP"]
+    AG -->|"私有搜索"| SX["SearXNG (V1.4 部署)"]
+    AG -->|"页面提取"| WF["WebFetch MCP / firecrawl_scrape"]
 ```
 
 | 能力 | 工具 | 说明 |
 |------|------|------|
-| 快速网络搜索 | Exa MCP / Firecrawl | 高亮模式 10x token 效率 |
-| 深度研究 | `firecrawl_agent` / GPT-Researcher MCP | 多轮迭代搜索→阅读→综合 |
-| 自托管搜索 | SearXNG + MCP（V1.3 部署） | 聚合 130+ 引擎，无 API 密钥，私有部署 |
+| 快速网络搜索 | Exa MCP / Firecrawl MCP | 高亮模式 10x token 效率 |
+| 深度研究 | `firecrawl_agent` MCP / GPT-Researcher MCP | 多轮迭代搜索→阅读→综合 |
+| 自托管搜索 | SearXNG + MCP（V1.4 部署） | 聚合 130+ 引擎，无 API 密钥，私有部署 |
 | Ops 域过滤 | SearXNG `it`/`science` 类别 | 优先 StackOverflow / GitHub / 厂商域名 |
 
 ### 7.4 Agent 场景
@@ -313,31 +363,31 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    FE["Frontend (Next.js)<br/>Agent 事件 UI"]
-    FE -->|"SSE"| GO["Go Backend (Gin)<br/>Auth/RBAC + Ticket + Knowledge"]
-    GO --> RAG["RAG Engine (保留)<br/>BM25 + pgvector + RRF + rerank"]
-    GO --> IA["Internal API (V1.3 铺设)<br/>/api/v1/internal/rag/search<br/>/api/v1/internal/tickets<br/>/api/v1/internal/sql"]
-    IA -->|"HTTP 回调"| PI["Pi Agent (Node.js)<br/>ReAct 循环 + Tool Registry"]
-    PI -->|"web_search"| SX["SearXNG (V1.3 部署)"]
-    PI -->|"LLM"| LLM["llama.cpp / DeepSeek / OpenAI"]
-    PI -->|"SSE 事件"| GO
+    FE["Frontend (Next.js)<br/>ChatStreamProvider (保留)"]
+    FE -->|"POST /api/chat"| SSE["Gin SSE bridge<br/>fmt.Fprintf + Flush"]
+    SSE --> AGENT["agent/ 领域<br/>Eino ReactAgent"]
+    AGENT -->|"eino-ext/openai"| LLM["Eino ChatModel<br/>llama.cpp / DeepSeek / OpenAI"]
+    AGENT -->|"同进程"| RAG["RAG Engine (保留)<br/>BM25 + pgvector + RRF + rerank"]
+    AGENT -->|"MCP Client"| MCP["modelcontextprotocol/go-sdk<br/>web_search / web_fetch"]
+    MCP -->|"HTTP"| SX["SearXNG (V1.4 部署)"]
+    SSE -->|"SSE stream"| FE
     RAG --> PG[("PostgreSQL + pgvector")]
 ```
 
 ### 7.6 废弃与新增
 
-| 废弃（V1） | 替代（V2.0） |
+| 废弃（固定管道） | 替代（Agentic） |
 |-----------|------------|
 | `ai.rag_query_rewrite` 开关 | Agent 自主决策（工具参数） |
 | `ai.rag_multi_route` 开关 | Agent 循环多次调用 |
 | `ai.rag_hybrid` 开关 | 工具参数 `strategy=hybrid` |
 | `ai.rag_rerank` 开关 | 工具参数 `rerank=true` |
-| 固定 `Pipeline.Execute()` | Pi `createAgentSession()` |
-| `LLMConfigManager` 单默认 | Pi 多 Provider + session 级配置 |
+| 固定 `Pipeline.Execute()` | `agent.Agent.Run()` ReAct 循环 |
+| `LLMConfigManager` 单默认 | Agent 重建 + 多 Provider |
 
 | 保留 | 原因 |
 |------|------|
-| RAG 引擎（BM25 + vector + RRF + rerank） | Pi 无 RAG，Go 引擎作为工具后端 |
+| RAG 引擎（BM25 + vector + RRF + rerank） | Go 引擎作为工具后端 |
 | pgvector + PostgreSQL | 向量存储 + 业务数据不变 |
 | Document Processor | 文档处理管道不变 |
 | SSE 流式 + GenerationHub | 扩展事件类型（V1.3 预留） |
@@ -345,9 +395,9 @@ flowchart TB
 
 | 新增 | 说明 |
 |------|------|
-| Pi HTTP Sidecar | 生产级 Agent 运行时（V1.3 RPC 升级） |
-| Pi Extension（TS） | 自定义 tools：search_kb / ticket_lookup / sql_query / web_search |
-| 前端 Agent 事件 UI | thinking/action/observation/tool_call/tool_result 渲染 |
+| `agent/` 领域 | Agent struct + Tool 接口 + ToolRegistry + Agent Loop |
+| MCP Client | 官方 Go MCP SDK，消费第三方工具 |
+| 前端 Agent 事件 UI | thinking / tool_call / tool_result / answer 渲染 |
 | 人工审批门（HITL） | 敏感操作（自助修复）必须人工确认 |
 | 事件知识自进化 | 已解决申告生成知识条目 → 嵌入 pgvector → RAG 检索历史经验 |
 
@@ -358,8 +408,8 @@ flowchart TB
 | Agent 对话端到端 | 用户提问 → Agent 自主检索（≥1 轮）→ 带引用回答 |
 | 网络搜索 | 内部 KB 无结果时 Agent 自主触发 SearXNG 搜索 |
 | 深度搜索 | 复杂问题 Agent 多轮搜索（≥2 轮）并综合 |
-| Agent 事件 UI | thinking/action/observation 实时渲染；用户可见推理过程 |
-| 降级 | Pi Agent 不可用时回退 V1 固定管道；SearXNG 不可用时跳过网络搜索 |
+| Agent 事件 UI | thinking / tool_call / tool_result 实时渲染；用户可见推理过程 |
+| 降级 | Agent Loop 异常时回退固定管道；SearXNG 不可用时跳过网络搜索 |
 | 审计 | Agent 轨迹（工具调用、检索查询、推理步骤）写入审计日志 |
 
 ---
@@ -387,17 +437,22 @@ gantt
     前端体验优化          :v12e, 2026-11-01, 14d
 
     section V1.3 Agent 基座
-    Pi Agent 桥接层      :v13a, 2026-12-01, 21d
-    SearXNG 部署+MCP     :v13b, 2026-12-01, 14d
-    Go Internal API      :v13c, 2026-12-15, 14d
-    SSE 事件扩展          :v13d, 2026-12-15, 7d
+    agent/ 领域 + Tool 接口 :v13a, 2026-12-01, 14d
+    LLMClient tool calling :v13b, 2026-12-01, 10d
+    Agent Loop + 并行工具  :v13c, 2026-12-15, 14d
+    MCP SDK 集成          :v13d, 2026-12-15, 10d
+    SSE 事件扩展          :v13e, 2026-12-25, 7d
+
+    section V1.4 深度搜索
+    SearXNG 部署+MCP     :v14a, 2027-01-15, 14d
+    网络搜索工具注册      :v14b, 2027-01-15, 7d
+    深度研究架构          :v14c, 2027-02-01, 21d
+    Ops 域搜索场景验证    :v14d, 2027-02-01, 14d
 
     section V2.0 Agentic RAG
-    Pi HTTP Sidecar      :v20a, 2027-01-15, 14d
-    Agent 工具注册        :v20b, 2027-01-15, 14d
-    前端 Agent 事件 UI    :v20c, 2027-02-01, 21d
-    网络搜索+深度搜索     :v20d, 2027-02-01, 14d
-    端到端集成+降级       :v20e, 2027-02-15, 14d
+    Agent 固定管道替代    :v20a, 2027-03-01, 14d
+    前端 Agent 事件 UI    :v20b, 2027-03-01, 21d
+    端到端集成+降级       :v20c, 2027-03-15, 14d
 ```
 
 ---
@@ -410,12 +465,15 @@ gantt
 | 向量数据库 | 保留 pgvector | halfvec+HNSW 不可替代；增长最快 PG 扩展；sqlite-vec 无 ANN |
 | 业务数据库 | 保留 PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务；GORM 迁移安全 |
 | Agent 数据 | 未来 SQLite | ReAct 高频读写时拆分；当前非瓶颈 |
-| Agent 基座 | Pi Agent（TS） | 10 万星验证、30+ Provider、成熟 agent loop；Go 桥接 |
+| Agent 基座 | Eino (ByteDance) | 12k star 字节生产级；唯一同时覆盖 LLM Provider + Agent Loop + Stream Handling 的 Go 框架；sashabaranov/go-openai 不含 agent loop |
+| LLM Provider | eino-ext/openai | Eino 配套；OpenAI 兼容 → llama.cpp；含 tool calling + streaming |
+| SSE 输出 | Gin 标准库 `fmt.Fprintf + Flush` | 标准 SSE 模式（headers + http.Flusher + data: %s\n\n） |
+| 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0，与 Google 共维护 |
 | 网络搜索 | SearXNG（自托管）+ Exa/Firecrawl | 私有部署无 API 密钥；深度研究用 Firecrawl Agent |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
-| LLM Provider | 多 Provider（llama.cpp/DeepSeek/OpenAI） | Pi 管理 Provider 路由，保留本地部署能力 |
-| 桥接策略 | V1.3 RPC 子进程 → V2.0 HTTP Sidecar | MVP 用 RPC 快速验证，生产用 Sidecar 稳定 |
-| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.3 |
+| LLM Provider 热切换 | `LLMConfigManager.OnChange` → Eino ChatModel 替换 | `atomic.Value` 存储 ChatModel 实例 |
+| 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测，已足够好 |
+| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.4 |
 
 ---
 
