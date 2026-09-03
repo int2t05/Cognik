@@ -174,6 +174,19 @@ func (r *TicketRepo) AutoCloseTickets(ctx context.Context, olderThan time.Time) 
 	return ids, nil
 }
 
+// ListOverdue 查询已超时但仍未完结的申告（deadline_at 早于 now，状态非 closed/resolved）。
+func (r *TicketRepo) ListOverdue(ctx context.Context, now time.Time) ([]model.Ticket, error) {
+	var tickets []model.Ticket
+	err := r.db.WithContext(ctx).
+		Where("deadline_at IS NOT NULL AND deadline_at < ? AND status NOT IN (?, ?)", now,
+			model.TicketStatusClosed, model.TicketStatusResolved).
+		Find(&tickets).Error
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
 // =============================================================================
 // TicketRecord
 // =============================================================================

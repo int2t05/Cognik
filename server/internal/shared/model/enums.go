@@ -51,6 +51,7 @@ const (
 	MessageTypeTicketSupplement  = "ticket_supplement"  // 申告补充信息
 	MessageTypeTicketResolved    = "ticket_resolved"    // 申告已解决
 	MessageTypeTicketClosed      = "ticket_closed"      // 申告已关闭
+	MessageTypeTicketOverdue      = "ticket_overdue"     // 申告处理超时
 	MessageTypeKnowledgeApproved = "knowledge_approved" // 知识文章审核通过
 	MessageTypeKnowledgeRejected = "knowledge_rejected" // 知识文章审核驳回
 	MessageTypeSystem            = "system"             // 系统通知
@@ -65,6 +66,8 @@ func MessageTypeText(msgType string) string {
 		return "已解决"
 	case MessageTypeTicketClosed:
 		return "已关闭"
+	case MessageTypeTicketOverdue:
+		return "处理超时"
 	case MessageTypeKnowledgeApproved:
 		return "审核通过"
 	case MessageTypeKnowledgeRejected:

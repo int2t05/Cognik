@@ -21,6 +21,7 @@ type Ticket struct {
 	SupplementCount int16          `gorm:"not null;default:0;column:supplement_count" json:"supplement_count"`
 	ChatContext     datatypes.JSON `gorm:"type:jsonb;column:chat_context" json:"chat_context"`
 	Source          int16          `gorm:"not null;default:1" json:"source"`
+	DeadlineAt      *time.Time     `gorm:"column:deadline_at" json:"deadline_at"` // 处理时限，可空
 	TicketRecords   []TicketRecord `gorm:"foreignKey:TicketID" json:"ticket_records,omitempty"`
 	CreatedAt       time.Time      `gorm:"not null;index:idx_tickets_created_at" json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"not null" json:"updated_at"`

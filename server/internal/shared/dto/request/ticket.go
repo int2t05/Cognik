@@ -1,6 +1,8 @@
 // Package request 定义申告管理相关请求 DTO。
 package request
 
+import "time"
+
 // CreateTicketRequest 创建申告请求。
 type CreateTicketRequest struct {
 	Title        string           `json:"title" binding:"required"`
@@ -8,6 +10,7 @@ type CreateTicketRequest struct {
 	Tags         []string         `json:"tags"`
 	ContactPhone string           `json:"contact_phone" binding:"required"`
 	ContactEmail string           `json:"contact_email"`
+	DeadlineAt   *time.Time       `json:"deadline_at"` // 处理时限，可空
 	ChatContext  *ChatContextData `json:"chat_context"` // 从问答转申告时带入
 }
 
@@ -21,11 +24,12 @@ type ChatContextData struct {
 
 // UpdateTicketRequest 编辑申告请求，仅更新非空字段。
 type UpdateTicketRequest struct {
-	Title        string   `json:"title"`
-	Description  string   `json:"description"`
-	Tags         []string `json:"tags"`
-	ContactPhone string   `json:"contact_phone"`
-	ContactEmail string   `json:"contact_email"`
+	Title        string     `json:"title"`
+	Description  string     `json:"description"`
+	Tags         []string   `json:"tags"`
+	ContactPhone string     `json:"contact_phone"`
+	ContactEmail string     `json:"contact_email"`
+	DeadlineAt   *time.Time `json:"deadline_at"` // 处理时限，传 nil 清空
 }
 
 // SupplementTicketRequest 补充申告信息请求。
@@ -42,6 +46,11 @@ type UpdateTicketStatusRequest struct {
 
 // BatchDeleteRequest 批量删除请求（通用，供申告/用户/审计日志复用）。
 type BatchDeleteRequest struct {
+	IDs []int64 `json:"ids" binding:"required,min=1"`
+}
+
+// BatchCloseRequest 批量关闭申告请求。
+type BatchCloseRequest struct {
 	IDs []int64 `json:"ids" binding:"required,min=1"`
 }
 
