@@ -6,8 +6,12 @@
 package chat_test
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/cloudwego/eino-ext/components/model/openai"
+	"github.com/cloudwego/eino/schema"
 
 	llmconfig "opsmind/internal/domain/chat/llm_config"
 	"opsmind/internal/domain/chat/session"
@@ -17,43 +21,39 @@ import (
 	"opsmind/internal/shared/model"
 )
 
-// TestLLMClient_ChatCompletion 验证 LLM 客户端可正常调用 llama.cpp。
+// TestLLMClient_ChatCompletion 验证 Eino ChatModel 可正常调用 llama.cpp。
+// 用 Eino ChatModel.Generate 调用 LLM。
 //
 // 需要运行中的 LLM 服务，不可用时跳过。
 func TestLLMClient_ChatCompletion(t *testing.T) {
-	client, err := adapter.NewOpenAIClient(
-		"http://localhost:8081/v1",
-		"",
-		5*time.Second, // 短超时用于快速探活
-	)
-	if err != nil {
-		t.Fatalf("创建 LLM 客户端失败: %v", err)
-	}
+	ctx, cancel := context.WithTimeout(bgCtx, 5*time.Second)
+	defer cancel()
 
-	// 快速探活：获取模型列表
-	if _, err := client.ChatCompletion(bgCtx, adapter.ChatRequest{
-		Model: "qwen3-4b", Messages: []adapter.ChatMessage{{Role: "user", Content: "ping"}},
-		MaxTokens: 1, Temperature: 0,
-	}); err != nil {
+	// 临时构造 Eino ChatModel 探活
+	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		APIKey:  "",
+		Model:   "qwen3-4b",
+		BaseURL: "http://localhost:8081/v1",
+	})
+	if err != nil {
 		t.Skipf("LLM 服务不可用（%v），跳过集成测试", err)
 		return
 	}
 
-	// 重新创建正常超时的客户端
-	client, _ = adapter.NewOpenAIClient("http://localhost:8081/v1", "", 60*time.Second)
-
-	req := adapter.ChatRequest{
-		Model: "qwen3-4b",
-		Messages: []adapter.ChatMessage{
-			{Role: "user", Content: "Say hello in one sentence."},
-		},
-		MaxTokens:   100,
-		Temperature: 0.7,
+	// 快速探活：ping
+	if _, err := chatModel.Generate(ctx, []*schema.Message{schema.UserMessage("ping")}); err != nil {
+		t.Skipf("LLM 服务不可用（%v），跳过集成测试", err)
+		return
 	}
 
-	resp, err := client.ChatCompletion(bgCtx, req)
+	// 正常超时调用
+	ctx2, cancel2 := context.WithTimeout(bgCtx, 60*time.Second)
+	defer cancel2()
+	resp, err := chatModel.Generate(ctx2, []*schema.Message{
+		schema.UserMessage("Say hello in one sentence."),
+	})
 	if err != nil {
-		t.Fatalf("ChatCompletion 失败: %v", err)
+		t.Fatalf("ChatModel.Generate 失败: %v", err)
 	}
 
 	t.Logf("LLM 回复: %s", resp.Content)
@@ -215,10 +215,10 @@ func TestChatService_SessionFlow(t *testing.T) {
 		t.Fatalf("创建知识库失败: %v", err)
 	}
 
-	// 创建 ChatService
+	// 创建 ChatService（新签名：agentRunner + modelFactory）
 	knowledgeRepo := knowledge.NewKnowledgeRepo(chatSvcDB)
 	chatRepo := session.NewChatRepo(chatSvcDB)
-	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{TopK: 3}, nil, nil, nil)
+	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, nil, nil, nil, nil)
 
 	// 创建会话
 	session, err := chatSvc.CreateSession(bgCtx, request.CreateSessionRequest{
@@ -264,3 +264,4 @@ func TestChatService_SessionFlow(t *testing.T) {
 	}
 	t.Log("会话端到端流程测试通过")
 }
+

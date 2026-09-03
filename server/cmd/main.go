@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 	"opsmind/internal/domain/user/account"
 	"opsmind/internal/domain/user/auth"
 	"opsmind/internal/domain/user/role"
+	"opsmind/internal/agent"
+	agenttools "opsmind/internal/agent/tools"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
@@ -43,7 +46,6 @@ import (
 type app struct {
 	cfg           *config.AppConfig
 	logCleanup    func()
-	llmClient     *adapter.OpenAIClient
 	reranker      adapter.Reranker
 	vectorStore   adapter.VectorStore
 	storageClient storage.StorageClient
@@ -120,16 +122,7 @@ func wireApp() (*app, error) {
 	}
 
 	// 3. Adapter 层
-	llmTimeout := cfg.LLM.Timeout
-	if llmTimeout <= 0 {
-		llmTimeout = 60 * time.Second
-	}
-	llmClient, err := adapter.NewOpenAIClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, llmTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("创建 LLM 客户端失败: %w", err)
-	}
-	a.llmClient = llmClient
-
+	// LLM 调用走 Eino ChatModel（agent 域），此处仅保留 Embedding/Rerank/VectorStore。
 	embedBaseURL := cfg.Embedding.BaseURL
 	if embedBaseURL == "" {
 		embedBaseURL = cfg.LLM.BaseURL
@@ -246,11 +239,9 @@ func wireApp() (*app, error) {
 	docParser := parser.NewParser(parser.WithMinerU(mineruEngine))
 	chunker := rag.NewChunker(cfg.AI.ChunkSize, cfg.AI.ChunkOverlap)
 
-	// 向量检索器仅当 vectorStore 可用时创建
-	var vectorRetriever *rag.VectorRetriever
-	if a.vectorStore != nil {
-		vectorRetriever = rag.NewVectorRetriever(embedder, a.vectorStore)
-	}
+	// 向量检索器 + RAG Pipeline 不参与 Agent 生成路径。
+	// bm25Retriever 保留：KB 发布时 RebuildBM25ForKB 异步重建索引仍需。
+	
 
 	bm25TTL := 30 * time.Minute
 	if s := os.Getenv("OPSMIND_AI_BM25_REBUILD_MINUTES"); s != "" {
@@ -261,8 +252,6 @@ func wireApp() (*app, error) {
 	}
 	segmenter := rag.NewGseSegmenter()
 	bm25Retriever := rag.NewBM25Retriever(segmenter, bm25TTL)
-
-	pipeline := rag.NewPipeline(vectorRetriever, bm25Retriever, llmClient, embedder, a.reranker, cfg.LLM.Model)
 
 	// 文档处理器仅当 vectorStore 或 storageClient 可用时创建
 	var processor *rag.Processor
@@ -296,25 +285,34 @@ func wireApp() (*app, error) {
 	)
 	slog.Info("KnowledgeService 已初始化")
 
-	llmService := session.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
-	slog.Info("LLMService 已初始化")
+	// Agent 基座（事件生产者）。Eino ChatModel + ReactAgent + 工具集。
+	// LLM 调用从手写 OpenAIClient 迁移到 Eino ChatModel；ReAct 循环替代线性 RAG 管道。
+	agentModelFactory := agent.NewChatModelFactory(llmConfigSvc.GetManager())
+	if err := agentModelFactory.BuildInitial(context.Background()); err != nil {
+		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
+	}
+	agentToolFactory := agenttools.NewToolFactory(
+		envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
+		envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
+		int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
+	)
+	agentFactory := agent.NewAgentFactory(agentModelFactory, agentToolFactory)
+	if cfg := llmConfigSvc.GetManager().GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
+		agentFactory.SetInstruction(cfg.SystemPrompt)
+	}
+	agentRunner := agent.NewAgentRunner(agentFactory)
+	slog.Info("Agent 基座已初始化")
 
-	// LLM 配置变更回调：热重建 LLM/Embedding 客户端
-	setupLLMHotSwap(llmConfigSvc, llmTimeout, embedTimeout, llmService, embedder, knowledgeService)
+	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
+	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)
 
-	genHub := runtime.NewGenerationHub[session.StreamEvent](func(e session.StreamEvent, seq int) session.StreamEvent {
+	genHub := runtime.NewGateway[session.StreamEvent](func(e session.StreamEvent, seq int) session.StreamEvent {
 		e.Seq = seq
 		return e
 	})
-	slog.Info("GenerationHub 已初始化")
+	slog.Info("Gateway 网关已初始化")
 
-	chatService := session.NewChatService(knowledgeRepo, chatRepo, llmService, session.RAGDefaults{
-		TopK:         cfg.AI.DefaultTopK,
-		QueryRewrite: cfg.AI.RAGQueryRewrite,
-		MultiRoute:   cfg.AI.RAGMultiRoute,
-		Hybrid:       cfg.AI.RAGHybrid,
-		Rerank:       cfg.AI.RAGRerank,
-	}, configService, auditService, genHub)
+	chatService := session.NewChatService(knowledgeRepo, chatRepo, agentRunner, agentModelFactory, configService, auditService, genHub)
 	slog.Info("ChatService 已初始化")
 
 	// ChatService 就绪后构造 TicketService，直接传入反馈标记器
@@ -433,31 +431,57 @@ func (a *app) run() error {
 	return nil
 }
 
-// setupLLMHotSwap 注册 LLM 配置变更回调，热重建 LLM/Embedding 客户端。
-func setupLLMHotSwap(llmConfigSvc *llmconfig.LLMConfigService, llmTimeout, embedTimeout time.Duration, llmService *session.LLMService, embedder *rag.Embedder, knowledgeService *knowledge.KnowledgeService) {
+// setupLLMHotSwap 注册 LLM 配置变更回调，热重建 Agent ChatModel + Embedding 客户端。
+// 重建 Eino ChatModel（agentModelFactory.OnConfigChange）。
+func setupLLMHotSwap(llmConfigSvc *llmconfig.LLMConfigService, embedTimeout time.Duration, embedder *rag.Embedder, knowledgeService *knowledge.KnowledgeService, agentModelFactory *agent.ChatModelFactory) {
 	llmConfigSvc.GetManager().OnChange(func() {
 		newCfg := llmConfigSvc.GetManager().GetConfig()
 		if newCfg == nil {
 			return
 		}
-		newLLM, err := adapter.NewOpenAIClient(newCfg.LLMBaseURL, newCfg.LLMAPIKey, llmTimeout)
-		if err != nil {
-			slog.Error("LLM 配置变更后重建客户端失败", "error", err)
-			return
-		}
-		llmService.SetLLMClient(newLLM)
+		// 重建 Agent Eino ChatModel
+		agentModelFactory.OnConfigChange()
 
+		// 重建 Embedding 客户端（文档处理管道仍需）
 		embedBase := newCfg.GetEmbeddingBaseURL()
 		embedKey := newCfg.GetEmbeddingAPIKey()
 		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
 		embedder.SetClient(newEmbed)
 		knowledgeService.SetDefaultEmbeddingConfig(newCfg.EmbeddingModel)
 
-		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
+		slog.Info("Agent ChatModel / Embedding 已按新默认配置重建",
 			"llm_base_url", newCfg.LLMBaseURL,
 			"embedding_base_url", embedBase,
 			"llm_model", newCfg.LLMModel,
 			"embedding_model", newCfg.EmbeddingModel,
 		)
 	})
+}
+
+// envStr 读取环境变量字符串，空则用默认值。
+func envStr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// envDuration 读取环境变量 Duration，空则用默认值。
+func envDuration(key string, def time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return def
+}
+
+// envInt 读取环境变量整数，空则用默认值。
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return def
 }

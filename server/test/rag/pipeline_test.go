@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/infra/adapter"
 	"opsmind/internal/rag"
 )
 
@@ -31,23 +30,23 @@ func (m *mockRetriever) Retrieve(ctx context.Context, query string, kbID int64, 
 // =============================================================================
 
 type mockLLMClient struct {
-	chatResponse *adapter.ChatResponse
+	chatResponse *rag.ChatResponse
 	chatError    error
-	streamChunks []adapter.StreamChunk
+	streamChunks []rag.StreamChunk
 }
 
-func (m *mockLLMClient) ChatCompletion(ctx context.Context, req adapter.ChatRequest) (*adapter.ChatResponse, error) {
+func (m *mockLLMClient) ChatCompletion(ctx context.Context, req rag.ChatRequest) (*rag.ChatResponse, error) {
 	if m.chatError != nil {
 		return nil, m.chatError
 	}
 	return m.chatResponse, nil
 }
 
-func (m *mockLLMClient) ChatCompletionStream(ctx context.Context, req adapter.ChatRequest) (<-chan adapter.StreamChunk, error) {
+func (m *mockLLMClient) ChatCompletionStream(ctx context.Context, req rag.ChatRequest) (<-chan rag.StreamChunk, error) {
 	if m.chatError != nil {
 		return nil, m.chatError
 	}
-	ch := make(chan adapter.StreamChunk, len(m.streamChunks))
+	ch := make(chan rag.StreamChunk, len(m.streamChunks))
 	go func() {
 		for _, c := range m.streamChunks {
 			ch <- c
@@ -64,7 +63,7 @@ func (m *mockLLMClient) ChatCompletionStream(ctx context.Context, req adapter.Ch
 // TestPipeline_FullSuccess 验证完整管道（所有步骤成功）。
 func TestPipeline_FullSuccess(t *testing.T) {
 	llm := &mockLLMClient{
-		chatResponse: &adapter.ChatResponse{Content: "改写后的查询", FinishReason: "stop"},
+		chatResponse: &rag.ChatResponse{Content: "改写后的查询", FinishReason: "stop"},
 	}
 	embedder := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 	vectorRet := &mockRetriever{
@@ -94,7 +93,7 @@ func TestPipeline_FullSuccess(t *testing.T) {
 // TestPipeline_QueryRewriteDisabled 验证查询改写开关关闭时跳过。
 func TestPipeline_QueryRewriteDisabled(t *testing.T) {
 	llm := &mockLLMClient{
-		chatResponse: &adapter.ChatResponse{Content: "查询改写", FinishReason: "stop"},
+		chatResponse: &rag.ChatResponse{Content: "查询改写", FinishReason: "stop"},
 	}
 	embedder := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 	vectorRet := &mockRetriever{
@@ -119,7 +118,7 @@ func TestPipeline_QueryRewriteDisabled(t *testing.T) {
 // TestPipeline_VectorRetrievalFail 验证向量检索失败时应返回错误。
 func TestPipeline_VectorRetrievalFail(t *testing.T) {
 	llm := &mockLLMClient{
-		chatResponse: &adapter.ChatResponse{Content: "原始查询", FinishReason: "stop"},
+		chatResponse: &rag.ChatResponse{Content: "原始查询", FinishReason: "stop"},
 	}
 	embedder := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 	failingRetriever := &mockRetriever{
@@ -141,7 +140,7 @@ func TestPipeline_VectorRetrievalFail(t *testing.T) {
 // TestPipeline_StepCallback 验证步骤回调被正确调用。
 func TestPipeline_StepCallback(t *testing.T) {
 	llm := &mockLLMClient{
-		chatResponse: &adapter.ChatResponse{Content: "查询改写", FinishReason: "stop"},
+		chatResponse: &rag.ChatResponse{Content: "查询改写", FinishReason: "stop"},
 	}
 	embedder := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 	vectorRet := &mockRetriever{
@@ -171,7 +170,7 @@ func TestPipeline_StepCallback(t *testing.T) {
 func TestPipeline_Metrics(t *testing.T) {
 	// 用真实延迟验证耗时记录
 	llm := &mockLLMClient{
-		chatResponse: &adapter.ChatResponse{Content: "改写", FinishReason: "stop"},
+		chatResponse: &rag.ChatResponse{Content: "改写", FinishReason: "stop"},
 	}
 	embedder := rag.NewEmbedder(&mockEmbeddingClient{dimension: 1024}, 20)
 	vectorRet := &mockRetriever{

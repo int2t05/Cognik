@@ -9,9 +9,7 @@ type CreateSessionRequest struct {
 
 // SendMessageRequest 发送消息请求（SSE 流式端点）。
 type SendMessageRequest struct {
-	Question    string `json:"question" binding:"required,max=2000"` // 用户问题（限制 2000 字符防滥用）
-	RouteCount  int    `json:"route_count"`                          // 多路检索子查询数（0=使用默认值 3）
-	RerankCount int    `json:"rerank_count"`                         // 重排序截断数（0=使用默认值 5）
+	Question string `json:"question" binding:"required,max=2000"` // 用户问题（限制 2000 字符防滥用）
 }
 
 // SubmitFeedbackRequest 问答反馈请求。
