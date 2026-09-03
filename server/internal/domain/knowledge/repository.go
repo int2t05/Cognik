@@ -5,11 +5,20 @@ package knowledge
 
 import (
 	"context"
+	"strings"
 
 	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
 )
+
+// escapeLike 转义 LIKE/ILIKE 模式中的通配符（%、_、\），配合 ESCAPE '\\' 子句实现字面量搜索。
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
 
 // KnowledgeRepo 知识库数据访问
 type KnowledgeRepo struct {
@@ -42,9 +51,14 @@ func (r *KnowledgeRepo) UpdateKB(ctx context.Context, kb *model.KnowledgeBase) e
 	return r.db.WithContext(ctx).Save(kb).Error
 }
 
-func (r *KnowledgeRepo) ListKBs(ctx context.Context) ([]model.KnowledgeBase, error) {
+func (r *KnowledgeRepo) ListKBs(ctx context.Context, keyword string) ([]model.KnowledgeBase, error) {
 	var kbs []model.KnowledgeBase
-	err := r.db.WithContext(ctx).Order("id ASC").Find(&kbs).Error
+	query := r.db.WithContext(ctx).Order("id ASC")
+	if keyword != "" {
+		like := "%" + escapeLike(keyword) + "%"
+		query = query.Where("name ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\'", like, like)
+	}
+	err := query.Find(&kbs).Error
 	if err != nil {
 		return nil, err
 	}

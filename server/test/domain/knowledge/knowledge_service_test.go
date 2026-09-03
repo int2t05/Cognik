@@ -156,7 +156,7 @@ func TestKnowledgeService_ListKBs(t *testing.T) {
 	createTestKB(t, svc, "知识库1")
 	createTestKB(t, svc, "知识库2")
 
-	kbs, err := svc.ListKBs(bgCtx)
+	kbs, err := svc.ListKBs(bgCtx, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}

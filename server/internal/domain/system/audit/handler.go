@@ -76,6 +76,7 @@ func (h *AuditHandler) List(c *gin.Context) {
 		Action:     req.Action,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
+		Keyword:    req.Keyword,
 		DateFrom:   req.DateFrom,
 		DateTo:     req.DateTo,
 		Page:       page,

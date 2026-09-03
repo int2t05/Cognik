@@ -24,6 +24,7 @@ import (
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -76,7 +77,7 @@ type knowledgeRepo interface {
 	DeleteKB(ctx context.Context, id int64) error
 	DeleteArticle(ctx context.Context, id int64) error
 	ExistsByTitle(ctx context.Context, kbID int64, title string, excludeID int64) (bool, error)
-	ListKBs(ctx context.Context) ([]model.KnowledgeBase, error)
+	ListKBs(ctx context.Context, keyword string) ([]model.KnowledgeBase, error)
 	CountArticlesByKB(ctx context.Context) (map[int64]int, error)
 	ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, keyword string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
 	FindChunksByArticleID(ctx context.Context, articleID int64) ([]model.KnowledgeChunk, error)
@@ -296,8 +297,8 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 }
 
 // ListKBs 列出全部知识库（含文章数量统计）。
-func (s *KnowledgeService) ListKBs(ctx context.Context) ([]response.KBResponse, error) {
-	kbs, err := s.repo.ListKBs(ctx)
+func (s *KnowledgeService) ListKBs(ctx context.Context, keyword string) ([]response.KBResponse, error) {
+	kbs, err := s.repo.ListKBs(ctx, keyword)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库列表失败: " + err.Error()}
 	}
@@ -778,6 +779,32 @@ func (s *KnowledgeService) GetUploadConfig() response.UploadConfigResponse {
 		AllowedTypes:    types,
 		MaxFiles:        10,
 	}
+}
+
+// UploadAsset 上传通用文件（文章内嵌图片/附件等）到 article-assets 目录，返回存储 key 与本地路径。
+// 存储路径: {documents 桶}/article-assets/{uuid}{ext}。前端通过 /api/v1/admin/files/article-assets/{filename} 访问。
+func (s *KnowledgeService) UploadAsset(ctx context.Context, filename string, contentType string, size int64, reader io.Reader) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储未初始化"}
+	}
+	if size > s.maxUploadSize {
+		return "", errcode.AppError{Code: errcode.ErrParam, Message: fmt.Sprintf("文件大小超过限制（最大 %d MB）", s.maxUploadSize/1024/1024)}
+	}
+	ext := filepath.Ext(filename)
+	storedName := uuid.NewString() + ext
+	if err := s.storage.UploadFile(ctx, minioBucketDocs, "article-assets", storedName, reader, size, contentType); err != nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "文件上传失败: " + err.Error()}
+	}
+	return storedName, nil
+}
+
+// AssetLocalPath 返回 article-assets 目录下指定文件的本地路径（供下载代理 ServeFile）。
+// MinIO 模式返回预签名 URL；Local 模式返回绝对路径。
+func (s *KnowledgeService) AssetLocalPath(ctx context.Context, filename string) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储未初始化"}
+	}
+	return s.storage.GetFileURL(ctx, minioBucketDocs, "article-assets", filename)
 }
 
 // GetDocumentStatus 查询文档处理状态。

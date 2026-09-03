@@ -185,7 +185,7 @@ func TestKnowledgeRepo_UpdateKB(t *testing.T) {
 	assert.Equal(t, "新描述", got.Description)
 }
 
-// TestKnowledgeRepo_ListKBs 列出全部知识库
+// TestKnowledgeRepo_ListKBs 列出全部知识库，支持 keyword 过滤
 func TestKnowledgeRepo_ListKBs(t *testing.T) {
 	db := setupKnowledgeTestDB(t)
 	cleanKnowledgeTables(t, db)
@@ -193,13 +193,13 @@ func TestKnowledgeRepo_ListKBs(t *testing.T) {
 
 	now := time.Now()
 	kb1 := &model.KnowledgeBase{
-		Name:             "知识库1",
+		Name:             "VPN 操作指南",
 		RAGWorkspaceSlug: "slug-1",
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
 	kb2 := &model.KnowledgeBase{
-		Name:             "知识库2",
+		Name:             "密码重置手册",
 		RAGWorkspaceSlug: "slug-2",
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -207,10 +207,21 @@ func TestKnowledgeRepo_ListKBs(t *testing.T) {
 	require.NoError(t, db.Create(kb1).Error)
 	require.NoError(t, db.Create(kb2).Error)
 
-	kbs, err := repo.ListKBs(context.Background())
+	// 无 keyword：返回全部
+	kbs, err := repo.ListKBs(context.Background(), "")
 	require.NoError(t, err)
 	assert.Len(t, kbs, 2)
-	assert.True(t, kbs[0].Name == "知识库1" || kbs[0].Name == "知识库2")
+
+	// keyword=vpn：仅匹配 VPN 操作指南
+	filtered, err := repo.ListKBs(context.Background(), "vpn")
+	require.NoError(t, err)
+	require.Len(t, filtered, 1)
+	assert.Equal(t, "VPN 操作指南", filtered[0].Name)
+
+	// keyword 含通配符 %：字面量搜索，不误匹配
+	escapeTest, err := repo.ListKBs(context.Background(), "%")
+	require.NoError(t, err)
+	assert.Empty(t, escapeTest)
 }
 
 // TestKnowledgeRepo_ListKBs_Empty 无知识库时返回空切片
@@ -219,7 +230,7 @@ func TestKnowledgeRepo_ListKBs_Empty(t *testing.T) {
 	cleanKnowledgeTables(t, db)
 	repo := knowledge.NewKnowledgeRepo(db)
 
-	kbs, err := repo.ListKBs(context.Background())
+	kbs, err := repo.ListKBs(context.Background(), "")
 	require.NoError(t, err)
 	assert.Empty(t, kbs)
 }

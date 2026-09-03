@@ -16,10 +16,19 @@ type AuditFilter struct {
 	Action     string
 	TargetType string
 	TargetID   int64
+	Keyword    string
 	DateFrom   string
 	DateTo     string
 	Page       int
 	PageSize   int
+}
+
+// escapeLike 转义 LIKE/ILIKE 模式中的通配符（%、_、\），配合 ESCAPE '\\' 子句实现字面量搜索。
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
 // AuditLogRow 审计日志查询结果行（含 LEFT JOIN users 的操作人姓名）。
@@ -76,6 +85,10 @@ func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]AuditLogRow, int
 	}
 	if f.TargetID > 0 {
 		query = query.Where("audit_logs.target_id = ?", f.TargetID)
+	}
+	if f.Keyword != "" {
+		like := "%" + escapeLike(f.Keyword) + "%"
+		query = query.Where("(audit_logs.action ILIKE ? ESCAPE '\\' OR audit_logs.target_type ILIKE ? ESCAPE '\\' OR audit_logs.detail::text ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 	if f.DateFrom != "" {
 		query = query.Where("audit_logs.created_at >= ?::date", f.DateFrom)
