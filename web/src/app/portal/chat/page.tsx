@@ -24,6 +24,7 @@ export default function ChatPage() {
   const stream = sessionId ? store.getStream(sessionId) : undefined;
   const messages = stream?.messages ?? [];
   const isStreaming = stream?.status === 'streaming';
+  const queueCount = sessionId ? store.getQueueCount(sessionId) : 0;
 
   // 自动滚动：消息变化 + streaming 时滚到底部
   useEffect(() => {
@@ -43,9 +44,7 @@ export default function ChatPage() {
       if (!sid) return;
     }
 
-    store.send(sid, question, token || '', (err) => toast.error(err)).then(() => {
-      // 流结束后刷新线程列表（更新标题/时间）
-    });
+    store.send(sid, question, token || '', (err) => toast.error(err));
   }, [input, sessionId, createNewSession, store, token]);
 
   const handleStop = useCallback(() => {
@@ -136,9 +135,10 @@ export default function ChatPage() {
               onChange={setInput}
               onSend={handleSend}
               onStop={handleStop}
-              disabled={isStreaming}
+              disabled={false}
               loading={false}
               streaming={isStreaming}
+              queueCount={queueCount}
               placeholder="输入你的问题…"
             />
           </div>

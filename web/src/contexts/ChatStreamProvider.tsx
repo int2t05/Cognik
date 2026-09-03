@@ -16,6 +16,7 @@ const MIN_COMMIT_MS = 50;
 
 interface Store {
   getStream(id: number): SessionStream | undefined;
+  getQueueCount(id: number): number;
   setMessages(id: number, msgs: ChatMessage[]): void;
   send(threadId: number, question: string, token: string, onError?: (m: string) => void): Promise<number | null>;
   resume(id: number, since: number, token: string): void;
@@ -31,6 +32,11 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
   const tokenRef = useRef<string | null>(null);
   const controllersRef = useRef<Record<number, AbortController>>({});
 
+  // 用户输入队列（type-ahead：streaming 时用户可继续输入，排队等待）
+  const queueRef = useRef<Record<number, string[]>>({});
+  // 正在发送的标志（避免队列重入）
+  const sendingRef = useRef<Record<number, boolean>>({});
+
   // 流式缓冲（rAF 节流）：事件累积到 ref，帧回调批量 flush
   const buffersRef = useRef<Record<number, SSEEvent[]>>({});
   const rafRefs = useRef<Record<number, number | null>>({});
@@ -43,6 +49,8 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getStream = useCallback((id: number) => streamsRef.current[id], []);
+
+  const getQueueCount = useCallback((id: number) => queueRef.current[id]?.length ?? 0, []);
 
   const setMessages = useCallback((id: number, msgs: ChatMessage[]) => {
     patch(id, () => ({
@@ -129,16 +137,31 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
       }
       return s;
     });
+    // 队列处理：当前消息完成后，自动发送队列下一条
+    sendingRef.current[id] = false;
+    processQueue(id);
   }, [patch, scheduleFlush, cancelRAF, flushBuffer]);
 
-  const send = useCallback(async (threadId: number, question: string, token: string, onError?: (m: string) => void) => {
-    const authToken = token || tokenRef.current;
-    if (!threadId) { onError?.('会话不存在'); return null; }
+  // 队列处理：取出下一条消息发送
+  const processQueue = useCallback((id: number) => {
+    const queue = queueRef.current[id];
+    if (!queue || queue.length === 0) return;
+    if (sendingRef.current[id]) return; // 正在发送，等待
+    const next = queue.shift()!;
+    forceRender((n) => n + 1); // 更新队列计数 UI
+    // 用 setTimeout 确保 state 更新后再发送
+    setTimeout(() => {
+      doSend(id, next, tokenRef.current || '');
+    }, 0);
+  }, []);
 
+  // 实际发送（内部函数，不检查队列）
+  const doSend = useCallback(async (threadId: number, question: string, authToken: string, onError?: (m: string) => void) => {
     // 添加用户消息 + assistant 占位
     patch(threadId, (s) => ({
       ...s,
       lastSeq: -1,
+      status: 'streaming',
       messages: [
         ...s.messages,
         { id: `u-${Date.now()}`, role: 'user', parts: [{ type: 'text', content: question }], status: 'done', createdAt: new Date().toISOString() },
@@ -146,6 +169,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
       ],
     }));
 
+    sendingRef.current[threadId] = true;
     const ctrl = new AbortController();
     controllersRef.current[threadId] = ctrl;
     try {
@@ -161,9 +185,25 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
         onError?.(err.message);
         patch(threadId, (s) => ({ ...s, status: 'error' }));
       }
+      sendingRef.current[threadId] = false;
     }
     return threadId;
   }, [patch, consume]);
+
+  const send = useCallback(async (threadId: number, question: string, token: string, onError?: (m: string) => void) => {
+    const authToken = token || tokenRef.current;
+    if (!threadId) { onError?.('会话不存在'); return null; }
+
+    // 若正在 streaming → 入队列（type-ahead）
+    if (sendingRef.current[threadId]) {
+      if (!queueRef.current[threadId]) queueRef.current[threadId] = [];
+      queueRef.current[threadId].push(question);
+      forceRender((n) => n + 1); // 更新队列计数 UI
+      return threadId;
+    }
+
+    return doSend(threadId, question, authToken || '', onError);
+  }, [doSend]);
 
   const resume = useCallback(async (id: number, since: number, token: string) => {
     const authToken = token || tokenRef.current;
@@ -181,6 +221,10 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     controllersRef.current[id]?.abort();
     cancelRAF(id);
     flushBuffer(id);
+    // 清空队列
+    queueRef.current[id] = [];
+    sendingRef.current[id] = false;
+    forceRender((n) => n + 1);
     await cancelGeneration(id).catch(() => {});
     // 保留部分回答，标记 cancelled
     patch(id, (s) => {
@@ -195,7 +239,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     });
   }, [cancelRAF, flushBuffer, patch]);
 
-  const store: Store = { getStream, setMessages, send, resume, cancel, setToken };
+  const store: Store = { getStream, getQueueCount, setMessages, send, resume, cancel, setToken };
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
