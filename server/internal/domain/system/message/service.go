@@ -80,6 +80,12 @@ func (s *MessageService) NotifyTicketClosed(ctx context.Context, ticketID int64,
 	return s.notify(ctx, userID, "申告已关闭", content, model.MessageTypeTicketClosed, "ticket", ticketID)
 }
 
+// NotifyTicketOverdue 通知申告人处理超时（调度器扫描 deadline_at 超时触发）。
+func (s *MessageService) NotifyTicketOverdue(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
+	content := fmt.Sprintf("您的申告「%s」已超过处理时限，请尽快处理或重新提交。", ticketTitle)
+	return s.notify(ctx, userID, "申告处理超时", content, model.MessageTypeTicketOverdue, "ticket", ticketID)
+}
+
 // NotifyKnowledgeReviewed 通知文章作者审核结果。
 func (s *MessageService) NotifyKnowledgeReviewed(ctx context.Context, articleID int64, articleTitle string, userID int64, approved bool, comment string) error {
 	if approved {

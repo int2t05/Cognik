@@ -19,6 +19,7 @@ type TicketItem struct {
 	Status          int16    `json:"status"`
 	StatusText      string   `json:"status_text"`
 	SupplementCount int16    `json:"supplement_count"`
+	DeadlineAt      *string  `json:"deadline_at"`
 	CreatedAt       string   `json:"created_at"`
 	UpdatedAt       string   `json:"updated_at"`
 }

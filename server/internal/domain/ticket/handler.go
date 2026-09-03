@@ -312,3 +312,17 @@ func (h *TicketHandler) BatchDelete(c *gin.Context) {
 	}
 	response.Success(c, map[string]int64{"deleted": deleted})
 }
+
+// BatchClose 批量关闭申告，逐条复用单条 close 状态机，部分失败不影响其他。
+//
+// POST /api/v1/admin/tickets/batch-close
+func (h *TicketHandler) BatchClose(c *gin.Context) {
+	var req request.BatchCloseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	results := h.svc.BatchClose(c.Request.Context(), req.IDs, userID)
+	response.Success(c, map[string]any{"results": results})
+}

@@ -16,6 +16,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.POST("/tickets/:id/records", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.AddRecord }))
 	rg.POST("/tickets/:id/knowledge-candidate", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateKnowledgeCandidate }))
 	rg.POST("/tickets/batch-delete", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.BatchDelete }))
+	rg.POST("/tickets/batch-close", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.BatchClose }))
 
 	// 知识库管理
 	rg.GET("/knowledge-bases", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ListKBs }))
@@ -35,6 +36,10 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.POST("/knowledge-bases/:kb_id/documents/upload", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.UploadDocuments }))
 	rg.GET("/knowledge-bases/:kb_id/documents/:id/status", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.GetDocumentStatus }))
 	rg.POST("/knowledge-bases/:kb_id/documents/:id/retry", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.RetryDocument }))
+
+	// 通用文件上传/下载（文章内嵌图片/附件）
+	rg.POST("/files/upload", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.UploadFile }))
+	rg.GET("/files/article-assets/:filename", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ServeFile }))
 
 	// 用户管理
 	userRoutes := rg.Group("/users")
@@ -61,6 +66,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 数据看板
 	rg.GET("/dashboard/stats", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.GetStats }))
 	rg.GET("/dashboard/trends", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.GetTrends }))
+	rg.GET("/dashboard/trends/export", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.ExportTrends }))
 	rg.POST("/feedback/analyze", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.AnalyzeFeedback }))
 
 	// 操作日志
