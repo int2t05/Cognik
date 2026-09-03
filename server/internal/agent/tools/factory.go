@@ -45,3 +45,19 @@ func (f *ToolFactory) BuildTools() []tool.BaseTool {
 		NewMkdirTool(f.workDir),
 	}
 }
+
+// BuildReadOnlyTools 返回只读工具集（供子 Agent 使用）。
+func (f *ToolFactory) BuildReadOnlyTools() []tool.BaseTool {
+	return []tool.BaseTool{
+		NewReadFileTool(f.workDir, f.maxBytes),
+		NewGlobTool(f.workDir, f.maxBytes),
+		NewGrepTool(f.workDir, f.maxBytes),
+		NewListDirTool(f.workDir, f.maxBytes),
+	}
+}
+
+// WorkDir 返回工作目录。
+func (f *ToolFactory) WorkDir() string { return f.workDir }
+
+// MaxBytes 返回截断上限。
+func (f *ToolFactory) MaxBytes() int64 { return f.maxBytes }
