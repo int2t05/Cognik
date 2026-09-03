@@ -73,28 +73,51 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_call':
-      return updateLastAssistant(s, (msg) => ({
-        ...msg,
-        parts: [...msg.parts, {
-          type: 'tool_call',
-          id: evt.id ?? '',
-          label: evt.label ?? '',
-          content: evt.content ?? '',
-          status: 'running',
-        }],
-      }))
+      // 合并 args 到同 ID 的 tool_call part（Eino 拆分 args 为多个 chunk，仅首 chunk 有 id/label）
+      return updateLastAssistant(s, (msg) => {
+        const parts = [...msg.parts]
+        // 优先按 ID 匹配（首 chunk 有 id）
+        let existing = evt.id ? parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id) : -1
+        // ID 匹配不到 → 合并到最后一个 running 的 tool_call（后续 chunk 无 id）
+        if (existing < 0) {
+          existing = parts.findIndex(p => p.type === 'tool_call' && p.status === 'running')
+        }
+        if (existing >= 0) {
+          parts[existing] = { ...parts[existing], content: parts[existing].content + (evt.content ?? '') }
+        } else {
+          parts.push({
+            type: 'tool_call', id: evt.id ?? '', label: evt.label ?? '',
+            content: evt.content ?? '', status: 'running',
+          })
+        }
+        return { ...msg, parts }
+      })
 
     case 'tool_result':
-      return updateLastAssistant(s, (msg) => ({
-        ...msg,
-        parts: [...msg.parts, {
-          type: 'tool_result',
-          id: evt.id ?? '',
-          label: evt.label ?? '',
-          content: evt.content ?? '',
-          status: 'done',
-        }],
-      }))
+      // 配对到同 ID 的 tool_call part，更新 status=done + result（而非新建 part）
+      return updateLastAssistant(s, (msg) => {
+        const parts = [...msg.parts]
+        const existing = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
+        if (existing >= 0) {
+          // 已有 tool_call → 更新 status + result
+          const toolPart = parts[existing] as Extract<MessagePart, { type: 'tool_call' }>
+          parts[existing] = {
+            ...toolPart,
+            status: 'done',
+            content: toolPart.content + '\n--- result ---\n' + (evt.content ?? ''),
+          }
+        } else {
+          // 无对应 tool_call（异常），单独创建 tool_result part
+          parts.push({
+            type: 'tool_result',
+            id: evt.id ?? '',
+            label: evt.label ?? '',
+            content: evt.content ?? '',
+            status: 'done',
+          })
+        }
+        return { ...msg, parts }
+      })
 
     case 'done': {
       s.thinking = false

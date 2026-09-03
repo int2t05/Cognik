@@ -35,15 +35,18 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
       } ${isError ? 'border-red-300' : ''}`}>
         {/* parts 数组分发渲染 */}
         {message.parts.map((part, i) => {
+          const key = part.type === 'tool_call' || part.type === 'tool_result'
+            ? `${part.type}-${part.id || i}`
+            : `${part.type}-${i}`;
           switch (part.type) {
             case 'text':
-              return <TextPart key={i} part={part} streaming={isStreaming} />;
+              return <TextPart key={key} part={part} streaming={isStreaming} />;
             case 'reasoning':
-              return <ReasoningPart key={i} part={part} streaming={isStreaming} />;
+              return <ReasoningPart key={key} part={part} streaming={isStreaming} />;
             case 'tool_call':
-              return <ToolCallPart key={part.id || i} part={part} />;
+              return <ToolCallPart key={key} part={part} />;
             case 'tool_result':
-              return <ToolResultPart key={part.id || i} part={part} />;
+              return <ToolResultPart key={key} part={part} />;
             default:
               return null;
           }

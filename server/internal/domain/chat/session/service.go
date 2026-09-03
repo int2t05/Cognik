@@ -278,15 +278,52 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 				parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
 			}
 		case agent.EventToolCall:
-			parts = append(parts, store.MessagePart{
-				Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
-				Content: evt.Content, Status: "running",
-			})
+			// 合并 args 到同 ID 的 tool_call part（Eino 拆分 args 为多个 chunk，仅首 chunk 有 id/label）
+			found := false
+			// 优先按 ID 匹配
+			if evt.ID != "" {
+				for i := range parts {
+					if parts[i].Type == store.PartToolCall && parts[i].ID == evt.ID {
+						parts[i].Content += evt.Content
+						found = true
+						break
+					}
+				}
+			}
+			// ID 匹配不到 → 合并到最后一个 running tool_call（后续 chunk 无 id）
+			if !found {
+				for i := len(parts) - 1; i >= 0; i-- {
+					if parts[i].Type == store.PartToolCall && parts[i].Status == "running" {
+						parts[i].Content += evt.Content
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				parts = append(parts, store.MessagePart{
+					Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
+					Content: evt.Content, Status: "running",
+				})
+			}
 		case agent.EventToolResult:
-			parts = append(parts, store.MessagePart{
-				Type: store.PartToolResult, ID: evt.ID, Label: evt.Label,
-				Content: evt.Content, Status: "done",
-			})
+			// 配对到同 ID 的 tool_call part，更新 status=done + result
+			found := false
+			for i := range parts {
+				if parts[i].Type == store.PartToolCall && parts[i].ID == evt.ID {
+					parts[i].Status = "done"
+					parts[i].Content += "\n--- result ---\n" + evt.Content
+					found = true
+					break
+				}
+			}
+			if !found {
+				// 无对应 tool_call（异常），单独创建
+				parts = append(parts, store.MessagePart{
+					Type: store.PartToolResult, ID: evt.ID, Label: evt.Label,
+					Content: evt.Content, Status: "done",
+				})
+			}
 		case agent.EventDone:
 			// 落库（parts 数组 + completed 状态）
 			partsJSON, _ := store.PartsToJSON(parts)
