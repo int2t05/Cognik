@@ -9,7 +9,7 @@ import { useChatSessions } from '@/hooks/useChatSessions';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Trash2, Loader2 } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Loader2, Clock, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 
@@ -25,6 +25,7 @@ export default function ChatPage() {
   const messages = stream?.messages ?? [];
   const isStreaming = stream?.status === 'streaming';
   const queueCount = sessionId ? store.getQueueCount(sessionId) : 0;
+  const queuedMessages = sessionId ? store.getQueue(sessionId) : [];
 
   // 自动滚动：消息变化 + streaming 时滚到底部
   useEffect(() => {
@@ -124,6 +125,21 @@ export default function ChatPage() {
                 />
               ))
             )}
+            {/* 排队中的消息（待发送） */}
+            {queuedMessages.map((qmsg, i) => (
+              <div key={qmsg.id} className="flex gap-3 mb-3 justify-end opacity-60">
+                <div className="max-w-[70%] bg-[var(--color-accent)]/50 text-[var(--color-on-accent)] rounded-[var(--radius-lg)] px-4 py-3 whitespace-pre-wrap flex items-start gap-2">
+                  <Clock size={14} className="shrink-0 mt-0.5 animate-pulse" />
+                  <span className="flex-1">{qmsg.content}</span>
+                  <button
+                    className="shrink-0 text-white/70 hover:text-white"
+                    onClick={() => store.removeQueueItem(sessionId!, i)}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
