@@ -297,7 +297,7 @@ func TestTicketRepo_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	tickets, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10, "")
+	tickets, total, err := repo.ListByUser(context.Background(), user.ID, 1, 10, "", -1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
