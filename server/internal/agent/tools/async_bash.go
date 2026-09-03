@@ -76,17 +76,19 @@ func (b *AsyncBashTool) StreamableRun(ctx context.Context, argsJSON string, _ ..
 	cmd := exec.CommandContext(tCtx, b.bashBin, "-c", params.Command)
 	cmd.Dir = b.workDir
 
-	// 获取 stdout pipe（流式读取）
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("创建 stdout pipe 失败: %w", err)
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("创建 stderr pipe 失败: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
+		cancel()
 		return nil, fmt.Errorf("启动命令失败: %w", err)
 	}
 
@@ -145,5 +147,14 @@ func (b *AsyncBashTool) StreamableRun(ctx context.Context, argsJSON string, _ ..
 	}()
 
 	// 将 chan string 转为 *schema.StreamReader[string]
-	return schema.ChannelsToStreamReader(ch), nil
+	reader, writer := schema.Pipe[string](64)
+	go func() {
+		defer writer.Close()
+		for s := range ch {
+			if !writer.Send(s, nil) {
+				return
+			}
+		}
+	}()
+	return reader, nil
 }

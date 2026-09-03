@@ -1,7 +1,7 @@
 # OpsMind — 本地开发 Makefile
 # 用法：make help
 
-.PHONY: help dev dev-server dev-web dev-db dev-ai dev-stop dev-clean build server-build web-build rerank-model
+.PHONY: help dev dev-server dev-web dev-db dev-ai dev-stop dev-clean build server-build web-build rerank-model migrate-storage
 
 # 默认配置
 GO_CMD    := go
@@ -80,6 +80,9 @@ install: ## 安装后端 + 前端依赖
 
 rerank-model: ## 下载重排序模型（仅需一次）
 	cd server && python3 models/rerank/download.py
+
+migrate-storage: ## 一次性迁移文档存储布局到 kb/{draft|published}/article（需先启动 DB）
+	cd server && $(GO_CMD) run ./cmd/migrate-storage
 
 # ============================================
 # 测试

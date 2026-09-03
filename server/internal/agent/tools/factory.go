@@ -35,6 +35,7 @@ func NewToolFactory(workDir string, timeout time.Duration, maxBytes int64) *Tool
 func (f *ToolFactory) BuildTools() []tool.BaseTool {
 	return []tool.BaseTool{
 		NewBashTool(f.workDir, f.toolTimeout, f.maxBytes),
+		NewAsyncBashTool(f.workDir, f.toolTimeout, f.maxBytes),
 		NewReadFileTool(f.workDir, f.maxBytes),
 		NewWriteFileTool(f.workDir, f.maxBytes),
 		NewEditFileTool(f.workDir, f.maxBytes),
