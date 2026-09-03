@@ -21,7 +21,7 @@ import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const [keyword, setKeyword] = useState('');
-  const { data: kbs, error, mutate } = useSWR(`kb-list-${keyword}`, () => getKBList(keyword));
+  const { data: kbs, error, mutate } = useSWR(`kb-list-${keyword}`, () => getKBList(keyword), { keepPreviousData: true });
   const { data: llmConfigs } = useSWR('llm-configs', getLLMConfigs);
   // 从 LLM 配置中提取去重后的 embedding 模型列表，供下拉选择
   const embeddingOptions = useMemo(() => {

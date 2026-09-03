@@ -29,6 +29,12 @@ export function DataTable<TData extends RowData>({
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] overflow-hidden">
       <Table>
+        <colgroup>
+          {columns.map((col, i) => {
+            const w = (col.meta as Record<string, unknown> | undefined)?.width;
+            return <col key={i} style={w ? { width: w as string } : undefined} />;
+          })}
+        </colgroup>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className="border-b border-[var(--color-hairline)]">

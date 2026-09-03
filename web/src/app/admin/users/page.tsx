@@ -26,7 +26,7 @@ import { UserPlus, Pencil, Lock, Unlock, Loader2, Users } from 'lucide-react';
 export default function UserListPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
-  const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword));
+  const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword), { keepPreviousData: true });
   const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
   const items = data?.items || [];
 

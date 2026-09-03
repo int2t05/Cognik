@@ -30,7 +30,7 @@ export function TableFilterHeader<V extends string | number>({ label, value, opt
           variant="ghost"
           size="sm"
           className={cn(
-            'h-7 gap-1 px-2 normal-case tracking-normal text-fine font-medium text-[var(--color-text-muted-80)] hover:bg-[var(--color-tile-1)] data-[state=open]:bg-[var(--color-tile-1)]',
+            'h-7 w-full justify-start -mx-3 px-3 gap-1 normal-case tracking-normal text-fine font-medium text-[var(--color-text-muted-80)] hover:bg-[var(--color-tile-1)] data-[state=open]:bg-[var(--color-tile-1)]',
             className,
           )}
         >
