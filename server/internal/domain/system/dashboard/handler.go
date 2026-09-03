@@ -2,6 +2,8 @@
 package dashboard
 
 import (
+	"bytes"
+	"encoding/csv"
 	"errors"
 	"log/slog"
 	"strconv"
@@ -76,4 +78,35 @@ func (h *DashboardHandler) GetTrends(c *gin.Context) {
 	}
 
 	resp.Success(c, result)
+}
+
+// ExportTrends 导出趋势数据为 CSV（复用 GetTrends 查询，加 BOM 头防 Excel 乱码）。
+//
+// GET /api/v1/admin/dashboard/trends/export
+func (h *DashboardHandler) ExportTrends(c *gin.Context) {
+	var req request.TrendRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+
+	result, err := h.svc.GetTrends(c.Request.Context(), req)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	// BOM 头 + CSV 写入缓冲
+	var buf bytes.Buffer
+	buf.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM，防 Excel 乱码
+	w := csv.NewWriter(&buf)
+	_ = w.Write([]string{"日期", "申告数", "问答数"})
+	for _, dp := range result.DataPoints {
+		_ = w.Write([]string{dp.Date, strconv.FormatInt(dp.TicketCount, 10), strconv.FormatInt(dp.ChatCount, 10)})
+	}
+	w.Flush()
+
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=trends.csv")
+	c.Data(200, "text/csv; charset=utf-8", buf.Bytes())
 }
