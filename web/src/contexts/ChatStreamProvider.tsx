@@ -238,10 +238,21 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
         method: 'GET',
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (resp.status === 404) return;
+      if (resp.status === 404) {
+        // 无进行中的生成（服务器重启或已过期）→ 标记中断消息为 error
+        patch(id, (s) => {
+          const messages = [...s.messages];
+          const last = messages[messages.length - 1];
+          if (last?.role === 'assistant' && (last.status === 'streaming' || last.status === 'idle')) {
+            messages[messages.length - 1] = { ...last, status: 'error', error: '生成已中断' };
+          }
+          return { ...s, messages, status: 'idle' };
+        });
+        return;
+      }
       await consume(id, resp);
     } catch { /* 静默 */ }
-  }, [consume]);
+  }, [consume, patch]);
 
   const cancel = useCallback(async (id: number) => {
     controllersRef.current[id]?.abort();

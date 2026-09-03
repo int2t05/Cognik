@@ -1007,6 +1007,28 @@ func (s *KnowledgeService) uploadArticleFilesAsync(bucket, dir, content string, 
 	}()
 }
 
+// GetArticleImageURL 返回文章图片的访问 URL（本地路径或 MinIO 预签名 URL）。
+// 图片存储在 article.MinioPath 目录下的 images/ 子目录。
+func (s *KnowledgeService) GetArticleImageURL(ctx context.Context, articleID int64, filename string) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储服务未初始化"}
+	}
+	article, err := s.findArticle(ctx, articleID)
+	if err != nil {
+		return "", err
+	}
+	if article.MinioPath == "" {
+		return "", errcode.AppError{Code: errcode.ErrNotFound, Message: "文章未关联存储路径"}
+	}
+	// MinioPath 格式：bucket/dir（如 opsmind-documents/文章标题）
+	parts := strings.SplitN(article.MinioPath, "/", 2)
+	if len(parts) < 2 {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "文章存储路径格式错误"}
+	}
+	bucket, dir := parts[0], parts[1]
+	return s.storage.GetFileURL(ctx, bucket, dir, "images/"+filename)
+}
+
 // moveArticleDir 从 srcBucket 移动到 dstBucket（下载目录→上传→删除源，尽力而为不阻塞主流程）。
 func (s *KnowledgeService) moveArticleDir(srcBucket, dstBucket, dir string) {
 	if s.storage == nil || srcBucket == "" || dstBucket == "" || dir == "" {

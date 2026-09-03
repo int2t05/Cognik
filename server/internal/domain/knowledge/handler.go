@@ -529,6 +529,32 @@ func (h *KnowledgeHandler) ServeFile(c *gin.Context) {
 	c.File(path)
 }
 
+// ServeArticleImage 提供文章解析出的图片（MinerU/本地解析器提取的图片）。
+// GET /api/v1/admin/files/articles/:articleId/images/:filename
+func (h *KnowledgeHandler) ServeArticleImage(c *gin.Context) {
+	articleID, err := strconv.ParseInt(c.Param("articleId"), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的文章 ID")
+		return
+	}
+	filename := c.Param("filename")
+	if filename == "" || strings.ContainsAny(filename, "/\\") {
+		response.Error(c, errcode.ErrParam, "无效的文件名")
+		return
+	}
+	url, err := h.svc.GetArticleImageURL(c.Request.Context(), articleID, filename)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	// MinIO 预签名 URL（http 开头）重定向；否则本地路径 ServeFile
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		c.Redirect(302, url)
+		return
+	}
+	c.File(url)
+}
+
 // sniffFileType 通过 MIME sniffing 检测文件类型（比扩展名更可靠，文本类型回退扩展名）。
 // 返回的 reader 含完整文件内容，调用方负责关闭。
 func sniffFileType(fh *multipart.FileHeader) (string, io.ReadCloser, error) {
