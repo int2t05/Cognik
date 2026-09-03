@@ -111,11 +111,11 @@ export default function UserListPage() {
         <>
           <DataTable
             columns={[
-              { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-              { accessorKey: 'username', header: '用户名' }, { accessorKey: 'real_name', header: '姓名' }, { accessorKey: 'phone', header: '手机' },
-              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
-              { accessorKey: 'created_at', header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
-              { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
+              { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+              { accessorKey: 'username', meta: { width: '100px' }, header: '用户名' }, { accessorKey: 'real_name', meta: { width: '88px' }, header: '姓名' }, { accessorKey: 'phone', meta: { width: '120px' }, header: '手机' },
+              { accessorKey: 'status', meta: { width: '88px' }, header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { id: 'actions', meta: { width: '96px' }, header: '操作', cell: ({ row }) => <div className="flex gap-2">
                 <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(row.original)}><Pencil /></Button>
                 {row.original.status === 1 ? <Button variant="destructive" size="icon" aria-label="冻结" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></Button>
                   : <Button variant="secondary" size="icon" aria-label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></Button>}

@@ -76,9 +76,9 @@ export default function ArticleListPage() {
           <DataTable
             columns={[
               { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/knowledge/${kbId}/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-              { id: 'source_type_text', meta: { width: '80px' }, header: () => <TableFilterHeader label="来源" value={sourceType} options={ARTICLE_SOURCE_OPTIONS} onChange={(v) => { setSourceType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
-              { accessorKey: 'status', meta: { width: '100px' }, header: () => <TableFilterHeader label="状态" value={status} options={ARTICLE_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
-              { accessorKey: 'process_status', meta: { width: '110px' }, header: () => <TableFilterHeader label="处理" value={processStatus} options={ARTICLE_PROCESS_OPTIONS} onChange={(v) => { setProcessStatus(v); setPage(1); }} />, cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },
+              { id: 'source_type_text', meta: { width: '72px' }, header: () => <TableFilterHeader label="来源" value={sourceType} options={ARTICLE_SOURCE_OPTIONS} onChange={(v) => { setSourceType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine">{row.original.source_type === 1 ? '手动' : '上传'}</span> },
+              { accessorKey: 'status', meta: { width: '88px' }, header: () => <TableFilterHeader label="状态" value={status} options={ARTICLE_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="article" status={row.original.status} /> },
+              { accessorKey: 'process_status', meta: { width: '88px' }, header: () => <TableFilterHeader label="处理" value={processStatus} options={ARTICLE_PROCESS_OPTIONS} onChange={(v) => { setProcessStatus(v); setPage(1); }} />, cell: ({ row }) => row.original.process_status ? <StatusBadge type="process" status={row.original.process_status} /> : '—' },
               { id: 'created_at', meta: { width: '120px' }, header: '更新时间', cell: ({ row }) => formatDate(row.original.updated_at) },
             ]}
             data={data?.items || []}

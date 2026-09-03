@@ -59,12 +59,12 @@ export default function AuditLogPage() {
         <>
           <DataTable
             columns={[
-              { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-              { accessorKey: 'operator_name', header: '操作人' },
-              { accessorKey: 'action', header: '操作', cell: ({ row }) => <span className="text-caption">{row.original.action}</span> },
-              { accessorKey: 'target_type', header: () => <TableFilterHeader label="对象类型" value={targetType} options={AUDIT_TARGET_TYPE_OPTIONS} onChange={(v) => { setTargetType(v); setPage(1); }} /> },
-              { accessorKey: 'ip_address', header: 'IP' },
-              { accessorKey: 'created_at', header: '时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+              { accessorKey: 'operator_name', meta: { width: '88px' }, header: '操作人' },
+              { accessorKey: 'action', meta: { width: '100px' }, header: '操作', cell: ({ row }) => <span className="text-caption">{row.original.action}</span> },
+              { accessorKey: 'target_type', meta: { width: '96px' }, header: () => <TableFilterHeader label="对象类型" value={targetType} options={AUDIT_TARGET_TYPE_OPTIONS} onChange={(v) => { setTargetType(v); setPage(1); }} /> },
+              { accessorKey: 'ip_address', meta: { width: '120px' }, header: 'IP' },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={items} loading={!data && !error}
           />

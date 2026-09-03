@@ -145,7 +145,7 @@ export default function ArticleEditPage() {
   if (!article) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="max-w-[56rem]">
+    <div className="w-full max-w-[72rem]">
       <div className="flex justify-between items-center mb-5">
         <div>
           <div className="flex items-center gap-3 mb-4">
