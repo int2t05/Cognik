@@ -46,10 +46,9 @@ func setupTicketServiceDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32) NOT NULL UNIQUE,
 		user_id BIGINT NOT NULL, title VARCHAR(255) NOT NULL, description TEXT NOT NULL,
-		urgency SMALLINT NOT NULL, impact_scope SMALLINT DEFAULT 1,
-		affected_systems JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
+		tags JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
 		status SMALLINT NOT NULL DEFAULT 1, supplement_count SMALLINT NOT NULL DEFAULT 0,
-		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1,
+		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1, deadline_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS ticket_records (
@@ -562,7 +561,7 @@ func TestTicketService_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "")
+	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "", -1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -597,15 +596,6 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 	if result.Total != 2 {
 		t.Errorf("期望 total=2 (status=1), got %d", result.Total)
-	}
-
-	// 按 urgency=3 筛选
-	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
-	if err != nil {
-		t.Fatalf("期望无错误, got %v", err)
-	}
-	if result.Total != 1 {
-		t.Errorf("期望 total=1 (urgency=3), got %d", result.Total)
 	}
 
 	// 全部

@@ -12,6 +12,8 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"opsmind/internal/agent/task"
 )
 
 // ChatStore Agent 对话数据存储接口（与业务 PostgreSQL 隔离）。
@@ -47,6 +49,10 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	}
 	if err := db.AutoMigrate(&Thread{}, &Message{}); err != nil {
 		return nil, fmt.Errorf("SQLite 迁移失败: %w", err)
+	}
+	// 迁移 Task 表（异步任务）
+	if err := db.AutoMigrate(&task.Task{}); err != nil {
+		return nil, fmt.Errorf("SQLite Task 表迁移失败: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil
 }
