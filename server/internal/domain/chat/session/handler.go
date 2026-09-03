@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"opsmind/internal/agent/task"
 	"opsmind/internal/shared/pkg/errcode"
 	resp "opsmind/internal/shared/pkg/response"
 
@@ -47,12 +48,13 @@ func handleServiceError(c *gin.Context, err error) {
 
 // ChatHandler Agent 对话接口。
 type ChatHandler struct {
-	svc *ChatService
+	svc        *ChatService
+	taskMgr    *task.TaskManager
 }
 
 // NewChatHandler 创建 ChatHandler。
-func NewChatHandler(svc *ChatService) *ChatHandler {
-	return &ChatHandler{svc: svc}
+func NewChatHandler(svc *ChatService, taskMgr *task.TaskManager) *ChatHandler {
+	return &ChatHandler{svc: svc, taskMgr: taskMgr}
 }
 
 // CreateThread 创建对话线程。
@@ -250,4 +252,83 @@ func writeStream(c *gin.Context, replay []StreamEvent, ch <-chan StreamEvent, un
 			rc.SetWriteDeadline(time.Now().Add(30 * time.Second))
 		}
 	}
+}
+
+// =============================================================================
+// 异步任务 API
+// =============================================================================
+
+// CreateTask 创建异步任务。
+// POST /api/v1/portal/threads/:id/tasks
+func (h *ChatHandler) CreateTask(c *gin.Context) {
+	threadID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	var req struct {
+		Question string `json:"question" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+
+	input, _ := json.Marshal(task.TaskInput{Question: req.Question})
+	t, err := h.taskMgr.CreateTask(c.Request.Context(), threadID, userID, task.TypeAgentRun, string(input))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	// 后台执行
+	go h.taskMgr.ExecuteTask(t.ID, req.Question)
+
+	resp.Success(c, t)
+}
+
+// ListTasks 列出线程的异步任务。
+// GET /api/v1/portal/threads/:id/tasks
+func (h *ChatHandler) ListTasks(c *gin.Context) {
+	threadID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	tasks, err := h.taskMgr.ListTasks(c.Request.Context(), threadID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, tasks)
+}
+
+// GetTask 查询任务状态。
+// GET /api/v1/portal/tasks/:id
+func (h *ChatHandler) GetTask(c *gin.Context) {
+	taskID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	t, err := h.taskMgr.GetTask(c.Request.Context(), taskID, userID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, t)
+}
+
+// CancelTask 取消任务。
+// POST /api/v1/portal/tasks/:id/cancel
+func (h *ChatHandler) CancelTask(c *gin.Context) {
+	taskID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	if err := h.taskMgr.CancelTask(c.Request.Context(), taskID, userID); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, nil)
 }

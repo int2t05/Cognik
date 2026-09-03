@@ -71,7 +71,6 @@ func (s *SQLiteStore) ListThreads(ctx context.Context, userID int64) ([]Thread, 
 	return threads, nil
 }
 
-// CreateThread 创建新对话线程。
 func (s *SQLiteStore) CreateThread(ctx context.Context, userID int64, title string) (*Thread, error) {
 	if title == "" {
 		title = "新对话"
@@ -87,6 +86,11 @@ func (s *SQLiteStore) CreateThread(ctx context.Context, userID int64, title stri
 		return nil, err
 	}
 	return thread, nil
+}
+
+// DB 返回底层 *gorm.DB（供 task store 等同库模块复用）。
+func (s *SQLiteStore) DB() *gorm.DB {
+	return s.db
 }
 
 // GetThread 获取线程（含归属校验）。

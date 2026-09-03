@@ -36,8 +36,7 @@ storage:
     secret_key: minioadmin
     use_ssl: false
   buckets:
-    documents: opsmind-documents   # 草稿/审核/处理中
-    published: opsmind-published   # 已发布
+    documents: opsmind-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
 
 llm:
   base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
