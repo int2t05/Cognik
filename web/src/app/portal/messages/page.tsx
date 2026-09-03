@@ -91,11 +91,11 @@ export default function MessagesPage() {
         <>
           <DataTable
             columns={[
-              { accessorKey: 'type', header: () => <TableFilterHeader label="类型" value={type} options={MESSAGE_TYPE_OPTIONS} onChange={(v) => { setType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[row.original.type] ?? row.original.type}</span> },
-              { accessorKey: 'title', header: '标题', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{row.original.title}</span> },
+              { accessorKey: 'type', meta: { width: '88px' }, header: () => <TableFilterHeader label="类型" value={type} options={MESSAGE_TYPE_OPTIONS} onChange={(v) => { setType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[row.original.type] ?? row.original.type}</span> },
+              { accessorKey: 'title', meta: { width: '120px' }, header: '标题', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{row.original.title}</span> },
               { accessorKey: 'content', header: '内容', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{row.original.content}</span> },
-              { accessorKey: 'created_at', header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
-              { id: 'actions', header: '', cell: ({ row }) =>
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
+              { id: 'actions', meta: { width: '60px' }, header: '', cell: ({ row }) =>
                 !row.original.is_read ? (
                   <Button variant="ghost" size="icon" aria-label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></Button>
                 ) : NAVIGABLE_TYPES.has(row.original.related_type) ? (

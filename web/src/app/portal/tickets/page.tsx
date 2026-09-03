@@ -62,11 +62,11 @@ export default function TicketQueryPage() {
         <>
           <DataTable
             columns={[
-              { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+              { accessorKey: 'ticket_no', meta: { width: '120px' }, header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
               { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/portal/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-              { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
-              { accessorKey: 'status', header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
-              { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { accessorKey: 'tags', meta: { width: '120px' }, header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
+              { accessorKey: 'status', meta: { width: '88px' }, header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={tickets}
             loading={!data && !error}
