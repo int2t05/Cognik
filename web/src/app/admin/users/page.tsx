@@ -2,9 +2,9 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
 import { getRoleList } from '@/lib/api/role';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
@@ -16,17 +16,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { InlineError } from '@/components/shared/InlineError';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { formatDate } from '@/lib/date';
-import { UserPlus, Pencil, Lock, Unlock, Loader2 } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock, Loader2, Users } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
-  const debouncedKeyword = useDebounce(keyword, 300);
-  const { data, error, mutate } = useSWR(`users-${page}-${debouncedKeyword}`, () => getUserList(page, debouncedKeyword));
+  const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword), { keepPreviousData: true });
   const { data: rolesData } = useSWR('role-list', () => getRoleList(1));
   const items = data?.items || [];
 
@@ -44,6 +44,8 @@ export default function UserListPage() {
   const [saving, setSaving] = useState(false);
   const [confirmFreeze, setConfirmFreeze] = useState<{ id: number; username: string; freeze: boolean } | null>(null);
   const roles = rolesData?.items || [];
+
+  const isEmpty = !error && data && items.length === 0;
 
   const handleSave = async () => {
     if (!form.real_name) { toast.error('请填写姓名'); return; }
@@ -90,29 +92,40 @@ export default function UserListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
-          <PageTitle>用户管理</PageTitle>
+          <PageTitle className="mb-0">用户管理</PageTitle>
           <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
         <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
       </div>
       {error && <InlineError />}
-      <div className="mb-4"><Input className="rounded-[var(--radius-pill)]" placeholder="搜索用户..." aria-label="搜索用户" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} /></div>
-      <DataTable
-        columns={[
-          { id: '_check', header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-          { accessorKey: 'username', header: '用户名' }, { accessorKey: 'real_name', header: '姓名' }, { accessorKey: 'phone', header: '手机' },
-          { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
-          { accessorKey: 'created_at', header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
-          { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
-            <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(row.original)}><Pencil /></Button>
-            {row.original.status === 1 ? <Button variant="secondary" size="icon" aria-label="冻结" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></Button>
-              : <Button variant="secondary" size="icon" aria-label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></Button>}
-          </div> },
-        ]}
-        data={items} loading={!data && !error}
-        emptyText={debouncedKeyword ? `未找到与"${debouncedKeyword}"匹配的用户` : '暂无用户'}
-      />
-      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      <div className="mb-4">
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索用户名、姓名…" />
+      </div>
+      {isEmpty ? (
+        <EmptyState
+          icon={<Users size={40} />}
+          title="暂无用户"
+          description="点击右上角新建用户"
+        />
+      ) : (
+        <>
+          <DataTable
+            columns={[
+              { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
+              { accessorKey: 'username', meta: { width: '100px' }, header: '用户名' }, { accessorKey: 'real_name', meta: { width: '88px' }, header: '姓名' }, { accessorKey: 'phone', meta: { width: '120px' }, header: '手机' },
+              { accessorKey: 'status', meta: { width: '88px' }, header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { id: 'actions', meta: { width: '96px' }, header: '操作', cell: ({ row }) => <div className="flex gap-2">
+                <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(row.original)}><Pencil /></Button>
+                {row.original.status === 1 ? <Button variant="destructive" size="icon" aria-label="冻结" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></Button>
+                  : <Button variant="secondary" size="icon" aria-label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></Button>}
+              </div> },
+            ]}
+            data={items} loading={!data && !error}
+          />
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+        </>
+      )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
@@ -120,12 +133,11 @@ export default function UserListPage() {
             <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
             {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
           </DialogHeader>
-          {!editUser && <><Field label="用户名"><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码"><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
-          <Field label="姓名"><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
-          <Field label="手机"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          {!editUser && <><Field label="用户名" required><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码" required><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
+          <Field label="姓名" required><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
+          <Field label="手机" required><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="邮箱"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-          <div className="mt-4">
-            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-1.5">角色</label>
+          <Field label="角色">
             <div className="flex flex-wrap gap-2">
               {roles.map(role => (
                 <Toggle key={role.id} variant="pill" size="pill-sm"
@@ -133,8 +145,8 @@ export default function UserListPage() {
                   onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
               ))}
             </div>
-          </div>
-          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+          </Field>
+          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

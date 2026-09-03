@@ -5,64 +5,68 @@ import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
+import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { TicketPlus, FileText } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
+
+const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
+  { value: -1, label: '全部' },
+  { value: 1, label: '待处理' },
+  { value: 2, label: '处理中' },
+  { value: 3, label: '需补充' },
+  { value: 4, label: '已解决' },
+  { value: 5, label: '已关闭' },
+];
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(-1);
   const [keyword, setKeyword] = useState('');
-  const debouncedKeyword = useDebounce(keyword, 300);
   const router = useRouter();
-  const { data, error } = useSWR(`portal-tickets-${page}`, () => getMyTickets(page));
+  const { data, error } = useSWR(`portal-tickets-${page}-${status}-${keyword}`, () => getMyTickets(page, status, keyword), { keepPreviousData: true });
 
-  const tickets = useMemo(() => {
-    const items = data?.items ?? [];
-    if (!debouncedKeyword) return items;
-    const kw = debouncedKeyword.toLowerCase();
-    return items.filter((t: { title?: string; ticket_no?: string }) =>
-      (t.title?.toLowerCase().includes(kw)) ||
-      (t.ticket_no?.toLowerCase().includes(kw))
-    );
-  }, [data, debouncedKeyword]);
+  const tickets = data?.items ?? [];
   const isEmpty = !error && data && tickets.length === 0;
+  const hasFilters = status !== -1 || keyword !== '';
+  const clearFilters = () => { setStatus(-1); setKeyword(''); setPage(1); };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>我的申告</PageTitle>
+        <PageTitle className="mb-0">我的申告</PageTitle>
         <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
+      </div>
+
+      <div className="mb-4">
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
       </div>
 
       {error && <InlineError />}
 
-      <div className="mb-4">
-        <Input className="rounded-[var(--radius-pill)]" placeholder="搜索申告编号或标题..." aria-label="搜索申告" value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
-      </div>
-
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title="暂无申告记录"
-          description="提交您的第一个运维申告"
-          action={{ label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          title={hasFilters ? '未找到匹配的申告' : '暂无申告记录'}
+          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '提交您的第一个运维申告'}
+          action={hasFilters ? undefined : { label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (
         <>
           <DataTable
             columns={[
-              { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+              { accessorKey: 'ticket_no', meta: { width: '120px' }, header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
               { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/portal/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-              { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
-              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
-              { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { accessorKey: 'tags', meta: { width: '120px' }, header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
+              { accessorKey: 'status', meta: { width: '88px' }, header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={tickets}
             loading={!data && !error}

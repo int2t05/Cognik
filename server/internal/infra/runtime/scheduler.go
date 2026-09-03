@@ -12,6 +12,7 @@ import (
 // ticketAutoCloseService Scheduler 需要的 TicketService 方法子集（消费者定义接口）。
 type ticketAutoCloseService interface {
 	AutoClose(ctx context.Context, olderThan time.Time) (int64, error)
+	ScanOverdueTickets(ctx context.Context, now time.Time) (int64, error)
 }
 
 // Scheduler 后台调度器。
@@ -32,6 +33,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	s.once.Do(func() {
 		ctx, s.cancel = context.WithCancel(ctx)
 		go s.runAutoCloseLoop(ctx)
+		go s.runOverdueScanLoop(ctx)
 		slog.Info("后台调度器已启动")
 	})
 }
@@ -78,4 +80,39 @@ func (s *Scheduler) doAutoClose() {
 // RunAutoClose 手动关闭超期申告（暴露给测试使用）。
 func (s *Scheduler) RunAutoClose(olderThan time.Time) (int64, error) {
 	return s.ticketSvc.AutoClose(context.Background(), olderThan)
+}
+
+// runOverdueScanLoop 每小时扫描 deadline_at 超时未完结的申告并发送通知。
+func (s *Scheduler) runOverdueScanLoop(ctx context.Context) {
+	s.doOverdueScan()
+
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.doOverdueScan()
+		}
+	}
+}
+
+func (s *Scheduler) doOverdueScan() {
+	s.wg.Add(1)
+	defer s.wg.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	notified, err := s.ticketSvc.ScanOverdueTickets(ctx, time.Now())
+	if err != nil {
+		slog.Error("扫描超时申告失败", "error", err)
+	} else if notified > 0 {
+		slog.Info("超时申告通知已发送", "count", notified)
+	}
+}
+
+// RunOverdueScan 手动扫描超时申告（暴露给测试使用）。
+func (s *Scheduler) RunOverdueScan(now time.Time) (int64, error) {
+	return s.ticketSvc.ScanOverdueTickets(context.Background(), now)
 }

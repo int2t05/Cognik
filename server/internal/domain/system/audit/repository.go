@@ -7,6 +7,8 @@ import (
 	"context"
 	"strings"
 
+	"opsmind/internal/shared/pkg/dbutil"
+
 	"gorm.io/gorm"
 )
 
@@ -16,6 +18,7 @@ type AuditFilter struct {
 	Action     string
 	TargetType string
 	TargetID   int64
+	Keyword    string
 	DateFrom   string
 	DateTo     string
 	Page       int
@@ -76,6 +79,10 @@ func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]AuditLogRow, int
 	}
 	if f.TargetID > 0 {
 		query = query.Where("audit_logs.target_id = ?", f.TargetID)
+	}
+	if f.Keyword != "" {
+		like := "%" + dbutil.EscapeLike(f.Keyword) + "%"
+		query = query.Where("(audit_logs.action ILIKE ? ESCAPE '\\' OR audit_logs.target_type ILIKE ? ESCAPE '\\' OR audit_logs.detail::text ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 	if f.DateFrom != "" {
 		query = query.Where("audit_logs.created_at >= ?::date", f.DateFrom)

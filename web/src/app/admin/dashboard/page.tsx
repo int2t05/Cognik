@@ -1,17 +1,22 @@
 'use client';
 import { useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import useSWR from 'swr';
-import { getStats, getTrends } from '@/lib/api/dashboard';
+import { getStats, getTrends, exportTrendsCSV, type TrendPoint } from '@/lib/api/dashboard';
 import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
 import { StatCard } from '@/components/shared/StatCard';
-import { TrendChart, type TrendPoint } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
-import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2, Download } from 'lucide-react';
+
+// TrendChart 重组件懒加载（代码分割）
+const TrendChart = dynamic(() => import('@/components/shared/TrendChart').then((m) => m.TrendChart), { ssr: false, loading: () => <Skeleton className="h-[320px]" /> });
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
@@ -50,6 +55,7 @@ export default function DashboardPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FeedbackAnalysis | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
 
@@ -88,6 +94,8 @@ export default function DashboardPage() {
     return v ?? '—';
   };
 
+  const statsLoading = !stats && !statsErr;
+
   const cardDelta = (trendKey?: 'ticket' | 'chat'): number | undefined => {
     if (!trendKey) return undefined;
     return deltas[trendKey];
@@ -96,21 +104,26 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>数据看板</PageTitle>
+        <PageTitle className="mb-0">数据看板</PageTitle>
         <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
       </div>
       {statsErr && <InlineError />}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[var(--spacing-md-plus)] mb-6">
-        {STAT_CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            label={c.label}
-            value={cardValue(c.key)}
-            icon={c.icon}
-            delta={cardDelta('trendKey' in c ? c.trendKey : undefined)}
-          />
-        ))}
+        {statsLoading
+          ? STAT_CARDS.map((c) => (
+              <Card key={c.key} className="!p-4"><Skeleton className="h-16 w-full" /></Card>
+            ))
+          : STAT_CARDS.map((c) => (
+              <StatCard
+                key={c.key}
+                label={c.label}
+                value={cardValue(c.key)}
+                icon={c.icon}
+                delta={cardDelta('trendKey' in c ? c.trendKey : undefined)}
+              />
+            ))
+        }
       </div>
 
       <TrendChart
@@ -121,12 +134,28 @@ export default function DashboardPage() {
         onDateRangeChange={setDateRange}
       />
 
+      <div className="mt-3 flex justify-end">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={trendsLoading || !!trendsErr || exporting}
+          onClick={async () => {
+            setExporting(true);
+            try { await exportTrendsCSV(dateRange.start, dateRange.end); toast.success('CSV 已下载'); }
+            catch (err) { toast.error(errorMessage(err, '导出失败')); }
+            finally { setExporting(false); }
+          }}
+        >
+          {exporting ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}导出 CSV
+        </Button>
+      </div>
+
       {/* 知识健康度分析 */}
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-body font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
+          <h2 className="text-title font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
           <Button
-            size="lg"
+            size="sm"
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"

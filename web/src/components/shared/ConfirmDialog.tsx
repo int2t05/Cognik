@@ -1,4 +1,4 @@
-/** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound，外部 API 不变。 */
+/** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound。 */
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';

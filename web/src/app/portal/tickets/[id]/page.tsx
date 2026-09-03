@@ -8,7 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageTitle } from '@/components/shared/PageTitle';
+import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
+import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
@@ -104,7 +107,7 @@ export default function TicketDetailPage() {
         </Card>
       ) : (
         <>
-          <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-2">{ticket.title}</h1>
+          <PageTitle>{ticket.title}</PageTitle>
           <div className="flex gap-3 mb-5 items-center flex-wrap">
             <StatusBadge type="ticket" status={ticket.status} />
             <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
@@ -112,15 +115,15 @@ export default function TicketDetailPage() {
             {ticket.tags && ticket.tags.length > 0 && (
               <span className="flex flex-wrap gap-1">
                 {ticket.tags.map((t) => (
-                  <span key={t} className="px-2 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-pearl)] text-[var(--color-text-muted-80)]">{t}</span>
+                  <Badge key={t} variant="neutral">{t}</Badge>
                 ))}
               </span>
             )}
           </div>
 
           <Card className="mb-5">
-            <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">问题描述</h2>
-            <p className="text-body text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
+            <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题描述</h2>
+            <Markdown content={ticket.description} />
           </Card>
 
           {ticket.records && ticket.records.length > 0 && (
@@ -142,7 +145,7 @@ export default function TicketDetailPage() {
             <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
               <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-              <Button size="icon" disabled={sending} aria-label="提交补充" onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>
+              <Button size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</Button>
             </Card>
           )}
         </>

@@ -118,7 +118,7 @@ func TestTicketService_CreateTicket(t *testing.T) {
 	}
 
 	// 验证申告已创建
-	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10)
+	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "")
 	if err != nil {
 		t.Fatalf("查询申告失败: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestTicketService_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10)
+	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -591,7 +591,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 status=1 筛选
-	result, err := svc.ListAll(bgCtx, 1, 1, 10)
+	result, err := svc.ListAll(bgCtx, 1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -600,7 +600,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 按 urgency=3 筛选
-	result, err = svc.ListAll(bgCtx, -1, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -609,7 +609,7 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 
 	// 全部
-	result, err = svc.ListAll(bgCtx, -1, 1, 10)
+	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -661,3 +661,96 @@ func requireNoErr(t *testing.T, err error) {
 		t.Fatalf("意外错误: %v", err)
 	}
 }
+
+// =============================================================================
+// BatchClose + Deadline
+// =============================================================================
+
+// TestTicketService_BatchClose 验证批量关闭：可关闭状态成功，已关闭/已解决被拒，部分失败不影响其他。
+func TestTicketService_BatchClose(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	user := createTestUserForService(t, db, "tsvc_bclose")
+	operator := createTestUserForService(t, db, "tsvc_bclose_op")
+	now := time.Now()
+
+	// pending(可关闭) / closed(拒绝) / resolved(拒绝)
+	tPending := &model.Ticket{TicketNo: fmt.Sprintf("TK-BC-P-%d", now.UnixNano()), UserID: user.ID, Title: "待处理", Description: "d", Status: model.TicketStatusPending, CreatedAt: now, UpdatedAt: now}
+	tClosed := &model.Ticket{TicketNo: fmt.Sprintf("TK-BC-C-%d", now.UnixNano()), UserID: user.ID, Title: "已关闭", Description: "d", Status: model.TicketStatusClosed, CreatedAt: now, UpdatedAt: now}
+	tResolved := &model.Ticket{TicketNo: fmt.Sprintf("TK-BC-R-%d", now.UnixNano()), UserID: user.ID, Title: "已解决", Description: "d", Status: model.TicketStatusResolved, CreatedAt: now, UpdatedAt: now}
+	requireNoErr(t, db.Create(tPending).Error)
+	requireNoErr(t, db.Create(tClosed).Error)
+	requireNoErr(t, db.Create(tResolved).Error)
+
+	results := svc.BatchClose(bgCtx, []int64{tPending.ID, tClosed.ID, tResolved.ID}, operator.ID)
+	if len(results) != 3 {
+		t.Fatalf("期望 3 个结果, got %d", len(results))
+	}
+
+	// 逐项断言
+	var success, failed int
+	for _, r := range results {
+		if r.Success {
+			success++
+		} else {
+			failed++
+		}
+	}
+	if success != 1 {
+		t.Errorf("期望 1 个成功(pending), got %d", success)
+	}
+	if failed != 2 {
+		t.Errorf("期望 2 个失败(已关闭/已解决), got %d", failed)
+	}
+
+	// 验证 pending 已转为 closed
+	var got model.Ticket
+	requireNoErr(t, db.First(&got, tPending.ID).Error)
+	if got.Status != model.TicketStatusClosed {
+		t.Errorf("pending 批量关闭后应为 closed, got %d", got.Status)
+	}
+}
+
+// TestTicketService_Deadline 验证处理时限：字段持久化 + 超时扫描发送通知。
+func TestTicketService_Deadline(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	user := createTestUserForService(t, db, "tsvc_deadline")
+	now := time.Now()
+
+	// deadline 已过 + 未完结（pending）→ 应被扫描到
+	past := now.Add(-1 * time.Hour)
+	tOverdue := &model.Ticket{
+		TicketNo: fmt.Sprintf("TK-DL-O-%d", now.UnixNano()), UserID: user.ID,
+		Title: "超时申告", Description: "d", Status: model.TicketStatusPending,
+		DeadlineAt: &past, CreatedAt: now, UpdatedAt: now,
+	}
+	// deadline 未到 → 不扫描
+	future := now.Add(1 * time.Hour)
+	tFuture := &model.Ticket{
+		TicketNo: fmt.Sprintf("TK-DL-F-%d", now.UnixNano()), UserID: user.ID,
+		Title: "未超时申告", Description: "d", Status: model.TicketStatusPending,
+		DeadlineAt: &future, CreatedAt: now, UpdatedAt: now,
+	}
+	// 无 deadline → 不扫描
+	tNoDeadline := &model.Ticket{
+		TicketNo: fmt.Sprintf("TK-DL-N-%d", now.UnixNano()), UserID: user.ID,
+		Title: "无时限申告", Description: "d", Status: model.TicketStatusPending,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	requireNoErr(t, db.Create(tOverdue).Error)
+	requireNoErr(t, db.Create(tFuture).Error)
+	requireNoErr(t, db.Create(tNoDeadline).Error)
+
+	// ScanOverdueTickets：msgSvc 为 nil，通知静默跳过，但应返回超时条数 1
+	notified, err := svc.ScanOverdueTickets(bgCtx, now)
+	requireNoErr(t, err)
+	if notified != 1 {
+		t.Errorf("期望 1 条超时申告被扫描, got %d", notified)
+	}
+}
+

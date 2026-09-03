@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/runtime"
 	"opsmind/internal/shared/dto/request"
 	"opsmind/internal/shared/dto/response"
@@ -26,17 +27,12 @@ import (
 // AppError 是 errcode.AppError 的类型别名，供本包内使用。
 type AppError = errcode.AppError
 
-// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
-
 // MessageNotifier 申告通知接口（消费者接口）。
 type MessageNotifier interface {
 	NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 	NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 	NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
+	NotifyTicketOverdue(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 }
 
 // KnowledgeCandidateSaver 知识候选保存接口（消费者接口）。
@@ -52,7 +48,7 @@ type FeedbackMarker interface {
 // TicketService 申告管理服务。
 type TicketService struct {
 	repo               *TicketRepo
-	auditWriter        AuditWriter
+	auditWriter        audit.AuditWriter
 	txManager          runtime.TxManager
 	msgSvc             MessageNotifier
 	knowledgeCandidate KnowledgeCandidateSaver
@@ -60,18 +56,8 @@ type TicketService struct {
 }
 
 // NewTicketService 创建 TicketService 实例。
-func NewTicketService(repo *TicketRepo, auditWriter AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
+func NewTicketService(repo *TicketRepo, auditWriter audit.AuditWriter, txManager runtime.TxManager, msgSvc MessageNotifier, knowledgeCandidate KnowledgeCandidateSaver, feedbackMarker FeedbackMarker) *TicketService {
 	return &TicketService{repo: repo, auditWriter: auditWriter, txManager: txManager, msgSvc: msgSvc, knowledgeCandidate: knowledgeCandidate, feedbackMarker: feedbackMarker}
-}
-
-// SetKnowledgeCandidate 延迟注入知识候选保存接口（两阶段构造场景）。
-func (s *TicketService) SetKnowledgeCandidate(kc KnowledgeCandidateSaver) {
-	s.knowledgeCandidate = kc
-}
-
-// SetFeedbackMarker 延迟注入反馈标记接口（ChatService 在 TicketService 之后构造）。
-func (s *TicketService) SetFeedbackMarker(fm FeedbackMarker) {
-	s.feedbackMarker = fm
 }
 
 // =============================================================================
@@ -121,6 +107,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 		Tags:         tagsJSON,
 		ContactPhone: req.ContactPhone,
 		ContactEmail: req.ContactEmail,
+		DeadlineAt:   req.DeadlineAt,
 		ChatContext:  chatCtxJSON,
 		Status:       model.TicketStatusPending,
 		Source:       model.TicketSourcePortal,
@@ -176,6 +163,10 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64
 	}
 	if len(req.Tags) > 0 {
 		ticket.Tags = marshalTicketTags(req.Tags)
+	}
+	// DeadlineAt：nil 不更新，非 nil 设置（PATCH 语义，不支持清空）
+	if req.DeadlineAt != nil {
+		ticket.DeadlineAt = req.DeadlineAt
 	}
 
 	return s.repo.Update(ctx, ticket)
@@ -383,9 +374,9 @@ func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int6
 // ListByUser / ListAll / GetDetail
 // =============================================================================
 
-// ListByUser 分页查询当前用户的申告列表。
-func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize)
+// ListByUser 分页查询当前用户的申告列表（status=-1 不过滤）。
+func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize, keyword, status)
 	if err != nil {
 		return nil, err
 	}
@@ -402,8 +393,8 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 }
 
 // ListAll 分页查询全部申告（status=-1 不过滤）。
-func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize)
+func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int, keyword string) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize, keyword)
 	if err != nil {
 		return nil, err
 	}
@@ -484,9 +475,19 @@ func toTicketItem(t *model.Ticket) response.TicketItem {
 		Status:          t.Status,
 		StatusText:      model.TicketStatusText(t.Status),
 		SupplementCount: t.SupplementCount,
+		DeadlineAt:      formatTimePtr(t.DeadlineAt),
 		CreatedAt:       t.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:       t.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
+}
+
+// formatTimePtr 将可空时间指针格式化为字符串指针，nil 返回 nil。
+func formatTimePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("2006-01-02 15:04:05")
+	return &s
 }
 
 // marshalTicketTags 将标签切片序列化为 JSON。
@@ -551,6 +552,24 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 	})
 
 	return closedCount, err
+}
+
+// ScanOverdueTickets 扫描已超时未完结的申告并逐条发送超时通知（Scheduler 调用）。
+// 返回处理的超时申告条数。同一申告可能被重复扫描——由消息去重或人工处理后自愈，此处不持久化已通知标记。
+func (s *TicketService) ScanOverdueTickets(ctx context.Context, now time.Time) (int64, error) {
+	tickets, err := s.repo.ListOverdue(ctx, now)
+	if err != nil {
+		return 0, err
+	}
+	var notified int64
+	for _, t := range tickets {
+		if err := s.NotifyTicketOverdue(ctx, t.ID, t.UserID, t.Title); err != nil {
+			slog.Warn("超时通知发送失败", "ticket_id", t.ID, "error", err)
+			continue
+		}
+		notified++
+	}
+	return notified, nil
 }
 
 // =============================================================================
@@ -618,4 +637,34 @@ func isValidRecordAction(action string) bool {
 // BatchDelete 批量删除申告（含关联处理记录）。
 func (s *TicketService) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
 	return s.repo.BatchDelete(ctx, ids)
+}
+
+// BatchCloseResult 批量关闭单项结果。
+type BatchCloseResult struct {
+	ID       int64  `json:"id"`
+	Success  bool   `json:"success"`
+	ErrorMsg string `json:"error_msg"`
+}
+
+// BatchClose 批量关闭申告，逐条复用单条 close 逻辑（CAS+Record+审计+消息），部分失败不影响其他。
+func (s *TicketService) BatchClose(ctx context.Context, ids []int64, operatorID int64) []BatchCloseResult {
+	results := make([]BatchCloseResult, len(ids))
+	for i, id := range ids {
+		err := s.UpdateStatus(ctx, id, operatorID, request.UpdateTicketStatusRequest{Action: model.TicketActionClose})
+		results[i] = BatchCloseResult{ID: id}
+		if err != nil {
+			results[i].ErrorMsg = errcode.ExtractErrMsg(err)
+			continue
+		}
+		results[i].Success = true
+	}
+	return results
+}
+
+// NotifyTicketOverdue 通知申告处理超时（调度器调用，通知申告创建人）。
+func (s *TicketService) NotifyTicketOverdue(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
+	if s.msgSvc != nil {
+		return s.msgSvc.NotifyTicketOverdue(ctx, ticketID, userID, ticketTitle)
+	}
+	return nil
 }

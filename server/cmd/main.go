@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -38,7 +37,6 @@ import (
 	"opsmind/internal/parser/mineru"
 	"opsmind/internal/rag"
 	"opsmind/internal/router"
-	"opsmind/internal/shared/model"
 )
 
 // app 持有所有已初始化的组件。
@@ -291,44 +289,18 @@ func wireApp() (*app, error) {
 		knowledge.WithDefaultEmbeddingModel(cfg.Embedding.Model),
 		knowledge.WithOnKBChanged(func(kbID int64) {
 			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
-			go rebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
+			go knowledge.RebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
 		}),
 		knowledge.WithMessageNotifier(messageService),
+		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),
 	)
 	slog.Info("KnowledgeService 已初始化")
-
-	// 知识候选注入，避免循环依赖
-	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil) // feedbackMarker 在 chatService 创建后注入
 
 	llmService := session.NewLLMService(llmClient, llmConfigSvc.GetManager(), cfg.LLM.Model, pipeline, embedder, cfg.AI.MaxHistoryMessages)
 	slog.Info("LLMService 已初始化")
 
-	// LLM 配置变更回调：重建客户端
-	llmConfigSvc.GetManager().OnChange(func() {
-		newCfg := llmConfigSvc.GetManager().GetConfig()
-		if newCfg == nil {
-			return
-		}
-		newLLM, err := adapter.NewOpenAIClient(newCfg.LLMBaseURL, newCfg.LLMAPIKey, llmTimeout)
-		if err != nil {
-			slog.Error("LLM 配置变更后重建客户端失败", "error", err)
-			return
-		}
-		llmService.SetLLMClient(newLLM)
-
-		embedBase := newCfg.GetEmbeddingBaseURL()
-		embedKey := newCfg.GetEmbeddingAPIKey()
-		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
-		embedder.SetClient(newEmbed)
-		knowledgeService.SetDefaultEmbeddingConfig(newCfg.EmbeddingModel)
-
-		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
-			"llm_base_url", newCfg.LLMBaseURL,
-			"embedding_base_url", embedBase,
-			"llm_model", newCfg.LLMModel,
-			"embedding_model", newCfg.EmbeddingModel,
-		)
-	})
+	// LLM 配置变更回调：热重建 LLM/Embedding 客户端
+	setupLLMHotSwap(llmConfigSvc, llmTimeout, embedTimeout, llmService, embedder, knowledgeService)
 
 	genHub := runtime.NewGenerationHub[session.StreamEvent](func(e session.StreamEvent, seq int) session.StreamEvent {
 		e.Seq = seq
@@ -345,8 +317,8 @@ func wireApp() (*app, error) {
 	}, configService, auditService, genHub)
 	slog.Info("ChatService 已初始化")
 
-	// 注入 ChatService 为反馈标记器
-	ticketService.SetFeedbackMarker(chatService)
+	// ChatService 就绪后构造 TicketService，直接传入反馈标记器
+	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, chatService)
 
 	// 启动时清理残留的 generating 消息（上次异常退出遗留）
 	if err := chatService.CleanupStaleGenerating(context.Background()); err != nil {
@@ -461,49 +433,31 @@ func (a *app) run() error {
 	return nil
 }
 
-// rebuildBM25ForKB 从 DB 加载 KB 下所有已发布文章的分块和标签，重建 BM25 索引。
-func rebuildBM25ForKB(repo *knowledge.KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
-	ctx := context.Background()
-
-	// 查询该 KB 下所有已发布文章
-	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
-	if err != nil {
-		slog.Warn("BM25 索引重建：查询文章列表失败", "kb_id", kbID, "error", err)
-		return
-	}
-
-	var docs []rag.BM25Document
-	for _, a := range articles {
-		chunks, err := store.GetChunksByArticle(ctx, a.ID)
+// setupLLMHotSwap 注册 LLM 配置变更回调，热重建 LLM/Embedding 客户端。
+func setupLLMHotSwap(llmConfigSvc *llmconfig.LLMConfigService, llmTimeout, embedTimeout time.Duration, llmService *session.LLMService, embedder *rag.Embedder, knowledgeService *knowledge.KnowledgeService) {
+	llmConfigSvc.GetManager().OnChange(func() {
+		newCfg := llmConfigSvc.GetManager().GetConfig()
+		if newCfg == nil {
+			return
+		}
+		newLLM, err := adapter.NewOpenAIClient(newCfg.LLMBaseURL, newCfg.LLMAPIKey, llmTimeout)
 		if err != nil {
-			slog.Warn("BM25 索引重建：查询分块失败", "article_id", a.ID, "error", err)
-			continue
+			slog.Error("LLM 配置变更后重建客户端失败", "error", err)
+			return
 		}
+		llmService.SetLLMClient(newLLM)
 
-		// 解析标签 JSONB → []string
-		var tagList []string
-		if len(a.Tags) > 0 {
-			_ = json.Unmarshal(a.Tags, &tagList)
-		}
+		embedBase := newCfg.GetEmbeddingBaseURL()
+		embedKey := newCfg.GetEmbeddingAPIKey()
+		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
+		embedder.SetClient(newEmbed)
+		knowledgeService.SetDefaultEmbeddingConfig(newCfg.EmbeddingModel)
 
-		for _, c := range chunks {
-			docs = append(docs, rag.BM25Document{
-				ChunkID:    c.ID,
-				ArticleID:  a.ID,
-				KBID:       kbID,
-				Content:    c.Content,
-				ChunkIndex: c.ChunkIndex,
-				Tags:       tagList,
-			})
-		}
-	}
-
-	if len(docs) == 0 {
-		// 无已发布文章 → 清空索引
-		bm25.BuildIndex(kbID, nil)
-		return
-	}
-
-	bm25.BuildIndex(kbID, docs)
-	slog.Info("BM25 索引重建完成", "kb_id", kbID, "docs", len(docs))
+		slog.Info("LLM/Embedding 客户端已按新默认配置重建",
+			"llm_base_url", newCfg.LLMBaseURL,
+			"embedding_base_url", embedBase,
+			"llm_model", newCfg.LLMModel,
+			"embedding_model", newCfg.EmbeddingModel,
+		)
+	})
 }

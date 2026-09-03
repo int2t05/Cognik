@@ -2,7 +2,7 @@
 // AppShell — 统一 Shell：顶栏（品牌 + 内联全局搜索 + 主题 + 账号）+ 可折叠侧栏（分区 nav）+ main。
 // 搜索框内联下拉即时结果（导航项 + 快捷操作过滤），非独立弹窗。
 // Portal/Admin 共用：管理员分区由调用方通过 nav 传入（权限判断在 layout 层）。
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useTheme } from '@/hooks/useTheme';
@@ -39,8 +39,8 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const COLLAPSED = 68;
-const EXPANDED = 220;
+const COLLAPSED = 56;
+const EXPANDED = 240;
 
 /** 顶层 active 逻辑：精确匹配或前缀（但若有更精确的 sibling 匹配则不激活） */
 function isActive(itemPath: string, pathname: string, siblings: NavItem[]): boolean {
@@ -50,29 +50,54 @@ function isActive(itemPath: string, pathname: string, siblings: NavItem[]): bool
   return !exactMatch;
 }
 
+/** 侧栏折叠状态：useSyncExternalStore 读写 localStorage，SSR 安全。 */
+function useSidebarCollapsed(): [boolean, (value: boolean) => void] {
+  const collapsed = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('sidebar-collapsed-change', cb);
+      window.addEventListener('storage', cb);
+      return () => {
+        window.removeEventListener('sidebar-collapsed-change', cb);
+        window.removeEventListener('storage', cb);
+      };
+    },
+    () => {
+      const pref = localStorage.getItem('sidebar-collapsed');
+      if (pref === 'true') return true;
+      if (pref === 'false') return false;
+      // 无偏好时移动端自动折叠
+      return window.matchMedia('(max-width: 1023px)').matches;
+    },
+    () => false,
+  );
+  const setCollapsed = useCallback((value: boolean) => {
+    localStorage.setItem('sidebar-collapsed', String(value));
+    window.dispatchEvent(new Event('sidebar-collapsed-change'));
+  }, []);
+  return [collapsed, setCollapsed];
+}
+
+/** 客户端就绪检测：SSR 时 false，hydration 后 true。 */
+function useIsClient(): boolean {
+  return useSyncExternalStore(() => () => {}, () => true, () => false);
+}
+
 export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded = true, children }: AppShellProps) {
   const { theme, toggleTheme } = useTheme();
   const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
-  const [collapsedReady, setCollapsedReady] = useState(false);
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
+  const isClient = useIsClient();
 
-  useEffect(() => {
-    setCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-    setCollapsedReady(true);
-  }, []);
-  useEffect(() => {
-    if (collapsedReady) localStorage.setItem('sidebar-collapsed', String(collapsed));
-  }, [collapsed, collapsedReady]);
+  // 移动端 viewport 变化时自动折叠（初始检查由 getSnapshot 处理，effect 仅注册监听）
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
-    const h = (e: MediaQueryListEvent) => { if (e.matches) setCollapsed(true); };
-    if (mq.matches) setCollapsed(true);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, []);
+    const handler = (e: MediaQueryListEvent) => { if (e.matches) setCollapsed(true); };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [setCollapsed]);
 
   const toggleSubmenu = (id: string) =>
     setExpandedMenus((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -141,7 +166,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
             </Button>
           )}
           <span className="text-callout font-semibold text-[var(--color-ink)] shrink-0">{appName || 'OpsMind'}</span>
-          <GlobalSearch nav={nav} crossLink={crossLink} />
+          <GlobalSearch nav={nav} crossLink={crossLink} toggleTheme={toggleTheme} />
           <div className="flex-1" />
           {crossLink && (
             <Button variant="menu" size="icon" onClick={() => router.push(crossLink.path)} aria-label={crossLink.label}>
@@ -151,14 +176,14 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
           <Button variant="menu" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
             {theme === 'dark' ? <Sun /> : <Moon />}
           </Button>
-          {collapsedReady && <AccountSwitcher />}
+          {isClient && <AccountSwitcher />}
         </header>
         {subbar && (
           <div className="h-[var(--header-height)] flex items-center gap-3 px-6 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)]">
             {subbar}
           </div>
         )}
-        <main className={`flex-1 min-h-0 w-full overflow-hidden ${padded ? 'max-w-wide mx-auto' : ''}`}>
+        <main className={`flex-1 min-h-0 w-full overflow-hidden ${padded ? 'p-6' : ''}`}>
           <SectionErrorBoundary>{children}</SectionErrorBoundary>
         </main>
       </div>
@@ -167,7 +192,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
 }
 
 /** GlobalSearch — 顶栏内联搜索。输入即时过滤导航项 + 快捷操作，下拉展示结果。 */
-function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { label: string; path: string; icon: ReactNode } }) {
+function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; crossLink?: { label: string; path: string; icon: ReactNode }; toggleTheme: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -205,11 +230,11 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
       }
     }
     const matchedNav = navItems.filter((i) => i.label.toLowerCase().includes(q)).slice(0, 6);
-    const matchedActions: { label: string; icon?: ReactNode; path?: string }[] = [];
-    if ('切换主题'.includes(q) || 'theme'.includes(q)) matchedActions.push({ label: '切换主题', icon: <Moon size={14} /> });
+    const matchedActions: { label: string; icon?: ReactNode; path?: string; onSelect?: () => void }[] = [];
+    if ('切换主题'.includes(q) || 'theme'.includes(q)) matchedActions.push({ label: '切换主题', icon: <Moon size={14} />, onSelect: toggleTheme });
     if (crossLink && crossLink.label.toLowerCase().includes(q)) matchedActions.push({ label: crossLink.label, icon: crossLink.icon, path: crossLink.path });
     return { nav: matchedNav, actions: matchedActions };
-  }, [query, nav, crossLink]);
+  }, [query, nav, crossLink, toggleTheme]);
 
   const hasResults = results.nav.length > 0 || results.actions.length > 0;
 
@@ -220,7 +245,7 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="搜索工单、知识、会话…"
+        placeholder="搜索页面…"
         className="h-8 text-fine pl-9 pr-12 rounded-[var(--radius-md)] bg-[var(--color-tile-1)] border-[var(--color-hairline)]"
         aria-label="全局搜索"
       />
@@ -253,7 +278,7 @@ function GlobalSearch({ nav, crossLink }: { nav: NavSection[]; crossLink?: { lab
                   {results.actions.map((a) => (
                     <button
                       key={a.label}
-                      onClick={() => { if (a.path) { router.push(a.path); } setQuery(''); setOpen(false); }}
+                      onClick={() => { if (a.onSelect) a.onSelect(); else if (a.path) router.push(a.path); setQuery(''); setOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[var(--color-tile-1)] text-callout text-[var(--color-ink)]"
                     >
                       {a.icon}

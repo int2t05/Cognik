@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"opsmind/internal/shared/model"
+	"opsmind/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )
@@ -79,11 +80,18 @@ func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bo
 }
 
 // ListByUser 分页查询指定用户的申告列表。
-func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("user_id = ?", userID)
+	if status >= 0 {
+		query = query.Where("status = ?", status)
+	}
+	if keyword != "" {
+		like := "%" + dbutil.EscapeLike(keyword) + "%"
+		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -98,13 +106,17 @@ func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSiz
 }
 
 // ListAll 分页查询全部申告，支持按状态筛选。
-func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int, keyword string) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{})
 	if status >= 0 {
 		query = query.Where("status = ?", status)
+	}
+	if keyword != "" {
+		like := "%" + dbutil.EscapeLike(keyword) + "%"
+		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -155,6 +167,19 @@ func (r *TicketRepo) AutoCloseTickets(ctx context.Context, olderThan time.Time) 
 		return nil, err
 	}
 	return ids, nil
+}
+
+// ListOverdue 查询已超时但仍未完结的申告（deadline_at 早于 now，状态非 closed/resolved）。
+func (r *TicketRepo) ListOverdue(ctx context.Context, now time.Time) ([]model.Ticket, error) {
+	var tickets []model.Ticket
+	err := r.db.WithContext(ctx).
+		Where("deadline_at IS NOT NULL AND deadline_at < ? AND status NOT IN (?, ?)", now,
+			model.TicketStatusClosed, model.TicketStatusResolved).
+		Find(&tickets).Error
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
 }
 
 // =============================================================================

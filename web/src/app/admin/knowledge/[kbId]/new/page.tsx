@@ -1,13 +1,14 @@
 'use client';
-import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createArticle, uploadDocuments, getKBList, type KB } from '@/lib/api/knowledge';
+import { createArticle, getKBList, type KB } from '@/lib/api/knowledge';
 import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
+import { DocumentUploader } from '@/components/knowledge/DocumentUploader';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -16,17 +17,12 @@ import { FilePlus, X, AlertTriangle, Loader2 } from 'lucide-react';
 export default function NewArticlePage() {
   const { kbId } = useParams<{ kbId: string }>();
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [configMismatch, setConfigMismatch] = useState<string | null>(null);
-
-  /** 单文件最大 50MB */
-  const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
   // 页面加载时校验 KB 绑定的 embedding 配置与当前默认是否一致
   useEffect(() => {
@@ -47,37 +43,6 @@ export default function NewArticlePage() {
       } catch { /* 静默降级——不影响创建流程 */ }
     })();
   }, [kbId]);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-
-    // 前置校验文件大小
-    for (const f of Array.from(files)) {
-      if (f.size > MAX_FILE_SIZE) {
-        toast.error(`"${f.name}" 超过 50MB 限制`);
-        if (fileRef.current) fileRef.current.value = '';
-        return;
-      }
-    }
-
-    setUploading(true);
-
-    try {
-      const result = await uploadDocuments(Number(kbId), files, tags);
-      const docs = result.documents || [];
-      toast.success(docs.length ? `已上传 ${docs.length} 个文件，后台处理中` : '上传成功');
-      if (docs[0]?.article_id) {
-        router.push(`/admin/knowledge/${kbId}/${docs[0].article_id}?edit=1`);
-        return;
-      }
-    } catch (err: unknown) {
-      toast.error(errorMessage(err, '上传失败'));
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -114,12 +79,7 @@ export default function NewArticlePage() {
       {/* 文档上传 */}
       <Card className="mb-4">
         <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">文档上传</h2>
-        <p className="text-caption text-[var(--color-text-muted-48)] mb-3">支持 PDF / DOCX / XLSX / PPTX / MD / TXT，单文件最大 50MB</p>
-        <div className="flex gap-3 items-center">
-          <input ref={fileRef} type="file" accept=".pdf,.docx,.xlsx,.pptx,.md,.txt" multiple onChange={handleUpload} disabled={uploading}
-            aria-label="选择文档文件"
-            className="text-caption file:mr-3 file:py-2 file:px-4 file:rounded-[var(--radius-pill)] file:text-caption file:font-semibold file:border-0 file:bg-[var(--color-accent)] file:text-[var(--color-on-accent)] file:cursor-pointer hover:file:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed" />
-        </div>
+        <DocumentUploader kbId={Number(kbId)} tags={tags} />
       </Card>
 
       {/* 手动创建 */}
@@ -131,8 +91,8 @@ export default function NewArticlePage() {
           <Field label="标签（逗号分隔，最多 10 个）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
         </Card>
         <div className="flex gap-3">
-          <Button type="submit" size="icon" disabled={saving} aria-label="创建">{saving ? <Loader2 className="animate-spin" /> : <FilePlus />}</Button>
-          <Button variant="ghost" type="button" size="icon" onClick={() => router.push("/admin/knowledge/" + kbId)} aria-label="取消"><X /></Button>
+          <Button type="submit" size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" size={18} /> : <FilePlus size={18} />}创建</Button>
+          <Button variant="ghost" type="button" size="sm" onClick={() => router.push("/admin/knowledge/" + kbId)}><X size={16} />取消</Button>
         </div>
       </form>
     </div>

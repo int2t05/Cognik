@@ -7,15 +7,21 @@ export interface TicketRecord { id: number; operator_id: number; action: string;
 
 // 门户端
 export function createTicket(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/portal/tickets', { method: 'POST', body: JSON.stringify(data) }); }
-export function getMyTickets(page: number) { return apiFetchPage<Ticket>(`/api/v1/portal/tickets?page=${page}&page_size=${PAGE_SIZE}`); }
+export function getMyTickets(page: number, status?: number, keyword?: string) {
+  let url = `/api/v1/portal/tickets?page=${page}&page_size=${PAGE_SIZE}`;
+  if (status && status !== -1) url += `&status=${status}`;
+  if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+  return apiFetchPage<Ticket>(url);
+}
 export function getTicketDetail(id: number) { return apiFetch<TicketDetail>(`/api/v1/portal/tickets/${id}`); }
 export function updateTicket(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/portal/tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export function supplementTicket(id: number, content: string) { return apiFetch<null>(`/api/v1/portal/tickets/${id}/supplement`, { method: 'PATCH', body: JSON.stringify({ content }) }); }
 
 // 后台
-export function listAllTickets(page: number, status?: number) {
+export function listAllTickets(page: number, status?: number, keyword?: string) {
   let url = `/api/v1/admin/tickets?page=${page}&page_size=${PAGE_SIZE}`;
   if (status && status !== -1) url += `&status=${status}`;
+  if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
   return apiFetchPage<Ticket>(url);
 }
 export function getAdminTicketDetail(id: number) { return apiFetch<TicketDetail>(`/api/v1/admin/tickets/${id}`); }
@@ -27,4 +33,7 @@ export function createKnowledgeCandidate(id: number, kb_id: number) {
 }
 export function batchDeleteTickets(ids: number[]) {
   return apiFetch<null>('/api/v1/admin/tickets/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+}
+export function batchCloseTickets(ids: number[]) {
+  return apiFetch<{ results: { id: number; success: boolean; error_msg: string }[] }>('/api/v1/admin/tickets/batch-close', { method: 'POST', body: JSON.stringify({ ids }) });
 }

@@ -20,7 +20,7 @@ export interface ChatMessage {
   dbId?: number; // 后端落库后的真实消息 ID，生成完成后可用于反馈
 }
 interface PipelineStep { id: string; label: string; duration_ms?: number; }
-interface SessionStream {
+export interface SessionStream {
   messages: ChatMessage[]; status: 'idle' | 'streaming' | 'error';
   lastSeq: number; pipelineSteps: PipelineStep[]; currentStep: string | null;
   thinking: boolean; // 思考模式进行中
@@ -43,8 +43,90 @@ export const useChatStreamStore = () => {
   return v;
 };
 
+// SSEEvent 后端流式事件协议（SSE data: {...} 的 JSON 结构）。
+export interface SSEEvent {
+  type: string;
+  seq: number;
+  content?: string;
+  id?: string;
+  label?: string;
+  error?: string;
+  chunks?: ChunkDisplay[];
+  metadata?: {
+    answer?: string;
+    sources?: { doc_name: string; chunk_content: string; confidence: number }[];
+    confidence_raw?: number;
+    confidence_level?: string;
+    assistant_message_id?: number;
+    pipeline?: { steps: PipelineStep[] };
+  };
+}
+
+// updateLastAssistant 更新最后一条 assistant 消息；无 generating 占位时先创建。
+function updateLastAssistant(messages: ChatMessage[], f: (m: ChatMessage) => ChatMessage): ChatMessage[] {
+  const last = messages[messages.length - 1];
+  if (last?.role === 'assistant' && last.status === 'generating') {
+    return messages.map((m, i) => (i === messages.length - 1 ? f(m) : m));
+  }
+  const placeholder: ChatMessage = {
+    id: `a-${Date.now()}`, role: 'assistant', content: '', status: 'generating', createdAt: new Date().toISOString(),
+  };
+  return [...messages, f(placeholder)];
+}
+
+// reduceStreamEvent 纯函数：处理单个 SSE 事件，返回新状态。
+// seq 去重 + step 追踪 + reasoning/token 累积 + chunks/done/error 处理；不调用 setState/rAF。
+export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionStream {
+  if (evt.seq <= state.lastSeq) return state;
+  const s: SessionStream = { ...state, lastSeq: evt.seq };
+  switch (evt.type) {
+    case 'step':
+      return {
+        ...s,
+        currentStep: evt.label ?? null,
+        pipelineSteps: [
+          ...s.pipelineSteps.map((step, i) => (i === s.pipelineSteps.length - 1 ? { ...step, success: true } : step)),
+          { id: evt.id ?? '', label: evt.label ?? '' },
+        ],
+      };
+    case 'reasoning':
+      return { ...s, thinking: true, messages: updateLastAssistant(s.messages, m => ({ ...m, reasoning: (m.reasoning || '') + (evt.content ?? '') })) };
+    case 'token':
+      return { ...s, messages: updateLastAssistant(s.messages, m => ({ ...m, content: m.content + (evt.content ?? '') })) };
+    case 'chunks':
+      return { ...s, messages: updateLastAssistant(s.messages, m => ({ ...m, chunks: evt.chunks })) };
+    case 'done': {
+      const meta = evt.metadata;
+      return {
+        ...s,
+        status: 'idle',
+        thinking: false,
+        currentStep: null,
+        messages: updateLastAssistant(s.messages, m => ({
+          ...m,
+          content: meta?.answer || m.content,
+          sources: meta?.sources,
+          confidence: meta?.confidence_raw,
+          confidence_raw: meta?.confidence_raw,
+          confidence_level: meta?.confidence_level,
+          status: 'completed',
+          dbId: meta?.assistant_message_id,
+        })),
+        pipelineSteps: meta?.pipeline?.steps ?? s.pipelineSteps,
+      };
+    }
+    case 'error':
+      return { ...s, status: 'error', currentStep: null };
+    default:
+      return s;
+  }
+}
+
 export function ChatStreamProvider({ children }: { children: React.ReactNode }) {
   const [streams, setStreams] = useState<Record<number, SessionStream>>({});
+  // streamsRef 持有最新 streams 快照，供 consume 初始化 reduceStreamEvent 链
+  const streamsRef = useRef(streams);
+  streamsRef.current = streams;
   const controllers = useRef<Record<number, AbortController>>({});
   // rafRefs 持有各会话待处理的 rAF ID，用于 token 批处理。
   // 每个 token 到达时只更新内存缓冲区，通过 rAF 合并多个 token 为一次 setState，
@@ -63,25 +145,21 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // 共用：消费一个 SSE Response 流，按 seq 去重，更新 store。
-  // token 事件通过 rAF 批处理，避免每秒 50+ 次 React 渲染。
+  // token/reasoning 通过 rAF 批处理，避免每秒 50+ 次 React 渲染。
+  // 协议逻辑（去重/累积/状态转换）由纯函数 reduceStreamEvent 处理，consume 只负责读流 + 调度 rAF。
   const consume = useCallback(async (id: number, resp: Response, onError?: (m: string) => void) => {
     if (!resp.ok || !resp.body) { onError?.(`HTTP ${resp.status}`); patch(id, s => ({ ...s, status: 'error' })); return; }
     patch(id, s => ({ ...s, status: 'streaming' }));
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
-    let buf = ''; let acc = ''; let reasoningAcc = '';
-    // flushAcc 将当前累积文本通过 rAF 内 patch 写入 store；无待处理时调用方自行安排。
-    const flushAcc = () => {
-      patch(id, s => ({ ...s, thinking: false, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: acc, reasoning: reasoningAcc || m.reasoning } : m) }));
+    let buf = '';
+    // curRef 链式持有最新状态（reduceStreamEvent 输出），rAF flush 时写入 React
+    const curRef: { current: SessionStream | undefined } = { current: streamsRef.current[id] };
+    const flush = () => { const s = curRef.current; if (s) patch(id, () => s); };
+    const cancelRAF = () => {
+      if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
+      if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
     };
-    const flushReasoning = () => {
-      patch(id, s => ({ ...s, thinking: true, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, reasoning: reasoningAcc } : m) }));
-    };
-    const ensureAssistant = () => patch(id, s => {
-      const last = s.messages[s.messages.length - 1];
-      if (last?.role === 'assistant' && last.status === 'generating') return s;
-      return { ...s, messages: [...s.messages, { id: `a-${Date.now()}`, role: 'assistant', content: '', status: 'generating', createdAt: new Date().toISOString() }] };
-    });
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -93,67 +171,23 @@ export function ChatStreamProvider({ children }: { children: React.ReactNode }) 
         if (!clean.startsWith('data: ')) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let evt: any; try { evt = JSON.parse(clean.slice(6)); } catch { continue; }
-        // seq 去重：只接受比已消费更大的
-        let skip = false;
-        patch(id, s => { if (evt.seq <= s.lastSeq) { skip = true; return s; } return { ...s, lastSeq: evt.seq }; });
-        if (skip) continue;
-        if (evt.type === 'step') {
-          ensureAssistant();
-          patch(id, s => ({
-            ...s,
-            currentStep: evt.label,
-            pipelineSteps: [
-              ...s.pipelineSteps.map((step, i) =>
-                // 上一步完成 → 标记为成功（流式中实时着色）
-                i === s.pipelineSteps.length - 1 ? { ...step, success: true } : step
-              ),
-              { id: evt.id, label: evt.label },
-            ],
-          }));
+        const cur = curRef.current ?? { messages: [], status: 'idle' as const, lastSeq: -1, pipelineSteps: [], currentStep: null, thinking: false };
+        curRef.current = reduceStreamEvent(cur, evt);
+        if (evt.type === 'token') {
+          if (rafRefs.current[id] == null) rafRefs.current[id] = requestAnimationFrame(() => { rafRefs.current[id] = null; flush(); });
+        } else if (evt.type === 'reasoning') {
+          if (reasoningRafRefs.current[id] == null) reasoningRafRefs.current[id] = requestAnimationFrame(() => { reasoningRafRefs.current[id] = null; flush(); });
+        } else {
+          // step/chunks/done/error 立即 flush（取消待处理 rAF，避免乱序覆盖）
+          cancelRAF();
+          flush();
         }
-        else if (evt.type === 'reasoning') {
-          // 思考模式内容 — 流式累积到 reasoning 字段，独立 rAF 槽位
-          ensureAssistant();
-          reasoningAcc += evt.content;
-          if (reasoningRafRefs.current[id] === null || reasoningRafRefs.current[id] === undefined) {
-            reasoningRafRefs.current[id] = requestAnimationFrame(() => {
-              reasoningRafRefs.current[id] = null;
-              flushReasoning();
-            });
-          }
-        }
-        else if (evt.type === 'token') {
-          // token 先写入内存缓冲区 acc，通过 rAF 批处理合并为一次 React 渲染。
-          // 每个 rAF 周期内多次 setState 合并为一次，消除逐 token 渲染的性能灾难。
-          ensureAssistant();
-          acc += evt.content;
-          if (rafRefs.current[id] === null || rafRefs.current[id] === undefined) {
-            rafRefs.current[id] = requestAnimationFrame(() => {
-              rafRefs.current[id] = null;
-              flushAcc();
-            });
-          }
-        }
-        else if (evt.type === 'chunks') {
-          ensureAssistant();
-          patch(id, s => ({ ...s, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, chunks: evt.chunks } : m) }));
-        }
-        else if (evt.type === 'done') {
-          if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
-          if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
-          const meta = evt.metadata;
-          patch(id, s => ({ ...s, status: 'idle', thinking: false, currentStep: null, messages: s.messages.map((m, i) => i === s.messages.length - 1 ? { ...m, content: meta.answer || acc, sources: meta.sources, confidence: meta.confidence_raw, confidence_raw: meta.confidence_raw, confidence_level: meta.confidence_level, status: 'completed', dbId: meta.assistant_message_id } : m), pipelineSteps: meta.pipeline?.steps || s.pipelineSteps }));
-        }
-        else if (evt.type === 'error') {
-          if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
-          if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
-          patch(id, s => ({ ...s, status: 'error', currentStep: null })); onError?.(evt.error || '生成失败');
-        }
+        if (evt.type === 'error') onError?.(evt.error || '生成失败');
       }
     }
-    // 流结束但未收到 done（异常终止）：取消 rAF + flush 剩余内容
-    if (reasoningRafRefs.current[id] != null) { cancelAnimationFrame(reasoningRafRefs.current[id]!); reasoningRafRefs.current[id] = null; }
-    if (rafRefs.current[id] != null) { cancelAnimationFrame(rafRefs.current[id]!); rafRefs.current[id] = null; }
+    // 流结束：取消 rAF + flush 剩余内容
+    cancelRAF();
+    flush();
   }, [patch]);
 
   const getStream = useCallback((id: number) => streams[id], [streams]);

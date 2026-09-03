@@ -19,6 +19,16 @@ export function setTokenGetter(getter: () => string | null) {
   _tokenGetter = getter;
 }
 
+/** 获取当前认证 token — 供 XHR 等非 fetch 通道复用 */
+export function getAuthToken(): string | null {
+  return _tokenGetter();
+}
+
+/** 获取 API base URL — 供 XHR 通道构建请求路径 */
+export function getBaseUrl(): string {
+  return BASE_URL;
+}
+
 export class ApiError extends Error {
   constructor(
     public code: number,
@@ -27,6 +37,26 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/**
+ * parseApiResponse 解析统一响应信封，处理 code!==0 与 token 过期。
+ * fetch 通道（rawApiRequest）与 XHR 通道（upload.ts）共享，消除重复。
+ * 成功返回 data，失败抛 ApiError。
+ */
+export function parseApiResponse(json: Record<string, unknown>): unknown {
+  if (json.code !== 0) {
+    // token 过期或无效 → 清除认证状态，跳转登录（避免在 login 页重定向循环）
+    if (json.code === 10001 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      clearAuth();
+      document.cookie = 'access_token=; path=/; max-age=0';
+      document.cookie = 'refresh_token=; path=/; max-age=0';
+      window.location.href = '/login';
+      throw new ApiError(json.code as number, '登录已过期，请重新登录');
+    }
+    throw new ApiError(json.code as number, (json.message as string) || `请求失败 (code=${json.code})`);
+  }
+  return json.data;
 }
 
 /**
@@ -82,19 +112,7 @@ async function rawApiRequest(url: string, options?: RequestInit): Promise<Record
   }
 
   const json = (await safeResJson(res)) as Record<string, unknown>;
-
-  if (json.code !== 0) {
-    // token 过期或无效 → 清除认证状态，跳转登录（避免在 login 页重定向循环）
-    if (json.code === 10001 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      clearAuth();
-      document.cookie = 'access_token=; path=/; max-age=0';
-      document.cookie = 'refresh_token=; path=/; max-age=0';
-      window.location.href = '/login';
-      throw new ApiError(json.code as number, '登录已过期，请重新登录');
-    }
-    throw new ApiError(json.code as number, json.message as string || `请求失败 (code=${json.code})`);
-  }
-
+  parseApiResponse(json); // code!==0 或 token 过期时抛 ApiError
   return json;
 }
 

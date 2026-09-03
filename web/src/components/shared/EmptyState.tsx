@@ -12,14 +12,16 @@ interface EmptyStateProps {
   title: string;
   /** 补充描述 */
   description?: string;
-  /** 操作按钮（不传则不显示） */
+  /** 主操作按钮（不传则不显示） */
   action?: {
     label: string;
     onClick: () => void;
   };
+  /** 筛选无结果时的清除回调，传入则显示"清除筛选"按钮 */
+  onClearFilters?: () => void;
 }
 
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, onClearFilters }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       {icon && (
@@ -36,6 +38,11 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
       {action && (
         <Button size="lg" onClick={action.onClick}>
           {action.label}
+        </Button>
+      )}
+      {onClearFilters && (
+        <Button variant="ghost" size="sm" onClick={onClearFilters} className="mt-2">
+          清除筛选
         </Button>
       )}
     </div>

@@ -7,7 +7,6 @@ import {
   useState,
   useCallback,
   useEffect,
-  useLayoutEffect,
   type ReactNode,
 } from 'react';
 import { setTokenGetter } from '@/lib/api/client';
@@ -53,6 +52,12 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// EMPTY_AUTH 空认证状态——SSR 与 hydration 首帧一致，避免 localStorage 读取导致水合不匹配。
+const EMPTY_AUTH: AuthState = {
+  token: null, refreshToken: null, user: null,
+  roles: [], permissions: [], menus: [], isLoggedIn: false,
+};
+
 function loadAuthState(): AuthState {
   const stored = readAuth();
   if (stored) {
@@ -66,12 +71,17 @@ function persistAuth(state: AuthState) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // 初始化时同步设置 token getter（必须在 render 阶段，SWR 首次请求先于 useLayoutEffect）
-  const [state, setState] = useState<AuthState>(() => {
-    const initial = loadAuthState();
-    setTokenGetter(() => initial.token);
-    return initial;
-  });
+  // 初始空状态：SSR 与 hydration 首帧一致，避免 localStorage 读取导致水合不匹配
+  const [state, setState] = useState<AuthState>(EMPTY_AUTH);
+
+  // hydration 后从 localStorage 加载认证状态，同步 token getter
+  useEffect(() => {
+    const stored = loadAuthState();
+    setTokenGetter(() => stored.token);
+    if (stored.isLoggedIn) {
+      setState(stored);
+    }
+  }, []);
 
   // 同步 token/refreshToken 到 cookie（供 middleware 读取）
   useEffect(() => {
@@ -86,18 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state.token, state.refreshToken]);
 
-  // token 变更时更新 apiFetch getter（login/logout/setTokens 触发）
-  useLayoutEffect(() => {
-    setTokenGetter(() => state.token);
-  }, [state.token]);
-
   const login = useCallback(
     (token: string, refreshToken: string, user: User, roles: string[], permissions: string[], menus: Menu[]) => {
       const newState: AuthState = { token, refreshToken, user, roles, permissions, menus, isLoggedIn: true };
-      // 同步写 cookie——router.push 触发中间件校验时必须能读到 token，
-      // 不能等 useEffect（它异步执行，晚于导航）。
+      // 同步写 cookie——router.push 触发中间件校验时必须能读到 token
       document.cookie = `access_token=${token}; path=/; SameSite=Lax; max-age=604800`;
       document.cookie = `refresh_token=${refreshToken}; path=/; SameSite=Lax; max-age=604800`;
+      setTokenGetter(() => token);
       setState(newState);
       persistAuth(newState);
     },
@@ -105,15 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    const empty: AuthState = { token: null, refreshToken: null, user: null, roles: [], permissions: [], menus: [], isLoggedIn: false };
     document.cookie = 'access_token=; path=/; SameSite=Lax; max-age=0';
     document.cookie = 'refresh_token=; path=/; SameSite=Lax; max-age=0';
-    setState(empty);
-    persistAuth(empty);
+    setTokenGetter(() => null);
+    setState(EMPTY_AUTH);
+    persistAuth(EMPTY_AUTH);
   }, []);
 
   const setTokens = useCallback(
     (accessToken: string, refreshToken: string) => {
+      setTokenGetter(() => accessToken);
       setState((prev) => {
         const next = { ...prev, token: accessToken, refreshToken };
         persistAuth(next);

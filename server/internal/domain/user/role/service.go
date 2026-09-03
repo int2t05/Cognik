@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/domain/user/account"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
@@ -16,12 +17,6 @@ import (
 
 // AppError 是 errcode.AppError 的类型别名。
 type AppError = errcode.AppError
-
-// AuditWriter 审计日志写入接口（消费者接口）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
 
 // 权限标识常量
 const (
@@ -69,12 +64,12 @@ func validatePermissions(perms []string) error {
 type RoleService struct {
 	repo        *RoleRepo
 	menuRepo    *MenuRepo
-	auditWriter AuditWriter
+	auditWriter audit.AuditWriter
 	db          *gorm.DB
 }
 
 // NewRoleService 创建 RoleService 实例。
-func NewRoleService(repo *RoleRepo, menuRepo *MenuRepo, auditWriter AuditWriter, db *gorm.DB) *RoleService {
+func NewRoleService(repo *RoleRepo, menuRepo *MenuRepo, auditWriter audit.AuditWriter, db *gorm.DB) *RoleService {
 	return &RoleService{repo: repo, menuRepo: menuRepo, auditWriter: auditWriter, db: db}
 }
 
