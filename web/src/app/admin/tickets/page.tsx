@@ -32,7 +32,7 @@ export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState(-1);
   const [keyword, setKeyword] = useState('');
-  const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}-${keyword}`, () => listAllTickets(page, status, keyword));
+  const { data, error, mutate } = useSWR(`admin-tickets-${page}-${status}-${keyword}`, () => listAllTickets(page, status, keyword), { keepPreviousData: true });
 
   const items = data?.items || [];
 
@@ -44,6 +44,8 @@ export default function AdminTicketListPage() {
   });
 
   const isEmpty = !error && data && items.length === 0;
+  const hasFilters = status !== -1 || keyword !== '';
+  const clearFilters = () => { setStatus(-1); setKeyword(''); setPage(1); };
   const [batchCloseConfirm, setBatchCloseConfirm] = useState(false);
   const [batchClosing, setBatchClosing] = useState(false);
 
@@ -80,8 +82,9 @@ export default function AdminTicketListPage() {
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title="暂无申告"
-          description="系统中暂无申告记录"
+          title={hasFilters ? '未找到匹配的申告' : '暂无申告'}
+          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '系统中暂无申告记录'}
+          onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (
         <>

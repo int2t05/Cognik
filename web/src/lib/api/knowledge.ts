@@ -16,10 +16,12 @@ export function updateKB(id: number, data: Record<string, unknown>) { return api
 export function deleteKB(id: number) { return apiFetch<null>(`/api/v1/admin/knowledge-bases/${id}`, { method: 'DELETE' }); }
 
 // 文章
-export function getArticleList(kbId: number, page: number, status?: string, keyword?: string) {
+export function getArticleList(kbId: number, page: number, status?: string, keyword?: string, sourceType?: number, processStatus?: string) {
   let url = `/api/v1/admin/knowledge-bases/${kbId}/articles?page=${page}&page_size=${PAGE_SIZE}`;
   if (status && status !== '-1') url += `&status=${status}`;
   if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+  if (sourceType && sourceType > 0) url += `&source_type=${sourceType}`;
+  if (processStatus) url += `&process_status=${encodeURIComponent(processStatus)}`;
   return apiFetchPage<Article>(url);
 }
 export function getArticle(id: number) { return apiFetch<ArticleDetail>(`/api/v1/admin/articles/${id}`); }

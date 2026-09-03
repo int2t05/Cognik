@@ -9,20 +9,33 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
+import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { TicketPlus, FileText } from 'lucide-react';
 
+const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
+  { value: -1, label: '全部' },
+  { value: 1, label: '待处理' },
+  { value: 2, label: '处理中' },
+  { value: 3, label: '需补充' },
+  { value: 4, label: '已解决' },
+  { value: 5, label: '已关闭' },
+];
+
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(-1);
   const [keyword, setKeyword] = useState('');
   const router = useRouter();
-  const { data, error } = useSWR(`portal-tickets-${page}-${keyword}`, () => getMyTickets(page, keyword));
+  const { data, error } = useSWR(`portal-tickets-${page}-${status}-${keyword}`, () => getMyTickets(page, status, keyword), { keepPreviousData: true });
 
   const tickets = data?.items ?? [];
   const isEmpty = !error && data && tickets.length === 0;
+  const hasFilters = status !== -1 || keyword !== '';
+  const clearFilters = () => { setStatus(-1); setKeyword(''); setPage(1); };
 
   return (
     <div>
@@ -40,9 +53,10 @@ export default function TicketQueryPage() {
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title={keyword ? '未找到匹配的申告' : '暂无申告记录'}
-          description={keyword ? `没有标题或描述含"${keyword}"的申告` : '提交您的第一个运维申告'}
-          action={keyword ? undefined : { label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          title={hasFilters ? '未找到匹配的申告' : '暂无申告记录'}
+          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '提交您的第一个运维申告'}
+          action={hasFilters ? undefined : { label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (
         <>
@@ -51,7 +65,7 @@ export default function TicketQueryPage() {
               { accessorKey: 'ticket_no', header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
               { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/portal/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
               { accessorKey: 'tags', header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '—' },
-              { accessorKey: 'status', header: '状态', cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'status', header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
               { accessorKey: 'created_at', header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
             ]}
             data={tickets}

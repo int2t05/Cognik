@@ -80,11 +80,14 @@ func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bo
 }
 
 // ListByUser 分页查询指定用户的申告列表。
-func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string) ([]model.Ticket, int64, error) {
+func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Ticket{}).Where("user_id = ?", userID)
+	if status >= 0 {
+		query = query.Where("status = ?", status)
+	}
 	if keyword != "" {
 		like := "%" + dbutil.EscapeLike(keyword) + "%"
 		query = query.Where("(title ILIKE ? ESCAPE '\\' OR ticket_no ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\')", like, like, like)

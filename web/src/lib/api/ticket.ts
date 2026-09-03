@@ -7,8 +7,9 @@ export interface TicketRecord { id: number; operator_id: number; action: string;
 
 // 门户端
 export function createTicket(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/portal/tickets', { method: 'POST', body: JSON.stringify(data) }); }
-export function getMyTickets(page: number, keyword?: string) {
+export function getMyTickets(page: number, status?: number, keyword?: string) {
   let url = `/api/v1/portal/tickets?page=${page}&page_size=${PAGE_SIZE}`;
+  if (status && status !== -1) url += `&status=${status}`;
   if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
   return apiFetchPage<Ticket>(url);
 }
