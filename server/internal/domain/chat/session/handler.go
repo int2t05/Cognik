@@ -267,13 +267,15 @@ func (h *ChatHandler) GetChatDetail(c *gin.Context) {
 // SSE 流式对话
 // =============================================================================
 
-// writeSSEEvent 将事件序列化为 SSE data 帧写入。
-func writeSSEEvent(w gin.ResponseWriter, evt any) error {
+// writeSSEEvent 将事件序列化为 SSE 帧：id: {seq}\ndata: {json}\n\n
+// id 字段供 SSE 标准 Last-Event-ID 重连。
+// 注：前端 ChatStreamProvider 用 fetch+ReadableStream 只解析 data: 行，id: 被过滤忽略，不破坏前端。
+func writeSSEEvent(w gin.ResponseWriter, evt StreamEvent) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(w, "data: %s\n\n", string(data))
+	_, err = fmt.Fprintf(w, "id: %d\ndata: %s\n\n", evt.Seq, string(data))
 	return err
 }
 
@@ -296,7 +298,7 @@ func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 
 	userID, _ := getCurrentUserID(c)
 
-	replay, ch, unsub, err := h.svc.StreamChat(c.Request.Context(), sessionID, req.Question, userID, req.RouteCount, req.RerankCount)
+	replay, ch, unsub, err := h.svc.StreamChat(c.Request.Context(), sessionID, req.Question, userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return

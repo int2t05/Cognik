@@ -1,0 +1,71 @@
+// Package tools 提供 Agent 内置工具集。
+// mkdir.go：目录创建工具。
+//
+// 在 workDir 沙箱内创建目录（含父目录，递归）。对标基础文件操作原语。
+
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/cloudwego/eino/components/tool"
+	"github.com/cloudwego/eino/schema"
+)
+
+// MkdirTool 目录创建工具。
+type MkdirTool struct {
+	workDir string
+}
+
+// NewMkdirTool 创建目录工具。
+func NewMkdirTool(workDir string) *MkdirTool {
+	return &MkdirTool{workDir: workDir}
+}
+
+// Info 返回工具元信息。
+func (m *MkdirTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+	return &schema.ToolInfo{
+		Name: "mkdir",
+		Desc: "Create a directory (including parents) within the working directory sandbox.",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"path": {
+				Type:     schema.String,
+				Desc:     "Relative directory path to create within the working directory",
+				Required: true,
+			},
+		}),
+	}, nil
+}
+
+// mkdirParams mkdir 工具参数。
+type mkdirParams struct {
+	Path string `json:"path"`
+}
+
+// InvokableRun 创建目录。路径限制在 workDir 沙箱内。
+func (m *MkdirTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+	var params mkdirParams
+	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+		return "", fmt.Errorf("invalid args: %w", err)
+	}
+	if params.Path == "" {
+		return "", fmt.Errorf("path is required")
+	}
+
+	fullPath, err := safeJoin(m.workDir, params.Path)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(fullPath, 0755); err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(m.workDir, fullPath)
+	if err != nil {
+		rel = params.Path
+	}
+	return fmt.Sprintf("created directory %s", filepath.ToSlash(rel)), nil
+}

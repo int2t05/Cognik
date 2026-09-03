@@ -7,16 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"strings"
-	"sync"
+	"strconv"
 	"time"
 
-	llmconfig "opsmind/internal/domain/chat/llm_config"
+	"github.com/cloudwego/eino/schema"
+	"opsmind/internal/agent"
 	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/rag"
 	"opsmind/internal/shared/dto/request"
 	respDto "opsmind/internal/shared/dto/response"
 	"opsmind/internal/shared/model"
@@ -26,7 +24,6 @@ import (
 )
 
 const (
-	fallbackLowConfidence = "暂未找到足够匹配的知识，建议提交申告由运维人员人工处理"
 	fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
 )
 
@@ -66,61 +63,28 @@ type ragConfigReader interface {
 	GetBool(ctx context.Context, key string) (bool, bool)
 }
 
-type ragPipeline interface {
-	Execute(ctx context.Context, query string, kbID int64, opts rag.RAGOptions, onStep rag.StepCallback) (*rag.RAGResult, error)
-}
-
 // =============================================================================
 // 流式事件类型
 // =============================================================================
 
 type StreamEvent struct {
-	Type     string             `json:"type"`
-	Seq      int                `json:"seq"`
-	Content  string             `json:"content,omitempty"`
-	ID       string             `json:"id,omitempty"`
-	Label    string             `json:"label,omitempty"`
-	Error    string             `json:"error,omitempty"`
-	Chunks   []rag.ChunkDisplay `json:"chunks,omitempty"`
-	Metadata *StreamDoneMeta    `json:"metadata,omitempty"`
+	Type     string          `json:"type"`
+	Seq      int             `json:"seq"`
+	Content  string          `json:"content,omitempty"`
+	ID       string          `json:"id,omitempty"`
+	Label    string          `json:"label,omitempty"`
+	Error    string          `json:"error,omitempty"`
+	Metadata *StreamDoneMeta `json:"metadata,omitempty"`
 }
 
+// StreamDoneMeta done 事件的元数据（Agent 完成回答后的落库标识）。
 type StreamDoneMeta struct {
-	SessionID          int64                `json:"session_id"`
-	Question           string               `json:"question"`
-	Answer             string               `json:"answer"`
-	Sources            []respDto.SourceItem `json:"sources"`
-	Confidence         float64              `json:"confidence"`
-	ConfidenceRaw      float64              `json:"confidence_raw"`
-	ConfidenceLevel    string               `json:"confidence_level"`
-	CanSubmitTicket    bool                 `json:"can_submit_ticket"`
-	DurationMS         int                  `json:"duration_ms"`
-	Feedback           int16                `json:"feedback"`
-	CreatedAt          string               `json:"created_at"`
-	Pipeline           *ChatPipelineMeta    `json:"pipeline,omitempty"`
-	UserMessageID      int64                `json:"user_message_id,omitempty"`
-	AssistantMessageID int64                `json:"assistant_message_id,omitempty"`
-}
-
-type ChatPipelineMeta struct {
-	Steps           []ChatPipelineStep `json:"steps"`
-	TotalDurationMS int                `json:"total_duration_ms"`
-}
-
-type ChatPipelineStep struct {
-	ID         string `json:"id"`
-	Label      string `json:"label"`
-	DurationMS int    `json:"duration_ms"`
-	Success    bool   `json:"success"`
-}
-
-// RAGDefaults RAG 管道默认开关（从 env 配置读取）。
-type RAGDefaults struct {
-	TopK         int
-	QueryRewrite bool
-	MultiRoute   bool
-	Hybrid       bool
-	Rerank       bool
+	SessionID          int64  `json:"session_id"`
+	Question           string `json:"question"`
+	Answer             string `json:"answer"`
+	CreatedAt          string `json:"created_at"`
+	UserMessageID      int64  `json:"user_message_id,omitempty"`
+	AssistantMessageID int64 `json:"assistant_message_id,omitempty"`
 }
 
 // =============================================================================
@@ -128,27 +92,26 @@ type RAGDefaults struct {
 // =============================================================================
 
 type ChatService struct {
-	ragDefaults   RAGDefaults
 	configReader  ragConfigReader
 	knowledgeRepo chatKnowledgeRepo
 	chatRepo      chatSessionRepo
-	llmService    *LLMService
+	agentRunner   *agent.AgentRunner     // 事件生产者（Eino ReAct 循环）
+	modelFactory  *agent.ChatModelFactory // AnalyzeFeedback 用 Generate
 	auditRepo     audit.AuditWriter
-	hub           *runtime.GenerationHub[StreamEvent]
+	gateway       *runtime.Gateway[StreamEvent]
 }
 
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, llmService *LLMService, ragDefaults RAGDefaults, configReader ragConfigReader, auditRepo audit.AuditWriter, hub *runtime.GenerationHub[StreamEvent]) *ChatService {
-	if ragDefaults.TopK <= 0 {
-		ragDefaults.TopK = 5
-	}
+// NewChatService 创建 ChatService。
+// 生产者：agentRunner 事件循环 + modelFactory Generate。
+func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, agentRunner *agent.AgentRunner, modelFactory *agent.ChatModelFactory, configReader ragConfigReader, auditRepo audit.AuditWriter, gateway *runtime.Gateway[StreamEvent]) *ChatService {
 	return &ChatService{
 		knowledgeRepo: knowledgeRepo,
 		chatRepo:      chatRepo,
-		llmService:    llmService,
-		ragDefaults:   ragDefaults,
+		agentRunner:   agentRunner,
+		modelFactory:  modelFactory,
 		configReader:  configReader,
 		auditRepo:     auditRepo,
-		hub:           hub,
+		gateway:       gateway,
 	}
 }
 
@@ -179,11 +142,11 @@ func (s *ChatService) CreateSession(ctx context.Context, req request.CreateSessi
 	return session, nil
 }
 
-func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question string, userID int64, routeCount, rerankCount int) ([]StreamEvent, <-chan StreamEvent, func(), error) {
+func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question string, userID int64) ([]StreamEvent, <-chan StreamEvent, func(), error) {
 	if strings.TrimSpace(question) == "" {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: "问题不能为空"}
 	}
-	if s.llmService == nil {
+	if s.agentRunner == nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrAIUnavailable, Message: fallbackAIUnavailable}
 	}
 	if s.chatRepo == nil {
@@ -201,23 +164,12 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
 	}
 
-	var history []adapter.ChatMessage
+	// 加载历史消息构建 Eino schema.Message 输入（多轮上下文）
 	msgs, msgErr := s.chatRepo.FindMessagesBySession(ctx, sessionID)
 	if msgErr != nil {
 		slog.Warn("加载会话历史消息失败，多轮上下文降级为单轮", "session_id", sessionID, "error", msgErr)
 	}
-	for _, m := range msgs {
-		history = append(history, adapter.ChatMessage{Role: m.Role, Content: m.Content})
-	}
-
-	var ragHistory []map[string]string
-	for _, m := range msgs {
-		if m.Role == "user" || m.Role == "assistant" {
-			ragHistory = append(ragHistory, map[string]string{"role": m.Role, "content": m.Content})
-		}
-	}
-
-	opts := s.buildRAGOptions(routeCount, rerankCount, ragHistory)
+	input := s.buildAgentInput(msgs, question)
 
 	userMsg := &model.ChatMessage{SessionID: sessionID, Role: "user", Content: question, Status: model.MessageStatusCompleted}
 	if err := s.chatRepo.CreateMessage(ctx, userMsg); err != nil {
@@ -232,66 +184,90 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建回复占位失败"}
 	}
 
+	// detached ctx：客户端断开不停止生成/落库
 	genTimeout := 120 * time.Second
 	if s.readBool("ai.enable_thinking", false) {
 		genTimeout = 300 * time.Second
 	}
 	gctx, cancel := context.WithTimeout(context.Background(), genTimeout)
-	if err := s.hub.Start(sessionID, cancel); err != nil {
+	runID := strconv.FormatInt(sessionID, 10)
+	if err := s.gateway.Start(runID, cancel); err != nil {
 		cancel()
 		assistant.Status = model.MessageStatusFailed
 		_ = s.chatRepo.UpdateMessage(context.Background(), assistant)
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: err.Error()}
 	}
 
-	go s.runGeneration(gctx, sessionID, userMsg.ID, assistant.ID, question, session.KBID, opts, history)
+	// 生产者 goroutine：Agent ReAct 循环 → AgentEvent → StreamEvent → gateway.Publish
+	go s.runAgent(gctx, runID, sessionID, userMsg.ID, assistant.ID, question, input)
 
-	replay, ch, unsub, ok := s.hub.Subscribe(sessionID, 0)
+	replay, ch, unsub, ok := s.gateway.Subscribe(runID, 0)
 	if !ok {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "订阅生成失败"}
 	}
 	return replay, ch, unsub, nil
 }
 
-func (s *ChatService) runGeneration(gctx context.Context, sessionID, userMsgID, assistantID int64, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) {
-	defer s.hub.Finish(sessionID)
+// buildAgentInput 从历史消息 + 当前问题构建 Eino schema.Message 输入。
+func (s *ChatService) buildAgentInput(msgs []model.ChatMessage, question string) []*schema.Message {
+	input := make([]*schema.Message, 0, len(msgs)+1)
+	for _, m := range msgs {
+		role := schema.RoleType(m.Role)
+		if role != schema.User && role != schema.Assistant {
+			continue
+		}
+		input = append(input, &schema.Message{Role: role, Content: m.Content})
+	}
+	input = append(input, schema.UserMessage(question))
+	return input
+}
 
-	enableThinking := s.readBool("ai.enable_thinking", false)
-	llmEvents, err := s.llmService.StreamChat(gctx, question, kbID, opts, history, enableThinking)
+// runAgent Agent 事件循环 → gateway.Publish。
+// detached goroutine：客户端断开仍跑完 + 落库。
+func (s *ChatService) runAgent(gctx context.Context, runID string, sessionID, userMsgID, assistantID int64, question string, input []*schema.Message) {
+	defer s.gateway.Finish(runID)
+
+	agentEvents, err := s.agentRunner.Stream(gctx, input)
 	if err != nil {
-		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: err.Error()})
+		s.gateway.Publish(runID, StreamEvent{Type: "error", Error: err.Error()})
 		s.failAssistant(assistantID)
 		return
 	}
 
 	var answer string
-	for evt := range llmEvents {
-		if evt.Type == "token" {
+	for evt := range agentEvents {
+		switch evt.Type {
+		case agent.EventToken:
 			answer += evt.Content
-		}
-		if evt.Type == "done" && evt.Metadata != nil {
-			srcJSON, _ := json.Marshal(evt.Metadata.Sources)
-			pipelineJSON, _ := json.Marshal(evt.Metadata.Pipeline)
-			confRaw := evt.Metadata.ConfidenceRaw
+		case agent.EventDone:
+			// 落库（无 sources/confidence/pipeline — Agent 无 RAG）
+			now := time.Now().Format("2006-01-02 15:04:05")
 			_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
-				ID: sessionID, Answer: evt.Metadata.Answer, Sources: srcJSON,
-				Confidence: confRaw, DurationMs: evt.Metadata.DurationMS,
+				ID: sessionID, Answer: answer,
 			})
 			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
-				ID: assistantID, Content: evt.Metadata.Answer, Sources: srcJSON,
-				PipelineMetrics: pipelineJSON, ConfidenceRaw: confRaw,
-				Status: model.MessageStatusCompleted,
+				ID: assistantID, Content: answer, Status: model.MessageStatusCompleted,
 			})
-			evt.Metadata.SessionID = sessionID
-			evt.Metadata.Question = question
-			evt.Metadata.AssistantMessageID = assistantID
-			evt.Metadata.UserMessageID = userMsgID
-			evt.Metadata.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
-		}
-		if evt.Type == "error" {
+			s.gateway.Publish(runID, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
+				Answer:             answer,
+				SessionID:          sessionID,
+				Question:           question,
+				AssistantMessageID: assistantID,
+				UserMessageID:      userMsgID,
+				CreatedAt:          now,
+			}})
+			continue
+		case agent.EventError:
 			s.failAssistant(assistantID)
 		}
-		s.hub.Publish(sessionID, evt)
+		// 透传事件（token/reasoning/tool_call/tool_result/error），seq 由 gateway.Publish 的 setSeq 对齐
+		s.gateway.Publish(runID, StreamEvent{
+			Type:    evt.Type,
+			Content: evt.Content,
+			ID:      evt.ID,
+			Label:   evt.Label,
+			Error:   evt.Error,
+		})
 	}
 
 	if gctx.Err() != nil {
@@ -303,7 +279,7 @@ func (s *ChatService) runGeneration(gctx context.Context, sessionID, userMsgID, 
 			_ = s.chatRepo.DeleteMessage(context.Background(), userMsgID)
 			_ = s.chatRepo.DeleteMessage(context.Background(), assistantID)
 		}
-		s.hub.Publish(sessionID, StreamEvent{Type: "error", Error: "生成已停止"})
+		s.gateway.Publish(runID, StreamEvent{Type: "error", Error: "生成已停止"})
 	}
 }
 
@@ -319,7 +295,7 @@ func (s *ChatService) ResumeStream(ctx context.Context, sessionID, userID int64,
 	if session.UserID != userID {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
 	}
-	replay, ch, unsub, ok := s.hub.Subscribe(sessionID, since)
+	replay, ch, unsub, ok := s.gateway.Subscribe(strconv.FormatInt(sessionID, 10), since)
 	if !ok {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "无进行中的生成"}
 	}
@@ -334,7 +310,7 @@ func (s *ChatService) CancelGeneration(ctx context.Context, sessionID, userID in
 	if session.UserID != userID {
 		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
 	}
-	if !s.hub.Cancel(sessionID) {
+	if !s.gateway.Cancel(strconv.FormatInt(sessionID, 10)) {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "无进行中的生成"}
 	}
 	return nil
@@ -575,31 +551,6 @@ func (s *ChatService) UpdateSessionMeta(ctx context.Context, sessionID, userID i
 	return s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, kbID)
 }
 
-func (s *ChatService) buildRAGOptions(routeCount, rerankCount int, history []map[string]string) rag.RAGOptions {
-	ragEnabled := s.readBool("ai.rag_enabled", true)
-	return rag.RAGOptions{
-		TopK:             s.readInt("ai.top_k", s.ragDefaults.TopK),
-		QueryRewrite:     s.readBool("ai.rag_query_rewrite", s.ragDefaults.QueryRewrite),
-		MultiRoute:       s.readBool("ai.rag_multi_route", s.ragDefaults.MultiRoute),
-		Hybrid:           s.readBool("ai.rag_hybrid", s.ragDefaults.Hybrid),
-		Rerank:           s.readBool("ai.rag_rerank", s.ragDefaults.Rerank),
-		DisableRetrieval: !ragEnabled,
-		RouteCount:       routeCount,
-		RerankCount:      rerankCount,
-		History:          history,
-	}
-}
-
-func (s *ChatService) readInt(key string, fallback int) int {
-	if s.configReader == nil {
-		return fallback
-	}
-	if v, ok := s.configReader.GetInt(context.Background(), key); ok {
-		return v
-	}
-	return fallback
-}
-
 func (s *ChatService) readBool(key string, fallback bool) bool {
 	if s.configReader == nil {
 		return fallback
@@ -610,21 +561,11 @@ func (s *ChatService) readBool(key string, fallback bool) bool {
 	return fallback
 }
 
-func (s *ChatService) readFloat(key string, fallback float64) float64 {
-	if s.configReader == nil {
-		return fallback
-	}
-	if v, ok := s.configReader.GetFloat(context.Background(), key); ok {
-		return v
-	}
-	return fallback
-}
-
 func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (string, error) {
 	if s.chatRepo == nil {
 		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
-	if s.llmService == nil {
+	if s.modelFactory == nil || s.modelFactory.GetModel() == nil {
 		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 服务未初始化"}
 	}
 
@@ -666,490 +607,30 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
   "summary": "一句话总结（30字以内）"
 }`, helpfulCount, helpful.String(), unhelpfulCount, unhelpful.String())
 
-	client := s.llmService.getLLMClient()
-	if client == nil {
-		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 客户端未初始化"}
+	// Eino ChatModel.Generate（非流式）
+	msgs := []*schema.Message{
+		{Role: schema.System, Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
+		{Role: schema.User, Content: prompt},
 	}
-
-	modelName, maxTokens := s.llmService.getModelConfig()
-	llmResp, err := client.ChatCompletion(ctx, adapter.ChatRequest{
-		Messages: []adapter.ChatMessage{
-			{Role: "system", Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
-			{Role: "user", Content: prompt},
-		},
-		Model:          modelName,
-		MaxTokens:      maxTokens,
-		Temperature:    0.3,
-		EnableThinking: true,
-	})
+	resp, err := s.modelFactory.GetModel().Generate(ctx, msgs)
 	if err != nil {
 		return "", fmt.Errorf("LLM 分析调用失败: %w", err)
 	}
 
-	return llmResp.Content, nil
+	return resp.Content, nil
 }
 
-// =============================================================================
-// LLMService — RAG + LLM 调用编排
-// =============================================================================
 
-type SyncChatResult struct {
-	Answer     string
-	Sources    []respDto.SourceItem
-	Confidence float64
-	Pipeline   *ChatPipelineMeta
+func truncateRunes(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	return string(runes[:maxRunes]) + "..."
 }
 
-type LLMService struct {
-	mu                 sync.Mutex
-	llmClient          adapter.LLMClient
-	configMgr          *llmconfig.LLMConfigManager
-	defaultModel       string
-	pipeline           ragPipeline
-	embedder           *rag.Embedder
-	maxHistoryMessages int
-	configWarnOnce     sync.Once
-}
-
-func NewLLMService(llmClient adapter.LLMClient, configMgr *llmconfig.LLMConfigManager, defaultModel string, pipeline ragPipeline, embedder *rag.Embedder, maxHistoryMessages int) *LLMService {
-	if maxHistoryMessages <= 0 {
-		maxHistoryMessages = 10
-	}
-	return &LLMService{
-		llmClient:          llmClient,
-		configMgr:          configMgr,
-		defaultModel:       defaultModel,
-		pipeline:           pipeline,
-		embedder:           embedder,
-		maxHistoryMessages: maxHistoryMessages,
-	}
-}
-
-func (s *LLMService) SetLLMClient(client adapter.LLMClient) {
-	s.mu.Lock()
-	s.llmClient = client
-	s.mu.Unlock()
-}
-
-func (s *LLMService) getLLMClient() adapter.LLMClient {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.llmClient
-}
-
-func (s *LLMService) SyncChat(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage) (*SyncChatResult, error) {
-	start := time.Now()
-
-	ragResult, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	chunks := ragResult.Chunks
-
-	if len(chunks) == 0 {
-		return &SyncChatResult{
-			Answer:     "暂未找到足够匹配的知识，建议提交申告由运维人员人工处理。",
-			Confidence: 0,
-			Pipeline:   pipeMeta,
-		}, nil
-	}
-
-	var answer string
-	if client := s.getLLMClient(); client != nil {
-		messages := s.buildMessages(chunks, question, history)
-		modelName, maxTokens := s.getModelConfig()
-		llmResp, llmErr := client.ChatCompletion(ctx, adapter.ChatRequest{
-			Messages:    messages,
-			Model:       modelName,
-			MaxTokens:   maxTokens,
-			Temperature: 0.3,
-		})
-		if llmErr != nil {
-			answer = "当前 AI 服务暂不可用，请提交申告由人工处理"
-		} else {
-			answer = llmResp.Content
-		}
-	} else {
-		var sb strings.Builder
-		for i, c := range chunks {
-			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, c.Content))
-		}
-		answer = "以下是与您问题相关的知识条目：\n\n" + sb.String()
-	}
-
-	if pipeMeta != nil {
-		pipeMeta.Steps = append(pipeMeta.Steps, ChatPipelineStep{
-			ID:         "llm_generate",
-			Label:      "LLM 生成",
-			DurationMS: int(time.Since(start).Milliseconds()) - pipeMeta.TotalDurationMS,
-		})
-		pipeMeta.TotalDurationMS = int(time.Since(start).Milliseconds())
-	}
-
-	confRaw, _ := s.computeConfidence(chunks, ragResult.QuestionEmbedding, answer)
-
-	return &SyncChatResult{
-		Answer:     answer,
-		Sources:    extractSources(chunks),
-		Confidence: confRaw,
-		Pipeline:   pipeMeta,
-	}, nil
-}
-
-const (
-	ragDisabledNotice  = "\n\n> ⚠️ 当前已关闭知识库检索，以下回答由 AI 直接生成，可能不够准确。\n\n"
-	ragNoResultNotice  = "\n\n> ⚠️ 当前暂未找到足够匹配的知识，以下回答由 AI 直接生成，仅供参考。\n\n"
-	llmUnavailableText = "抱歉，当前 AI 服务暂不可用。建议您：\n1. 稍后重试\n2. 提交运维申告由人工处理\n3. 联系运维团队获取帮助"
-)
-
-func (s *LLMService) StreamChat(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, history []adapter.ChatMessage, enableThinking bool) (<-chan StreamEvent, error) {
-	eventCh := make(chan StreamEvent, 100)
-
-	go func() {
-		defer close(eventCh)
-		start := time.Now()
-
-		onStep := func(evt rag.StepEvent) {
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "step", ID: evt.ID, Label: evt.Label})
-		}
-		ragResult, pipeMeta, err := s.executeRAG(ctx, question, kbID, opts, onStep)
-		if err != nil {
-			slog.Warn("RAG 检索失败，降级为纯 LLM 模式", "error", err)
-			ragResult = &rag.RAGResult{}
-		}
-		chunks := ragResult.Chunks
-
-		ragDisabled := opts.DisableRetrieval
-		ragEmpty := len(chunks) == 0
-		if ragDisabled || ragEmpty {
-			var notice string
-			if ragDisabled {
-				notice = ragDisabledNotice
-			} else {
-				notice = ragNoResultNotice
-			}
-			s.sendNoticeToken(ctx, eventCh, notice)
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-				Answer:          "当前未找到足够匹配的知识，无法生成回答。",
-				Confidence:      0,
-				ConfidenceRaw:   0,
-				ConfidenceLevel: "low",
-				CanSubmitTicket: true,
-				DurationMS:      int(time.Since(start).Milliseconds()),
-			}})
-			return
-		}
-
-		if len(ragResult.ChunkDisplays) > 0 {
-			sendOrCancel(ctx, eventCh, StreamEvent{Type: "chunks", Chunks: ragResult.ChunkDisplays})
-		}
-
-		if s.getLLMClient() == nil {
-			s.sendFallback(ctx, eventCh, start)
-			return
-		}
-
-		sendOrCancel(ctx, eventCh, StreamEvent{Type: "step", ID: "llm_generate", Label: "LLM 生成"})
-
-		messages := s.buildMessages(chunks, question, history)
-		modelName, maxTokens := s.getModelConfig()
-		tokenCh, llmErr := s.getLLMClient().ChatCompletionStream(ctx, adapter.ChatRequest{
-			Messages:       messages,
-			Model:          modelName,
-			MaxTokens:      maxTokens,
-			Temperature:    0.3,
-			EnableThinking: enableThinking,
-		})
-		if llmErr != nil {
-			slog.Error("LLM 流式调用失败，降级固定回复", "error", llmErr)
-			s.sendFallback(ctx, eventCh, start)
-			return
-		}
-
-		var answerBuf strings.Builder
-	streamLoop:
-		for chunk := range tokenCh {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-			if chunk.Error != nil {
-				if answerBuf.Len() > 0 {
-					partialAnswer := answerBuf.String()
-					confRaw, confLevel := s.computeConfidence(chunks, ragResult.QuestionEmbedding, partialAnswer)
-					sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-						Answer:          answerBuf.String(),
-						Sources:         extractSources(chunks),
-						Confidence:      confRaw,
-						ConfidenceRaw:   confRaw,
-						ConfidenceLevel: confLevel,
-						CanSubmitTicket: confLevel != "high",
-						DurationMS:      int(time.Since(start).Milliseconds()),
-					}})
-				} else {
-					s.sendFallback(ctx, eventCh, start)
-				}
-				return
-			}
-			if chunk.Reasoning != "" {
-				sendOrCancel(ctx, eventCh, StreamEvent{Type: "reasoning", Content: chunk.Reasoning})
-			}
-			if chunk.Content != "" {
-				answerBuf.WriteString(chunk.Content)
-				if ok := sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: chunk.Content}); !ok {
-					return
-				}
-			}
-			if chunk.FinishReason != "" {
-				break streamLoop
-			}
-		}
-
-		fullAnswer := answerBuf.String()
-		if strings.TrimSpace(fullAnswer) == "" {
-			s.sendFallback(ctx, eventCh, start)
-			return
-		}
-
-		sources := extractSources(chunks)
-		confRaw, confLevel := s.computeConfidence(chunks, ragResult.QuestionEmbedding, fullAnswer)
-		durationMS := int(time.Since(start).Milliseconds())
-		if pipeMeta != nil {
-			pipeMeta.TotalDurationMS = durationMS
-		}
-
-		sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-			Answer:          fullAnswer,
-			Sources:         sources,
-			Confidence:      confRaw,
-			ConfidenceRaw:   confRaw,
-			ConfidenceLevel: confLevel,
-			CanSubmitTicket: confLevel != "high",
-			DurationMS:      durationMS,
-			Pipeline:        pipeMeta,
-		}})
-	}()
-
-	return eventCh, nil
-}
-
-func (s *LLMService) sendNoticeToken(ctx context.Context, eventCh chan<- StreamEvent, notice string) {
-	sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: notice})
-}
-
-func (s *LLMService) sendFallback(ctx context.Context, eventCh chan<- StreamEvent, start time.Time) {
-	sendOrCancel(ctx, eventCh, StreamEvent{Type: "token", Content: llmUnavailableText})
-	sendOrCancel(ctx, eventCh, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
-		Answer:          llmUnavailableText,
-		Confidence:      0,
-		ConfidenceRaw:   0,
-		ConfidenceLevel: "low",
-		CanSubmitTicket: true,
-		DurationMS:      int(time.Since(start).Milliseconds()),
-	}})
-}
-
-func (s *LLMService) executeRAG(ctx context.Context, question string, kbID int64, opts rag.RAGOptions, onStep rag.StepCallback) (*rag.RAGResult, *ChatPipelineMeta, error) {
-	if s.pipeline == nil {
-		return nil, nil, nil
-	}
-
-	var steps []ChatPipelineStep
-	start := time.Now()
-
-	result, err := s.pipeline.Execute(ctx, question, kbID, opts, onStep)
-	if err != nil {
-		return nil, nil, fmt.Errorf("知识检索失败: %w", err)
-	}
-
-	if result != nil {
-		for _, m := range result.Metrics.Steps {
-			steps = append(steps, ChatPipelineStep{
-				ID:         m.StepID,
-				Label:      m.Label,
-				DurationMS: int(m.DurationMS),
-				Success:    m.Success,
-			})
-		}
-		return result, &ChatPipelineMeta{
-			Steps:           steps,
-			TotalDurationMS: int(time.Since(start).Milliseconds()),
-		}, nil
-	}
-
-	return nil, nil, nil
-}
-
-func (s *LLMService) buildMessages(chunks []rag.RetrievalResult, question string, history []adapter.ChatMessage) []adapter.ChatMessage {
-	systemPrompt := "你是企业运维知识助手。严格仅根据下方「知识库内容」回答，禁止使用外部知识。\n\n规则：\n1. 每条事实后必须标注来源编号，如 [1]、[2]。无编号的回答视为无效\n2. 知识库有答案 → 原文复述，不编造细节\n3. 知识库无相关信息 → 只回复「当前知识库未收录此问题，建议提交申告由运维人员处理」\n4. 回答简洁，列表/步骤优先，不闲聊"
-	if s.configMgr != nil {
-		if cfg := s.configMgr.GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
-			systemPrompt = cfg.SystemPrompt
-		}
-	}
-	var ctxBuilder strings.Builder
-	for i, chunk := range chunks {
-		ctxBuilder.WriteString(fmt.Sprintf("[%d] %s\n", i+1, chunk.Content))
-	}
-
-	msgs := []adapter.ChatMessage{
-		{Role: "system", Content: systemPrompt},
-	}
-
-	if s.maxHistoryMessages > 0 && len(history) > s.maxHistoryMessages {
-		history = history[len(history)-s.maxHistoryMessages:]
-	}
-	for _, h := range history {
-		msgs = append(msgs, h)
-	}
-
-	msgs = append(msgs, adapter.ChatMessage{
-		Role: "user", Content: fmt.Sprintf("知识库内容：\n%s\n\n用户问题：%s", ctxBuilder.String(), question),
-	})
-
-	return msgs
-}
-
-func (s *LLMService) getModelConfig() (model string, maxTokens int) {
-	model = s.defaultModel
-	maxTokens = 2048
-	if s.configMgr != nil {
-		if cfg := s.configMgr.GetConfig(); cfg != nil {
-			if cfg.LLMModel != "" {
-				model = cfg.LLMModel
-			}
-			if cfg.MaxTokens > 0 {
-				maxTokens = cfg.MaxTokens
-			}
-			return
-		}
-	}
-	s.configWarnOnce.Do(func() {
-		slog.Info("LLM 配置使用 config.yaml 默认值（DB 中未设置默认 LLM 配置）", "model", model)
-	})
-	return
-}
-
-// =============================================================================
-// 公共辅助函数
-// =============================================================================
-
-func sendOrCancel(ctx context.Context, ch chan<- StreamEvent, evt StreamEvent) bool {
-	select {
-	case ch <- evt:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func extractSources(chunks []rag.RetrievalResult) []respDto.SourceItem {
-	sources := make([]respDto.SourceItem, len(chunks))
-	for i, c := range chunks {
-		sources[i] = respDto.SourceItem{
-			DocName:      fmt.Sprintf("来源 %d", i+1),
-			ChunkContent: c.Content,
-			Confidence:   c.ConfRaw,
-		}
-	}
-	return sources
-}
-
-// =============================================================================
-// 置信度计算
-// =============================================================================
-
-func (s *LLMService) computeConfidence(chunks []rag.RetrievalResult, questionEmb []float32, answer string) (float64, string) {
-	if strings.TrimSpace(answer) == "" {
-		return 0, "low"
-	}
-
-	sRetrieval := computeSRetrieval(chunks)
-	sQA := 0.0
-	if len(questionEmb) > 0 && s.embedder != nil {
-		sQA = computeSQA(s.embedder, questionEmb, answer)
-	}
-
-	alpha := answerLenAlpha(len([]rune(answer)))
-	confRaw := alpha*sRetrieval + (1-alpha)*sQA
-
-	if confRaw < 0 {
-		confRaw = 0
-	}
-	if confRaw > 1 {
-		confRaw = 1
-	}
-
-	const defaultLowT, defaultHighT = 0.40, 0.70
-	level := "low"
-	if confRaw >= defaultHighT {
-		level = "high"
-	} else if confRaw >= defaultLowT {
-		level = "medium"
-	}
-
-	return confRaw, level
-}
-
-func computeSRetrieval(chunks []rag.RetrievalResult) float64 {
-	if len(chunks) == 0 {
-		return 0
-	}
-
-	var sumWeighted, sumWeights float64
-	for i, c := range chunks {
-		w := 1.0 / float64(i+1)
-		score := c.ConfRaw
-		if score == 0 {
-			score = c.RawCosineScore
-		}
-		sumWeighted += w * score
-		sumWeights += w
-	}
-	if sumWeights == 0 {
-		return 0
-	}
-	return sumWeighted / sumWeights
-}
-
-func computeSQA(embedder *rag.Embedder, questionEmb []float32, answer string) float64 {
-	vecs, _, err := embedder.Embed(context.Background(), []string{answer}, "")
-	if err != nil || len(vecs) == 0 {
-		slog.Warn("S_qa embedding 失败，降级为 0", "error", err)
-		return 0
-	}
-	return cosineSimilarity(questionEmb, vecs[0])
-}
-
-func cosineSimilarity(a, b []float32) float64 {
-	if len(a) == 0 || len(b) == 0 || len(a) != len(b) {
-		return 0
-	}
-	var dot, normA, normB float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
-}
-
-func answerLenAlpha(length int) float64 {
-	switch {
-	case length >= 20:
-		return 0.7
-	case length >= 5:
-		return 0.85
-	default:
-		return 1.0
-	}
-}
-
+// confidenceLevel 置信度分级（high/medium/low）。Agent 不产生置信度；
+// GetChatDetail 展示历史会话（RAG 时期）的置信度。
 func confidenceLevel(raw float64) string {
 	const defaultLowT, defaultHighT = 0.40, 0.70
 	if raw >= defaultHighT {
@@ -1159,12 +640,4 @@ func confidenceLevel(raw float64) string {
 		return "medium"
 	}
 	return "low"
-}
-
-func truncateRunes(s string, maxRunes int) string {
-	runes := []rune(s)
-	if len(runes) <= maxRunes {
-		return s
-	}
-	return string(runes[:maxRunes]) + "..."
 }

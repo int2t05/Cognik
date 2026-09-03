@@ -10,12 +10,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/infra/adapter"
 )
 
 // MultiRoute 使用 LLM 从不同角度生成多个子查询，count 自动钳位到 [2,4]。
 // LLM 失败或 llm 为 nil 时降级返回 [query]。
-func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string, count int) ([]string, error) {
+func MultiRoute(ctx context.Context, llm LLMClient, model, query string, count int) ([]string, error) {
 	if llm == nil {
 		return []string{query}, nil
 	}
@@ -33,9 +32,9 @@ func MultiRoute(ctx context.Context, llm adapter.LLMClient, model, query string,
 	)
 	userMsg := fmt.Sprintf("原始查询：%s", query)
 
-	resp, err := llm.ChatCompletion(ctx, adapter.ChatRequest{
+	resp, err := llm.ChatCompletion(ctx, ChatRequest{
 		Model: model,
-		Messages: []adapter.ChatMessage{
+		Messages: []ChatMessage{
 			{Role: "system", Content: systemMsg},
 			{Role: "user", Content: userMsg},
 		},
