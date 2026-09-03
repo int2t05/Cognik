@@ -61,7 +61,7 @@ export function Markdown({ content, className, articleId, renderCitation }: Mark
       let imgSrc = src;
       if (typeof src === 'string' && src.startsWith('images/')) {
         const aid = articleId ?? (typeof window !== 'undefined' ? (window.location.pathname.match(/\/(\d+)(?:\/[^/]*)?$/)?.[1] ?? '') : '');
-        imgSrc = `/api/v1/admin/files/articles/${aid}/images/${src.slice(7)}`;
+        imgSrc = `/api/v1/public/articles/${aid}/images/${src.slice(7)}`;
       }
       return <img src={imgSrc} alt={props.alt} className="max-w-full h-auto rounded-[var(--radius-lg)] my-2" />;
     },
