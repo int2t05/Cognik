@@ -46,10 +46,9 @@ func setupDashboardTest(t *testing.T) *dashboard.DashboardService {
 	dashboardDB.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32) NOT NULL UNIQUE,
 		user_id BIGINT NOT NULL, title VARCHAR(255) NOT NULL, description TEXT NOT NULL,
-		urgency SMALLINT NOT NULL DEFAULT 1, impact_scope SMALLINT NOT NULL DEFAULT 1,
-		affected_systems JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
+		tags JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
 		status SMALLINT NOT NULL DEFAULT 1, supplement_count SMALLINT NOT NULL DEFAULT 0,
-		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1,
+		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1, deadline_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 	dashboardDB.Exec(`CREATE TABLE IF NOT EXISTS chat_sessions (
