@@ -25,7 +25,9 @@ import type { ApiChatMessage } from '@/hooks/useChatSessions.types';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
-import { ChatPipeline } from '@/components/chat/ChatPipeline';
+import dynamic from 'next/dynamic';
+// ChatPipeline 重组件懒加载（代码分割）
+const ChatPipeline = dynamic(() => import('@/components/chat/ChatPipeline').then((m) => m.ChatPipeline), { ssr: false });
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 

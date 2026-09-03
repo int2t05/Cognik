@@ -66,13 +66,13 @@ export default function TicketSubmitPage() {
       <form onSubmit={handleSubmit}>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
-          <Field label="申告标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
-          <Field label="详细描述"><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
+          <Field label="申告标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
+          <Field label="详细描述" required><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" /></Field>
         </Card>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">联系信息</h2>
-          <Field label="联系电话"><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
+          <Field label="联系电话" required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">

@@ -1,10 +1,10 @@
 'use client';
 import { useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import useSWR from 'swr';
-import { getStats, getTrends, type TrendPoint } from '@/lib/api/dashboard';
+import { getStats, getTrends, exportTrendsCSV, type TrendPoint } from '@/lib/api/dashboard';
 import { analyzeFeedback, type FeedbackAnalysis } from '@/lib/api/chat';
 import { StatCard } from '@/components/shared/StatCard';
-import { TrendChart } from '@/components/shared/TrendChart';
 import { formatPercent } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,7 +13,10 @@ import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { InlineError } from '@/components/shared/InlineError';
-import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
+import { Ticket, MessageSquare, TrendingUp, BookOpen, Clock, CheckCircle, AlertTriangle, RotateCw, ThumbsUp, ThumbsDown, Loader2, Download } from 'lucide-react';
+
+// TrendChart 重组件懒加载（代码分割）
+const TrendChart = dynamic(() => import('@/components/shared/TrendChart').then((m) => m.TrendChart), { ssr: false, loading: () => <Skeleton className="h-[320px]" /> });
 
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 function daysAgoStr(days: number): string { return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10); }
@@ -52,6 +55,7 @@ export default function DashboardPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FeedbackAnalysis | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
 
@@ -129,6 +133,22 @@ export default function DashboardPage() {
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
       />
+
+      <div className="mt-3 flex justify-end">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={trendsLoading || !!trendsErr || exporting}
+          onClick={async () => {
+            setExporting(true);
+            try { await exportTrendsCSV(dateRange.start, dateRange.end); toast.success('CSV 已下载'); }
+            catch (err) { toast.error(errorMessage(err, '导出失败')); }
+            finally { setExporting(false); }
+          }}
+        >
+          {exporting ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}导出 CSV
+        </Button>
+      </div>
 
       {/* 知识健康度分析 */}
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">

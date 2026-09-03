@@ -133,9 +133,9 @@ export default function UserListPage() {
             <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
             {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
           </DialogHeader>
-          {!editUser && <><Field label="用户名"><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码"><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
-          <Field label="姓名"><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
-          <Field label="手机"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          {!editUser && <><Field label="用户名" required><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码" required><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
+          <Field label="姓名" required><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
+          <Field label="手机" required><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="邮箱"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="角色">
             <div className="flex flex-wrap gap-2">

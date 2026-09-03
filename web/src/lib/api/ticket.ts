@@ -33,3 +33,6 @@ export function createKnowledgeCandidate(id: number, kb_id: number) {
 export function batchDeleteTickets(ids: number[]) {
   return apiFetch<null>('/api/v1/admin/tickets/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) });
 }
+export function batchCloseTickets(ids: number[]) {
+  return apiFetch<{ results: { id: number; success: boolean; error_msg: string }[] }>('/api/v1/admin/tickets/batch-close', { method: 'POST', body: JSON.stringify({ ids }) });
+}

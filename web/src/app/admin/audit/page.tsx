@@ -8,6 +8,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -16,7 +17,8 @@ import { ScrollText } from 'lucide-react';
 
 export default function AuditLogPage() {
   const [page, setPage] = useState(1);
-  const { data, error, mutate } = useSWR(`audit-${page}`, () => getAuditLogs({ page, page_size: 10 }));
+  const [keyword, setKeyword] = useState('');
+  const { data, error, mutate } = useSWR(`audit-${page}-${keyword}`, () => getAuditLogs({ page, page_size: 10, keyword }));
 
   const items = data?.items || [];
   const batch = useBatchSelection({
@@ -30,11 +32,12 @@ export default function AuditLogPage() {
     <div>
       <div className="flex items-center gap-2 mb-5">
         <PageTitle className="mb-0">审计日志</PageTitle>
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索操作/对象…" />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
       {error && <InlineError />}
       {!error && data?.items?.length === 0 ? (
-        <EmptyState icon={<ScrollText size={40} />} title="暂无审计日志" description="系统操作记录将显示在这里" />
+        <EmptyState icon={<ScrollText size={40} />} title={keyword ? '未找到匹配的审计日志' : '暂无审计日志'} description={keyword ? `没有操作或对象含"${keyword}"的记录` : '系统操作记录将显示在这里'} />
       ) : (
         <>
           <DataTable

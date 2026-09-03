@@ -6,11 +6,14 @@
  */
 import { useRef, useCallback } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { FileText, AlertTriangle, ThumbsUp, ThumbsDown, Bot, User, CheckCircle2, HelpCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Markdown } from '@/components/shared/Markdown';
 import type { ChunkDisplay } from '@/contexts/ChatStreamProvider';
+
+// Markdown 重组件懒加载（代码分割，含 Mermaid/高亮/公式）
+const Markdown = dynamic(() => import('@/components/shared/Markdown').then((m) => m.Markdown), { ssr: false, loading: () => <Loader2 className="animate-spin" size={16} /> });
 
 interface SourceItem { doc_name: string; chunk_content: string; confidence: number; }
 

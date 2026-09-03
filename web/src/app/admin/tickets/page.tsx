@@ -2,7 +2,7 @@
 import useSWR from 'swr';
 import { useState } from 'react';
 import Link from 'next/link';
-import { listAllTickets, batchDeleteTickets } from '@/lib/api/ticket';
+import { listAllTickets, batchDeleteTickets, batchCloseTickets } from '@/lib/api/ticket';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
@@ -10,13 +10,14 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { formatDate } from '@/lib/date';
-import { FileText } from 'lucide-react';
+import { FileText, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Button } from '@/components/ui/button';
 
 const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
   { value: -1, label: '全部' },
@@ -43,6 +44,27 @@ export default function AdminTicketListPage() {
   });
 
   const isEmpty = !error && data && items.length === 0;
+  const [batchCloseConfirm, setBatchCloseConfirm] = useState(false);
+  const [batchClosing, setBatchClosing] = useState(false);
+
+  // 批量关闭：逐条返回成功/失败，汇总提示
+  const handleBatchClose = async () => {
+    setBatchClosing(true);
+    try {
+      const ids = Array.from(batch.selectedIds).map(Number);
+      const res = await batchCloseTickets(ids);
+      const ok = res.results.filter((r) => r.success).length;
+      const fail = res.results.length - ok;
+      toast.success(`已关闭 ${ok} 条` + (fail ? `，${fail} 条失败（已关闭/已解决不可关闭）` : ''));
+      setBatchCloseConfirm(false);
+      batch.clearSelection();
+      mutate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '批量关闭失败');
+    } finally {
+      setBatchClosing(false);
+    }
+  };
 
   return (
     <div>
@@ -53,6 +75,7 @@ export default function AdminTicketListPage() {
       <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
         <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
+        {batch.selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setBatchCloseConfirm(true)}><XCircle size={14} />批量关闭</Button>}
       </div>
       {isEmpty ? (
         <EmptyState
@@ -81,6 +104,10 @@ export default function AdminTicketListPage() {
         title="批量删除申告"
         message={`确定要删除 ${batch.selectedIds.size} 条申告吗？此操作不可撤销。`}
         onConfirm={async () => { await batch.handleBatchDelete(); toast.success('已删除'); }} loading={batch.deleting} danger confirmLabel="删除" />
+      <ConfirmDialog open={batchCloseConfirm} onOpenChange={setBatchCloseConfirm}
+        title="批量关闭申告"
+        message={`确定要关闭 ${batch.selectedIds.size} 条申告吗？已解决/已关闭的申告将被跳过。`}
+        onConfirm={handleBatchClose} loading={batchClosing} confirmLabel="关闭" />
     </div>
   );
 }
