@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/shared/dto/request"
 	respDto "opsmind/internal/shared/dto/response"
@@ -20,22 +21,16 @@ import (
 // AppError 是 errcode.AppError 的类型别名。
 type AppError = errcode.AppError
 
-// AuditWriter 审计日志写入接口（消费者接口）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-	WriteWithTx(ctx context.Context, tx *gorm.DB, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
-
 // UserService 用户管理服务。
 type UserService struct {
 	repo        *UserRepo
-	auditWriter AuditWriter
+	auditWriter audit.AuditWriter
 	db          *gorm.DB
 	userCache   *cache.UserStatusCache
 }
 
 // NewUserService 创建 UserService 实例。
-func NewUserService(repo *UserRepo, auditWriter AuditWriter, db *gorm.DB, userCache *cache.UserStatusCache) *UserService {
+func NewUserService(repo *UserRepo, auditWriter audit.AuditWriter, db *gorm.DB, userCache *cache.UserStatusCache) *UserService {
 	return &UserService{repo: repo, auditWriter: auditWriter, db: db, userCache: userCache}
 }
 

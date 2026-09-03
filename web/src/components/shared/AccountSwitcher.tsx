@@ -63,12 +63,11 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
             </p>
           ) : (
             accounts.map((a) => {
-              const expired = Date.now() - a.savedAt > 7 * 24 * 3600 * 1000;
               return (
                 <DropdownMenuItem
                   key={a.username}
                   onSelect={() => handleSwitch(a)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-caption ${expired ? 'opacity-50' : ''}`}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-caption"
                 >
                   <span className="w-8 h-8 rounded-full bg-[var(--color-accent)]/10 flex items-center justify-center text-caption font-semibold text-[var(--color-accent)] shrink-0">
                     {a.realName?.[0] || a.username?.[0] || '?'}
@@ -76,7 +75,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-[var(--color-ink)]">{a.realName || a.username}</span>
                     <span className="block text-fine text-[var(--color-text-muted-48)]">
-                      {a.username}{expired ? ' · 已过期' : ''}
+                      {a.username}
                     </span>
                   </span>
                   <Button

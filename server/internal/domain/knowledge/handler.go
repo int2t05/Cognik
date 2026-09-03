@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"opsmind/internal/shared/dto/request"
 	dto "opsmind/internal/shared/dto/response"
@@ -93,7 +94,7 @@ func NewKnowledgeHandler(svc *KnowledgeService) *KnowledgeHandler {
 //
 // GET /api/v1/portal/knowledge-bases
 func (h *KnowledgeHandler) ListKBsForPortal(c *gin.Context) {
-	kbs, err := h.svc.ListKBs(c.Request.Context())
+	kbs, err := h.svc.ListKBs(c.Request.Context(), "")
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -174,7 +175,8 @@ func (h *KnowledgeHandler) DeleteKB(c *gin.Context) {
 //
 // GET /api/v1/admin/knowledge-bases
 func (h *KnowledgeHandler) ListKBs(c *gin.Context) {
-	kbs, err := h.svc.ListKBs(c.Request.Context())
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	kbs, err := h.svc.ListKBs(c.Request.Context(), keyword)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -395,7 +397,8 @@ func (h *KnowledgeHandler) GetArticleDetail(c *gin.Context) {
 // 文档上传/状态/重试
 // =============================================================================
 
-// UploadDocuments 上传文档到知识库（multipart form，字段名 files，最多 10 个文件）。
+// UploadDocuments 并发上传文档到知识库（multipart form，字段名 files，最多 10 个文件）。
+// 每个文件独立处理，部分失败不影响其他文件，逐项返回成功/失败结果。
 //
 // POST /api/v1/admin/knowledge-bases/:kb_id/documents/upload
 func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
@@ -413,8 +416,8 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 		response.Error(c, errcode.ErrParam, "未选择文件（字段名: files）")
 		return
 	}
-	if len(files) > 10 {
-		response.Error(c, errcode.ErrParam, "单次最多上传 10 个文件")
+	if len(files) > maxUploadFileCount {
+		response.Error(c, errcode.ErrParam, fmt.Sprintf("单次最多上传 %d 个文件", maxUploadFileCount))
 		return
 	}
 
@@ -427,32 +430,103 @@ func (h *KnowledgeHandler) UploadDocuments(c *gin.Context) {
 			tags[i] = strings.TrimSpace(tags[i])
 		}
 	}
-	items := make([]dto.DocumentUploadItem, 0, len(files))
 
-	for _, fh := range files {
-		fileType, reader, err := sniffFileType(fh)
-		if err != nil {
-			response.Error(c, errcode.ErrParam, fh.Filename+": "+err.Error())
-			return
-		}
-		defer reader.Close()
+	// 预分配结果切片：每个 goroutine 只写自己的 index，无需互斥锁
+	results := make([]dto.DocumentUploadItem, len(files))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 4) // 并发度 4，避免大文件解析打满内存与连接
 
-		article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, tags, reader)
-		if err != nil {
-			handleServiceError(c, err)
-			return
-		}
+	for i, fh := range files {
+		wg.Add(1)
+		go func(idx int, fh *multipart.FileHeader) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		items = append(items, dto.DocumentUploadItem{
-			ArticleID:     article.ID,
-			FileName:      fh.Filename,
-			FileSize:      fh.Size,
-			FileType:      fileType,
-			ProcessStatus: article.ProcessStatus,
-		})
+			item := dto.DocumentUploadItem{FileName: fh.Filename, FileSize: fh.Size}
+
+			fileType, reader, err := sniffFileType(fh)
+			if err != nil {
+				item.ErrorMsg = err.Error()
+				results[idx] = item
+				return
+			}
+			defer reader.Close()
+			item.FileType = fileType
+
+			article, err := h.svc.UploadDocuments(c.Request.Context(), kbID, userID, fh.Filename, fileType, fh.Size, tags, reader)
+			if err != nil {
+				item.ErrorMsg = errcode.ExtractErrMsg(err)
+				results[idx] = item
+				return
+			}
+
+			item.ArticleID = article.ID
+			item.ProcessStatus = article.ProcessStatus
+			item.Success = true
+			results[idx] = item
+		}(i, fh)
 	}
+	wg.Wait()
 
-	response.Success(c, dto.DocumentUploadResponse{Documents: items})
+	response.Success(c, dto.DocumentUploadResponse{Documents: results})
+}
+
+// GetUploadConfig 返回文档上传配置（大小上限、允许类型、文件数上限）。
+//
+// GET /api/v1/config/upload
+func (h *KnowledgeHandler) GetUploadConfig(c *gin.Context) {
+	response.Success(c, h.svc.GetUploadConfig())
+}
+
+// UploadFile 通用文件上传（文章内嵌图片/附件），存到 article-assets 目录。
+// 返回 { url } 供前端 Markdown 引用，访问走 /api/v1/admin/files/article-assets/{filename}。
+//
+// POST /api/v1/admin/files/upload
+func (h *KnowledgeHandler) UploadFile(c *gin.Context) {
+	fh, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "未选择文件（字段名: file）")
+		return
+	}
+	src, err := fh.Open()
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "打开文件失败: "+err.Error())
+		return
+	}
+	defer src.Close()
+
+	storedName, err := h.svc.UploadAsset(c.Request.Context(), fh.Filename, fh.Header.Get("Content-Type"), fh.Size, src)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"url":      "/api/v1/admin/files/article-assets/" + storedName,
+		"filename": storedName,
+	})
+}
+
+// ServeFile 代理下载 article-assets 目录下的文件（Local 模式 ServeFile，MinIO 预签名重定向）。
+//
+// GET /api/v1/admin/files/article-assets/:filename
+func (h *KnowledgeHandler) ServeFile(c *gin.Context) {
+	filename := c.Param("filename")
+	if filename == "" || strings.ContainsAny(filename, "/\\") {
+		response.Error(c, errcode.ErrParam, "无效的文件名")
+		return
+	}
+	path, err := h.svc.AssetLocalPath(c.Request.Context(), filename)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	// MinIO 预签名 URL（http 开头）重定向；否则本地路径 ServeFile
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		c.Redirect(302, path)
+		return
+	}
+	c.File(path)
 }
 
 // sniffFileType 通过 MIME sniffing 检测文件类型（比扩展名更可靠，文本类型回退扩展名）。
@@ -478,6 +552,8 @@ func sniffFileType(fh *multipart.FileHeader) (string, io.ReadCloser, error) {
 }
 
 // detectFileType 根据 MIME 嗅探结果和扩展名判断文件类型。
+// OOXML(docx/xlsx/pptx)本质都是 zip，MIME 无法区分内部类型，按扩展名判定；
+// 图片按 image/* 前缀 + 扩展名双重确认；文本类型回退扩展名。
 func detectFileType(sniff []byte, filename string) string {
 	mime := http.DetectContentType(sniff)
 	ext := strings.ToLower(filepath.Ext(filename))
@@ -485,13 +561,32 @@ func detectFileType(sniff []byte, filename string) string {
 	switch {
 	case mime == "application/pdf":
 		return "pdf"
-	case strings.HasPrefix(mime, "application/vnd.openxmlformats-officedocument"):
-		return "docx"
-	case mime == "application/zip":
-		if ext == ".docx" {
+	case strings.HasPrefix(mime, "application/vnd.openxmlformats-officedocument"), mime == "application/zip":
+		switch ext {
+		case ".docx":
 			return "docx"
+		case ".xlsx":
+			return "xlsx"
+		case ".pptx":
+			return "pptx"
+		default:
+			return ""
 		}
-		return ""
+	case strings.HasPrefix(mime, "image/"):
+		switch ext {
+		case ".jpg", ".jpeg":
+			return "jpg"
+		case ".png":
+			return "png"
+		case ".gif":
+			return "gif"
+		case ".bmp":
+			return "bmp"
+		case ".webp":
+			return "webp"
+		default:
+			return ""
+		}
 	default:
 		// text/plain 等文本类型回退扩展名
 		switch ext {

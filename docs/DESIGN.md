@@ -1,11 +1,11 @@
 # OpsMind 前端设计系统 — shadcn/ui
 
-> 组件库统一：shadcn/ui（Radix + Tailwind v4）+ 统一 AppShell。UI 层无手写组件。
+> 组件库统一：shadcn/ui（Radix + Tailwind v4）+ 统一 AppShell。UI 层基于 shadcn/ui + 定制 variant（AppShell 内含内联搜索组件）。
 
 ## 1. 设计目标
 
-- **组件库统一**：采用 shadcn/ui（组件代码生成进仓库，非黑盒依赖），UI 层无手写组件。
-- **专业工具风格**：对齐 Linear / Vercel / GitHub——正文 13px 高信息密度、中性灰阶、靛蓝强调色、中性小圆角、克制阴影。
+- **组件库统一**：采用 shadcn/ui（组件代码生成进仓库，非黑盒依赖）+ 定制 variant；AppShell 内含内联搜索组件。
+- **专业工具风格**：正文 13px 高信息密度、中性灰阶、靛蓝强调色、中性小圆角、克制阴影。
 - **统一 Shell**：顶栏（品牌+内联全局搜索+主题+账号）+ 可折叠侧栏（分区 nav）+ main。Portal/Admin 共用单一 `AppShell`。
 
 ## 2. Token 映射（shadcn 语义 → 项目 Token）
@@ -31,7 +31,7 @@
 ## 3. 组件库
 
 ### 基础组件（shadcn 标准生成）
-button / card / input / textarea / label / table / dialog / badge / tabs / select / dropdown-menu / sheet / tooltip / command / pagination / toggle / skeleton / sonner / checkbox / separator / breadcrumb / avatar / scroll-area。
+button / card / input / textarea / label / table / dialog / badge / select / dropdown-menu / toggle / skeleton / sonner / checkbox / separator。
 
 ### 定制（设计系统配置）
 | 组件 | 定制 |
@@ -43,9 +43,9 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 | `card.tsx` | Card base：10px radius + hairline border + canvas bg + p-6 |
 | `dialog.tsx` | DialogContent `bg-card`，overlay 用 `var(--color-overlay)` |
 | `sonner.tsx` | 用 `@/hooks/useTheme`，配置 top-right/richColors/closeButton/visibleToasts=3 |
-| `data-table-pagination.tsx` | GitHub 风格分页：居中页码导航 + 左侧计数 + 右侧页大小 |
+| `data-table-pagination.tsx` | 居中页码分页：左侧计数+页大小 + 居中页码导航 |
 
-### 新建组件
+### 定制组件
 | 组件 | 说明 |
 |---|---|
 | `lib/utils.ts` `cn()` | clsx + tailwind-merge，类名合并标准入口 |
@@ -57,7 +57,7 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 
 `components/layout/AppShell.tsx`：Portal/Admin 共用。
 - **顶栏**：品牌 + 内联全局搜索（输入即时过滤导航+快捷操作，⌘K 聚焦）+ 主题切换 + 跨跳 + AccountSwitcher
-- **侧栏**：可折叠（68/220px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
+- **侧栏**：可折叠（56/240px，localStorage 持久化 + <1024px 自动折叠），nav 嵌套子菜单展开，active 顶层 sibling 检查（避免 /portal/tickets 误匹配 /portal/tickets/new）
 - **main**：`flex-1 min-h-0 overflow-hidden`，内容由页面自行管理 padding 和滚动
 
 `PortalLayout`：静态 NAV（用户菜单 + 消息未读 badge）+ 管理员条件渲染管理分区（来自 `useAuth().menus`，`hasAdminAccess` 判断）。
@@ -67,7 +67,7 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 
 `sonner` 替换手写 `ToastProvider`。`Toaster` 在 Providers 渲染，调用方 `import { toast } from 'sonner'` 直接调用（success/error/warning/info API 一致）。
 
-## 6. 行为契约（Chat 5 条，重构中严格保留）
+## 6. 行为契约（Chat 5 条，严格保留）
 
 1. `ChatStreamProvider` 留在 `app/portal/layout.tsx` 层（跨路由流持久化 + 自动 resume）。
 2. rAF token 批处理（`rafRefs`/`reasoningRafRefs` 双槽位）——不可改 per-token setState。
@@ -77,7 +77,7 @@ button / card / input / textarea / label / table / dialog / badge / tabs / selec
 
 ## 7. 组件清单
 
-UI 层全部基于 shadcn/ui，按功能分类：
+UI 层组件按功能分类：
 
 ### 表单类
 - `Input` / `Textarea` + `Field`（Label + error + aria 统一包裹）
@@ -87,9 +87,11 @@ UI 层全部基于 shadcn/ui，按功能分类：
 
 ### 数据展示类
 - `DataTable`（shadcn Table + TanStack Table v9，内置 skeleton/empty 态）
-- `DataTablePagination`（GitHub 风格分页 + Select 页大小）
+- `DataTablePagination`（居中页码分页 + Select 页大小）
 - `Badge` / `StatusBadge`（5 语义 variant，颜色+图标双编码）
 - `Card`（10px radius + hairline border + canvas bg）
+- `StatCard` / `TrendChart`（指标卡 + 趋势图）
+- `FilterBar`（列表筛选栏）
 
 ### 反馈类
 - `Dialog` / `ConfirmDialog`（compound，Radix 焦点陷阱/escape/scroll-lock）
@@ -97,12 +99,19 @@ UI 层全部基于 shadcn/ui，按功能分类：
 - `Skeleton`（shimmer 扫光动画）
 - `InlineError`（inline / full-page 双模式，统一错误提示）
 - `EmptyState` / `ErrorFallback`
+- `ErrorBoundary` / `SectionErrorBoundary`（全局 + 局部错误边界）
 
 ### 导航/布局类
-- `Button`（default/outline/destructive/ghost/secondary/link/menu variant + icon/sm/lg 尺寸）
+- `Button`（default/outline/destructive/ghost/secondary/link/menu variant + default/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg 尺寸）
 - `Toggle`（pill variant 用于 segmented control / 筛选）
-- `Tabs`（状态切换，带计数）
 - `DropdownMenu`（AccountSwitcher / 账号切换）
 - `AppShell`（统一 Shell：顶栏+侧栏+main）
+- `PageTitle`（页面标题）
+- `AccountSwitcher`（账号切换）
+- `DynamicTitle`（动态浏览器标题）
 
-UI 层无手写组件，统一由 shadcn/ui + 定制 variant 构成。全部路由 build + tsc 通过。
+### Chat 类
+- `ChatInput` / `ChatMessage` / `ChatPipeline`（输入框 / 消息 / 流水线进度）
+- `BatchSelectCheckbox`（批量选择）
+
+UI 层由 shadcn/ui + 定制 variant 构成，AppShell 内含内联搜索组件。全部路由 build + tsc 通过。

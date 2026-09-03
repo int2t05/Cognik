@@ -7,6 +7,7 @@ type AuditLogListRequest struct {
 	Action     string `form:"action"`      // 操作类型（空=全部）
 	TargetType string `form:"target_type"` // 目标类型（空=全部，如 user/role/knowledge/ticket）
 	TargetID   int64  `form:"target_id"`   // 目标 ID（0=全部）
+	Keyword    string `form:"keyword"`     // 关键词（模糊匹配 action/target_type/detail）
 	DateFrom   string `form:"date_from"`   // 起始日期（YYYY-MM-DD，可选）
 	DateTo     string `form:"date_to"`     // 结束日期（YYYY-MM-DD，可选）
 }

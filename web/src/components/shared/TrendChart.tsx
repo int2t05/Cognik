@@ -5,8 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
 import { Calendar, Loader2 } from 'lucide-react';
-
-export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
+import { type TrendPoint } from '@/lib/api/dashboard';
 
 interface TrendChartProps {
   data: TrendPoint[] | undefined;

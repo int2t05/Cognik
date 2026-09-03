@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
@@ -143,30 +144,43 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
 export default function SystemConfigPage() {
   const { data: configs, error, mutate } = useSWR('all-configs', () => getAllConfigs(CONFIG_KEYS));
   const v = (key: string) => configs?.find((c) => c.key === key)?.value;
+  const configsLoading = !configs && !error;
 
   return (
     <div>
       <PageTitle>系统配置</PageTitle>
       {error && <InlineError />}
-      <Card className="max-w-form">
-        <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
-        <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />
+      {configsLoading ? (
+        <Card className="max-w-form">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 mb-3">
+              <Skeleton className="h-4 w-[140px] shrink-0" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-8 w-8" />
+            </div>
+          ))}
+        </Card>
+      ) : (
+        <Card className="max-w-form">
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
+          <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />
 
-        <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">RAG 管道</h2>
-        <ConfigRow label="启用 RAG" configKey="ai.rag_enabled" value={v('ai.rag_enabled')} type="bool" onSaved={mutate} />
-        <ConfigRow label="默认 Top K" configKey="ai.top_k" value={v('ai.top_k')} onSaved={mutate} />
-        <ConfigRow label="低置信阈值" configKey="ai.confidence_threshold_low" value={v('ai.confidence_threshold_low')} onSaved={mutate} />
-        <ConfigRow label="高置信阈值" configKey="ai.confidence_threshold_high" value={v('ai.confidence_threshold_high')} onSaved={mutate} />
-        <ComputeThresholdsRow onApplied={mutate} />
-        <ConfigRow label="多轮对话上限" configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
-        <ConfigRow label="查询改写" configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
-        <ConfigRow label="多路检索" configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
-        <ConfigRow label="BM25 混合检索" configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
-        <ConfigRow label="重排序" configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">RAG 管道</h2>
+          <ConfigRow label="启用 RAG" configKey="ai.rag_enabled" value={v('ai.rag_enabled')} type="bool" onSaved={mutate} />
+          <ConfigRow label="默认 Top K" configKey="ai.top_k" value={v('ai.top_k')} onSaved={mutate} />
+          <ConfigRow label="低置信阈值" configKey="ai.confidence_threshold_low" value={v('ai.confidence_threshold_low')} onSaved={mutate} />
+          <ConfigRow label="高置信阈值" configKey="ai.confidence_threshold_high" value={v('ai.confidence_threshold_high')} onSaved={mutate} />
+          <ComputeThresholdsRow onApplied={mutate} />
+          <ConfigRow label="多轮对话上限" configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
+          <ConfigRow label="查询改写" configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
+          <ConfigRow label="多路检索" configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
+          <ConfigRow label="BM25 混合检索" configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
+          <ConfigRow label="重排序" configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
 
-        <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
-        <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
-      </Card>
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
+          <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
+        </Card>
+      )}
     </div>
   );
 }

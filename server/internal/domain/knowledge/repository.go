@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"opsmind/internal/shared/model"
+	"opsmind/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )
@@ -42,9 +43,14 @@ func (r *KnowledgeRepo) UpdateKB(ctx context.Context, kb *model.KnowledgeBase) e
 	return r.db.WithContext(ctx).Save(kb).Error
 }
 
-func (r *KnowledgeRepo) ListKBs(ctx context.Context) ([]model.KnowledgeBase, error) {
+func (r *KnowledgeRepo) ListKBs(ctx context.Context, keyword string) ([]model.KnowledgeBase, error) {
 	var kbs []model.KnowledgeBase
-	err := r.db.WithContext(ctx).Order("id ASC").Find(&kbs).Error
+	query := r.db.WithContext(ctx).Order("id ASC")
+	if keyword != "" {
+		like := "%" + dbutil.EscapeLike(keyword) + "%"
+		query = query.Where("name ILIKE ? ESCAPE '\\' OR description ILIKE ? ESCAPE '\\'", like, like)
+	}
+	err := query.Find(&kbs).Error
 	if err != nil {
 		return nil, err
 	}

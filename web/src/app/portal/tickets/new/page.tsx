@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
 import { Button } from '@/components/ui/button';
@@ -26,29 +26,17 @@ export default function TicketSubmitPage() {
   const chatContextRaw = searchParams.get('chat_context');
 
   // 从 chat_context 解析预填数据：描述 = 用户原始问题，标题由用户自行填写
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const chatContext = useMemo<ChatContextData | undefined>(() => {
+    if (!chatContextRaw) return undefined;
+    try { return JSON.parse(chatContextRaw) as ChatContextData; } catch { return undefined; }
+  }, [chatContextRaw]);
+
+  const [title, setTitle] = useState(chatContext?.question || '');
+  const [description, setDescription] = useState(chatContext?.question || '');
   const [tags, setTags] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [chatContext, setChatContext] = useState<ChatContextData | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
-
-  // 解析 chat_context 并预填标题和描述
-  useEffect(() => {
-    if (!chatContextRaw) return;
-    try {
-      const ctx: ChatContextData = JSON.parse(chatContextRaw);
-      setChatContext(ctx);
-      if (ctx.question) {
-        if (!title) setTitle(ctx.question);
-        if (!description) setDescription(ctx.question);
-      }
-    } catch {
-      // URL 参数格式错误，静默忽略
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatContextRaw]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,13 +66,13 @@ export default function TicketSubmitPage() {
       <form onSubmit={handleSubmit}>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
-          <Field label="申告标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
-          <Field label="详细描述"><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
+          <Field label="申告标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
+          <Field label="详细描述" required><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" /></Field>
         </Card>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">联系信息</h2>
-          <Field label="联系电话"><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
+          <Field label="联系电话" required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">

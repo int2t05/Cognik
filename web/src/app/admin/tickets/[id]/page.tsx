@@ -16,7 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageTitle } from '@/components/shared/PageTitle';
+import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
+import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
@@ -84,8 +87,10 @@ export default function AdminTicketDetailPage() {
 
   return (
     <div className="max-w-content">
-      <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
-      <h1 className="mb-2 text-display font-semibold text-[var(--color-ink)]">{ticket.title}</h1>
+      <div className="flex items-center gap-3 mb-5">
+        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
+        <PageTitle className="mb-0">{ticket.title}</PageTitle>
+      </div>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">
@@ -94,14 +99,14 @@ export default function AdminTicketDetailPage() {
         {ticket.tags && ticket.tags.length > 0 && (
           <span className="flex flex-wrap gap-1">
             {ticket.tags.map((t) => (
-              <span key={t} className="px-2 py-0.5 text-fine rounded-[var(--radius-pill)] bg-[var(--color-pearl)] text-[var(--color-text-muted-80)]">{t}</span>
+              <Badge key={t} variant="neutral">{t}</Badge>
             ))}
           </span>
         )}
       </div>
 
       <Card className="mb-4">
-        <p className="whitespace-pre-wrap">{ticket.description}</p>
+        <Markdown content={ticket.description} />
       </Card>
 
       <div className="mb-5 flex flex-wrap gap-2">

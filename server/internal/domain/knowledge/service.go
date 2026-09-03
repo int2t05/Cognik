@@ -10,9 +10,11 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"opsmind/internal/domain/system/audit"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
 	"opsmind/internal/parser"
@@ -22,15 +24,16 @@ import (
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
-// MaxDocumentSize 文档上传大小上限（50MB）。
-const MaxDocumentSize = 50 * 1024 * 1024
-
-// allowedDocumentTypes 支持上传的文档格式白名单。
-var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "xlsx": true, "pptx": true, "md": true, "txt": true}
+// allowedDocumentTypes 支持上传的文档格式白名单（图片格式仅 MinerU 引擎可解析，本地降级不支持）。
+var allowedDocumentTypes = map[string]bool{
+	"pdf": true, "docx": true, "xlsx": true, "pptx": true, "md": true, "txt": true,
+	"jpg": true, "png": true, "gif": true, "bmp": true, "webp": true,
+}
 
 // 存储两桶模型：
 //   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
@@ -40,6 +43,8 @@ var allowedDocumentTypes = map[string]bool{"pdf": true, "docx": true, "xlsx": tr
 const (
 	minioBucketDocs      = "opsmind-documents"
 	minioBucketPublished = "opsmind-published"
+	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。
+	maxUploadFileCount = 10
 )
 
 // articleContentKey 返回文章在存储中的目录名（title 清洗特殊字符，无扩展名）。
@@ -54,23 +59,6 @@ func articleContentKey(title string) string {
 // formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
 func formatArticleText(title, content string) string {
 	return "# " + title + "\n\n" + content
-}
-
-// AuditWriter 审计日志写入接口（消费者接口，避免跨领域循环依赖）。
-type AuditWriter interface {
-	Write(ctx context.Context, operatorID int64, action, targetType string, targetID int64, detail string) error
-}
-
-type knowledgeChunker interface {
-	Split(text string) []string
-}
-
-type knowledgeEmbedder interface {
-	Embed(ctx context.Context, texts []string, model string) ([][]float32, int, error)
-}
-
-type knowledgeDocParser interface {
-	Parse(reader io.Reader, fileType string) (*parser.ParseResult, error)
 }
 
 // knowledgeRepo KnowledgeService 使用的仓库方法子集。
@@ -91,7 +79,7 @@ type knowledgeRepo interface {
 	DeleteKB(ctx context.Context, id int64) error
 	DeleteArticle(ctx context.Context, id int64) error
 	ExistsByTitle(ctx context.Context, kbID int64, title string, excludeID int64) (bool, error)
-	ListKBs(ctx context.Context) ([]model.KnowledgeBase, error)
+	ListKBs(ctx context.Context, keyword string) ([]model.KnowledgeBase, error)
 	CountArticlesByKB(ctx context.Context) (map[int64]int, error)
 	ListArticles(ctx context.Context, kbID int64, status int, sourceType int, processStatus string, keyword string, page, pageSize int) ([]model.KnowledgeArticle, int64, error)
 	FindChunksByArticleID(ctx context.Context, articleID int64) ([]model.KnowledgeChunk, error)
@@ -113,16 +101,17 @@ type knowledgeMsgNotifier interface {
 type KnowledgeService struct {
 	repo                  knowledgeRepo
 	userNames             userNameResolver
-	chunker               knowledgeChunker
-	embedder              knowledgeEmbedder
+	chunker               rag.TextChunker
+	embedder              rag.TextEmbedder
 	store                 adapter.VectorStore
-	docParser             knowledgeDocParser
+	docParser             *parser.Parser
 	processor             *rag.Processor
 	storage               storage.StorageClient
-	auditWriter           AuditWriter
+	auditWriter           audit.AuditWriter
 	onKBChanged           func(kbID int64) // publish/disable 后触发 BM25 重建等
 	defaultEmbeddingModel string           // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
+	maxUploadSize         int64            // 上传大小上限(字节)，由 config 注入
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -134,12 +123,12 @@ func WithUserNames(u userNameResolver) KnowledgeServiceOption {
 }
 
 // WithChunker 设置文本分块器（发布/启用文章时使用）。
-func WithChunker(c knowledgeChunker) KnowledgeServiceOption {
+func WithChunker(c rag.TextChunker) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.chunker = c }
 }
 
 // WithEmbedder 设置向量嵌入器（发布/启用文章时使用）。
-func WithEmbedder(e knowledgeEmbedder) KnowledgeServiceOption {
+func WithEmbedder(e rag.TextEmbedder) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.embedder = e }
 }
 
@@ -149,7 +138,7 @@ func WithVectorStore(vs adapter.VectorStore) KnowledgeServiceOption {
 }
 
 // WithDocParser 设置文档解析器（上传时非 MinIO 降级路径使用）。
-func WithDocParser(dp knowledgeDocParser) KnowledgeServiceOption {
+func WithDocParser(dp *parser.Parser) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.docParser = dp }
 }
 
@@ -164,7 +153,7 @@ func WithStorage(sc storage.StorageClient) KnowledgeServiceOption {
 }
 
 // WithAuditWriter 设置审计日志写入器（Publish/Disable 时写入审计记录）。
-func WithAuditWriter(aw AuditWriter) KnowledgeServiceOption {
+func WithAuditWriter(aw audit.AuditWriter) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.auditWriter = aw }
 }
 
@@ -181,6 +170,11 @@ func WithDefaultEmbeddingModel(model string) KnowledgeServiceOption {
 // WithMessageNotifier 注入消息通知服务（审核结果通知文章作者）。
 func WithMessageNotifier(msg knowledgeMsgNotifier) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.msgSvc = msg }
+}
+
+// WithMaxUploadSize 设置文档上传大小上限（字节，由 config 的 KB 值转换注入）。
+func WithMaxUploadSize(bytes int64) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.maxUploadSize = bytes }
 }
 
 // SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
@@ -305,8 +299,8 @@ func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 }
 
 // ListKBs 列出全部知识库（含文章数量统计）。
-func (s *KnowledgeService) ListKBs(ctx context.Context) ([]response.KBResponse, error) {
-	kbs, err := s.repo.ListKBs(ctx)
+func (s *KnowledgeService) ListKBs(ctx context.Context, keyword string) ([]response.KBResponse, error) {
+	kbs, err := s.repo.ListKBs(ctx, keyword)
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "查询知识库列表失败: " + err.Error()}
 	}
@@ -713,11 +707,11 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	}
 
 	if !allowedDocumentTypes[fileType] {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/xlsx/pptx/md/txt）"}
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "不支持的文件格式: " + fileType + "（支持: pdf/docx/xlsx/pptx/md/txt/jpg/png/gif/bmp/webp）"}
 	}
 
-	if fileSize > MaxDocumentSize {
-		return nil, errcode.AppError{Code: errcode.ErrParam, Message: "文件大小超过限制（最大 50MB）"}
+	if fileSize > s.maxUploadSize {
+		return nil, errcode.AppError{Code: errcode.ErrParam, Message: fmt.Sprintf("文件大小超过限制（最大 %d MB）", s.maxUploadSize/1024/1024)}
 	}
 
 	title := strings.TrimSuffix(filename, "."+fileType)
@@ -729,7 +723,7 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, err
 	}
 
-	data, err := io.ReadAll(io.LimitReader(content, MaxDocumentSize))
+	data, err := io.ReadAll(io.LimitReader(content, s.maxUploadSize))
 	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "读取上传文件失败: " + err.Error()}
 	}
@@ -772,6 +766,47 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text), result.Images)
 
 	return article, nil
+}
+
+// GetUploadConfig 返回文档上传配置（大小上限、允许类型、文件数上限）。
+func (s *KnowledgeService) GetUploadConfig() response.UploadConfigResponse {
+	types := make([]string, 0, len(allowedDocumentTypes))
+	for t := range allowedDocumentTypes {
+		types = append(types, t)
+	}
+	sort.Strings(types)
+	return response.UploadConfigResponse{
+		MaxUploadSizeKB: int(s.maxUploadSize / 1024),
+		MaxUploadSize:   s.maxUploadSize,
+		AllowedTypes:    types,
+		MaxFiles:        maxUploadFileCount,
+	}
+}
+
+// UploadAsset 上传通用文件（文章内嵌图片/附件等）到 article-assets 目录，返回存储 key 与本地路径。
+// 存储路径: {documents 桶}/article-assets/{uuid}{ext}。前端通过 /api/v1/admin/files/article-assets/{filename} 访问。
+func (s *KnowledgeService) UploadAsset(ctx context.Context, filename string, contentType string, size int64, reader io.Reader) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储未初始化"}
+	}
+	if size > s.maxUploadSize {
+		return "", errcode.AppError{Code: errcode.ErrParam, Message: fmt.Sprintf("文件大小超过限制（最大 %d MB）", s.maxUploadSize/1024/1024)}
+	}
+	ext := filepath.Ext(filename)
+	storedName := uuid.NewString() + ext
+	if err := s.storage.UploadFile(ctx, minioBucketDocs, "article-assets", storedName, reader, size, contentType); err != nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "文件上传失败: " + err.Error()}
+	}
+	return storedName, nil
+}
+
+// AssetLocalPath 返回 article-assets 目录下指定文件的本地路径（供下载代理 ServeFile）。
+// MinIO 模式返回预签名 URL；Local 模式返回绝对路径。
+func (s *KnowledgeService) AssetLocalPath(ctx context.Context, filename string) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储未初始化"}
+	}
+	return s.storage.GetFileURL(ctx, minioBucketDocs, "article-assets", filename)
 }
 
 // GetDocumentStatus 查询文档处理状态。
@@ -1034,4 +1069,51 @@ func imageContentType(name string) string {
 	default:
 		return "application/octet-stream"
 	}
+}
+
+// RebuildBM25ForKB 从 DB 加载 KB 下所有已发布文章的分块和标签，重建 BM25 索引。
+func RebuildBM25ForKB(repo *KnowledgeRepo, store adapter.VectorStore, bm25 *rag.BM25Retriever, kbID int64) {
+	ctx := context.Background()
+
+	// 查询该 KB 下所有已发布文章
+	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
+	if err != nil {
+		slog.Warn("BM25 索引重建：查询文章列表失败", "kb_id", kbID, "error", err)
+		return
+	}
+
+	var docs []rag.BM25Document
+	for _, a := range articles {
+		chunks, err := store.GetChunksByArticle(ctx, a.ID)
+		if err != nil {
+			slog.Warn("BM25 索引重建：查询分块失败", "article_id", a.ID, "error", err)
+			continue
+		}
+
+		// 解析标签 JSONB → []string
+		var tagList []string
+		if len(a.Tags) > 0 {
+			_ = json.Unmarshal(a.Tags, &tagList)
+		}
+
+		for _, c := range chunks {
+			docs = append(docs, rag.BM25Document{
+				ChunkID:    c.ID,
+				ArticleID:  a.ID,
+				KBID:       kbID,
+				Content:    c.Content,
+				ChunkIndex: c.ChunkIndex,
+				Tags:       tagList,
+			})
+		}
+	}
+
+	if len(docs) == 0 {
+		// 无已发布文章 → 清空索引
+		bm25.BuildIndex(kbID, nil)
+		return
+	}
+
+	bm25.BuildIndex(kbID, docs)
+	slog.Info("BM25 索引重建完成", "kb_id", kbID, "docs", len(docs))
 }

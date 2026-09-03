@@ -80,3 +80,7 @@ parser:
     timeout: 180s              # 轮询超时（大文档解析可能需要数分钟）
   python:
     path: "python3"            # 本地解析调用的 Python 解释器（Windows: python）
+
+# 知识库
+kb:
+  max_upload_size: 51200       # 上传大小上限(KB)，51200 = 50MB

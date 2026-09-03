@@ -13,9 +13,10 @@ import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { InlineError } from '@/components/shared/InlineError';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import { ShieldPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { ShieldPlus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
 const KNOWN_PERMISSIONS = [
@@ -26,7 +27,7 @@ const KNOWN_PERMISSIONS = [
 
 export default function RoleManagePage() {
   const [page, setPage] = useState(1);
-  const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page));
+  const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page), { keepPreviousData: true });
   const { data: menus } = useSWR('admin-menus', getMenus);
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -48,6 +49,8 @@ export default function RoleManagePage() {
     }
     return perms;
   }, [data]);
+
+  const isEmpty = !error && data && (data.items || []).length === 0;
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error('请输入角色名'); return; }
@@ -99,22 +102,32 @@ export default function RoleManagePage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>角色管理</PageTitle>
+        <PageTitle className="mb-0">角色管理</PageTitle>
         <Button size="icon" onClick={openCreate} aria-label="新建角色"><ShieldPlus /></Button>
       </div>
       {error && <InlineError />}
-      <DataTable
-        columns={[
-          { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
-          { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
-          { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
-            <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></Button>
-            <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></Button>
-          </div> },
-        ]}
-        data={data?.items || []} loading={!data && !error}
-      />
-      {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+      {isEmpty ? (
+        <EmptyState
+          icon={<Shield size={40} />}
+          title="暂无角色"
+          description="点击右上角新建角色"
+        />
+      ) : (
+        <>
+          <DataTable
+            columns={[
+              { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
+              { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
+              { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
+                <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></Button>
+                <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></Button>
+              </div> },
+            ]}
+            data={data?.items || []} loading={!data && !error}
+          />
+          {data && <DataTablePagination page={page} pageSize={10} total={data.total} onChange={(p) => setPage(p)} />}
+        </>
+      )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
@@ -123,8 +136,7 @@ export default function RoleManagePage() {
           </DialogHeader>
           <Field label="角色名"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
           <Field label="描述"><Input value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
-          <div className="mt-2">
-            <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">权限</label>
+          <Field label="权限">
             <div className="flex flex-wrap gap-1.5">
               {knownPermissions.map((p) => (
                 <Toggle key={p} variant="pill" size="pill-sm"
@@ -135,10 +147,9 @@ export default function RoleManagePage() {
                 </Toggle>
               ))}
             </div>
-          </div>
+          </Field>
           {menus && menus.length > 0 && (
-            <div className="mt-2">
-              <label className="block text-caption font-semibold text-[var(--color-ink)] mb-2">菜单权限</label>
+            <Field label="菜单权限">
               <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
                 {topMenus.map((parent) => (
                   <div key={parent.id}>
@@ -155,7 +166,7 @@ export default function RoleManagePage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Field>
           )}
           <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
         </DialogContent>

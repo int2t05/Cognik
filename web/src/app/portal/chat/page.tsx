@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Bot, Lightbulb, Search, FileQuestion, PanelLeftClose, PanelLeft, Pencil, Loader2 } from 'lucide-react';
 import { getPortalKBList } from '@/lib/api/knowledge';
 import { submitMessageFeedback, createSession } from '@/lib/api/chat';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,11 @@ import type { ApiChatMessage } from '@/hooks/useChatSessions.types';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage } from '@/components/chat/ChatMessage';
-import { ChatPipeline } from '@/components/chat/ChatPipeline';
+import dynamic from 'next/dynamic';
+// ChatPipeline 重组件懒加载（代码分割）
+const ChatPipeline = dynamic(() => import('@/components/chat/ChatPipeline').then((m) => m.ChatPipeline), { ssr: false });
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const SUGGESTIONS = [
   { icon: <Search size={16} />, text: '如何重置 VPN 密码？' },
@@ -191,7 +194,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-[calc(100dvh-var(--header-height)-48px)]">
+    <div className="flex h-[calc(100dvh-44px)]">
       {/* 侧边栏 */}
       <aside className={`flex flex-col border-r border-[var(--color-hairline)] shrink-0 overflow-hidden bg-[var(--color-parchment)] transition-all duration-200 ${sidebarOpen ? 'w-[240px]' : 'w-0 border-r-0'}`}>
         <div className="flex flex-col h-full p-3 w-[240px]">
@@ -210,7 +213,7 @@ export default function ChatPage() {
                       <div role="button" tabIndex={0} onClick={() => selectSession(s.id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSession(s.id); } }}
                         className={cn(
-                          'flex-1 min-w-0 text-left px-2 py-2 rounded-xl text-caption transition cursor-pointer flex items-center gap-2',
+                          'flex-1 min-w-0 text-left px-2 py-2 rounded-[var(--radius-md)] text-caption transition cursor-pointer flex items-center gap-2',
                           isActive ? 'bg-[var(--color-accent)]/8 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-80)] hover:bg-[var(--color-text-muted-48)]/8'
                         )}>
                         <MessageSquare size={12} className={`shrink-0 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted-48)]'}`} />
@@ -308,40 +311,15 @@ export default function ChatPage() {
         title="删除会话" message="确定要删除此会话吗？此操作不可撤销。" confirmLabel="删除" onConfirm={handleDelete} loading={deleting} danger />
 
       {/* KB 选择弹窗 */}
-      <ConfirmDialog open={showKBPicker} onOpenChange={(open) => !open && setShowKBPicker(false)} title="新建会话" message="选择知识库以创建对话" confirmLabel="创建会话" loading={creating}
-        onConfirm={async () => {
-          if (!pendingKB) { toast.info('请选择一个知识库'); return; }
-          setCreating(true);
-          try {
-            const r = await createSession(pendingKB, '新对话');
-            setSessionId(r.session_id);
-            setFeedbackMap({});
-            setPendingKB(0);
-            setShowKBPicker(false);
-            mutateSessions();
-          } catch { toast.error('创建会话失败'); }
-          finally { setCreating(false); }
-        }}>
-        <Select value={pendingKB ? String(pendingKB) : undefined} onValueChange={(v) => setPendingKB(Number(v))}>
-          <SelectTrigger aria-label="选择知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
-            <SelectValue placeholder="请选择知识库..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(kbs || []).map((kb) => (
-              <SelectItem key={kb.id} value={String(kb.id)}>{kb.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfirmDialog>
-
-      {/* 编辑会话对话框 */}
-      <ConfirmDialog open={editingSession !== null} onOpenChange={(open) => !open && setEditingSession(null)} title="编辑会话" confirmLabel="保存" onConfirm={handleSaveEdit} loading={saving}>
-        <div className="flex flex-col gap-3">
-          <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} aria-label="会话标题" placeholder="会话标题"
-            className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]" />
-          <Select value={editKB ? String(editKB) : undefined} onValueChange={(v) => setEditKB(Number(v))}>
-            <SelectTrigger aria-label="知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
-              <SelectValue placeholder="选择知识库..." />
+      <Dialog open={showKBPicker} onOpenChange={(open) => !open && setShowKBPicker(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建会话</DialogTitle>
+            <DialogDescription>选择知识库以创建对话</DialogDescription>
+          </DialogHeader>
+          <Select value={pendingKB ? String(pendingKB) : undefined} onValueChange={(v) => setPendingKB(Number(v))}>
+            <SelectTrigger aria-label="选择知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+              <SelectValue placeholder="请选择知识库..." />
             </SelectTrigger>
             <SelectContent>
               {(kbs || []).map((kb) => (
@@ -349,8 +327,51 @@ export default function ChatPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </ConfirmDialog>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowKBPicker(false)}>取消</Button>
+            <Button size="lg" disabled={creating} onClick={async () => {
+              if (!pendingKB) { toast.info('请选择一个知识库'); return; }
+              setCreating(true);
+              try {
+                const r = await createSession(pendingKB, '新对话');
+                setSessionId(r.session_id);
+                setFeedbackMap({});
+                setPendingKB(0);
+                setShowKBPicker(false);
+                mutateSessions();
+              } catch { toast.error('创建会话失败'); }
+              finally { setCreating(false); }
+            }}>{creating && <Loader2 className="animate-spin" />}创建会话</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 编辑会话对话框 */}
+      <Dialog open={editingSession !== null} onOpenChange={(open) => !open && setEditingSession(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑会话</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} aria-label="会话标题" placeholder="会话标题"
+              className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]" />
+            <Select value={editKB ? String(editKB) : undefined} onValueChange={(v) => setEditKB(Number(v))}>
+              <SelectTrigger aria-label="知识库" className="w-full rounded-[var(--radius-pill)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)]">
+                <SelectValue placeholder="选择知识库..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(kbs || []).map((kb) => (
+                  <SelectItem key={kb.id} value={String(kb.id)}>{kb.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setEditingSession(null)}>取消</Button>
+            <Button size="lg" disabled={saving} onClick={handleSaveEdit}>{saving && <Loader2 className="animate-spin" />}保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

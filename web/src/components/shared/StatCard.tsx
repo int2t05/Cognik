@@ -16,13 +16,13 @@ export function StatCard({
   delta?: number;
 }) {
   return (
-    <Card className="!p-5 transition-all hover:bg-[var(--color-tile-1)] hover:-translate-y-px">
-      <div className="flex items-center gap-2 mb-2">
+    <Card className="!p-4 transition-all hover:bg-[var(--color-tile-1)] hover:-translate-y-px">
+      <div className="flex items-center gap-1.5 mb-1.5">
         {icon && <span className="text-[var(--color-text-muted-48)]">{icon}</span>}
         <span className="text-caption font-normal text-[var(--color-text-muted-48)]">{label}</span>
       </div>
       <div className="flex items-baseline gap-2.5">
-        <span className="font-semibold text-[var(--color-ink)] leading-none" style={{ fontSize: 'var(--font-size-metric)' }}>{value}</span>
+        <span className="font-semibold text-[var(--color-ink)] leading-none tabular-nums" style={{ fontSize: 'var(--font-size-metric)' }}>{value}</span>
         {delta !== undefined && (
           <span className={`inline-flex items-center gap-0.5 text-fine font-semibold ${
             delta > 0 ? 'text-[var(--color-success)]' : delta < 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-text-muted-48)]'
