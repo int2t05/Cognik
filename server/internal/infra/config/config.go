@@ -79,10 +79,9 @@ type LocalStorageConfig struct {
 	BaseDir string `mapstructure:"base_dir"`
 }
 
-// BucketConfig 是存储桶/目录名配置。
+// BucketConfig 是存储桶配置（单桶；草稿/已发布由二级目录区分，不再按桶分状态）。
 type BucketConfig struct {
 	Documents string `mapstructure:"documents"`
-	Published string `mapstructure:"published"`
 }
 
 // LLMConfig 大语言模型配置（支持任意 OpenAI-compatible API）。
@@ -333,7 +332,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
 	v.SetDefault("storage.minio.use_ssl", false)
 	v.SetDefault("storage.buckets.documents", "opsmind-documents")
-	v.SetDefault("storage.buckets.published", "opsmind-published")
 
 	// LLM
 	v.SetDefault("llm.base_url", "http://llama-cpp:8080/v1")

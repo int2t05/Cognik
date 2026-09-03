@@ -30,6 +30,7 @@ import (
 	"opsmind/internal/agent"
 	agenttools "opsmind/internal/agent/tools"
 	"opsmind/internal/agent/store"
+	"opsmind/internal/agent/task"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
@@ -161,9 +162,8 @@ func wireApp() (*app, error) {
 		slog.Info("pgvector VectorStore 已连接")
 	}
 
-	// 文件存储（按 driver 选择 LocalStorageClient 或 MinIOClient）
-	bucketDocs := cfg.Storage.Buckets.Documents
-	bucketPub := cfg.Storage.Buckets.Published
+	// 文件存储（按 driver 选择 LocalStorageClient 或 MinIOClient；单桶，状态由目录区分）
+	bucket := cfg.Storage.Buckets.Documents
 	switch cfg.Storage.Driver {
 	case "minio":
 		minioEndpoint := cfg.Storage.MinIO.Endpoint
@@ -173,14 +173,14 @@ func wireApp() (*app, error) {
 		})
 		if err != nil {
 			slog.Error("MinIO 客户端创建失败，文档上传将降级", "error", err)
-		} else if mc, err := storage.NewMinIOClient(minioClient, bucketDocs, bucketPub); err != nil {
+		} else if mc, err := storage.NewMinIOClient(minioClient, bucket); err != nil {
 			slog.Error("MinIO bucket 初始化失败，文档上传将降级", "error", err)
 		} else {
 			a.storageClient = mc
 			slog.Info("MinIO 对象存储已连接", "endpoint", minioEndpoint)
 		}
 	default:
-		lsc, err := storage.NewLocalStorageClient(cfg.Storage.Local.BaseDir, bucketDocs, bucketPub)
+		lsc, err := storage.NewLocalStorageClient(cfg.Storage.Local.BaseDir, bucket)
 		if err != nil {
 			slog.Error("本地存储初始化失败，文档上传将降级", "error", err)
 		} else {
@@ -321,6 +321,14 @@ func wireApp() (*app, error) {
 	chatService := session.NewChatService(agentStore, agentRunner, agentModelFactory, genHub)
 	slog.Info("ChatService 已初始化")
 
+	// 异步任务管理器
+	taskStore := task.NewSQLiteTaskStore(agentStore.DB())
+	taskMgr := task.NewTaskManager(taskStore, agentRunner)
+	if err := taskMgr.CleanupStale(context.Background()); err != nil {
+		slog.Warn("清理残留 running 任务失败", "error", err)
+	}
+	slog.Info("TaskManager 已初始化")
+
 	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)
 
@@ -336,7 +344,7 @@ func wireApp() (*app, error) {
 		Role:      role.NewRoleHandler(roleService),
 		Ticket:    ticket.NewTicketHandler(ticketService),
 		Knowledge: knowledge.NewKnowledgeHandler(knowledgeService),
-		Chat:      session.NewChatHandler(chatService),
+		Chat:      session.NewChatHandler(chatService, taskMgr),
 		Message:   message.NewMessageHandler(messageService),
 		Dashboard: dashboard.NewDashboardHandler(dashboardService),
 		Audit:     audit.NewAuditHandler(auditService),

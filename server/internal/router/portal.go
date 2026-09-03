@@ -17,6 +17,11 @@ func registerPortalRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.POST("/threads/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.StreamChat }))
 	rg.GET("/threads/:id/stream", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.ResumeStream }))
 	rg.POST("/threads/:id/cancel", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.CancelGeneration }))
+	// 异步任务
+	rg.POST("/threads/:id/tasks", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.CreateTask }))
+	rg.GET("/threads/:id/tasks", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.ListTasks }))
+	rg.GET("/tasks/:id", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.GetTask }))
+	rg.POST("/tasks/:id/cancel", safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.CancelTask }))
 
 	// 申告管理
 	rg.POST("/tickets", safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.CreateTicket }))
