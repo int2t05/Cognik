@@ -293,6 +293,8 @@ func (e *Engine) downloadAndExtract(zipURL string) (*local.ParseResult, error) {
 	var markdown string
 	images := make(map[string][]byte)
 	imgNum := 0
+	// 记录原始文件名 → 重命名后的文件名映射，用于修正 markdown 中的图片引用
+	imgRenameMap := make(map[string]string)
 
 	for _, f := range zipReader.File {
 		if f.FileInfo().IsDir() {
@@ -328,11 +330,22 @@ func (e *Engine) downloadAndExtract(zipURL string) (*local.ParseResult, error) {
 			imgNum++
 			name := fmt.Sprintf("img%d%s", imgNum, ext)
 			images[name] = data
+			// 记录映射：原始路径 → 重命名
+			imgRenameMap[f.Name] = name
 		}
 	}
 
 	if strings.TrimSpace(markdown) == "" {
 		return nil, fmt.Errorf("MinerU 结果 ZIP 中未找到 Markdown 内容")
+	}
+
+	// 修正 markdown 中的图片引用：将原始文件名替换为重命名后的文件名
+	for originalName, renamedName := range imgRenameMap {
+		// 替换各种可能的引用格式：images/xxx.jpg, ./images/xxx.jpg, xxx.jpg
+		baseName := filepath.Base(originalName)
+		markdown = strings.ReplaceAll(markdown, originalName, renamedName)
+		markdown = strings.ReplaceAll(markdown, "images/"+baseName, "images/"+renamedName)
+		markdown = strings.ReplaceAll(markdown, baseName, renamedName)
 	}
 
 	return &local.ParseResult{Markdown: markdown, Images: images}, nil
