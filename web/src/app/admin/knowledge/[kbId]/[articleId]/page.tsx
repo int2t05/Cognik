@@ -28,6 +28,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
@@ -179,7 +180,7 @@ export default function ArticleEditPage() {
             <div data-color-mode={theme} onPaste={handlePaste} className="relative">
               {uploadingImg && <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-[var(--radius-md)] bg-[var(--color-canvas)] px-2 py-1 text-fine"><Loader2 className="animate-spin" size={12} />上传图片…</div>}
               <MDEditor value={content} onChange={(v) => setContent(v || '')} height={600} preview="live" enableScroll={false}
-                previewOptions={{ remarkPlugins: [remarkGfm, remarkMath], rehypePlugins: [rehypeKatex, rehypeHighlight] }} />
+                previewOptions={{ remarkPlugins: [remarkGfm, remarkMath], rehypePlugins: [rehypeRaw, rehypeKatex, rehypeHighlight] }} />
             </div>
           </Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
