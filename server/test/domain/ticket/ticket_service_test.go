@@ -117,7 +117,7 @@ func TestTicketService_CreateTicket(t *testing.T) {
 	}
 
 	// 验证申告已创建
-	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "")
+	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "", -1)
 	if err != nil {
 		t.Fatalf("查询申告失败: %v", err)
 	}
