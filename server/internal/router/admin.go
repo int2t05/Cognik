@@ -67,7 +67,6 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.GET("/dashboard/stats", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.GetStats }))
 	rg.GET("/dashboard/trends", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.GetTrends }))
 	rg.GET("/dashboard/trends/export", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Dashboard != nil }, func() gin.HandlerFunc { return h.Dashboard.ExportTrends }))
-	rg.POST("/feedback/analyze", middleware.RequirePermission(PermDashboardRead), safeHandler(h, func() bool { return h.Chat != nil }, func() gin.HandlerFunc { return h.Chat.AnalyzeFeedback }))
 
 	// 操作日志
 	rg.GET("/audit-logs", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.List }))

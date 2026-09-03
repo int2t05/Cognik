@@ -29,6 +29,7 @@ import (
 	"opsmind/internal/domain/user/role"
 	"opsmind/internal/agent"
 	agenttools "opsmind/internal/agent/tools"
+	"opsmind/internal/agent/store"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
@@ -194,13 +195,12 @@ func wireApp() (*app, error) {
 	roleRepo := role.NewRoleRepo(db)
 	ticketRepo := ticket.NewTicketRepo(db)
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
-	chatRepo := session.NewChatRepo(db)
 	messageRepo := message.NewMessageRepo(db)
 	auditRepo := audit.NewAuditRepo(db)
 	auditService := audit.NewAuditService(auditRepo)
 	dashboardRepo := dashboard.NewDashboardRepo(db)
 
-	// 5. Service 层（无 RAG 依赖的部分）
+	// 5. Service 层
 	txManager := runtime.NewGormTxManager(db)
 	menuRepo := role.NewMenuRepo(db)
 
@@ -214,7 +214,6 @@ func wireApp() (*app, error) {
 	messageService := message.NewMessageService(messageRepo)
 	dashboardService := dashboard.NewDashboardService(dashboardRepo)
 	configService := sysconfig.NewConfigService(configRepo, auditService)
-	configService.SetChatRepo(chatRepo)
 
 	llmConfigRepo := llmconfig.NewLlmConfigRepo(db)
 	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, auditService)
@@ -312,14 +311,21 @@ func wireApp() (*app, error) {
 	})
 	slog.Info("Gateway 网关已初始化")
 
-	chatService := session.NewChatService(knowledgeRepo, chatRepo, agentRunner, agentModelFactory, configService, auditService, genHub)
+	// Agent 对话数据存储（SQLite，与业务 PostgreSQL 隔离）
+	agentStore, err := store.NewSQLiteStore(envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
+	if err != nil {
+		return nil, fmt.Errorf("创建 Agent SQLite 存储失败: %w", err)
+	}
+	slog.Info("Agent SQLite 存储已初始化", "path", envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
+
+	chatService := session.NewChatService(agentStore, agentRunner, agentModelFactory, genHub)
 	slog.Info("ChatService 已初始化")
 
-	// ChatService 就绪后构造 TicketService，直接传入反馈标记器
-	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, chatService)
+	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
+	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)
 
-	// 启动时清理残留的 generating 消息（上次异常退出遗留）
-	if err := chatService.CleanupStaleGenerating(context.Background()); err != nil {
+	// 清理启动时残留的 generating 消息
+	if err := chatService.CleanupStale(context.Background()); err != nil {
 		slog.Warn("清理残留 generating 消息失败", "error", err)
 	}
 
