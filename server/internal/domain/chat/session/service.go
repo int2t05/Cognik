@@ -1,4 +1,7 @@
-// Package session 问答会话业务逻辑（会话生命周期 + RAG/LLM 编排）。
+// Package session Agent 对话业务逻辑（会话生命周期 + Agent 事件编排）。
+//
+// 数据存储用独立 SQLite（agent/store），与业务 PostgreSQL 隔离。
+// 消息用 parts 数组模型（对标 AI SDK UIMessage.parts）。
 package session
 
 import (
@@ -7,199 +10,197 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/eino/schema"
 	"opsmind/internal/agent"
-	"opsmind/internal/domain/system/audit"
+	"opsmind/internal/agent/store"
 	"opsmind/internal/infra/runtime"
-	"opsmind/internal/shared/dto/request"
-	respDto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )
 
-const (
-	fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
-)
-
-// =============================================================================
-// 消费者接口
-// =============================================================================
-
-type chatKnowledgeRepo interface {
-	FindKBByID(ctx context.Context, id int64) (*model.KnowledgeBase, error)
-}
-
-type chatSessionRepo interface {
-	Create(ctx context.Context, session *model.ChatSession) error
-	CreateBatch(ctx context.Context, messages []model.ChatMessage) error
-	CreateMessage(ctx context.Context, m *model.ChatMessage) error
-	UpdateMessage(ctx context.Context, m *model.ChatMessage) error
-	DeleteMessage(ctx context.Context, id int64) error
-	CleanFailedMessages(ctx context.Context, sessionID int64) (int64, error)
-	MarkGeneratingFailed(ctx context.Context) (int64, error)
-	FindByID(ctx context.Context, id int64) (*model.ChatSession, error)
-	FindMessageByID(ctx context.Context, messageID, sessionID int64) (*model.ChatMessage, error)
-	FindMessagesBySession(ctx context.Context, sessionID int64) ([]model.ChatMessage, error)
-	UpdateFeedback(ctx context.Context, id int64, feedback int16) error
-	UpdateMessageFeedback(ctx context.Context, messageID int64, feedback int16) error
-	FindFeedbackSamples(ctx context.Context, limitDays int) ([]model.FeedbackSample, error)
-	UpdateSession(ctx context.Context, session *model.ChatSession) error
-	UpdateSessionMeta(ctx context.Context, sessionID int64, question string, kbID int64) error
-	ListByUser(ctx context.Context, userID int64, page, pageSize int) ([]model.ChatSession, int64, error)
-	DeleteSession(ctx context.Context, id, userID int64) error
-	CountMessagesBySession(ctx context.Context, sessionID int64) (int64, error)
-	CountMessagesBySessions(ctx context.Context, sessionIDs []int64) (map[int64]int64, error)
-}
-
-type ragConfigReader interface {
-	GetInt(ctx context.Context, key string) (int, bool)
-	GetFloat(ctx context.Context, key string) (float64, bool)
-	GetBool(ctx context.Context, key string) (bool, bool)
-}
+const fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
 
 // =============================================================================
 // 流式事件类型
 // =============================================================================
 
+// StreamEvent SSE 流式事件（网关交付的事件单元）。
 type StreamEvent struct {
-	Type     string          `json:"type"`
-	Seq      int             `json:"seq"`
-	Content  string          `json:"content,omitempty"`
-	ID       string          `json:"id,omitempty"`
-	Label    string          `json:"label,omitempty"`
-	Error    string          `json:"error,omitempty"`
+	Type     string          `json:"type"`              // reasoning | token | tool_call | tool_result | done | error
+	Seq      int             `json:"seq"`               // 网关游标对齐
+	Content  string          `json:"content,omitempty"` // token / reasoning / 工具参数 / 工具结果
+	ID       string          `json:"id,omitempty"`      // 工具调用 ID
+	Label    string          `json:"label,omitempty"`   // 工具名
+	Error    string          `json:"error,omitempty"`   // 错误信息
 	Metadata *StreamDoneMeta `json:"metadata,omitempty"`
 }
 
-// StreamDoneMeta done 事件的元数据（Agent 完成回答后的落库标识）。
+// StreamDoneMeta done 事件的元数据。
 type StreamDoneMeta struct {
-	SessionID          int64  `json:"session_id"`
+	ThreadID          int64  `json:"thread_id"`
 	Question           string `json:"question"`
 	Answer             string `json:"answer"`
 	CreatedAt          string `json:"created_at"`
 	UserMessageID      int64  `json:"user_message_id,omitempty"`
-	AssistantMessageID int64 `json:"assistant_message_id,omitempty"`
+	AssistantMessageID int64  `json:"assistant_message_id,omitempty"`
 }
 
 // =============================================================================
 // ChatService
 // =============================================================================
 
+// ChatService Agent 对话服务。
 type ChatService struct {
-	configReader  ragConfigReader
-	knowledgeRepo chatKnowledgeRepo
-	chatRepo      chatSessionRepo
-	agentRunner   *agent.AgentRunner     // 事件生产者（Eino ReAct 循环）
-	modelFactory  *agent.ChatModelFactory // AnalyzeFeedback 用 Generate
-	auditRepo     audit.AuditWriter
-	gateway       *runtime.Gateway[StreamEvent]
+	store        store.ChatStore          // SQLite 对话数据存储
+	agentRunner  *agent.AgentRunner       // 事件生产者（Eino ReAct 循环）
+	modelFactory *agent.ChatModelFactory  // AnalyzeFeedback 用 Generate
+	gateway      *runtime.Gateway[StreamEvent]
 }
 
 // NewChatService 创建 ChatService。
-// 生产者：agentRunner 事件循环 + modelFactory Generate。
-func NewChatService(knowledgeRepo chatKnowledgeRepo, chatRepo chatSessionRepo, agentRunner *agent.AgentRunner, modelFactory *agent.ChatModelFactory, configReader ragConfigReader, auditRepo audit.AuditWriter, gateway *runtime.Gateway[StreamEvent]) *ChatService {
+func NewChatService(store store.ChatStore, agentRunner *agent.AgentRunner, modelFactory *agent.ChatModelFactory, gateway *runtime.Gateway[StreamEvent]) *ChatService {
 	return &ChatService{
-		knowledgeRepo: knowledgeRepo,
-		chatRepo:      chatRepo,
-		agentRunner:   agentRunner,
-		modelFactory:  modelFactory,
-		configReader:  configReader,
-		auditRepo:     auditRepo,
-		gateway:       gateway,
+		store:        store,
+		agentRunner:  agentRunner,
+		modelFactory: modelFactory,
+		gateway:      gateway,
 	}
 }
 
-func (s *ChatService) CreateSession(ctx context.Context, req request.CreateSessionRequest, userID int64) (*model.ChatSession, error) {
-	if s.knowledgeRepo != nil {
-		if _, err := s.knowledgeRepo.FindKBByID(ctx, req.KBID); err != nil {
-			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "知识库不存在"}
-		}
-	}
-	if s.chatRepo == nil {
+// CreateThread 创建对话线程。
+func (s *ChatService) CreateThread(ctx context.Context, userID int64, title string) (*store.Thread, error) {
+	if s.store == nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
-
-	title := strings.TrimSpace(req.Title)
-	if title == "" {
-		title = "新会话"
-	}
-
-	session := &model.ChatSession{
-		UserID:   userID,
-		KBID:     req.KBID,
-		Question: title,
-	}
-	if err := s.chatRepo.Create(ctx, session); err != nil {
+	thread, err := s.store.CreateThread(ctx, userID, title)
+	if err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建会话失败"}
 	}
-
-	return session, nil
+	return thread, nil
 }
 
-func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question string, userID int64) ([]StreamEvent, <-chan StreamEvent, func(), error) {
+// ListThreads 列出用户的对话线程。
+func (s *ChatService) ListThreads(ctx context.Context, userID int64) ([]store.Thread, error) {
+	if s.store == nil {
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	return s.store.ListThreads(ctx, userID)
+}
+
+// GetThreadDetail 获取线程详情（含消息）。
+func (s *ChatService) GetThreadDetail(ctx context.Context, threadID, userID int64) (*ThreadDetail, error) {
+	if s.store == nil {
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	thread, err := s.store.GetThread(ctx, threadID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+		}
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败"}
+	}
+	msgs, err := s.store.ListMessages(ctx, threadID)
+	if err != nil {
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载消息失败"}
+	}
+	return &ThreadDetail{Thread: *thread, Messages: msgs}, nil
+}
+
+// DeleteThread 删除对话线程。
+func (s *ChatService) DeleteThread(ctx context.Context, threadID, userID int64) error {
+	if s.store == nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	if err := s.store.DeleteThread(ctx, threadID, userID); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "删除会话失败"}
+	}
+	return nil
+}
+
+// UpdateThread 更新线程标题。
+func (s *ChatService) UpdateThread(ctx context.Context, threadID, userID int64, title string) error {
+	if s.store == nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	thread, err := s.store.GetThread(ctx, threadID, userID)
+	if err != nil {
+		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
+	}
+	thread.Title = title
+	return s.store.UpdateThread(ctx, thread)
+}
+
+// StreamChat 发送消息并以 SSE 流式返回 Agent 回答。
+func (s *ChatService) StreamChat(ctx context.Context, threadID int64, question string, userID int64) ([]StreamEvent, <-chan StreamEvent, func(), error) {
 	if strings.TrimSpace(question) == "" {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: "问题不能为空"}
 	}
 	if s.agentRunner == nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrAIUnavailable, Message: fallbackAIUnavailable}
 	}
-	if s.chatRepo == nil {
+	if s.store == nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
 	}
 
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
+	thread, err := s.store.GetThread(ctx, threadID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 		}
-		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
-	}
-	if session.UserID != userID {
-		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
+		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败"}
 	}
 
 	// 加载历史消息构建 Eino schema.Message 输入（多轮上下文）
-	msgs, msgErr := s.chatRepo.FindMessagesBySession(ctx, sessionID)
+	msgs, msgErr := s.store.ListMessages(ctx, threadID)
 	if msgErr != nil {
-		slog.Warn("加载会话历史消息失败，多轮上下文降级为单轮", "session_id", sessionID, "error", msgErr)
+		slog.Warn("加载历史消息失败，降级为单轮", "thread_id", threadID, "error", msgErr)
 	}
 	input := s.buildAgentInput(msgs, question)
 
-	userMsg := &model.ChatMessage{SessionID: sessionID, Role: "user", Content: question, Status: model.MessageStatusCompleted}
-	if err := s.chatRepo.CreateMessage(ctx, userMsg); err != nil {
+	// 保存用户消息
+	userParts, _ := store.PartsToJSON([]store.MessagePart{
+		{Type: store.PartText, Content: question},
+	})
+	userMsg := &store.Message{
+		ThreadID: threadID, Role: "user", Parts: userParts,
+		Status: store.MessageStatusCompleted,
+	}
+	if err := s.store.SaveMessage(ctx, userMsg); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "保存用户消息失败"}
 	}
-	if session.Question == "新会话" || session.Question == "" {
-		_ = s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, 0)
+
+	// 首条消息更新标题
+	if thread.Title == "新对话" {
+		thread.Title = truncateRunes(question, 50)
+		_ = s.store.UpdateThread(ctx, thread)
 	}
 
-	assistant := &model.ChatMessage{SessionID: sessionID, Role: "assistant", Content: "", Status: model.MessageStatusGenerating}
-	if err := s.chatRepo.CreateMessage(ctx, assistant); err != nil {
+	// 创建 assistant 占位消息（parts 空数组，streaming 中累积）
+	assistantMsg := &store.Message{
+		ThreadID: threadID, Role: "assistant", Parts: "[]",
+		Status: store.MessageStatusGenerating,
+	}
+	if err := s.store.SaveMessage(ctx, assistantMsg); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建回复占位失败"}
 	}
 
 	// detached ctx：客户端断开不停止生成/落库
-	genTimeout := 120 * time.Second
-	if s.readBool("ai.enable_thinking", false) {
-		genTimeout = 300 * time.Second
-	}
-	gctx, cancel := context.WithTimeout(context.Background(), genTimeout)
-	runID := strconv.FormatInt(sessionID, 10)
+	gctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	runID := strconv.FormatInt(threadID, 10)
 	if err := s.gateway.Start(runID, cancel); err != nil {
 		cancel()
-		assistant.Status = model.MessageStatusFailed
-		_ = s.chatRepo.UpdateMessage(context.Background(), assistant)
+		assistantMsg.Status = store.MessageStatusFailed
+		_ = s.store.UpdateMessage(context.Background(), assistantMsg)
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrParam, Message: err.Error()}
 	}
 
-	// 生产者 goroutine：Agent ReAct 循环 → AgentEvent → StreamEvent → gateway.Publish
-	go s.runAgent(gctx, runID, sessionID, userMsg.ID, assistant.ID, question, input)
+	// 生产者 goroutine：Agent ReAct 循环 → StreamEvent → gateway.Publish + parts 累积落库
+	go s.runAgent(gctx, runID, threadID, userMsg.ID, assistantMsg.ID, question, input)
 
 	replay, ch, unsub, ok := s.gateway.Subscribe(runID, 0)
 	if !ok {
@@ -208,49 +209,86 @@ func (s *ChatService) StreamChat(ctx context.Context, sessionID int64, question 
 	return replay, ch, unsub, nil
 }
 
+// ThreadDetail 线程详情（含消息）。
+type ThreadDetail struct {
+	store.Thread
+	Messages []store.Message `json:"messages"`
+}
+
 // buildAgentInput 从历史消息 + 当前问题构建 Eino schema.Message 输入。
-func (s *ChatService) buildAgentInput(msgs []model.ChatMessage, question string) []*schema.Message {
+// 从 parts 数组提取 text 部分作为对话内容。
+func (s *ChatService) buildAgentInput(msgs []store.Message, question string) []*schema.Message {
 	input := make([]*schema.Message, 0, len(msgs)+1)
 	for _, m := range msgs {
-		role := schema.RoleType(m.Role)
-		if role != schema.User && role != schema.Assistant {
+		if m.Role != "user" && m.Role != "assistant" {
 			continue
 		}
-		input = append(input, &schema.Message{Role: role, Content: m.Content})
+		parts, err := store.ParseParts(m.Parts)
+		if err != nil {
+			continue
+		}
+		// 拼接 text parts 为消息内容
+		var content strings.Builder
+		for _, p := range parts {
+			if p.Type == store.PartText {
+				content.WriteString(p.Content)
+			}
+		}
+		if content.Len() == 0 {
+			continue
+		}
+		role := schema.RoleType(m.Role)
+		input = append(input, &schema.Message{Role: role, Content: content.String()})
 	}
 	input = append(input, schema.UserMessage(question))
 	return input
 }
 
-// runAgent Agent 事件循环 → gateway.Publish。
+// runAgent Agent 事件循环 → gateway.Publish + parts 累积落库。
 // detached goroutine：客户端断开仍跑完 + 落库。
-func (s *ChatService) runAgent(gctx context.Context, runID string, sessionID, userMsgID, assistantID int64, question string, input []*schema.Message) {
+func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, userMsgID, assistantID int64, question string, input []*schema.Message) {
 	defer s.gateway.Finish(runID)
 
 	agentEvents, err := s.agentRunner.Stream(gctx, input)
 	if err != nil {
 		s.gateway.Publish(runID, StreamEvent{Type: "error", Error: err.Error()})
-		s.failAssistant(assistantID)
+		s.failMessage(assistantID, err.Error())
 		return
 	}
 
+	// parts 累积器（落库用）
+	var parts []store.MessagePart
 	var answer string
+
 	for evt := range agentEvents {
 		switch evt.Type {
+		case agent.EventReasoning:
+			parts = append(parts, store.MessagePart{Type: store.PartReasoning, Content: evt.Content})
 		case agent.EventToken:
 			answer += evt.Content
+			parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
+		case agent.EventToolCall:
+			parts = append(parts, store.MessagePart{
+				Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
+				Content: evt.Content, Status: "running",
+			})
+		case agent.EventToolResult:
+			parts = append(parts, store.MessagePart{
+				Type: store.PartToolResult, ID: evt.ID, Label: evt.Label,
+				Content: evt.Content, Status: "done",
+			})
 		case agent.EventDone:
-			// 落库（无 sources/confidence/pipeline — Agent 无 RAG）
+			// 落库（parts 数组 + completed 状态）
+			partsJSON, _ := store.PartsToJSON(parts)
+			_ = s.store.UpdateMessage(context.Background(), &store.Message{
+				ID:     assistantID,
+				Parts:  partsJSON,
+				Status: store.MessageStatusCompleted,
+			})
 			now := time.Now().Format("2006-01-02 15:04:05")
-			_ = s.chatRepo.UpdateSession(context.Background(), &model.ChatSession{
-				ID: sessionID, Answer: answer,
-			})
-			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
-				ID: assistantID, Content: answer, Status: model.MessageStatusCompleted,
-			})
 			s.gateway.Publish(runID, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
 				Answer:             answer,
-				SessionID:          sessionID,
+				ThreadID:           threadID,
 				Question:           question,
 				AssistantMessageID: assistantID,
 				UserMessageID:      userMsgID,
@@ -258,7 +296,7 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, sessionID, us
 			}})
 			continue
 		case agent.EventError:
-			s.failAssistant(assistantID)
+			s.failMessage(assistantID, evt.Error)
 		}
 		// 透传事件（token/reasoning/tool_call/tool_result/error），seq 由 gateway.Publish 的 setSeq 对齐
 		s.gateway.Publish(runID, StreamEvent{
@@ -270,311 +308,63 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, sessionID, us
 		})
 	}
 
+	// 超时/取消：保留部分回答（不删除），标记 cancelled
 	if gctx.Err() != nil {
-		if errors.Is(gctx.Err(), context.DeadlineExceeded) {
-			_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{
-				ID: assistantID, Content: answer, Status: model.MessageStatusFailed,
-			})
-		} else {
-			_ = s.chatRepo.DeleteMessage(context.Background(), userMsgID)
-			_ = s.chatRepo.DeleteMessage(context.Background(), assistantID)
-		}
+		partsJSON, _ := store.PartsToJSON(parts)
+		_ = s.store.UpdateMessage(context.Background(), &store.Message{
+			ID:     assistantID,
+			Parts:  partsJSON,
+			Status: store.MessageStatusCancelled,
+		})
 		s.gateway.Publish(runID, StreamEvent{Type: "error", Error: "生成已停止"})
 	}
 }
 
-func (s *ChatService) failAssistant(msgID int64) {
-	_ = s.chatRepo.UpdateMessage(context.Background(), &model.ChatMessage{ID: msgID, Status: model.MessageStatusFailed})
+// failMessage 标记消息失败。
+func (s *ChatService) failMessage(msgID int64, errMsg string) {
+	_ = s.store.UpdateMessage(context.Background(), &store.Message{
+		ID:     msgID,
+		Status: store.MessageStatusFailed,
+		Error:  errMsg,
+	})
 }
 
-func (s *ChatService) ResumeStream(ctx context.Context, sessionID, userID int64, since int) ([]StreamEvent, <-chan StreamEvent, func(), error) {
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
+// ResumeStream 续传进行中的生成。
+func (s *ChatService) ResumeStream(ctx context.Context, threadID, userID int64, since int) ([]StreamEvent, <-chan StreamEvent, func(), error) {
+	if _, err := s.store.GetThread(ctx, threadID, userID); err != nil {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
-	if session.UserID != userID {
-		return nil, nil, nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
-	}
-	replay, ch, unsub, ok := s.gateway.Subscribe(strconv.FormatInt(sessionID, 10), since)
+	replay, ch, unsub, ok := s.gateway.Subscribe(strconv.FormatInt(threadID, 10), since)
 	if !ok {
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "无进行中的生成"}
 	}
 	return replay, ch, unsub, nil
 }
 
-func (s *ChatService) CancelGeneration(ctx context.Context, sessionID, userID int64) error {
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
+// CancelGeneration 取消生成。
+func (s *ChatService) CancelGeneration(ctx context.Context, threadID, userID int64) error {
+	if _, err := s.store.GetThread(ctx, threadID, userID); err != nil {
 		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
 	}
-	if session.UserID != userID {
-		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权访问该会话"}
-	}
-	if !s.gateway.Cancel(strconv.FormatInt(sessionID, 10)) {
+	if !s.gateway.Cancel(strconv.FormatInt(threadID, 10)) {
 		return errcode.AppError{Code: errcode.ErrParam, Message: "无进行中的生成"}
 	}
 	return nil
 }
 
-func (s *ChatService) CleanupStaleGenerating(ctx context.Context) error {
-	_, err := s.chatRepo.MarkGeneratingFailed(ctx)
+// CleanupStale 清理启动时残留的 generating 状态消息。
+func (s *ChatService) CleanupStale(ctx context.Context) error {
+	_, err := s.store.CleanupStale(ctx)
 	return err
 }
 
-func (s *ChatService) SubmitMessageFeedback(ctx context.Context, messageID, sessionID, userID int64, feedback int16) error {
-	if s.chatRepo == nil {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	if feedback < 0 || feedback > 2 {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 0（取消）/1（有帮助）/2（无帮助）"}
-	}
-
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
-	}
-	if session.UserID != userID {
-		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权操作该会话"}
-	}
-
-	msg, err := s.chatRepo.FindMessageByID(ctx, messageID, sessionID)
-	if err != nil {
-		return errcode.AppError{Code: errcode.ErrNotFound, Message: "消息不存在"}
-	}
-	if msg.Role != "assistant" {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "仅可对 AI 回答进行反馈"}
-	}
-
-	if err := s.chatRepo.UpdateMessageFeedback(ctx, messageID, feedback); err != nil {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "反馈提交失败"}
-	}
-
-	s.writeFeedbackAudit(ctx, userID, sessionID, messageID, feedback, "explicit")
-	return nil
-}
-
-func (s *ChatService) MarkLastAssistantUnhelpful(ctx context.Context, sessionID int64) error {
-	if s.chatRepo == nil {
-		return nil
-	}
-
-	msgs, err := s.chatRepo.FindMessagesBySession(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-
-	var lastAssistant *model.ChatMessage
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role == "assistant" {
-			lastAssistant = &msgs[i]
-			break
-		}
-	}
-	if lastAssistant == nil {
-		return nil
-	}
-	if lastAssistant.Feedback == 1 {
-		return nil
-	}
-
-	if err := s.chatRepo.UpdateMessageFeedback(ctx, lastAssistant.ID, 2); err != nil {
-		return err
-	}
-
-	s.writeFeedbackAudit(ctx, 0, sessionID, lastAssistant.ID, 2, "implicit")
-	return nil
-}
-
-func (s *ChatService) writeFeedbackAudit(ctx context.Context, userID, sessionID, messageID int64, feedback int16, source string) {
-	if s.auditRepo == nil {
-		return
-	}
-	detail, _ := json.Marshal(map[string]any{
-		"session_id": sessionID,
-		"message_id": messageID,
-		"feedback":   feedback,
-		"source":     source,
-	})
-	if err := s.auditRepo.Write(ctx, userID, "chat.feedback", "chat_message", messageID, string(detail)); err != nil {
-		slog.Warn("反馈审计日志写入失败", "message_id", messageID, "error", err)
-	}
-}
-
-func (s *ChatService) SubmitFeedback(ctx context.Context, sessionID int64, userID int64, feedback int16) error {
-	if s.chatRepo == nil {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	if feedback < 0 || feedback > 2 {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 0（未反馈）/1（已解决）/2（未解决）"}
-	}
-	if feedback == 0 {
-		return errcode.AppError{Code: errcode.ErrParam, Message: "反馈值无效，请输入 1（已解决）或 2（未解决）"}
-	}
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
-		}
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败，请稍后重试"}
-	}
-	if session.UserID != userID {
-		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权操作该会话"}
-	}
-	return s.chatRepo.UpdateFeedback(ctx, sessionID, feedback)
-}
-
-func (s *ChatService) GetChatDetail(ctx context.Context, sessionID int64, userID int64) (*respDto.ChatSessionResponse, error) {
-	if s.chatRepo == nil {
-		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return nil, errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
-	}
-	if session.UserID != userID {
-		return nil, errcode.AppError{Code: errcode.ErrForbidden, Message: "无权查看该会话"}
-	}
-
-	if cleaned, err := s.chatRepo.CleanFailedMessages(ctx, sessionID); err != nil {
-		slog.Warn("清理失败消息对失败", "session_id", sessionID, "error", err)
-	} else if cleaned > 0 {
-		slog.Info("已清理失败消息对", "session_id", sessionID, "pairs", cleaned/2)
-	}
-
-	var sources []respDto.SourceItem
-	if len(session.Sources) > 0 {
-		if err := json.Unmarshal(session.Sources, &sources); err != nil {
-			slog.Warn("解析会话 Sources JSON 失败", "session_id", sessionID, "error", err)
-		}
-	}
-
-	var messages []respDto.MessageItem
-	if msgs, msgErr := s.chatRepo.FindMessagesBySession(ctx, sessionID); msgErr == nil {
-		for _, m := range msgs {
-			var msgSources []respDto.SourceItem
-			if len(m.Sources) > 0 {
-				if err := json.Unmarshal(m.Sources, &msgSources); err != nil {
-					slog.Warn("解析消息 Sources JSON 失败", "message_id", m.ID, "error", err)
-				}
-			}
-			messages = append(messages, respDto.MessageItem{
-				ID:              m.ID,
-				Role:            m.Role,
-				Content:         m.Content,
-				Sources:         msgSources,
-				Confidence:      m.ConfidenceRaw,
-				ConfidenceRaw:   m.ConfidenceRaw,
-				ConfidenceLevel: confidenceLevel(m.ConfidenceRaw),
-				Feedback:        m.Feedback,
-				Status:          m.Status,
-				CreatedAt:       m.CreatedAt.Format("2006-01-02 15:04:05"),
-			})
-		}
-	}
-
-	return &respDto.ChatSessionResponse{
-		SessionID:       session.ID,
-		Question:        session.Question,
-		Answer:          session.Answer,
-		Sources:         sources,
-		Confidence:      session.Confidence,
-		ConfidenceRaw:   session.Confidence,
-		ConfidenceLevel: confidenceLevel(session.Confidence),
-		CanSubmitTicket: confidenceLevel(session.Confidence) != "high",
-		DurationMS:      session.DurationMs,
-		Feedback:        session.Feedback,
-		CreatedAt:       session.CreatedAt.Format("2006-01-02 15:04:05"),
-		Messages:        messages,
-	}, nil
-}
-
-func (s *ChatService) ListSessions(ctx context.Context, userID int64, page, pageSize int) ([]respDto.SessionListItem, int64, error) {
-	if s.chatRepo == nil {
-		return nil, 0, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	sessions, total, err := s.chatRepo.ListByUser(ctx, userID, page, pageSize)
-	if err != nil {
-		return nil, 0, fmt.Errorf("查询会话列表失败: %w", err)
-	}
-
-	sessionIDs := make([]int64, len(sessions))
-	for i, sess := range sessions {
-		sessionIDs[i] = sess.ID
-	}
-	msgCounts, countErr := s.chatRepo.CountMessagesBySessions(ctx, sessionIDs)
-	if countErr != nil {
-		slog.Warn("批量获取会话消息数失败", "error", countErr)
-		msgCounts = map[int64]int64{}
-	}
-
-	items := make([]respDto.SessionListItem, 0, len(sessions))
-	for _, sess := range sessions {
-		lastAnswer := truncateRunes(sess.Answer, 100)
-		items = append(items, respDto.SessionListItem{
-			ID:           sess.ID,
-			KBID:         sess.KBID,
-			Question:     sess.Question,
-			LastAnswer:   lastAnswer,
-			MessageCount: msgCounts[sess.ID],
-			CreatedAt:    sess.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:    sess.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
-	}
-	return items, total, nil
-}
-
-func (s *ChatService) DeleteSession(ctx context.Context, sessionID, userID int64) error {
-	if s.chatRepo == nil {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
-	}
-	if session.UserID != userID {
-		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权删除该会话"}
-	}
-	return s.chatRepo.DeleteSession(ctx, sessionID, userID)
-}
-
-func (s *ChatService) UpdateSessionMeta(ctx context.Context, sessionID, userID int64, question string, kbID int64) error {
-	if s.chatRepo == nil {
-		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-	session, err := s.chatRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return errcode.AppError{Code: errcode.ErrNotFound, Message: "会话不存在"}
-	}
-	if session.UserID != userID {
-		return errcode.AppError{Code: errcode.ErrForbidden, Message: "无权修改该会话"}
-	}
-	return s.chatRepo.UpdateSessionMeta(ctx, sessionID, question, kbID)
-}
-
-func (s *ChatService) readBool(key string, fallback bool) bool {
-	if s.configReader == nil {
-		return fallback
-	}
-	if v, ok := s.configReader.GetBool(context.Background(), key); ok {
-		return v
-	}
-	return fallback
-}
-
-func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (string, error) {
-	if s.chatRepo == nil {
-		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
+// AnalyzeFeedback 分析反馈数据（用 Eino ChatModel Generate）。
+func (s *ChatService) AnalyzeFeedback(ctx context.Context, samples []FeedbackSample) (string, error) {
 	if s.modelFactory == nil || s.modelFactory.GetModel() == nil {
 		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 服务未初始化"}
 	}
-
-	samples, err := s.chatRepo.FindFeedbackSamples(ctx, limitDays)
-	if err != nil {
-		return "", fmt.Errorf("查询反馈样本失败: %w", err)
-	}
 	if len(samples) == 0 {
-		return "{\"message\":\"暂无反馈数据可供分析，请先使用问答功能并提交反馈。\"}", nil
+		return "{\"message\":\"暂无反馈数据可供分析。\"}", nil
 	}
 
 	var helpful, unhelpful strings.Builder
@@ -584,10 +374,10 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
 		answer := truncateRunes(s.Answer, 300)
 		if s.Feedback == 1 {
 			helpfulCount++
-			helpful.WriteString(fmt.Sprintf("- Q: %s\n  A: %s\n", question, answer))
+			fmt.Fprintf(&helpful, "- Q: %s\n  A: %s\n", question, answer)
 		} else {
 			unhelpfulCount++
-			unhelpful.WriteString(fmt.Sprintf("- Q: %s\n  A: %s\n", question, answer))
+			fmt.Fprintf(&unhelpful, "- Q: %s\n  A: %s\n", question, answer)
 		}
 	}
 
@@ -607,7 +397,6 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
   "summary": "一句话总结（30字以内）"
 }`, helpfulCount, helpful.String(), unhelpfulCount, unhelpful.String())
 
-	// Eino ChatModel.Generate（非流式）
 	msgs := []*schema.Message{
 		{Role: schema.System, Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
 		{Role: schema.User, Content: prompt},
@@ -616,11 +405,17 @@ func (s *ChatService) AnalyzeFeedback(ctx context.Context, limitDays int) (strin
 	if err != nil {
 		return "", fmt.Errorf("LLM 分析调用失败: %w", err)
 	}
-
 	return resp.Content, nil
 }
 
+// FeedbackSample 反馈样本（供 AnalyzeFeedback 用）。
+type FeedbackSample struct {
+	Question string
+	Answer   string
+	Feedback int16
+}
 
+// truncateRunes 截断字符串到指定 rune 数。
 func truncateRunes(s string, maxRunes int) string {
 	runes := []rune(s)
 	if len(runes) <= maxRunes {
@@ -629,8 +424,7 @@ func truncateRunes(s string, maxRunes int) string {
 	return string(runes[:maxRunes]) + "..."
 }
 
-// confidenceLevel 置信度分级（high/medium/low）。Agent 不产生置信度；
-// GetChatDetail 展示历史会话（RAG 时期）的置信度。
+// confidenceLevel 置信度分级（历史会话展示用）。
 func confidenceLevel(raw float64) string {
 	const defaultLowT, defaultHighT = 0.40, 0.70
 	if raw >= defaultHighT {
@@ -641,3 +435,6 @@ func confidenceLevel(raw float64) string {
 	}
 	return "low"
 }
+
+// 引用 json 防止未使用（AnalyzeFeedback 后续可能用 JSON 解析响应）
+var _ = json.Marshal
