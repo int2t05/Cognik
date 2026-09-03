@@ -1,11 +1,12 @@
 'use client';
 import useSWR from 'swr';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
+import { uploadAsset } from '@/lib/api/upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,14 +16,19 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Markdown } from '@/components/shared/Markdown';
 import { InlineError } from '@/components/shared/InlineError';
+import { useTheme } from '@/hooks/useTheme';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
+// MDEditor 懒加载（代码分割 + 避免 SSR）
+const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false });
+
 export default function ArticleEditPage() {
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
   const router = useRouter();
+  const { theme } = useTheme();
   const { data: article, error, mutate } = useSWR(`article-${articleId}`, () => getArticle(Number(articleId)));
   // 编辑状态
   const [editing, setEditing] = useState(false);
@@ -34,14 +40,81 @@ export default function ArticleEditPage() {
   const [deleteTarget, setDeleteTarget] = useState(false);
   const [tags, setTags] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [discardConfirm, setDiscardConfirm] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
+
+  // 编辑起始快照，用于 isDirty 检测（未保存内容确认）
+  const editSnapshot = useRef({ title: '', content: '', tags: '' });
+  const isDirty = editing && (title !== editSnapshot.current.title || content !== editSnapshot.current.content || tags !== editSnapshot.current.tags);
 
   // 轮询：文章处理中时每 5s 刷新（derived state，无 setState in effect）
   const shouldPoll = !!(article?.process_status && article.process_status !== 'completed' && article.process_status !== 'failed');
   const pollTimer = useRef<ReturnType<typeof setInterval>>(null);
 
-  const startEdit = () => { if (article) { setTitle(article.title); setContent(article.content); setTags((article.tags || []).join(',')); setEditing(true); } };
-  const handleSave = async () => { setEditSaving(true); try { const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean); await updateArticle(Number(articleId), { title, content, tags: tagList }); toast.success('已更新'); setEditing(false); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '更新失败')); } finally { setEditSaving(false); } };
+  const startEdit = () => {
+    if (!article) return;
+    const t = article.title, c = article.content, tg = (article.tags || []).join(',');
+    setTitle(t); setContent(c); setTags(tg);
+    editSnapshot.current = { title: t, content: c, tags: tg };
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setEditSaving(true);
+    try {
+      const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+      await updateArticle(Number(articleId), { title, content, tags: tagList });
+      toast.success('已更新');
+      editSnapshot.current = { title, content, tags };
+      setEditing(false);
+      mutate();
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, '更新失败'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // 取消编辑：有未保存内容时弹确认
+  const handleCancelEdit = () => {
+    if (isDirty) { setDiscardConfirm(true); return; }
+    setEditing(false);
+  };
+
+  // 图片粘贴上传：拦截 paste 中的图片文件，上传后插入 Markdown 链接
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        e.preventDefault();
+        setUploadingImg(true);
+        try {
+          const { url } = await uploadAsset(file);
+          const md = `![${file.name}](${url})`;
+          setContent((prev) => prev + (prev && !prev.endsWith('\n') ? '\n' : '') + md);
+          toast.success('图片已插入');
+        } catch (err) {
+          toast.error(errorMessage(err, '图片上传失败'));
+        } finally {
+          setUploadingImg(false);
+        }
+        break;
+      }
+    }
+  }, []);
+
   const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); } finally { setProcessing(false); } };
+
+  // beforeunload：有未保存内容时刷新/关闭提示
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   // 上传后 ?edit=1 → 自动进入编辑模式（微任务延迟避免 effect 内同步 setState）
   useEffect(() => {
@@ -97,17 +170,15 @@ export default function ArticleEditPage() {
 
       {editing ? (
         <Card className="mb-4">
-          <Field label="标题"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="正文">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <Textarea rows={20} value={content} onChange={(e) => setContent(e.target.value)} placeholder="支持 Markdown：# 标题、**粗体**、```mermaid、$E=mc^2$…" className="font-[var(--font-mono)] text-fine resize-y" />
-              <div className="rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-4 overflow-y-auto min-h-[300px] max-h-[560px]">
-                {content ? <Markdown content={content} /> : <span className="text-fine text-[var(--color-text-muted-48)]">实时预览…</span>}
-              </div>
+          <Field label="标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label="正文" required>
+            <div data-color-mode={theme} onPaste={handlePaste} className="relative">
+              {uploadingImg && <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-[var(--radius-md)] bg-[var(--color-canvas)] px-2 py-1 text-fine"><Loader2 className="animate-spin" size={12} />上传图片…</div>}
+              <MDEditor value={content} onChange={(v) => setContent(v || '')} height={500} preview="live" />
             </div>
           </Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
-          <div className="flex gap-2"><Button size="lg" disabled={editSaving} onClick={handleSave}>{editSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}保存</Button><Button variant="ghost" size="sm" onClick={() => setEditing(false)}><XCircle size={16} />取消</Button></div>
+          <div className="flex gap-2"><Button size="lg" disabled={editSaving || uploadingImg} onClick={handleSave}>{editSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}保存</Button><Button variant="ghost" size="sm" onClick={handleCancelEdit}><XCircle size={16} />取消</Button></div>
         </Card>
       ) : (
         <Card className="mb-4">
@@ -132,6 +203,15 @@ export default function ArticleEditPage() {
         </Card>
       )}
 
+      <ConfirmDialog
+        open={discardConfirm}
+        onOpenChange={setDiscardConfirm}
+        title="放弃未保存的更改"
+        message="当前编辑内容尚未保存，确定要放弃吗？"
+        confirmLabel="放弃"
+        onConfirm={() => { setDiscardConfirm(false); setEditing(false); }}
+        danger
+      />
       <ConfirmDialog
         open={disableConfirm}
         onOpenChange={setDisableConfirm}

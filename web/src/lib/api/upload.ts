@@ -100,3 +100,35 @@ export function uploadFileXHR(
     xhr.send(fd);
   });
 }
+
+/** 通用文件上传（文章内嵌图片/附件），返回 { url, filename }。复用 XHR 通道。 */
+export function uploadAsset(file: File, onProgress?: (p: UploadProgress) => void): Promise<{ url: string; filename: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append('file', file);
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress({ loaded: e.loaded, total: e.total, percent: Math.round((e.loaded / e.total) * 100) });
+      };
+    }
+
+    xhr.onload = () => {
+      try {
+        const json = JSON.parse(xhr.responseText) as Record<string, unknown>;
+        const data = parseApiResponse(json);
+        resolve(data as { url: string; filename: string });
+      } catch (err) {
+        if (err instanceof ApiError) { reject(err); return; }
+        reject(new ApiError(xhr.status, `上传失败 (HTTP ${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络请求失败'));
+
+    xhr.open('POST', `${getBaseUrl()}/api/v1/admin/files/upload`);
+    const token = getAuthToken();
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(fd);
+  });
+}
