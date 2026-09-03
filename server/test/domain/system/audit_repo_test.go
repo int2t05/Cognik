@@ -265,3 +265,46 @@ func TestAuditRepo_List_Empty(t *testing.T) {
 		t.Errorf("期望空列表, got %d 条", len(logs))
 	}
 }
+
+// TestAuditRepo_List_ByKeyword 验证 keyword 模糊匹配 action/target_type/detail。
+func TestAuditRepo_List_ByKeyword(t *testing.T) {
+	repo, _ := setupAuditRepoTest(t)
+	seedAuditLogs(t, repo)
+
+	// keyword=user 匹配 action 含 "user"(user.create/user.update)
+	logs, total, err := repo.List(context.Background(), audit.AuditFilter{Keyword: "user", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("期望无错误, got %v", err)
+	}
+	if total != 2 {
+		t.Errorf("keyword=user 期望 2 条, got %d", total)
+	}
+	_ = logs
+
+	// keyword=ticket 匹配 ticket.create
+	_, totalTicket, err := repo.List(context.Background(), audit.AuditFilter{Keyword: "ticket", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("期望无错误, got %v", err)
+	}
+	if totalTicket != 1 {
+		t.Errorf("keyword=ticket 期望 1 条, got %d", totalTicket)
+	}
+
+	// keyword=不存在的关键词 → 0 条
+	_, totalNone, err := repo.List(context.Background(), audit.AuditFilter{Keyword: "不存在的关键词xyz", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("期望无错误, got %v", err)
+	}
+	if totalNone != 0 {
+		t.Errorf("keyword=不存在 期望 0 条, got %d", totalNone)
+	}
+
+	// keyword 含通配符 % → 字面量搜索(不误匹配)
+	_, totalWild, err := repo.List(context.Background(), audit.AuditFilter{Keyword: "%", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("期望无错误, got %v", err)
+	}
+	if totalWild != 0 {
+		t.Errorf("keyword=%% (字面量) 期望 0 条, got %d", totalWild)
+	}
+}
