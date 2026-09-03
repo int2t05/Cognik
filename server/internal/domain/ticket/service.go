@@ -374,9 +374,9 @@ func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int6
 // ListByUser / ListAll / GetDetail
 // =============================================================================
 
-// ListByUser 分页查询当前用户的申告列表。
-func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string) (*response.TicketListResponse, error) {
-	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize, keyword)
+// ListByUser 分页查询当前用户的申告列表（status=-1 不过滤）。
+func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) (*response.TicketListResponse, error) {
+	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize, keyword, status)
 	if err != nil {
 		return nil, err
 	}

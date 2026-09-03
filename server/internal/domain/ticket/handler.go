@@ -97,8 +97,9 @@ func (h *TicketHandler) ListByUser(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	page, pageSize := parsePagination(c)
 	keyword := c.DefaultQuery("keyword", "")
+	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
 
-	result, err := h.svc.ListByUser(c.Request.Context(), userID, page, pageSize, keyword)
+	result, err := h.svc.ListByUser(c.Request.Context(), userID, page, pageSize, keyword, status)
 	if err != nil {
 		handleServiceError(c, err)
 		return

@@ -1,7 +1,7 @@
 'use client';
 /** TableFilterHeader — 表头单选筛选下拉，GitHub PR list 风格。
- *  紧凑 ghost trigger（标签 + 当前值 + chevron）+ DropdownMenuRadioGroup，嵌入 TableHead。
- *  约定 options 首项为"全部"——非首项被选时 trigger 显示"标签: 值"。 */
+ *  trigger 永远只显示 label（宽度恒定），激活时加小圆点指示，避免选中值文本变长撑宽列。
+ *  约定 options 首项为"全部"——非首项被选时显示激活圆点。 */
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
@@ -21,7 +21,6 @@ interface TableFilterHeaderProps<V extends string | number> {
 }
 
 export function TableFilterHeader<V extends string | number>({ label, value, options, onChange, className }: TableFilterHeaderProps<V>) {
-  const active = options.find((o) => o.value === value);
   const allValue = options[0]?.value;
   const filtered = allValue !== undefined && value !== allValue;
   return (
@@ -35,7 +34,8 @@ export function TableFilterHeader<V extends string | number>({ label, value, opt
             className,
           )}
         >
-          <span>{label}{filtered && active ? `: ${active.label}` : ''}</span>
+          <span>{label}</span>
+          {filtered && <span className="size-1.5 rounded-full bg-[var(--color-accent)]" />}
           <ChevronDown size={14} className="size-3.5 text-[var(--color-text-muted-48)]" />
         </Button>
       </DropdownMenuTrigger>

@@ -11,7 +11,11 @@ export const MESSAGE_PATHS = {
   markRead: (id: number) => `/api/v1/portal/messages/${id}/read`,
 } as const;
 
-export function getMessages(page: number) { return apiFetchPage<MessageItem>(`${MESSAGE_PATHS.list}?page=${page}&page_size=${PAGE_SIZE}`); }
+export function getMessages(page: number, type?: string) {
+  let url = `${MESSAGE_PATHS.list}?page=${page}&page_size=${PAGE_SIZE}`;
+  if (type) url += `&type=${encodeURIComponent(type)}`;
+  return apiFetchPage<MessageItem>(url);
+}
 export function markAsRead(id: number) { return apiFetch<{ unread_count: number }>(MESSAGE_PATHS.markRead(id), { method: 'PUT' }); }
 export function markAllRead() { return apiFetch<{ affected: number }>(MESSAGE_PATHS.readAll, { method: 'PUT' }); }
 

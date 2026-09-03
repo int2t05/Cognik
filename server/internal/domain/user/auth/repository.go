@@ -2,6 +2,7 @@
 package auth
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -22,7 +23,7 @@ func newLoginRateLimiter() *loginRateLimiter {
 	return &loginRateLimiter{
 		attempts: make(map[string]*loginFailRecord),
 		maxFails: 5,
-		window:   15 * time.Minute,
+		window:   3 * time.Minute,
 	}
 }
 
@@ -39,7 +40,7 @@ func (r *loginRateLimiter) allowLogin(username string) error {
 	}
 
 	if rec.count >= r.maxFails {
-		return AppError{Code: 10003, Message: "登录失败次数过多，请15分钟后再试"}
+		return AppError{Code: 10003, Message: fmt.Sprintf("登录失败次数过多，请%d分钟后再试", int(r.window.Minutes()))}
 	}
 	return nil
 }
