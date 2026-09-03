@@ -13,13 +13,15 @@ import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
+import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { useRouter } from 'next/navigation';
 import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
 
 export default function KnowledgeListPage() {
-  const { data: kbs, error, mutate } = useSWR('kb-list', getKBList);
+  const [keyword, setKeyword] = useState('');
+  const { data: kbs, error, mutate } = useSWR(`kb-list-${keyword}`, () => getKBList(keyword));
   const { data: llmConfigs } = useSWR('llm-configs', getLLMConfigs);
   // 从 LLM 配置中提取去重后的 embedding 模型列表，供下拉选择
   const embeddingOptions = useMemo(() => {
@@ -67,16 +69,19 @@ export default function KnowledgeListPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-5">
+      <div className="flex justify-between items-center mb-5 gap-3">
         <PageTitle className="mb-0">知识库管理</PageTitle>
-        <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
+        <div className="flex items-center gap-3">
+          <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); }} placeholder="搜索知识库…" />
+          <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
+        </div>
       </div>
 
       {error && <InlineError />}
 
       <div className="grid gap-4">
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
-          <EmptyState icon={<BookOpen size={40} />} title="暂无知识库" description={'点击右上角"新建知识库"开始'} action={{ label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
+          <EmptyState icon={<BookOpen size={40} />} title={keyword ? '未找到匹配的知识库' : '暂无知识库'} description={keyword ? `没有名称或描述含"${keyword}"的知识库` : '点击右上角"新建知识库"开始'} action={keyword ? undefined : { label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
           <Card
             key={kb.id}
@@ -104,7 +109,7 @@ export default function KnowledgeListPage() {
           <DialogHeader>
             <DialogTitle>{editId ? '编辑知识库' : '新建知识库'}</DialogTitle>
           </DialogHeader>
-          <Field label="名称"><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
+          <Field label="名称" required><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
           <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
           <Field label="Embedding 模型">
             <Select value={kbEmbeddingModel} onValueChange={setKbEmbeddingModel}>

@@ -6,7 +6,10 @@ export interface Article { id: number; kb_id: number; kb_name: string; title: st
 export interface ArticleDetail extends Article { chunks: unknown[]; reviewed_by: number | null; published_by: number | null; minio_path: string; }
 
 // KB
-export function getKBList() { return apiFetch<KB[]>('/api/v1/admin/knowledge-bases'); }
+export function getKBList(keyword?: string) {
+  const url = keyword ? `/api/v1/admin/knowledge-bases?keyword=${encodeURIComponent(keyword)}` : '/api/v1/admin/knowledge-bases';
+  return apiFetch<KB[]>(url);
+}
 export function getPortalKBList() { return apiFetch<Pick<KB, 'id' | 'name' | 'description'>[]>('/api/v1/portal/knowledge-bases'); }
 export function createKB(data: Record<string, unknown>) { return apiFetch<{ id: number }>('/api/v1/admin/knowledge-bases', { method: 'POST', body: JSON.stringify(data) }); }
 export function updateKB(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/knowledge-bases/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
