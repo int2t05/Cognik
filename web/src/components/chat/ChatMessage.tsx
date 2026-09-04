@@ -9,6 +9,7 @@ import { TextPart } from './parts/TextPart';
 import { ReasoningPart } from './parts/ReasoningPart';
 import { ToolCallPart } from './parts/ToolCallPart';
 import { ToolResultPart } from './parts/ToolResultPart';
+import { SubAgentPart } from './parts/SubAgentPart';
 
 interface Props {
   message: ChatMessageType;
@@ -44,6 +45,10 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
             case 'reasoning':
               return <ReasoningPart key={key} part={part} streaming={isStreaming} />;
             case 'tool_call':
+              // 子 Agent 工具（research/coder）用 SubAgentPart 渲染
+              if (part.label === 'research' || part.label === 'coder') {
+                return <SubAgentPart key={key} part={part as any} isStreaming={isStreaming} />;
+              }
               return <ToolCallPart key={key} part={part} />;
             case 'tool_result':
               return <ToolResultPart key={key} part={part} />;
