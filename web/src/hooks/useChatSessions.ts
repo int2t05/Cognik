@@ -73,6 +73,8 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
   // 加载线程详情（进入会话时）
   useEffect(() => {
     if (!sessionId || threadsLoading) return;
+    // token 未就绪时不加载（刷新后 token 从 localStorage 异步恢复，避免 401 误清 sessionId）
+    if (!token) return;
     // 如果 stream 已有消息，不重复加载
     if (store.getStream(sessionId)?.messages.length) return;
 
@@ -87,7 +89,7 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
         store.resume(sessionId, 0, token || '');
       }
     }).catch(() => {
-      if (sessionIdRef.current === sessionId) setSessionId(null);
+      // 加载失败不清空 sessionId（可能是 token 未就绪或网络暂时错误，用户可重试）
     }).finally(() => {
       if (sessionIdRef.current === sessionId) setLoadingSession(false);
     });
