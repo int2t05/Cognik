@@ -44,14 +44,3 @@ type ChatMessage struct {
 }
 
 func (ChatMessage) TableName() string { return "chat_messages" }
-
-// FeedbackSample 反馈样本，用于 LLM 知识盲区分析。
-type FeedbackSample struct {
-	MessageID  int64   `json:"message_id"`
-	SessionID  int64   `json:"session_id"`
-	Question   string  `json:"question"`
-	Answer     string  `json:"answer"`
-	Feedback   int16   `json:"feedback"`
-	Confidence float64 `json:"confidence"`
-	CreatedAt  string  `json:"created_at"`
-}

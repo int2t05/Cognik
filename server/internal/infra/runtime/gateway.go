@@ -47,7 +47,7 @@ func (s *eventStore[E]) append(evt E) int {
 }
 
 // replay 返回 seq >= since 的事件（从缓冲中按顺序回放）。
-// since 语义同旧 GenerationHub：buffer[since:] 包含 since 本身；since=0 回放全部。
+// since 语义：buffer[since:] 包含 since 本身；since=0 回放全部。
 func (s *eventStore[E]) replay(since int) []E {
 	if since < 0 {
 		since = 0
@@ -138,7 +138,6 @@ func (g *Gateway[E]) Publish(runID string, evt E) {
 }
 
 // Subscribe 订阅者凭 since 游标 join：原子回放 buffer[since:] + 注册实时通道（同一锁内，避免回放与注册间漏事件）。
-// 对齐 LangGraph join_stream(last_event_id) / Mastra observe(offset) / OpenAI starting_after。
 // ok=false 表示 run 不存在。
 func (g *Gateway[E]) Subscribe(runID string, since int) (replay []E, ch <-chan E, unsub func(), ok bool) {
 	r := g.get(runID)

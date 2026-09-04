@@ -10,7 +10,7 @@
 //   - grep       内容搜索（正则 + 行号）
 //   - mkdir      目录创建
 //
-// 工具实现 Eino InvokableTool 接口（Info + InvokableRun）。
+// 工具实现 Eino InvokableTool（Info + InvokableRun）或 StreamableTool（Info + StreamableRun）接口。
 package tools
 
 import (

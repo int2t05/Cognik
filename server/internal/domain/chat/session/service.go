@@ -6,9 +6,7 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -24,10 +22,6 @@ import (
 )
 
 const fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
-
-// =============================================================================
-// 流式事件类型
-// =============================================================================
 
 // StreamEvent SSE 流式事件（网关交付的事件单元）。
 type StreamEvent struct {
@@ -50,25 +44,19 @@ type StreamDoneMeta struct {
 	AssistantMessageID int64  `json:"assistant_message_id,omitempty"`
 }
 
-// =============================================================================
-// ChatService
-// =============================================================================
-
 // ChatService Agent 对话服务。
 type ChatService struct {
-	store        store.ChatStore          // SQLite 对话数据存储
-	agentRunner  *agent.AgentRunner       // 事件生产者（Eino ReAct 循环）
-	modelFactory *agent.ChatModelFactory  // AnalyzeFeedback 用 Generate
-	gateway      *runtime.Gateway[StreamEvent]
+	store       store.ChatStore           // SQLite 对话数据存储
+	agentRunner *agent.AgentRunner        // 事件生产者（Eino ReAct 循环）
+	gateway     *runtime.Gateway[StreamEvent]
 }
 
 // NewChatService 创建 ChatService。
-func NewChatService(store store.ChatStore, agentRunner *agent.AgentRunner, modelFactory *agent.ChatModelFactory, gateway *runtime.Gateway[StreamEvent]) *ChatService {
+func NewChatService(store store.ChatStore, agentRunner *agent.AgentRunner, gateway *runtime.Gateway[StreamEvent]) *ChatService {
 	return &ChatService{
-		store:        store,
-		agentRunner:  agentRunner,
-		modelFactory: modelFactory,
-		gateway:      gateway,
+		store:       store,
+		agentRunner: agentRunner,
+		gateway:     gateway,
 	}
 }
 
@@ -410,63 +398,6 @@ func (s *ChatService) CleanupStale(ctx context.Context) error {
 	return err
 }
 
-// AnalyzeFeedback 分析反馈数据（用 Eino ChatModel Generate）。
-func (s *ChatService) AnalyzeFeedback(ctx context.Context, samples []FeedbackSample) (string, error) {
-	if s.modelFactory == nil || s.modelFactory.GetModel() == nil {
-		return "", errcode.AppError{Code: errcode.ErrAIUnavailable, Message: "LLM 服务未初始化"}
-	}
-	if len(samples) == 0 {
-		return "{\"message\":\"暂无反馈数据可供分析。\"}", nil
-	}
-
-	var helpful, unhelpful strings.Builder
-	helpfulCount, unhelpfulCount := 0, 0
-	for _, s := range samples {
-		question := truncateRunes(s.Question, 200)
-		answer := truncateRunes(s.Answer, 300)
-		if s.Feedback == 1 {
-			helpfulCount++
-			fmt.Fprintf(&helpful, "- Q: %s\n  A: %s\n", question, answer)
-		} else {
-			unhelpfulCount++
-			fmt.Fprintf(&unhelpful, "- Q: %s\n  A: %s\n", question, answer)
-		}
-	}
-
-	prompt := fmt.Sprintf(`你是运维知识库的质量分析师。请根据以下用户反馈数据分析知识库的优缺点。
-
-## 用户标记为"有帮助"的回答（共 %d 条）：
-%s
-
-## 用户标记为"无帮助"的回答（共 %d 条）：
-%s
-
-请用 JSON 格式输出分析结果（只输出 JSON，不要其他内容）：
-{
-  "strong_areas": ["方面1", "方面2"],
-  "weak_areas": ["方面1", "方面2"],
-  "suggestions": ["建议1", "建议2"],
-  "summary": "一句话总结（30字以内）"
-}`, helpfulCount, helpful.String(), unhelpfulCount, unhelpful.String())
-
-	msgs := []*schema.Message{
-		{Role: schema.System, Content: "你是运维知识库质量分析师。根据用户反馈数据，识别知识盲区和改进方向。只输出 JSON，不要任何解释。"},
-		{Role: schema.User, Content: prompt},
-	}
-	resp, err := s.modelFactory.GetModel().Generate(ctx, msgs)
-	if err != nil {
-		return "", fmt.Errorf("LLM 分析调用失败: %w", err)
-	}
-	return resp.Content, nil
-}
-
-// FeedbackSample 反馈样本（供 AnalyzeFeedback 用）。
-type FeedbackSample struct {
-	Question string
-	Answer   string
-	Feedback int16
-}
-
 // truncateRunes 截断字符串到指定 rune 数。
 func truncateRunes(s string, maxRunes int) string {
 	runes := []rune(s)
@@ -475,18 +406,3 @@ func truncateRunes(s string, maxRunes int) string {
 	}
 	return string(runes[:maxRunes]) + "..."
 }
-
-// confidenceLevel 置信度分级（历史会话展示用）。
-func confidenceLevel(raw float64) string {
-	const defaultLowT, defaultHighT = 0.40, 0.70
-	if raw >= defaultHighT {
-		return "high"
-	}
-	if raw >= defaultLowT {
-		return "medium"
-	}
-	return "low"
-}
-
-// 引用 json 防止未使用（AnalyzeFeedback 后续可能用 JSON 解析响应）
-var _ = json.Marshal

@@ -106,7 +106,7 @@ func (b *AsyncBashTool) StreamableRun(ctx context.Context, argsJSON string, _ ..
 			line := scanner.Text() + "\n"
 			totalBytes += int64(len(line))
 			if totalBytes > b.maxBytes {
-				ch <- "\n...[output truncated at %d bytes]\n"
+				ch <- fmt.Sprintf("\n...[output truncated at %d bytes]\n", b.maxBytes)
 				break
 			}
 			select {
@@ -117,7 +117,7 @@ func (b *AsyncBashTool) StreamableRun(ctx context.Context, argsJSON string, _ ..
 			}
 		}
 
-		// stderr
+		// stderr 输出
 		errScanner := bufio.NewScanner(stderrPipe)
 		errScanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for errScanner.Scan() {

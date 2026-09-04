@@ -318,7 +318,7 @@ func wireApp() (*app, error) {
 	}
 	slog.Info("Agent SQLite 存储已初始化", "path", envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
 
-	chatService := session.NewChatService(agentStore, agentRunner, agentModelFactory, genHub)
+	chatService := session.NewChatService(agentStore, agentRunner, genHub)
 	slog.Info("ChatService 已初始化")
 
 	// 异步任务管理器

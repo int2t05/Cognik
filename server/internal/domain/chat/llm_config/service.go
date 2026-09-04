@@ -46,7 +46,7 @@ func NewLLMConfigManager() *LLMConfigManager {
 	return &LLMConfigManager{}
 }
 
-// OnChange 注册配置变更回调（覆盖式）。
+// OnChange 注册配置变更回调（覆盖式：后注册覆盖前注册，调用方须在同一回调内完成所有重建）。
 func (m *LLMConfigManager) OnChange(fn func()) {
 	m.onChange = fn
 }
