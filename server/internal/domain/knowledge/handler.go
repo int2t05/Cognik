@@ -529,20 +529,15 @@ func (h *KnowledgeHandler) ServeFile(c *gin.Context) {
 	c.File(path)
 }
 
-// ServeArticleImage 提供文章解析出的图片（MinerU/本地解析器提取的图片）。
-// GET /api/v1/admin/files/articles/:articleId/images/:filename
-func (h *KnowledgeHandler) ServeArticleImage(c *gin.Context) {
-	articleID, err := strconv.ParseInt(c.Param("articleId"), 10, 64)
-	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的文章 ID")
-		return
-	}
+// ServeImage 提供全局图片目录下的图片（解析器提取的文档图片，内容寻址命名）。
+// 图片与文章解耦，任何上下文都可访问。GET /api/v1/public/images/:filename
+func (h *KnowledgeHandler) ServeImage(c *gin.Context) {
 	filename := c.Param("filename")
 	if filename == "" || strings.ContainsAny(filename, "/\\") {
 		response.Error(c, errcode.ErrParam, "无效的文件名")
 		return
 	}
-	url, err := h.svc.GetArticleImageURL(c.Request.Context(), articleID, filename)
+	url, err := h.svc.GetImageURL(c.Request.Context(), filename)
 	if err != nil {
 		handleServiceError(c, err)
 		return

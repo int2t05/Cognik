@@ -205,6 +205,8 @@ func (g *Gateway[E]) Cancel(runID string) bool {
 		return false
 	}
 	cancel()
+	// 立即标记为已结束（不等 runAgent goroutine 退出），允许新请求覆盖
+	g.Finish(runID)
 	return true
 }
 

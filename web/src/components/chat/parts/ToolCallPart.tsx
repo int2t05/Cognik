@@ -21,12 +21,23 @@ const TOOL_LABELS: Record<string, string> = {
   glob: '搜索文件',
   grep: '搜索内容',
   mkdir: '创建目录',
+  dispatch_subagent: '子代理',
+  task_completion: '任务完成',
+  deep_research: '深度研究',
+  research: '只读探查',
+  coder: '读写操作',
+  web_search: '网络搜索',
+  web_fetch: '网页提取',
+  generate_article: '生成文章',
+  search: '搜索',
+  fetch: '提取',
 };
 
 export function ToolCallPart({ part }: Props) {
   const [open, setOpen] = useState(false);
   const isRunning = part.status === 'running';
   const isError = part.status === 'error';
+  const isCancelled = part.status === 'cancelled';
   const toolLabel = TOOL_LABELS[part.label] || part.label || '工具调用';
 
   // 分离参数和结果（content 格式：args\n--- result ---\nresult）
@@ -46,6 +57,8 @@ export function ToolCallPart({ part }: Props) {
           <Clock size={14} className="animate-spin text-[var(--color-accent)] shrink-0" />
         ) : isError ? (
           <XCircle size={14} className="text-red-500 shrink-0" />
+        ) : isCancelled ? (
+          <XCircle size={14} className="text-zinc-400 shrink-0" />
         ) : (
           <CheckCircle size={14} className="text-green-500 shrink-0" />
         )}

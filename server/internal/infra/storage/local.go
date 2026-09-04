@@ -50,66 +50,24 @@ func (c *LocalStorageClient) UploadFile(ctx context.Context, bucket, dir, filena
 	return nil
 }
 
-// DownloadDir 下载整个目录，返回 filename→reader 映射。
-// 调用方负责关闭每个 reader。
-func (c *LocalStorageClient) DownloadDir(ctx context.Context, bucket, dir string) (map[string]io.ReadCloser, error) {
-	dirPath := filepath.Join(c.baseDir, bucket, dir)
-
-	entries, err := os.ReadDir(dirPath)
+// DownloadFile 下载单文件（本地直接打开，调用方负责关闭）。
+func (c *LocalStorageClient) DownloadFile(ctx context.Context, bucket, dir, filename string) (io.ReadCloser, error) {
+	path := filepath.Join(c.baseDir, bucket, dir, filename)
+	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("目录不存在 [%s/%s]", bucket, dir)
+			return nil, fmt.Errorf("文件不存在 [%s/%s/%s]", bucket, dir, filename)
 		}
-		return nil, fmt.Errorf("读取目录失败 [%s/%s]: %w", bucket, dir, err)
+		return nil, fmt.Errorf("打开文件失败 %s: %w", path, err)
 	}
-
-	result := make(map[string]io.ReadCloser)
-
-	// 递归收集所有文件（含 images/ 子目录）
-	var collect func(base string, entries []os.DirEntry) error
-	collect = func(base string, entries []os.DirEntry) error {
-		for _, entry := range entries {
-			fullPath := filepath.Join(base, entry.Name())
-			if entry.IsDir() {
-				subEntries, err := os.ReadDir(fullPath)
-				if err != nil {
-					return fmt.Errorf("读取子目录失败 %s: %w", fullPath, err)
-				}
-				if err := collect(fullPath, subEntries); err != nil {
-					return err
-				}
-				continue
-			}
-			f, err := os.Open(fullPath)
-			if err != nil {
-				return fmt.Errorf("打开文件失败 %s: %w", fullPath, err)
-			}
-			// 相对路径（相对 dirPath），如 markdown.md / images/xxx.jpg
-			rel, _ := filepath.Rel(dirPath, fullPath)
-			result[filepath.ToSlash(rel)] = f
-		}
-		return nil
-	}
-
-	if err := collect(dirPath, entries); err != nil {
-		for _, r := range result {
-			r.Close()
-		}
-		return nil, err
-	}
-
-	if len(result) == 0 {
-		return nil, fmt.Errorf("目录为空 [%s/%s]", bucket, dir)
-	}
-	return result, nil
+	return f, nil
 }
 
-// DeleteDir 删除整个目录（递归，幂等）。
-func (c *LocalStorageClient) DeleteDir(ctx context.Context, bucket, dir string) error {
-	dirPath := filepath.Join(c.baseDir, bucket, dir)
-
-	if err := os.RemoveAll(dirPath); err != nil {
-		return fmt.Errorf("删除目录失败 [%s/%s]: %w", bucket, dir, err)
+// DeleteFile 删除单文件（幂等，文件不存在不报错）。
+func (c *LocalStorageClient) DeleteFile(ctx context.Context, bucket, dir, filename string) error {
+	path := filepath.Join(c.baseDir, bucket, dir, filename)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("删除文件失败 %s: %w", path, err)
 	}
 	return nil
 }

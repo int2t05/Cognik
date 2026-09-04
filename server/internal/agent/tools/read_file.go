@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// read_file.go：文件读取工具（对标 Claude Code Read）。
+// read_file.go：文件读取工具。
 //
 // 高级特性：offset/limit 行范围读取 + 行号输出（cat -n 风格）。
 // 行号让 Agent 精确定位后续 edit_file 的 old_string，避免读取整文件膨胀 token。
@@ -13,11 +13,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
-// ReadFileTool 文件读取工具（实现 eino InvokableTool 接口）。
+// ReadFileTool 文件读取工具（实现 agent.SyncTool 接口）。
 type ReadFileTool struct {
 	workDir  string
 	maxBytes int64
@@ -29,7 +30,7 @@ func NewReadFileTool(workDir string, maxBytes int64) *ReadFileTool {
 }
 
 // Info 返回工具元信息。
-func (r *ReadFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (r *ReadFileTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "read_file",
 		Desc: "Read a file's content with line numbers from the working directory sandbox. Returns cat -n style output (line number + tab + content). Use offset/limit to read ranges of large files.",
@@ -48,7 +49,7 @@ func (r *ReadFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Desc: "Maximum number of lines to read (default: read to EOF). Use with offset for paging.",
 			},
 		}),
-	}, nil
+	}
 }
 
 // readFileParams read_file 工具参数。
@@ -58,10 +59,10 @@ type readFileParams struct {
 	Limit  int    `json:"limit,omitempty"`  // <=0 视为读到 EOF
 }
 
-// InvokableRun 读取文件内容，输出带行号。路径限制在 workDir 沙箱内（防 traversal）。
-func (r *ReadFileTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 读取文件内容，输出带行号。路径限制在 workDir 沙箱内（防 traversal）。
+func (r *ReadFileTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params readFileParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if params.Path == "" {

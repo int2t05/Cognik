@@ -1,4 +1,4 @@
-// Package storage 定义文件存储适配接口（目录式，MinIO/本地双实现）。
+// Package storage 定义文件存储适配接口（MinIO/本地双实现）。
 package storage
 
 import (
@@ -6,17 +6,17 @@ import (
 	"io"
 )
 
-// StorageClient 对象存储适配接口（目录式：每篇文档存为 bucket/{dir}/ 多文件目录）。
+// StorageClient 文件存储适配接口（MinIO/本地双实现）。
+// path 语义：bucket/{dir}/{filename}，dir 可含子目录（如 "kb-1/draft"）；扁平单文件场景 dir 即文件所在目录。
 type StorageClient interface {
 	// UploadFile 上传单文件到 bucket/{dir}/{filename}。
 	UploadFile(ctx context.Context, bucket, dir, filename string, reader io.Reader, size int64, contentType string) error
 
-	// DownloadDir 下载整个目录，返回 filename→reader 映射。
-	// 调用方负责关闭每个 reader。
-	DownloadDir(ctx context.Context, bucket, dir string) (map[string]io.ReadCloser, error)
+	// DownloadFile 下载单文件（bucket/{dir}/{filename}），调用方负责关闭 reader。
+	DownloadFile(ctx context.Context, bucket, dir, filename string) (io.ReadCloser, error)
 
-	// DeleteDir 删除整个目录（递归，幂等）。
-	DeleteDir(ctx context.Context, bucket, dir string) error
+	// DeleteFile 删除单文件（幂等，文件不存在不报错）。
+	DeleteFile(ctx context.Context, bucket, dir, filename string) error
 
 	// GetFileURL 获取单文件访问 URL（MinIO 预签名 / 本地路径）。
 	GetFileURL(ctx context.Context, bucket, dir, filename string) (string, error)

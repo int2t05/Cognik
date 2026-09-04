@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// grep.go：内容搜索工具（对标 Claude Code Grep / SWE-agent search_file）。
+// grep.go：内容搜索工具。
 //
 // 在 workDir 沙箱内递归搜索文件内容，返回匹配行 + 文件名 + 行号。
 // 支持正则与大小写忽略。让 Agent 定位代码/文本而无需逐文件读取。
@@ -17,7 +17,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -33,7 +34,7 @@ func NewGrepTool(workDir string, maxBytes int64) *GrepTool {
 }
 
 // Info 返回工具元信息。
-func (g *GrepTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (g *GrepTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "grep",
 		Desc: "Search file contents recursively in the working directory sandbox. Returns matching lines with file path and line number. Supports regex.",
@@ -56,7 +57,7 @@ func (g *GrepTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Desc: "Case-insensitive match (default false).",
 			},
 		}),
-	}, nil
+	}
 }
 
 // grepParams grep 工具参数。
@@ -74,10 +75,10 @@ type grepMatch struct {
 	Source string
 }
 
-// InvokableRun 递归搜索文件内容。路径限制在 workDir 沙箱内。
-func (g *GrepTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 递归搜索文件内容。路径限制在 workDir 沙箱内。
+func (g *GrepTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params grepParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if strings.TrimSpace(params.Pattern) == "" {

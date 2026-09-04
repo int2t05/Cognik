@@ -30,7 +30,6 @@ import (
 	"opsmind/internal/agent"
 	agenttools "opsmind/internal/agent/tools"
 	"opsmind/internal/agent/store"
-	"opsmind/internal/agent/task"
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
@@ -42,6 +41,8 @@ import (
 	"opsmind/internal/parser/mineru"
 	"opsmind/internal/rag"
 	"opsmind/internal/router"
+	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/shared/model"
 )
 
 // app 持有所有已初始化的组件。
@@ -290,17 +291,59 @@ func wireApp() (*app, error) {
 	if err := agentModelFactory.BuildInitial(context.Background()); err != nil {
 		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
 	}
-	agentToolFactory := agenttools.NewToolFactory(
-		envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
-		envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
-		int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
-	)
-	agentFactory := agent.NewAgentFactory(agentModelFactory, agentToolFactory)
-	if cfg := llmConfigSvc.GetManager().GetConfig(); cfg != nil && cfg.SystemPrompt != "" {
-		agentFactory.SetInstruction(cfg.SystemPrompt)
+
+	// 深度搜索工具链（降级链：Exa → Tavily → DuckDuckGo 本地兜底）
+	var searchBackends []adapter.SearchClient
+	if cfg.Search.Exa.APIKey != "" {
+		searchBackends = append(searchBackends, adapter.NewExaClient(cfg.Search.Exa.APIKey))
+		slog.Info("搜索后端 Exa 已启用（降级链首选）")
 	}
-	agentRunner := agent.NewAgentRunner(agentFactory)
-	slog.Info("Agent 基座已初始化")
+	if cfg.Search.Tavily.APIKey != "" {
+		searchBackends = append(searchBackends, adapter.NewTavilyClient(cfg.Search.Tavily.APIKey))
+		slog.Info("搜索后端 Tavily 已启用（降级链第二）")
+	}
+	searchBackends = append(searchBackends, adapter.NewDuckDuckGoClient()) // 本地兜底
+	searchChain := adapter.NewSearchChain(searchBackends)
+
+	// 页面提取降级链：Firecrawl API → 本地 http.Get 兜底
+	var fetchBackends []adapter.FetchClient
+	if cfg.Search.Firecrawl.APIKey != "" {
+		fetchBackends = append(fetchBackends, adapter.NewFirecrawlClient(cfg.Search.Firecrawl.APIKey))
+		slog.Info("提取后端 Firecrawl 已启用")
+	}
+	fetchBackends = append(fetchBackends, adapter.NewLocalFetchClient()) // 本地兜底
+	fetchChain := adapter.NewFetchChain(fetchBackends)
+
+	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
+	toolDeps := agenttools.Deps{
+		WorkDir:       envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
+		Timeout:       envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
+		MaxBytes:      int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
+		SearchChain:   searchChain,
+		FetchChain:    fetchChain,
+		ArticleWriter: &deepResearchWriter{svc: knowledgeService},
+	}
+	registry := agent.NewToolRegistry()
+	for _, t := range agenttools.Build(toolDeps) {
+		registry.Register(t)
+	}
+	// SubAgent 注册（research 只读 / coder 读写 / deep_research 网络调研）。
+	subAgents := map[string]*agent.SubAgent{
+		"research":      agent.ResearchSubAgent,
+		"coder":         agent.CoderSubAgent,
+		"deep_research": agent.DeepResearchSubAgent,
+	}
+	registry.Register(agent.NewDispatchSubagentTool(subAgents, agentModelFactory, registry, 3))
+
+	// 自建 Loop（系统提示词从 LLM 配置注入）。
+	systemPrompt := ""
+	if llmCfg := llmConfigSvc.GetManager().GetConfig(); llmCfg != nil && llmCfg.SystemPrompt != "" {
+		systemPrompt = llmCfg.SystemPrompt
+	}
+	taskRegistry := agent.NewTaskRegistry()
+	loop := agent.NewLoop(agentModelFactory.GetModel, registry, taskRegistry, 20, 3, systemPrompt)
+	agentRunner := agent.NewAgentRunner(loop)
+	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发）")
 
 	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
 	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)
@@ -321,14 +364,6 @@ func wireApp() (*app, error) {
 	chatService := session.NewChatService(agentStore, agentRunner, genHub)
 	slog.Info("ChatService 已初始化")
 
-	// 异步任务管理器
-	taskStore := task.NewSQLiteTaskStore(agentStore.DB())
-	taskMgr := task.NewTaskManager(taskStore, agentRunner)
-	if err := taskMgr.CleanupStale(context.Background()); err != nil {
-		slog.Warn("清理残留 running 任务失败", "error", err)
-	}
-	slog.Info("TaskManager 已初始化")
-
 	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)
 
@@ -344,7 +379,7 @@ func wireApp() (*app, error) {
 		Role:      role.NewRoleHandler(roleService),
 		Ticket:    ticket.NewTicketHandler(ticketService),
 		Knowledge: knowledge.NewKnowledgeHandler(knowledgeService),
-		Chat:      session.NewChatHandler(chatService, taskMgr),
+		Chat:      session.NewChatHandler(chatService),
 		Message:   message.NewMessageHandler(messageService),
 		Dashboard: dashboard.NewDashboardHandler(dashboardService),
 		Audit:     audit.NewAuditHandler(auditService),
@@ -443,6 +478,25 @@ func (a *app) run() error {
 
 	slog.Info("OpsMind 服务已停止")
 	return nil
+}
+
+// deepResearchWriter 桥接 ArticleWriter 接口到 KnowledgeService.CreateArticle。
+// Agent 生成的文章 SourceType=3（深度搜索），状态 Draft，待人工审核。
+type deepResearchWriter struct {
+	svc *knowledge.KnowledgeService
+}
+
+func (w *deepResearchWriter) CreateArticle(ctx context.Context, title, content string, kbID int64) (int64, error) {
+	article, err := w.svc.CreateArticle(ctx, request.CreateArticleRequest{
+		KBID:       kbID,
+		Title:      title,
+		Content:    content,
+		SourceType: model.SourceTypeDeepResearch,
+	}, 0) // userID=0 表示 Agent 生成
+	if err != nil {
+		return 0, err
+	}
+	return article.ID, nil
 }
 
 // setupLLMHotSwap 注册 LLM 配置变更回调，热重建 Agent ChatModel + Embedding 客户端。

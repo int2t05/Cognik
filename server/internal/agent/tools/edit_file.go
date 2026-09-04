@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// edit_file.go：文件精确编辑工具（对标 Claude Code Edit / Aider SEARCH-REPLACE / SWE-agent str_replace）。
+// edit_file.go：文件精确编辑工具。
 //
 // str_replace 是行业共识的编辑原语（Claude Code / Anthropic API / Aider / SWE-agent / OpenHands / Cursor 全采用）：
 //   - 只替换匹配的片段，不重写整文件（省 token、抗行号漂移）
@@ -16,11 +16,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
-// EditFileTool 文件精确编辑工具（实现 eino InvokableTool 接口）。
+// EditFileTool 文件精确编辑工具（实现 agent.SyncTool 接口）。
 type EditFileTool struct {
 	workDir  string
 	maxBytes int64
@@ -32,7 +33,7 @@ func NewEditFileTool(workDir string, maxBytes int64) *EditFileTool {
 }
 
 // Info 返回工具元信息。
-func (e *EditFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (e *EditFileTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "edit_file",
 		Desc: "Edit a file by replacing an exact string (old_string) with new_string. Stricter and cheaper than rewriting: only the matched fragment changes. old_string must be unique unless replace_all=true. Delete by setting new_string empty.",
@@ -57,7 +58,7 @@ func (e *EditFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Desc: "If true, replace all occurrences of old_string. Default false (requires uniqueness).",
 			},
 		}),
-	}, nil
+	}
 }
 
 // editFileParams edit_file 工具参数。
@@ -68,10 +69,10 @@ type editFileParams struct {
 	ReplaceAll bool   `json:"replace_all,omitempty"`
 }
 
-// InvokableRun 执行 str_replace 编辑。严格精确匹配 + 唯一性校验 + 邻近行反馈。
-func (e *EditFileTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 执行 str_replace 编辑。严格精确匹配 + 唯一性校验 + 邻近行反馈。
+func (e *EditFileTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params editFileParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if params.Path == "" {

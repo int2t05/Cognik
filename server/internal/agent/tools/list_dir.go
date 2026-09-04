@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// list_dir.go：目录列表工具（对标 Claude Code List / SWE-agent ls）。
+// list_dir.go：目录列表工具。
 //
 // 列出 workDir 沙箱内指定目录的条目，含类型/大小/修改时间，目录优先排序。
 // 让 Agent 探索文件结构而无需读取整个文件内容。
@@ -15,7 +15,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -31,7 +32,7 @@ func NewListDirTool(workDir string, maxBytes int64) *ListDirTool {
 }
 
 // Info 返回工具元信息。
-func (l *ListDirTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (l *ListDirTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "list_dir",
 		Desc: "List entries in a directory within the working directory sandbox. Returns name, type (file/dir), size, and mod time. Directories sorted first.",
@@ -41,7 +42,7 @@ func (l *ListDirTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Desc:     "Relative directory path within the working directory (default: root).",
 			},
 		}),
-	}, nil
+	}
 }
 
 // listDirParams list_dir 工具参数。
@@ -57,10 +58,10 @@ type dirEntry struct {
 	ModTime string `json:"mod_time"` // 修改时间
 }
 
-// InvokableRun 列出目录条目。路径限制在 workDir 沙箱内。
-func (l *ListDirTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 列出目录条目。路径限制在 workDir 沙箱内。
+func (l *ListDirTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params listDirParams
-	_ = json.Unmarshal([]byte(argsJSON), &params) // path 可选（空=workDir 根）
+	_ = json.Unmarshal([]byte(args), &params) // path 可选（空=workDir 根）
 
 	dir := l.workDir
 	if params.Path != "" {

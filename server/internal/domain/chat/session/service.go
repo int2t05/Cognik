@@ -30,6 +30,7 @@ type StreamEvent struct {
 	Content  string          `json:"content,omitempty"` // token / reasoning / 工具参数 / 工具结果
 	ID       string          `json:"id,omitempty"`      // 工具调用 ID
 	Label    string          `json:"label,omitempty"`   // 工具名
+	TaskID   string          `json:"task_id,omitempty"` // 子 Agent 来源 task ID（空=主 Agent；非空=子 Agent 事件）
 	Error    string          `json:"error,omitempty"`   // 错误信息
 	Metadata *StreamDoneMeta `json:"metadata,omitempty"`
 }
@@ -177,8 +178,8 @@ func (s *ChatService) StreamChat(ctx context.Context, threadID int64, question s
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建回复占位失败"}
 	}
 
-	// detached ctx：客户端断开不停止生成/落库
-	gctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	// detached ctx：客户端断开不停止生成/落库（10 分钟上限，容纳 deep_research pipeline 多轮搜索）
+	gctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
 	runID := strconv.FormatInt(threadID, 10)
 	if err := s.gateway.Start(runID, cancel); err != nil {
 		cancel()
@@ -247,8 +248,57 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 	// parts 累积器（落库用）
 	var parts []store.MessagePart
 	var answer string
+	// taskID → tool_call part 下标（子 Agent 事件归入对应 dispatch_subagent 卡片）。
+	taskParts := make(map[string]int)
+
+	// findOrInitTaskPart 按 taskID 找/建 tool_call part，返回下标（子 Agent 事件归入此卡片）。
+	// ack tool_result 带 ID=tool_use_id + TaskID：映射到已有的 dispatch_subagent part（按 ID 匹配）。
+	// 后续子 Agent 事件只带 TaskID（无 ID）：复用已建立的映射，没有则新建卡片。
+	findOrInitTaskPart := func(taskID, toolCallID string) int {
+		if idx, ok := taskParts[taskID]; ok {
+			return idx
+		}
+		// ack 阶段：按 tool_use_id 找已有的 dispatch_subagent part。
+		if toolCallID != "" {
+			for i := range parts {
+				if parts[i].Type == store.PartToolCall && parts[i].ID == toolCallID {
+					taskParts[taskID] = i
+					return i
+				}
+			}
+		}
+		// 首次见到 taskID 但无对应 part（异常）：新建承载卡片。
+		parts = append(parts, store.MessagePart{
+			Type: store.PartToolCall, ID: taskID, Label: "dispatch_subagent",
+			Content: "", Status: "running",
+		})
+		idx := len(parts) - 1
+		taskParts[taskID] = idx
+		return idx
+	}
 
 	for evt := range agentEvents {
+		// 带 TaskID 的事件来自子 Agent → 归入对应 dispatch_subagent 卡片，不混入主 Agent 文本。
+		if evt.TaskID != "" {
+			idx := findOrInitTaskPart(evt.TaskID, evt.ID)
+			switch evt.Type {
+			case agent.EventReasoning, agent.EventToken:
+				parts[idx].Content += evt.Content
+			case agent.EventToolCall:
+				parts[idx].Content += "\n[tool_call] " + evt.Label + ": " + evt.Content
+			case agent.EventToolResult:
+				// ack tool_result（"task xxx 已派发"）不重复追加；子 Agent 完成的 task_completion 在底层 evt 处理
+				if evt.ID != "" && evt.ID != evt.TaskID {
+					// 主 Agent 的 ack tool_result → 记录但不标记 done（子 Agent 仍在跑）
+					parts[idx].Content += "\n" + evt.Content
+				}
+			}
+			s.gateway.Publish(runID, StreamEvent{
+				Type: evt.Type, Content: evt.Content, ID: evt.ID,
+				Label: evt.Label, TaskID: evt.TaskID, Error: evt.Error,
+			})
+			continue
+		}
 		switch evt.Type {
 		case agent.EventReasoning:
 			// 合并到最后一个 reasoning part（若最后是 reasoning 则追加，否则新建）
@@ -266,38 +316,40 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 				parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
 			}
 		case agent.EventToolCall:
-			// Eino 拆分 args 为多个 chunk：首 chunk 有 id+label，后续 chunk 均为空。
-			// 并行工具时，第二个工具的首 chunk 有不同 id。
-			// 匹配策略：
-			//   1. 有 id → 按 id 精确匹配
-			//   2. 无 id（后续 chunk）→ 从后往前找最后一个有 label 的 running tool_call，
-			//      且其 content 未闭合 }（JSON 完整则不再追加，创建新 part）
-			found := false
-			if evt.ID != "" {
-				for i := range parts {
-					if parts[i].Type == store.PartToolCall && parts[i].ID == evt.ID {
-						parts[i].Content += evt.Content
-						found = true
-						break
-					}
+			// pipeline 中间步骤（无 ID，有 Label）→ 追加到最后一个 running tool_call
+			if evt.ID == "" && evt.Label != "" {
+				if n := len(parts); n > 0 && parts[n-1].Type == store.PartToolCall && parts[n-1].Status == "running" {
+					parts[n-1].Content += "\n" + evt.Content
 				}
-			}
-			if !found {
-				for i := len(parts) - 1; i >= 0; i-- {
-					if parts[i].Type == store.PartToolCall && parts[i].Status == "running" && parts[i].Label != "" {
-						if !strings.HasSuffix(strings.TrimRight(parts[i].Content, " \t\r\n"), "}") {
+			} else {
+				// 正常工具调用（有 ID）→ 按 ID 匹配或新建
+				found := false
+				if evt.ID != "" {
+					for i := range parts {
+						if parts[i].Type == store.PartToolCall && parts[i].ID == evt.ID {
 							parts[i].Content += evt.Content
 							found = true
+							break
 						}
-						break
 					}
 				}
-			}
-			if !found {
-				parts = append(parts, store.MessagePart{
-					Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
-					Content: evt.Content, Status: "running",
-				})
+				if !found {
+					for i := len(parts) - 1; i >= 0; i-- {
+						if parts[i].Type == store.PartToolCall && parts[i].Status == "running" && parts[i].Label != "" {
+							if !strings.HasSuffix(strings.TrimRight(parts[i].Content, " \t\r\n"), "}") {
+								parts[i].Content += evt.Content
+								found = true
+							}
+							break
+						}
+					}
+				}
+				if !found {
+					parts = append(parts, store.MessagePart{
+						Type: store.PartToolCall, ID: evt.ID, Label: evt.Label,
+						Content: evt.Content, Status: "running",
+					})
+				}
 			}
 		case agent.EventToolResult:
 			// 配对到同 ID 的 tool_call part，更新 status=done + result

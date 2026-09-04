@@ -11,10 +11,11 @@ const maxDocumentSize = 100 * 1024 * 1024
 
 // ParseResult 解析结果。
 //
-// Markdown 为正文（图片用 ![](images/{name}) 引用），Images 为图片名→字节映射。
+// Markdown 为正文，Images 为图片名→字节映射。图片引用的最终归一（统一 image/{name} 前缀、
+// 内容 hash 命名）由 parser 包出口的 normalizeImagePaths 完成，各引擎只负责提取。
 type ParseResult struct {
-	Markdown string            // 正文 Markdown（图片用 ![](images/{name}) 引用）
-	Images   map[string][]byte // 图片名→字节（如 "img1.png": []byte）
+	Markdown string            // 正文 Markdown（图片引用经 parser 归一为 image/{name}）
+	Images   map[string][]byte // 图片名→字节（归一后 name 为 {hash}.{ext}）
 }
 
 // imageEntry 图片名与字节的有序对，保证图片命名稳定。

@@ -44,6 +44,45 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
   if (evt.seq <= state.lastSeq) return state
   const s: SessionStream = { ...state, lastSeq: evt.seq }
 
+  // 带 task_id 的子 Agent 事件 → 归入对应 dispatch_subagent tool_call 卡片，不混入主 Agent 文本。
+  if (evt.task_id) {
+    return updateLastAssistant(s, (msg) => {
+      const parts = [...msg.parts] as any[]
+      // 按 task_id 找已有的 tool_call 卡片；没有则新建。
+      let idx = parts.findIndex(p => p.type === 'tool_call' && (p.id === evt.task_id || p.id === evt.id))
+      if (idx < 0) {
+        // ack tool_result 带 evt.id（tool_use_id）→ 找 dispatch_subagent 的 tool_call part
+        if (evt.id) {
+          idx = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
+        }
+      }
+      if (idx < 0) {
+        parts.push({
+          type: 'tool_call', id: evt.task_id, label: 'dispatch_subagent',
+          content: '', status: 'running',
+        })
+        idx = parts.length - 1
+      }
+      // 子 Agent 事件追加到卡片 content（不混入顶层 text/reasoning）
+      const part = parts[idx]
+      if (evt.type === 'token' || evt.type === 'reasoning') {
+        parts[idx] = { ...part, content: (part.content || '') + (evt.content ?? '') }
+      } else if (evt.type === 'tool_call') {
+        parts[idx] = { ...part, content: (part.content || '') + '\n[tool_call] ' + (evt.label ?? '') + ': ' + (evt.content ?? '') }
+      } else if (evt.type === 'tool_result') {
+        // ack tool_result（id=tool_use_id ≠ task_id）：仅追加内容，保持 running。
+        // task_completion tool_result（id=task_id）：标记 done + 追加最终结果。
+        const isCompletion = evt.id === evt.task_id
+        parts[idx] = {
+          ...part,
+          status: isCompletion ? 'done' : part.status,
+          content: (part.content || '') + (isCompletion ? '\n--- result ---\n' : '\n') + (evt.content ?? ''),
+        }
+      }
+      return { ...msg, parts }
+    })
+  }
+
   switch (evt.type) {
     case 'reasoning':
       s.thinking = true
@@ -73,6 +112,18 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_call':
+      // pipeline 中间步骤（无 ID，有 Label）→ 追加到最后一个 running tool_call
+      if (!evt.id && evt.label) {
+        return updateLastAssistant(s, (msg) => {
+          const parts = [...msg.parts]
+          const last = parts[parts.length - 1]
+          if (last && last.type === 'tool_call' && last.status === 'running') {
+            parts[parts.length - 1] = { ...last, content: last.content + '\n' + (evt.content ?? '') }
+          }
+          return { ...msg, parts }
+        })
+      }
+      // 正常 tool_call（有 ID）→ 按 ID 匹配或新建
       return updateLastAssistant(s, (msg) => {
         const parts = [...msg.parts] as any[]
         let existing = -1
@@ -101,27 +152,13 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_result':
-      // 配对到同 ID 的 tool_call part，更新 status=done + result
-      // 并行工具：每个 tool_result 按 ID 匹配到对应的 tool_call
+      // 只更新 status: running → done（不创建独立 part，不追加 content）
       return updateLastAssistant(s, (msg) => {
         const parts = [...msg.parts]
         const existing = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
         if (existing >= 0) {
           const toolPart = parts[existing] as Extract<MessagePart, { type: 'tool_call' }>
-          parts[existing] = {
-            ...toolPart,
-            status: 'done',
-            content: toolPart.content + '\n--- result ---\n' + (evt.content ?? ''),
-          }
-        } else {
-          // 无对应 tool_call（异常），单独创建 tool_result part
-          parts.push({
-            type: 'tool_result',
-            id: evt.id ?? '',
-            label: evt.label ?? '',
-            content: evt.content ?? '',
-            status: 'done',
-          })
+          parts[existing] = { ...toolPart, status: 'done' }
         }
         return { ...msg, parts }
       })
