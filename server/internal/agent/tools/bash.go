@@ -1,10 +1,10 @@
 // Package tools 提供 Agent 内置工具集。
-// bash.go：bash 命令执行工具（对标 Claude Code Bash）。
+// bash.go：bash 命令执行工具。
 //
 // 高级特性：
 //   - 平台自适应 bash 二进制（Windows 默认 GitBash，OPSMIND_AGENT_BASH_BIN 可覆盖）
 //   - description 参数强制意图声明
-//   - timeout 参数可覆盖默认（对标 Claude Code timeout，上限 10min）
+//   - timeout 参数可覆盖默认（上限 10min）
 //   - workDir sandbox、stdout+stderr 截断、exit_code 始终返回（不抛 error，agent 自判断）
 
 package tools
@@ -18,14 +18,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
-// bashMaxTimeout 单次命令超时上限（对标 Claude Code 600s 上限）。
+// bashMaxTimeout 单次命令超时上限。
 const bashMaxTimeout = 10 * time.Minute
 
-// BashTool bash 命令执行工具（实现 eino InvokableTool 接口）。
+// BashTool bash 命令执行工具（实现 agent.SyncTool 接口）。
 type BashTool struct {
 	workDir  string
 	timeout  time.Duration
@@ -44,7 +45,7 @@ func NewBashTool(workDir string, timeout time.Duration, maxBytes int64) *BashToo
 }
 
 // Info 返回工具元信息。
-func (b *BashTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (b *BashTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "bash",
 		Desc: "Execute a shell command and return stdout+stderr. Use for system checks, diagnostics, text processing. Always state the purpose in description. The working directory is the agent sandbox.",
@@ -63,7 +64,7 @@ func (b *BashTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Desc: fmt.Sprintf("Timeout in milliseconds (default %d, max %d). Override for long-running commands.", int(b.timeout.Milliseconds()), int(bashMaxTimeout.Milliseconds())),
 			},
 		}),
-	}, nil
+	}
 }
 
 // bashParams bash 工具参数。
@@ -73,10 +74,10 @@ type bashParams struct {
 	Timeout     int    `json:"timeout,omitempty"` // 毫秒，覆盖默认
 }
 
-// InvokableRun 执行 bash 命令。失败也返回字符串（含 exit_code），不返回 error——agent 看 exit_code。
-func (b *BashTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 执行 bash 命令。失败也返回字符串（含 exit_code），不返回 error——agent 看 exit_code。
+func (b *BashTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params bashParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if strings.TrimSpace(params.Command) == "" {

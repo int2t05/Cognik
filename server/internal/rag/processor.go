@@ -16,6 +16,7 @@ import (
 	"opsmind/internal/infra/adapter"
 	"opsmind/internal/infra/storage"
 	"opsmind/internal/parser"
+	"opsmind/internal/shared/pkg/pathutil"
 )
 
 // defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。
@@ -157,7 +158,7 @@ type chunkWithHash struct {
 	hash string
 }
 
-// resolveContent 获取任务正文——从存储下载整个文章目录，解析 markdown.md。
+// resolveContent 获取任务正文——从存储下载文章 .md 文件并解析。
 func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (string, error) {
 	if task.Bucket == "" || task.Key == "" {
 		return task.Content, nil
@@ -165,30 +166,13 @@ func (p *Processor) resolveContent(ctx context.Context, task ProcessTask) (strin
 	if p.storage == nil {
 		return "", fmt.Errorf("StorageClient 未初始化")
 	}
-	// task.Key 是目录名，DownloadDir 返回 filename→reader 映射
-	files, err := p.storage.DownloadDir(ctx, task.Bucket, task.Key)
+	// task.Key 为完整 .md 文件路径（如 kb-1/draft/article-2.md），拆出 dir 与 filename 单文件下载
+	dir, filename := pathutil.SplitFileKey(task.Key)
+	reader, err := p.storage.DownloadFile(ctx, task.Bucket, dir, filename)
 	if err != nil {
-		return "", fmt.Errorf("下载文章目录失败: %w", err)
-	}
-
-	// 取 markdown.md 作为正文
-	reader, ok := files["markdown.md"]
-	if !ok {
-		// 清理所有 reader
-		for _, r := range files {
-			r.Close()
-		}
-		return "", fmt.Errorf("文章目录缺少 markdown.md [%s/%s]", task.Bucket, task.Key)
+		return "", fmt.Errorf("下载文章文件失败: %w", err)
 	}
 	defer reader.Close()
-	// 清理其余 reader（图片暂不参与 embedding）
-	defer func() {
-		for name, r := range files {
-			if name != "markdown.md" {
-				r.Close()
-			}
-		}
-	}()
 
 	fileType := task.FileType
 	if fileType == "" {

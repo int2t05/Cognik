@@ -35,7 +35,7 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
           : 'w-full bg-[var(--color-canvas)] text-[var(--color-ink)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)]'
       } ${isError ? 'border-red-300' : ''}`}>
         {/* parts 数组分发渲染 */}
-        {message.parts.map((part, i) => {
+        {(message.parts || []).map((part, i) => {
           const key = part.type === 'tool_call' || part.type === 'tool_result'
             ? `${part.type}-${part.id || i}`
             : `${part.type}-${i}`;

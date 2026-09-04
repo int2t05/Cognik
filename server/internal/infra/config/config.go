@@ -19,9 +19,34 @@ type AppConfig struct {
 	Embedding EmbeddingConfig `mapstructure:"embedding"`
 	Rerank    RerankConfig    `mapstructure:"rerank"`
 	AI        AIConfig        `mapstructure:"ai"`
+	Search    SearchConfig    `mapstructure:"search"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 	Parser    ParserConfig    `mapstructure:"parser"`
 	Knowledge KnowledgeConfig `mapstructure:"kb"`
+}
+
+// SearchConfig 深度搜索工具链配置（web_search/web_fetch 后端，降级链模式）。
+type SearchConfig struct {
+	Exa        ExaConfig       `mapstructure:"exa"`
+	Tavily     TavilyConfig    `mapstructure:"tavily"`
+	Firecrawl  FirecrawlConfig `mapstructure:"firecrawl"`
+	MaxResults int             `mapstructure:"max_results"` // 默认 5
+	Timeout    time.Duration   `mapstructure:"timeout"`     // 默认 10s
+}
+
+// ExaConfig 语义搜索 API（降级链首选）。
+type ExaConfig struct {
+	APIKey string `mapstructure:"api_key"` // 空=不加入降级链
+}
+
+// TavilyConfig Agent 优化型搜索 API（降级链第二）。
+type TavilyConfig struct {
+	APIKey string `mapstructure:"api_key"` // 空=不加入降级链
+}
+
+// FirecrawlConfig 页面提取 API（URL → 干净 Markdown，JS 渲染）。
+type FirecrawlConfig struct {
+	APIKey string `mapstructure:"api_key"` // 空=仅用本地兜底
 }
 
 // CORSConfig 跨域配置，AllowOrigins 为逗号分隔列表。
@@ -231,6 +256,13 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("ai.chunk_size", "OPSMIND_AI_CHUNK_SIZE")
 	v.BindEnv("ai.chunk_overlap", "OPSMIND_AI_CHUNK_OVERLAP")
 
+	// Search（深度搜索工具链，降级链模式）
+	v.BindEnv("search.exa.api_key", "OPSMIND_SEARCH_EXA_API_KEY")
+	v.BindEnv("search.tavily.api_key", "OPSMIND_SEARCH_TAVILY_API_KEY")
+	v.BindEnv("search.firecrawl.api_key", "OPSMIND_SEARCH_FIRECRAWL_API_KEY")
+	v.BindEnv("search.max_results", "OPSMIND_SEARCH_MAX_RESULTS")
+	v.BindEnv("search.timeout", "OPSMIND_SEARCH_TIMEOUT")
+
 	// CORS
 	v.BindEnv("cors.allow_origins", "OPSMIND_CORS_ALLOW_ORIGINS")
 
@@ -327,15 +359,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("embedding.timeout", "300s")
 
 	// AI
-	v.SetDefault("ai.default_top_k", 5)
-	v.SetDefault("ai.confidence_threshold", 0.6)
-	v.SetDefault("ai.max_history_messages", 10)
 	v.SetDefault("ai.chunk_size", 500)
 	v.SetDefault("ai.chunk_overlap", 100)
-	v.SetDefault("ai.rag_query_rewrite", true)
-	v.SetDefault("ai.rag_multi_route", true)
-	v.SetDefault("ai.rag_hybrid", true)
-	v.SetDefault("ai.rag_rerank", true)
+
+	// Search（深度搜索工具链，降级链模式）
+	v.SetDefault("search.max_results", 5)
+	v.SetDefault("search.timeout", "10s")
 
 	// Rerank
 	v.SetDefault("rerank.enabled", true)

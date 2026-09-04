@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// write_file.go：文件写入工具（对标 SWE-agent ACI write/create + append）。
+// write_file.go：文件写入工具。
 //
 // 高级特性：mode 支持 overwrite（覆盖，默认）与 append（追加）。
 // 追加模式在文件末尾追加内容（文件不存在则创建）。
@@ -14,11 +14,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
-// WriteFileTool 文件写入工具（实现 eino InvokableTool 接口）。
+// WriteFileTool 文件写入工具（实现 agent.SyncTool 接口）。
 type WriteFileTool struct {
 	workDir  string
 	maxBytes int64
@@ -30,7 +31,7 @@ func NewWriteFileTool(workDir string, maxBytes int64) *WriteFileTool {
 }
 
 // Info 返回工具元信息。
-func (w *WriteFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (w *WriteFileTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "write_file",
 		Desc: "Write content to a file in the working directory sandbox. mode=overwrite (default) replaces the file; mode=append adds to the end (creates if missing).",
@@ -51,7 +52,7 @@ func (w *WriteFileTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Enum: []string{"overwrite", "append"},
 			},
 		}),
-	}, nil
+	}
 }
 
 // writeFileParams write_file 工具参数。
@@ -61,10 +62,10 @@ type writeFileParams struct {
 	Mode    string `json:"mode,omitempty"` // overwrite（默认）/ append
 }
 
-// InvokableRun 写入文件。内容上限 maxBytes；路径限制在 workDir 沙箱内。
-func (w *WriteFileTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 写入文件。内容上限 maxBytes；路径限制在 workDir 沙箱内。
+func (w *WriteFileTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params writeFileParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if params.Path == "" {

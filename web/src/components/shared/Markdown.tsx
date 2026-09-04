@@ -19,7 +19,6 @@ const Mermaid = dynamic(() => import('./Mermaid').then((m) => m.Mermaid), { ssr:
 interface MarkdownProps {
   content: string;
   className?: string;
-  articleId?: number;
   renderCitation?: (n: number) => ReactNode;
 }
 
@@ -32,7 +31,7 @@ function replaceCitationsOutsideCode(content: string): string {
   return parts.map((part, i) => (i % 2 === 1 ? part : part.replace(CITATION_RE, '[$1](#cite-$1)'))).join('');
 }
 
-export function Markdown({ content, className, articleId, renderCitation }: MarkdownProps) {
+export function Markdown({ content, className, renderCitation }: MarkdownProps) {
   const source = renderCitation ? replaceCitationsOutsideCode(content) : content;
 
   const components: Components = {
@@ -57,12 +56,11 @@ export function Markdown({ content, className, articleId, renderCitation }: Mark
       return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
     },
     img(props: ComponentProps<'img'>) {
-      const src = props.src;
-      let imgSrc = src;
-      if (typeof src === 'string' && src.startsWith('images/')) {
-        const aid = articleId ?? (typeof window !== 'undefined' ? (window.location.pathname.match(/\/(\d+)(?:\/[^/]*)?$/)?.[1] ?? '') : '');
-        imgSrc = `/api/v1/public/articles/${aid}/images/${src.slice(7)}`;
-      }
+      const { src } = props;
+      // 统一 image/{name} 前缀（解析器归一输出）→ 公开图片端点；网络/base64 透传
+      const imgSrc = typeof src === 'string' && src.startsWith('image/')
+        ? `/api/v1/public/images/${src.slice(6)}`
+        : src;
       return <img src={imgSrc} alt={props.alt} className="max-w-full h-auto rounded-[var(--radius-lg)] my-2" />;
     },
   };

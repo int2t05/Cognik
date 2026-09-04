@@ -7,7 +7,7 @@
 export type MessagePart =
   | { type: 'text'; content: string }
   | { type: 'reasoning'; content: string }
-  | { type: 'tool_call'; id: string; label: string; content: string; status: 'running' | 'done' | 'error' }
+  | { type: 'tool_call'; id: string; label: string; content: string; status: 'running' | 'done' | 'error' | 'cancelled' }
   | { type: 'tool_result'; id: string; label: string; content: string; status: 'done' }
 
 /** 消息状态。 */
@@ -39,6 +39,7 @@ export interface SSEEvent {
   content?: string
   id?: string
   label?: string
+  task_id?: string
   error?: string
   metadata?: {
     answer?: string

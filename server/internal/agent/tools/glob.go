@@ -1,5 +1,5 @@
 // Package tools 提供 Agent 内置工具集。
-// glob.go：文件名模式搜索工具（对标 Claude Code Glob / Cursor file_search）。
+// glob.go：文件名模式搜索工具。
 //
 // 用 filepath.Match 模式在 workDir 沙箱内递归匹配文件路径。
 // 支持 ** 递归（**/*.go 匹配任意深度）、? 单字符、[abc] 字符集。
@@ -14,7 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
+
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -30,7 +31,7 @@ func NewGlobTool(workDir string, maxBytes int64) *GlobTool {
 }
 
 // Info 返回工具元信息。
-func (g *GlobTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (g *GlobTool) Info() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "glob",
 		Desc: "Find files matching a glob pattern within the working directory sandbox. Supports ** for recursive matching (e.g. '**/*.go'), ? single char, [abc] char set.",
@@ -41,7 +42,7 @@ func (g *GlobTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 				Required: true,
 			},
 		}),
-	}, nil
+	}
 }
 
 // globParams glob 工具参数。
@@ -49,10 +50,10 @@ type globParams struct {
 	Pattern string `json:"pattern"`
 }
 
-// InvokableRun 递归匹配文件路径。路径限制在 workDir 沙箱内。
-func (g *GlobTool) InvokableRun(_ context.Context, argsJSON string, _ ...tool.Option) (string, error) {
+// Call 递归匹配文件路径。路径限制在 workDir 沙箱内。
+func (g *GlobTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
 	var params globParams
-	if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
 		return "", fmt.Errorf("invalid args: %w", err)
 	}
 	if strings.TrimSpace(params.Pattern) == "" {

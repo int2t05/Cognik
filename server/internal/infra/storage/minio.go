@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -92,64 +91,27 @@ func (c *MinIOClient) UploadFile(ctx context.Context, bucket, dir, filename stri
 	return fmt.Errorf("上传文件失败 [%s/%s] (重试%d次): %w", bucket, key, c.maxRetries, lastErr)
 }
 
-// DownloadDir 下载整个目录，返回 filename→reader 映射。
-func (c *MinIOClient) DownloadDir(ctx context.Context, bucket, dir string) (map[string]io.ReadCloser, error) {
-	prefix := dir + "/"
-	result := make(map[string]io.ReadCloser)
-
-	// 列出目录下所有对象
-	objectCh := c.client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
-		Prefix:    prefix,
-		Recursive: true,
-	})
-
-	var objKeys []string
-	for obj := range objectCh {
-		if obj.Err != nil {
-			return nil, fmt.Errorf("列出对象失败 [%s/%s]: %w", bucket, dir, obj.Err)
-		}
-		objKeys = append(objKeys, obj.Key)
+// DownloadFile 下载单文件（MinIO GetObject，调用方负责关闭）。
+func (c *MinIOClient) DownloadFile(ctx context.Context, bucket, dir, filename string) (io.ReadCloser, error) {
+	key := dir + "/" + filename
+	obj, err := c.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("下载文件失败 [%s/%s]: %w", bucket, key, err)
 	}
-
-	if len(objKeys) == 0 {
-		return nil, fmt.Errorf("目录不存在或为空 [%s/%s]", bucket, dir)
+	// 触发实际请求以早暴露不存在等错误
+	if _, err := obj.Stat(); err != nil {
+		obj.Close()
+		return nil, fmt.Errorf("文件不存在或不可读 [%s/%s]: %w", bucket, key, err)
 	}
-
-	for _, key := range objKeys {
-		obj, err := c.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
-		if err != nil {
-			for _, r := range result {
-				r.Close()
-			}
-			return nil, fmt.Errorf("下载文件失败 [%s/%s]: %w", bucket, key, err)
-		}
-		// 去掉目录前缀，保留相对路径（如 markdown.md / images/xxx.jpg）
-		filename := strings.TrimPrefix(key, prefix)
-		result[filename] = obj
-	}
-
-	return result, nil
+	return obj, nil
 }
 
-// DeleteDir 删除整个目录下所有对象（幂等）。
-func (c *MinIOClient) DeleteDir(ctx context.Context, bucket, dir string) error {
-	prefix := dir + "/"
-
-	objectCh := c.client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
-		Prefix:    prefix,
-		Recursive: true,
-	})
-
-	for obj := range objectCh {
-		if obj.Err != nil {
-			return fmt.Errorf("列出对象失败 [%s/%s]: %w", bucket, dir, obj.Err)
-		}
-		// RemoveObject 幂等（对象不存在也返回成功）
-		if err := c.client.RemoveObject(ctx, bucket, obj.Key, minio.RemoveObjectOptions{}); err != nil {
-			return fmt.Errorf("删除文件失败 [%s/%s]: %w", bucket, obj.Key, err)
-		}
+// DeleteFile 删除单文件（幂等，MinIO RemoveObject 对不存在对象也返回成功）。
+func (c *MinIOClient) DeleteFile(ctx context.Context, bucket, dir, filename string) error {
+	key := dir + "/" + filename
+	if err := c.client.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("删除文件失败 [%s/%s]: %w", bucket, key, err)
 	}
-
 	return nil
 }
 

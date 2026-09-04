@@ -40,8 +40,7 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	// 通用文件上传/下载（文章内嵌图片/附件）
 	rg.POST("/files/upload", middleware.RequirePermission(PermKnowledgeWrite), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.UploadFile }))
 	rg.GET("/files/article-assets/:filename", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ServeFile }))
-	// 文章解析图片（MinerU/本地解析器提取的图片）
-	rg.GET("/files/articles/:articleId/images/:filename", middleware.RequirePermission(PermKnowledgeRead), safeHandler(h, func() bool { return h.Knowledge != nil }, func() gin.HandlerFunc { return h.Knowledge.ServeArticleImage }))
+	// 文档解析图片由公开端点 /api/v1/public/images/:filename 提供（与文章解耦）
 
 	// 用户管理
 	userRoutes := rg.Group("/users")

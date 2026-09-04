@@ -125,6 +125,8 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     if (!resp.ok || !resp.body) {
       onError?.(`HTTP ${resp.status}`);
       patch(id, (s) => ({ ...s, status: 'error' }));
+      sendingRef.current[id] = false;
+      processQueue(id);
       return;
     }
     patch(id, (s) => ({ ...s, status: 'streaming' }));
@@ -263,12 +265,20 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     sendingRef.current[id] = false;
     forceRender((n) => n + 1);
     await cancelGeneration(id).catch(() => {});
-    // 保留部分回答，标记 cancelled
+    // 保留部分回答，标记 cancelled — 更新消息级 + part 级状态
     patch(id, (s) => {
       const messages = [...s.messages];
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === 'assistant' && messages[i].status === 'streaming') {
-          messages[i] = { ...messages[i], status: 'cancelled' };
+          // 更新消息级状态
+          const msg = { ...messages[i], status: 'cancelled' as const };
+          // 更新 part 级状态——所有 running 的 tool_call 标记为 cancelled
+          msg.parts = msg.parts.map((p) =>
+            p.type === 'tool_call' && p.status === 'running'
+              ? { ...p, status: 'cancelled' as const }
+              : p
+          );
+          messages[i] = msg;
           break;
         }
       }

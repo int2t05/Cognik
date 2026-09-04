@@ -23,8 +23,9 @@ const (
 
 // 文章来源类型
 const (
-	SourceTypeManual int16 = 1 // 手动创建
-	SourceTypeUpload int16 = 2 // 文档上传
+	SourceTypeManual        int16 = 1 // 手动创建
+	SourceTypeUpload        int16 = 2 // 文档上传
+	SourceTypeDeepResearch  int16 = 3 // 深度搜索生成
 )
 
 // 工单操作类型
@@ -124,6 +125,8 @@ func ArticleSourceTypeText(sourceType int16) string {
 		return "手动创建"
 	case SourceTypeUpload:
 		return "文档上传"
+	case SourceTypeDeepResearch:
+		return "深度搜索"
 	default:
 		return "未知"
 	}
