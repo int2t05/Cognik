@@ -17,7 +17,7 @@ import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 
 const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
   { value: -1, label: '全部' },
@@ -77,7 +77,7 @@ export default function AdminTicketListPage() {
       <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
         <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
-        {batch.selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setBatchCloseConfirm(true)}><XCircle size={14} />批量关闭</Button>}
+        {batch.selectedIds.size > 0 && <IconButton size="sm" variant="ghost" onClick={() => setBatchCloseConfirm(true)}><XCircle size={14} />批量关闭</IconButton>}
       </div>
       {isEmpty ? (
         <EmptyState

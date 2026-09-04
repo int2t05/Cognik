@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/form-field';
@@ -17,7 +17,7 @@ import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { useRouter } from 'next/navigation';
-import { BookPlus, Pencil, Trash2, BookOpen, Loader2 } from 'lucide-react';
+import { BookPlus, Pencil, Trash2, BookOpen, Loader2, Save } from 'lucide-react';
 
 export default function KnowledgeListPage() {
   const [keyword, setKeyword] = useState('');
@@ -73,7 +73,7 @@ export default function KnowledgeListPage() {
         <PageTitle className="mb-0">知识库管理</PageTitle>
         <div className="flex items-center gap-3">
           <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); }} placeholder="搜索知识库…" />
-          <Button size="icon" aria-label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></Button>
+          <IconButton label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></IconButton>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export default function KnowledgeListPage() {
 
       <div className="grid gap-4">
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
-          <EmptyState icon={<BookOpen size={40} />} title={keyword ? '未找到匹配的知识库' : '暂无知识库'} description={keyword ? `没有名称或描述含"${keyword}"的知识库` : '点击右上角"新建知识库"开始'} action={keyword ? undefined : { label: '新建知识库', onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
+          <EmptyState icon={<BookOpen size={40} />} title={keyword ? '未找到匹配的知识库' : '暂无知识库'} description={keyword ? `没有名称或描述含"${keyword}"的知识库` : '点击右上角"新建知识库"开始'} action={keyword ? undefined : { label: '新建知识库', icon: <BookPlus size={16} />, onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
           <Card
             key={kb.id}
@@ -97,8 +97,8 @@ export default function KnowledgeListPage() {
               <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章{kb.embedding_model ? ` · ${kb.embedding_model}` : ''}</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(kb)}><Pencil /></Button>
-              <Button variant="destructive" size="icon" aria-label="删除" onClick={() => setDeleteTarget(kb.id)}><Trash2 /></Button>
+              <IconButton label="编辑" onClick={() => openEdit(kb)}><Pencil /></IconButton>
+              <IconButton label="删除" danger onClick={() => setDeleteTarget(kb.id)}><Trash2 /></IconButton>
             </div>
           </Card>
         ))}
@@ -124,7 +124,7 @@ export default function KnowledgeListPage() {
               </SelectContent>
             </Select>
           </Field>
-          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 

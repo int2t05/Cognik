@@ -3,7 +3,7 @@ import useSWR from 'swr';
 import { useState } from 'react';
 import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResult } from '@/lib/api/config';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import { Pencil, RefreshCw, Loader2 } from 'lucide-react';
+import { Pencil, RefreshCw, Loader2, Save, CheckCircle } from 'lucide-react';
 
 const CONFIG_KEYS = [
   'app_name',
@@ -65,12 +65,12 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
           ) : (
             <Input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9" />
           )}
-          <Button variant="ghost" size="sm" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
+          <IconButton variant="ghost" size="sm" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}保存</IconButton>
         </>
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{displayVal}</span>
-          <Button variant="ghost" size="icon" aria-label="编辑" onClick={startEdit}><Pencil /></Button>
+          <IconButton label="编辑" onClick={startEdit}><Pencil /></IconButton>
         </>
       )}
     </div>
@@ -126,7 +126,7 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
             {[7, 14, 30, 60, 90].map(d => <SelectItem key={d} value={String(d)}>近 {d} 天</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button variant="ghost" size="sm" disabled={computing}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}计算</Button>
+        <IconButton variant="ghost" size="sm" disabled={computing}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}计算</IconButton>
       </div>
       {result && (
         <div className="flex items-center gap-3 mt-2 ml-[140px]">
@@ -134,7 +134,7 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
             {result.sample_count} 条样本 · P30={result.p30} · P70={result.p70}
             {result.warning && <span className="text-[var(--badge-warning-text)] ml-2">{result.warning}</span>}
           </span>
-          <Button variant="ghost" size="sm" disabled={applying}>{applying && <Loader2 className="animate-spin" />}应用</Button>
+          <IconButton variant="ghost" size="sm" disabled={applying}>{applying ? <Loader2 className="animate-spin" /> : <CheckCircle size={16} />}应用</IconButton>
         </div>
       )}
     </div>

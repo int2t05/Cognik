@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import useSWR from 'swr';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
@@ -120,7 +120,7 @@ export default function LoginPage() {
             />
           </Field>
           <div className="mt-8">
-            <Button size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}登录</Button>
+            <IconButton size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}登录</IconButton>
           </div>
         </form>
       </div>

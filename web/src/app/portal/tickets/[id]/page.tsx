@@ -2,7 +2,7 @@
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import { getTicketDetail, supplementTicket, updateTicket } from '@/lib/api/ticket';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -16,7 +16,7 @@ import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { useState } from 'react';
-import { ChevronLeft, Send, Pencil, X, Check, Loader2 } from 'lucide-react';
+import { ChevronLeft, Send, Pencil, Save, Loader2 } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -80,15 +80,18 @@ export default function TicketDetailPage() {
     } finally { setSending(false); }
   };
 
+  // 编辑/保存切换：未编辑时进入编辑，编辑中点击即保存
+  const toggleEdit = () => editing ? handleSave() : startEdit();
+
   if (error) return <InlineError fullPage />;
   if (!ticket) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></Button>
-        {canEdit(ticket.status) && !editing && (
-          <Button variant="ghost" size="sm" onClick={startEdit}><Pencil size={16} />编辑</Button>
+        <IconButton label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></IconButton>
+        {canEdit(ticket.status) && (
+          <IconButton label={editing ? '保存' : '编辑'} disabled={sending} onClick={toggleEdit}>{sending ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>
         )}
       </div>
 
@@ -100,10 +103,6 @@ export default function TicketDetailPage() {
           <Field label="标签（逗号分隔）"><Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="如：网络,邮箱,VPN" /></Field>
           <Field label="联系电话"><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" /></Field>
           <Field label="联系邮箱"><Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="选填" /></Field>
-          <div className="flex gap-2 mt-4">
-            <Button size="lg" disabled={sending} onClick={handleSave}>{sending ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}保存</Button>
-            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}><X size={16} />取消</Button>
-          </div>
         </Card>
       ) : (
         <>
@@ -145,7 +144,7 @@ export default function TicketDetailPage() {
             <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
               <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
-              <Button size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</Button>
+              <IconButton size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</IconButton>
             </Card>
           )}
         </>

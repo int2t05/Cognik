@@ -1,7 +1,8 @@
 'use client';
 
 import { Component, type ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
+import { RotateCw } from 'lucide-react';
 
 interface Props { children: ReactNode; }
 interface State { error: Error | null; }
@@ -20,9 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="text-center max-w-form">
             <h1 className="text-hero font-semibold text-[var(--color-ink)] mb-3">页面出错了</h1>
             <p className="text-body text-[var(--color-text-muted-48)] mb-6">{this.state.error.message}</p>
-            <Button size="lg" onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
-              刷新页面
-            </Button>
+            <IconButton size="lg" onClick={() => { this.setState({ error: null }); window.location.reload(); }}><RotateCw size={18} />刷新页面</IconButton>
           </div>
         </div>
       );
@@ -38,7 +37,7 @@ function SectionErrorFallback({ error, onReset }: { error: Error; onReset: () =>
       <div className="text-center max-w-form">
         <p className="text-body text-[var(--color-text-muted-48)] mb-2">内容加载出错</p>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">{error.message}</p>
-        <Button size="lg" onClick={onReset}>重试</Button>
+        <IconButton size="lg" onClick={onReset}><RotateCw size={18} />重试</IconButton>
       </div>
     </div>
   );

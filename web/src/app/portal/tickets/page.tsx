@@ -4,7 +4,7 @@ import { getMyTickets } from '@/lib/api/ticket';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
@@ -41,7 +41,7 @@ export default function TicketQueryPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">我的申告</PageTitle>
-        <Button size="icon" aria-label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></Button>
+        <IconButton label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></IconButton>
       </div>
 
       <div className="mb-4">
@@ -55,7 +55,7 @@ export default function TicketQueryPage() {
           icon={<FileText size={40} />}
           title={hasFilters ? '未找到匹配的申告' : '暂无申告记录'}
           description={hasFilters ? '尝试调整筛选条件或清除筛选' : '提交您的第一个运维申告'}
-          action={hasFilters ? undefined : { label: '提交申告', onClick: () => router.push('/portal/tickets/new') }}
+          action={hasFilters ? undefined : { label: '提交申告', icon: <TicketPlus size={16} />, onClick: () => router.push('/portal/tickets/new') }}
           onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (

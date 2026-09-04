@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode } from 'react';
+import { Tooltip } from 'radix-ui';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <SWRConfig value={{ revalidateOnFocus: false, dedupingInterval: 5000 }}>
       <AuthProvider>
         <ThemeProvider>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <Tooltip.Provider delayDuration={300}>
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </Tooltip.Provider>
           <Toaster />
         </ThemeProvider>
       </AuthProvider>

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { changePassword } from '@/lib/api/auth';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { toast } from 'sonner';
@@ -43,7 +43,7 @@ export default function ChangePasswordPage() {
           <Field label="新密码"><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
           <Field label="确认新密码"><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={loading} /></Field>
           <div className="mt-6">
-            <Button size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <Key size={18} />}修改密码</Button>
+            <IconButton size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <Key size={18} />}修改密码</IconButton>
           </div>
         </form>
       </div>

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
 import { uploadAsset } from '@/lib/api/upload';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
@@ -20,7 +20,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import { ChevronLeft, Pencil, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
+import { ChevronLeft, Pencil, Save, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 // MDEditor 懒加载（代码分割 + 避免 SSR）
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false });
@@ -45,12 +45,7 @@ export default function ArticleEditPage() {
   const [deleteTarget, setDeleteTarget] = useState(false);
   const [tags, setTags] = useState('');
   const [editSaving, setEditSaving] = useState(false);
-  const [discardConfirm, setDiscardConfirm] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
-
-  // 编辑起始快照，用于 isDirty 检测（未保存内容确认）
-  const editSnapshot = useRef({ title: '', content: '', tags: '' });
-  const isDirty = editing && (title !== editSnapshot.current.title || content !== editSnapshot.current.content || tags !== editSnapshot.current.tags);
 
   // 轮询：文章处理中时每 5s 刷新（derived state，无 setState in effect）
   const shouldPoll = !!(article?.process_status && article.process_status !== 'completed' && article.process_status !== 'failed');
@@ -58,9 +53,7 @@ export default function ArticleEditPage() {
 
   const startEdit = () => {
     if (!article) return;
-    const t = article.title, c = article.content, tg = (article.tags || []).join(',');
-    setTitle(t); setContent(c); setTags(tg);
-    editSnapshot.current = { title: t, content: c, tags: tg };
+    setTitle(article.title); setContent(article.content); setTags((article.tags || []).join(','));
     setEditing(true);
   };
 
@@ -70,7 +63,6 @@ export default function ArticleEditPage() {
       const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean);
       await updateArticle(Number(articleId), { title, content, tags: tagList });
       toast.success('已更新');
-      editSnapshot.current = { title, content, tags };
       setEditing(false);
       mutate();
     } catch (err: unknown) {
@@ -80,11 +72,8 @@ export default function ArticleEditPage() {
     }
   };
 
-  // 取消编辑：有未保存内容时弹确认
-  const handleCancelEdit = () => {
-    if (isDirty) { setDiscardConfirm(true); return; }
-    setEditing(false);
-  };
+  // 编辑/保存切换：未编辑时进入编辑，编辑中点击即保存
+  const toggleEdit = () => editing ? handleSave() : startEdit();
 
   // 图片粘贴上传：拦截 paste 中的图片文件，上传后插入 Markdown 链接
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -112,14 +101,6 @@ export default function ArticleEditPage() {
   }, []);
 
   const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); } finally { setProcessing(false); } };
-
-  // beforeunload：有未保存内容时刷新/关闭提示
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
 
   // 上传后 ?edit=1 → 自动进入编辑模式（微任务延迟避免 effect 内同步 setState）
   useEffect(() => {
@@ -150,7 +131,7 @@ export default function ArticleEditPage() {
       <div className="flex justify-between items-center mb-5">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}`)} aria-label="返回"><ChevronLeft /></Button>
+            <IconButton label="返回" onClick={() => router.push(`/admin/knowledge/${kbId}`)}><ChevronLeft /></IconButton>
             <PageTitle className="mb-0">{article.title}</PageTitle>
           </div>
           <div className="flex gap-2">
@@ -160,14 +141,14 @@ export default function ArticleEditPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          {article.status === 1 && <Button size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交审核</Button>}
-          {article.status === 2 && <><Button size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}通过</Button><Button variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}驳回</Button></>}
-          {article.status === 3 && <><Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '已发布')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}发布</Button>{article.process_status === 'failed' && <Button variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '正在重试发布')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}重试发布</Button>}</>}
-          {article.status === 4 && <Button variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}停用</Button>}
-          {article.status === 0 && <Button size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); }, '已启用')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}启用</Button>}
+          {article.status === 1 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交审核</IconButton>}
+          {article.status === 2 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}通过</IconButton><IconButton variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}驳回</IconButton></>}
+          {article.status === 3 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '已发布')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}发布</IconButton>{article.process_status === 'failed' && <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '正在重试发布')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}重试发布</IconButton>}</>}
+          {article.status === 4 && <IconButton variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}停用</IconButton>}
+          {article.status === 0 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); }, '已启用')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}启用</IconButton>}
           {[0, 1, 2, 3, 4].includes(article.status) && <Separator orientation="vertical" className="h-6" />}
-          {(article.status === 0 || article.status === 1 || article.status === 5) && <Button variant="ghost" size="icon" aria-label="编辑" onClick={startEdit}><Pencil /></Button>}
-          <Button variant="ghost" size="icon" aria-label="删除" onClick={() => setDeleteTarget(true)}><Trash2 /></Button>
+          {(article.status === 0 || article.status === 1 || article.status === 5) && <IconButton label={editing ? '保存' : '编辑'} disabled={editSaving} onClick={toggleEdit}>{editSaving ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>}
+          <IconButton label="删除" danger onClick={() => setDeleteTarget(true)}><Trash2 /></IconButton>
         </div>
       </div>
 
@@ -184,7 +165,6 @@ export default function ArticleEditPage() {
             </div>
           </Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
-          <div className="flex gap-2"><Button size="lg" disabled={editSaving || uploadingImg} onClick={handleSave}>{editSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}保存</Button><Button variant="ghost" size="sm" onClick={handleCancelEdit}><XCircle size={16} />取消</Button></div>
         </Card>
       ) : (
         <Card className="mb-4">
@@ -209,15 +189,6 @@ export default function ArticleEditPage() {
         </Card>
       )}
 
-      <ConfirmDialog
-        open={discardConfirm}
-        onOpenChange={setDiscardConfirm}
-        title="放弃未保存的更改"
-        message="当前编辑内容尚未保存，确定要放弃吗？"
-        confirmLabel="放弃"
-        onConfirm={() => { setDiscardConfirm(false); setEditing(false); }}
-        danger
-      />
       <ConfirmDialog
         open={disableConfirm}
         onOpenChange={setDisableConfirm}

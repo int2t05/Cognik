@@ -5,7 +5,7 @@ import { PageTitle } from '@/components/shared/PageTitle';
 import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenus, updateRoleMenus, type Menu } from '@/lib/api/role';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import { ShieldPlus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
+import { ShieldPlus, Pencil, Trash2, Loader2, Shield, Save } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
 const KNOWN_PERMISSIONS = [
@@ -103,7 +103,7 @@ export default function RoleManagePage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">角色管理</PageTitle>
-        <Button size="icon" onClick={openCreate} aria-label="新建角色"><ShieldPlus /></Button>
+        <IconButton label="新建角色" onClick={openCreate}><ShieldPlus /></IconButton>
       </div>
       {error && <InlineError />}
       {isEmpty ? (
@@ -119,8 +119,8 @@ export default function RoleManagePage() {
               { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
               { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
               { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
-                <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></Button>
-                <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></Button>
+                <IconButton label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></IconButton>
+                <IconButton label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></IconButton>
               </div> },
             ]}
             data={data?.items || []} loading={!data && !error}
@@ -168,7 +168,7 @@ export default function RoleManagePage() {
               </div>
             </Field>
           )}
-          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>取消</Button><Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -3,7 +3,8 @@
  * 配合 useBatchSelection hook 使用。
  */
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
+import { Trash2, X } from 'lucide-react';
 
 interface BatchSelectCheckboxProps<T extends { id: number | string }> {
   items: T[];
@@ -56,24 +57,24 @@ export function BatchSelectToolbar({
         已选 <strong>{selectedCount}</strong>
       </span>
       {onDelete && (
-        <Button
+        <IconButton
           variant="destructive"
           size="sm"
           onClick={onDelete}
           className="rounded-[var(--radius-pill)] font-sans text-caption"
         >
-          {deleteLabel}
-        </Button>
+          <Trash2 size={14} />{deleteLabel}
+        </IconButton>
       )}
       {onCancel && (
-        <Button
+        <IconButton
           variant="ghost"
           size="sm"
           onClick={onCancel}
           className="rounded-[var(--radius-pill)] font-sans text-caption text-[var(--color-text-muted-48)]"
         >
-          取消
-        </Button>
+          <X size={14} />取消
+        </IconButton>
       )}
     </span>
   );

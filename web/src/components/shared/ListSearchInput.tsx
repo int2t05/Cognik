@@ -2,6 +2,7 @@
 /** ListSearchInput — 列表 keyword 搜索框。本地即时输入、debounce 后回调，
  *  供页面写入 SWR key 触发服务端过滤。清除按钮立即生效。
  *  仅在事件处理器中 setState；防抖回调在 setTimeout 内（异步，不触发级联渲染）。 */
+import { IconButton } from '@/components/ui/icon-button';
 import { useEffect, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -51,14 +52,11 @@ export function ListSearchInput({ value, onDebouncedChange, placeholder = '搜�
         aria-label={placeholder}
       />
       {text && (
-        <button
-          type="button"
-          onClick={() => { setText(''); onDebouncedChange(''); }}
-          aria-label="清除搜索"
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]"
-        >
-          <X size={14} />
-        </button>
+        <span className="absolute right-0.5 top-1/2 -translate-y-1/2">
+          <IconButton label="清除搜索" size="icon-sm" onClick={() => { setText(''); onDebouncedChange(''); }}>
+            <X size={14} />
+          </IconButton>
+        </span>
       )}
     </div>
   );

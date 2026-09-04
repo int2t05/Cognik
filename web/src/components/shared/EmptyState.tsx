@@ -3,7 +3,8 @@
  * 所有空状态遵循"图标→标题→描述→可选操作"的信息层级。
  */
 import { type ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { FilterX } from 'lucide-react';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface EmptyStateProps {
   /** 图标（Lucide 组件） */
@@ -15,6 +16,7 @@ interface EmptyStateProps {
   /** 主操作按钮（不传则不显示） */
   action?: {
     label: string;
+    icon?: ReactNode;
     onClick: () => void;
   };
   /** 筛选无结果时的清除回调，传入则显示"清除筛选"按钮 */
@@ -36,14 +38,15 @@ export function EmptyState({ icon, title, description, action, onClearFilters }:
         </p>
       )}
       {action && (
-        <Button size="lg" onClick={action.onClick}>
+        <IconButton size="lg" onClick={action.onClick}>
+          {action.icon}
           {action.label}
-        </Button>
+        </IconButton>
       )}
       {onClearFilters && (
-        <Button variant="ghost" size="sm" onClick={onClearFilters} className="mt-2">
-          清除筛选
-        </Button>
+        <IconButton variant="ghost" size="sm" onClick={onClearFilters} className="mt-2">
+          <FilterX size={14} />清除筛选
+        </IconButton>
       )}
     </div>
   );

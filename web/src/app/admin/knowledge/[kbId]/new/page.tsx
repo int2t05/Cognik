@@ -3,7 +3,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createArticle, getKBList, type KB } from '@/lib/api/knowledge';
 import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -91,8 +91,7 @@ export default function NewArticlePage() {
           <Field label="标签（逗号分隔，最多 10 个）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
         </Card>
         <div className="flex gap-3">
-          <Button type="submit" size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" size={18} /> : <FilePlus size={18} />}创建</Button>
-          <Button variant="ghost" type="button" size="sm" onClick={() => router.push("/admin/knowledge/" + kbId)}><X size={16} />取消</Button>
+          <IconButton type="submit" size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" size={18} /> : <FilePlus size={18} />}创建</IconButton>
         </div>
       </form>
     </div>

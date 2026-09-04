@@ -9,7 +9,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useConfigValue } from '@/hooks/useAppConfig';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { ChevronLeft, ChevronRight, ChevronDown, Sun, Moon, Search } from 'lucide-react';
@@ -109,7 +109,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
     const pad = collapsed ? '' : depth === 1 ? 'pl-[36px]' : depth === 2 ? 'pl-[52px]' : '';
     return (
       <div key={item.path}>
-        <Button
+        <IconButton
           variant="menu"
           title={collapsed ? item.label : undefined}
           onClick={() => (hasChildren ? toggleSubmenu(item.path) : router.push(item.path))}
@@ -124,7 +124,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
               {hasChildren && <ChevronDown size={16} className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />}
             </span>
           )}
-        </Button>
+        </IconButton>
         {!collapsed && hasChildren && expanded && item.children!.map((c) => renderItem(c, depth + 1, item.children!))}
       </div>
     );
@@ -161,21 +161,15 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
       <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center gap-4 px-5 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
           {sidebarVisible && (
-            <Button variant="menu" size="icon" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}>
-              {collapsed ? <ChevronRight /> : <ChevronLeft />}
-            </Button>
+            <IconButton label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight /> : <ChevronLeft />}</IconButton>
           )}
           <span className="text-callout font-semibold text-[var(--color-ink)] shrink-0">{appName || 'OpsMind'}</span>
           <GlobalSearch nav={nav} crossLink={crossLink} toggleTheme={toggleTheme} />
           <div className="flex-1" />
           {crossLink && (
-            <Button variant="menu" size="icon" onClick={() => router.push(crossLink.path)} aria-label={crossLink.label}>
-              {crossLink.icon}
-            </Button>
+            <IconButton label={crossLink.label} onClick={() => router.push(crossLink.path)}>{crossLink.icon}</IconButton>
           )}
-          <Button variant="menu" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'}>
-            {theme === 'dark' ? <Sun /> : <Moon />}
-          </Button>
+          <IconButton label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} onClick={toggleTheme}>{theme === 'dark' ? <Sun /> : <Moon />}</IconButton>
           {isClient && <AccountSwitcher />}
         </header>
         {subbar && (

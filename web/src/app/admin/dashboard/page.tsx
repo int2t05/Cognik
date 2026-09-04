@@ -6,7 +6,7 @@ import { getStats, getTrends, exportTrendsCSV, type TrendPoint } from '@/lib/api
 
 import { StatCard } from '@/components/shared/StatCard';
 import { formatPercent } from '@/lib/format';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -105,7 +105,7 @@ export default function DashboardPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">数据看板</PageTitle>
-        <Button variant="ghost" size="icon" aria-label="刷新" onClick={handleRefresh}><RotateCw /></Button>
+        <IconButton label="刷新" onClick={handleRefresh}><RotateCw /></IconButton>
       </div>
       {statsErr && <InlineError />}
 
@@ -135,7 +135,7 @@ export default function DashboardPage() {
       />
 
       <div className="mt-3 flex justify-end">
-        <Button
+        <IconButton
           size="sm"
           variant="ghost"
           disabled={trendsLoading || !!trendsErr || exporting}
@@ -147,21 +147,21 @@ export default function DashboardPage() {
           }}
         >
           {exporting ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}导出 CSV
-        </Button>
+        </IconButton>
       </div>
 
       {/* 知识健康度分析 */}
       <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-title font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
-          <Button
+          <IconButton
             size="sm"
             onClick={handleAnalyze}
             disabled={analyzing}
             aria-label="分析反馈数据"
           >
             {analyzing ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />分析中...</span> : 'AI 分析反馈'}
-          </Button>
+          </IconButton>
         </div>
         <p className="text-caption text-[var(--color-text-muted-48)] mb-4">
           基于近 30 天的用户反馈，由 LLM 自动分析知识库的优势与待补充领域。
