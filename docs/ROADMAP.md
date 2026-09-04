@@ -14,20 +14,22 @@ OpsMind 是面向企业 IT 运维的**私有部署 AI 数字员工系统**。核
 
 ```mermaid
 flowchart LR
-    V1["V1.0<br/>固定管道 RAG<br/>(已交付)"] --> V11["V1.1<br/>存储简化"]
+    V1["V1.0<br/>固定管道 RAG"] --> V11["V1.1<br/>存储简化"]
     V11 --> V12["V1.2<br/>业务完善"]
     V12 --> V13["V1.3<br/>Agent 基座"]
     V13 --> V14["V1.4<br/>深度搜索"]
-    V14 --> V2["V2.0<br/>Agentic RAG<br/>(终点)"]
+    V14 --> V15["V1.5<br/>知识库组织"]
+    V15 --> V2["V2.0<br/>Agentic RAG"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
 |------|------|---------|------|
 | V1.0 | 固定管道 RAG | 7 步 RAG 管道 + 申告状态机 + 知识库 CRUD + RBAC + SSE 流式 | ✅ 已交付 |
-| V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | 📋 规划中 |
+| V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
-| V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关(Gateway)；9 OS 工具(bash/async_bash/read/write/edit/list/glob/grep/mkdir)；SubAgent(research+coder)；异步任务；SQLite 隔离；threads API；parts 数组模型前端渲染 | ✅ 已交付 |
-| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 语义搜索（可选）；deep_research SubAgent；搜索→爬取→整理→产出 md 文章→写入知识库 | 📋 规划中 |
+| V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
+| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md | 📋 规划中 |
+| V1.5 | 知识库组织 | 文件式 Markdown 知识库重构；目录树 + frontmatter；INDEX.md 自动重建；Agent 写入工具链 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -79,15 +81,15 @@ mindmap
 |----|------|
 | 后端 | Go + Gin + GORM |
 | 数据库 | PostgreSQL + pgvector (halfvec + HNSW) |
-| 对象存储 | MinIO (S3-compatible) |
+| 对象存储 | 本地 FS（MinIO 可选） |
 | RAG | 自建 Go 引擎 — BM25 (gse) / 向量 (pgvector) / RRF / cross-encoder |
 | LLM | llama.cpp server 或 OpenAI-compatible API |
-| 前端 | Next.js + React + TypeScript + Radix UI + SWR + Tailwind CSS |
+| 前端 | Next.js + React + TypeScript + shadcn/ui + SWR + Tailwind v4 |
 | 部署 | Docker Compose |
 
 ---
 
-## 4. V1.1 — 存储简化
+## 4. V1.1 — 存储简化（已交付）
 
 **目标**：移除 MinIO 依赖，降低部署复杂度和资源占用。
 
@@ -95,272 +97,337 @@ mindmap
 
 MinIO 在单实例部署中增加 200-500MB RAM + HTTP 延迟层。同类系统（Dify / Open WebUI / AnythingLLM）均默认本地 FS。
 
-```mermaid
-flowchart LR
-    subgraph 当前["V1.0"]
-        S1["MinIO 容器"] -->|"HTTP 1-5ms"| APP1["opsmind-server"]
-    end
-    subgraph 目标["V1.1"]
-        S2["本地 FS volume"] -->|"syscall <0.1ms"| APP2["opsmind-server"]
-    end
-    当前 -->|迁移| 目标
-```
-
 ### 4.2 交付项
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| `LocalFSClient` | 本地 FS 适配器，原子写（temp+rename），UUID 文件名 | `StorageClient` 接口不变；MinIO 数据迁移脚本可用 |
-| 后端代理下载 | `GET /api/storage/:bucket/:key` 替代 Presigned URL | 认证后 `http.ServeFile`；权限校验通过 |
-| Docker 简化 | 移除 minio 服务，加 `storage_data` volume | `docker compose up` 仅 3 必须服务 |
-| 配置统一 | `storage.type` (local/minio) + `storage.root_path` | 切换配置即可换后端，无需改代码 |
-| MinIO 惰性下载修复 | 本地 FS 直接 `os.Open`，无惰性问题 | `defer Close` 检查错误 |
+| 项 | 说明 |
+|----|------|
+| `LocalFSClient` | 本地 FS 适配器，原子写（temp+rename），UUID 文件名 |
+| 后端代理下载 | `GET /api/storage/:bucket/:key` 替代 Presigned URL |
+| Docker 简化 | MinIO 改可选；`storage_data` volume |
+| 配置统一 | `storage.type` (local/minio) + `storage.root_path` |
 
 ### 4.3 保留决策
 
 | 组件 | 决策 | 依据 |
 |------|------|------|
-| pgvector | 保留 | halfvec(FP16) + HNSW 不可替代；增长最快 PG 扩展 |
-| PostgreSQL | 保留 | 12+ JSONB 列依赖 GIN 索引；跨表事务一致性 |
-| `MinIOClient` | 保留代码 | 作为 escape hatch，多实例时恢复使用 |
+| pgvector | 保留 | halfvec(FP16) + HNSW 不可替代 |
+| PostgreSQL | 保留 | JSONB GIN 索引；跨表事务一致性 |
+| `MinIOClient` | 保留代码 | escape hatch，多实例时恢复使用 |
 
 ---
 
-## 5. V1.2 — 业务完善
+## 5. V1.2 — 业务完善（已交付）
 
-**目标**：完善知识库、申告、看板等业务功能与前端体验，为 Agent 基座夯实业务基础。
+**目标**：完善知识库、申告、看板等业务功能与前端体验。
 
 ### 5.1 知识库上传增强
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 上传上限配置化 | 50MB 硬编码改为按 KB 粒度配置 | `kb.max_upload_size` 可配置 |
-| 批量上传 | 支持多文件拖拽批量上传 | 前端 react-dropzone 拖拽；后端并发处理 |
-| 上传进度 | 前端显示上传进度条 | XMLHttpRequest upload progress 实时反馈 |
-| 文件类型校验 | 前端+后端双重校验文件类型 | 非 PDF/DOCX/XLSX/PPTX/MD/TXT 拒绝 |
+| 项 | 说明 |
+|----|------|
+| 上传上限配置化 | `kb.max_upload_size` 可配置 |
+| 批量上传 | 前端 react-dropzone 拖拽；后端并发处理 |
+| 上传进度 | XMLHttpRequest upload progress 实时反馈 |
+| 文件类型校验 | 前端+后端双重校验 PDF/DOCX/XLSX/PPTX/MD/TXT |
 
 ### 5.2 申告管理增强
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 申告标签 | 申告支持标签分类（复用 Tags 字段） | TagsInput 组件；回车/逗号/粘贴自动分割 |
-| 批量操作 | 申告批量删除/关闭 | 多选 + 批量操作确认 |
-| 处理时限 | 申告可设处理时限，超时预警 | 配置时限；超时站内消息通知 |
+| 项 | 说明 |
+|----|------|
+| 申告标签 | TagsInput 组件；回车/逗号/粘贴自动分割 |
+| 批量操作 | 多选 + 批量删除/关闭 |
+| 处理时限 | 超时站内消息通知 |
 
 ### 5.3 看板增强
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 自定义日期范围 | 看板支持自定义起止日期 | 日期选择器；趋势图按范围刷新 |
-| 数据导出 | 看板数据 CSV 导出 | PapaParse 生成 CSV + BOM 头防 Excel 乱码 |
-| `granularity` 生效 | 趋势查询 `granularity` 参数实际生效 | day/week 切换正常 |
+| 项 | 说明 |
+|----|------|
+| 自定义日期范围 | 日期选择器；趋势图按范围刷新 |
+| 数据导出 | CSV + BOM 头防 Excel 乱码 |
+| `granularity` 生效 | day/week 切换正常 |
 
 ### 5.4 前端体验优化
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| 代码分割 | `next/dynamic` 按路由懒加载重组件 | TrendChart / ChatPipeline / Markdown 组件按需加载 |
-| 虚拟列表高度 | 变长消息 `estimateSize` 动态测量 | 按内容长度估算；滚动位置准确 |
-| 表单 required 标记 | 前端表单必填字段标记 `*` | Field 组件 required prop 全覆盖 |
-| 搜索空状态 | 列表搜索无结果显示 EmptyState | 4 个列表页空状态统一 |
-| 组件一致性 | 全项目统一使用设计系统组件 | raw `<label>`/`<a>`/`<h1>` 替换为 Field/Link/PageTitle |
+| 项 | 说明 |
+|----|------|
+| 代码分割 | `next/dynamic` 按路由懒加载重组件 |
+| 虚拟列表高度 | 变长消息 `estimateSize` 动态测量 |
+| 表单 required 标记 | Field 组件 required prop 全覆盖 |
+| 搜索空状态 | 4 个列表页空状态统一 |
+| 组件一致性 | raw 元素替换为设计系统组件 |
 
 ### 5.5 Markdown 富文本编辑
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| MarkdownViewer | react-markdown + remark-gfm + remark-math + rehype-katex | 标题/列表/表格/代码块/公式正确渲染 |
-| 代码高亮 | Shiki 异步高亮，主题感知 | 12+ 语言高亮；dark/light 自动切换 |
-| Mermaid 图表 | ```mermaid 代码块渲染为 SVG | flowchart/sequence/class 等正确渲染；主题感知 |
-| MarkdownEditor | @uiw/react-md-editor 分屏编辑 | 工具栏操作 + 实时预览 |
-| 图片粘贴上传 | 粘贴/拖拽图片自动上传 + 插入 Markdown | 调用存储上传 API |
-| 模式切换确认 | 未保存内容弹确认框 | diff 检测 + ConfirmDialog |
+| 项 | 说明 |
+|----|------|
+| MarkdownViewer | react-markdown + remark-gfm + remark-math + rehype-katex |
+| 代码高亮 | Shiki 异步高亮，主题感知 |
+| Mermaid 图表 | 代码块渲染为 SVG，主题感知 |
+| MarkdownEditor | @uiw/react-md-editor 分屏编辑 |
+| 图片粘贴上传 | 粘贴/拖拽图片自动上传 + 插入 Markdown |
+| 模式切换确认 | diff 检测 + ConfirmDialog |
 
 ---
 
-## 6. V1.3 — Agent 基座
+## 6. V1.3 — Agent 基座（已交付）
 
-**目标**：铺设原生 Go Agent Loop 基础设施，实现 ReAct 循环 + Tool Calling，不改变用户可见行为。
+**目标**：铺设原生 Go Agent Loop 基础设施，实现 ReAct 循环 + Tool Calling。
 
-**选型决策**：全部使用外部库，不自建。Eino（LLM Provider + Agent Loop + Stream Handling）+ modelcontextprotocol/go-sdk（MCP 工具）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
+**选型**：Eino（LLM Provider + Agent Loop + Stream Handling）+ modelcontextprotocol/go-sdk（MCP 工具）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
 
-### 6.1 原生 Go Agent Loop
+### 6.1 Agent 架构
 
 ```mermaid
 flowchart TB
     subgraph Go["Go Backend"]
         H["Handler"] --> S["Service"] --> R["Repository"]
         S --> RAG["RAG Engine (保留)"]
-        S --> AG["agent/ 领域 (新增)"]
+        S --> AG["agent/ 领域"]
     end
-    subgraph AgentLoop["Agent Loop (~40 行)"]
-        AG -->|"同进程"| LLM["LLMClient<br/>(已有 adapter)"]
-        AG -->|"ReAct 循环"| TOOLS["Tool Registry"]
-        TOOLS -->|"同进程"| RAG
-        TOOLS -->|"同进程"| TK["Ticket Service"]
-        TOOLS -->|"同进程"| SQL["SQL Query"]
+    subgraph AgentLoop["Agent Loop"]
+        AG -->|"同进程"| LLM["Eino ChatModel<br/>eino-ext/openai"]
+        AG -->|"ReAct 循环"| TOOLS["Tool Registry (9 工具)"]
+        AG -->|"SubAgent 委托"| SUB["research / coder"]
         AG -->|"事件流"| SSE["GenerationHub → SSE → 前端"]
+        AG -->|"隔离"| SQLite["SQLite (per session)"]
     end
 ```
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| `server/internal/agent/` | Agent 领域包：provider 构造 + tool 注册 + handler | Eino ReactAgent `Stream()` 跑通 |
-| Eino ChatModel | eino-ext/openai 接入 llama.cpp | OpenAI 兼容流式 + tool calling 可用 |
-| Eino ReactAgent | ReAct 循环 + typed tools + parallel execution | 基本对话通过 Agent 走通；可中断 |
-| Gin SSE bridge | `fmt.Fprintf + Flush` 输出 SSE 事件 | 前端 `ChatStreamProvider` 消费成功 |
-| 前端 | 保留现有 `ChatStreamProvider` | 现有 SSE 事件类型无需修改 |
-| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 Eino ChatModel | 配置热替换生效，无需重启 |
+### 6.2 已交付能力
 
-### 6.2 MCP 工具集成
+| 项 | 说明 |
+|----|------|
+| `server/internal/agent/` | Agent 领域包：provider 构造 + tool 注册 + handler |
+| Eino ChatModel | eino-ext/openai 接入 llama.cpp / OpenAI 兼容 |
+| Eino ReactAgent | ReAct 循环 + typed tools + parallel execution |
+| 订阅渠道网关 | Gateway 统一 SSE 事件分发 |
+| 9 OS 工具 | bash / async_bash / read / write / edit / list / glob / grep / mkdir |
+| SubAgent | research（只读探查）+ coder（读写操作），`adk.NewAgentTool` 注册 |
+| 异步任务 | async_bash 流式输出；任务管理 |
+| SQLite 隔离 | 每个 agent session 独立 SQLite 文件 |
+| threads API | 对话线程管理 |
+| parts 数组模型 | 前端渲染并行工具调用 + SubAgent + TaskCard |
+| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 Eino ChatModel |
 
-通过官方 Go MCP SDK（`modelcontextprotocol/go-sdk` v1.6.0）消费第三方工具，无需手写集成。V1.3 先集成知识库 / 申告 / SQL 等同进程工具；深度搜索工具在 V1.4 接入。
+### 6.3 工具集成
 
 | 工具 | 来源 | 调用方式 | 版本 |
 |------|------|----------|------|
 | `search_knowledge_base` | Go RAG Engine | 同进程 `rag.Pipeline.Search()` | V1.3 |
 | `ticket_lookup` | Go Ticket Service | 同进程 `ticket.Service.Query()` | V1.3 |
 | `sql_query` | Go SQL 执行 | 同进程 `db.Raw()`（只读） | V1.3 |
-| `web_search` | SearXNG | 直接 HTTP（`net/http`） | V1.4 |
-| `web_fetch` | Firecrawl 自托管 `/scrape` | 直接 HTTP | V1.4 |
-| `exa_search`（可选） | Exa API | 直接 HTTP（需用户配 Key） | V1.4 |
-| `generate_article` | Go Agent | 搜索结果 → 结构化 Markdown | V1.4 |
+| `web_search` | SearXNG | 直接 HTTP | V1.4 |
+| `web_fetch` | Firecrawl 自托管 | 直接 HTTP | V1.4 |
+| `exa_search`（可选） | Exa API | 直接 HTTP | V1.4 |
+| `generate_article` | Go Agent | 搜索结果 → Markdown | V1.4 |
 
-### 6.3 SSE 事件扩展
+### 6.4 SSE 事件
 
-当前 SSE 事件：`step` / `chunks` / `token` / `done` / `error`。V1.3 扩展 Agent 事件类型。
-
-| 新增事件类型 | 说明 |
-|-------------|------|
-| `thinking` | Agent 推理过程（V2.0 启用） |
-| `tool_call` | Agent 工具调用详情（V2.0 启用） |
-| `tool_result` | 工具返回结果（V2.0 启用） |
-| `answer` | Agent 最终回答（V2.0 启用） |
-
-V1.3 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染（V2.0 启用）。
+SSE 事件：`step` / `chunks` / `token` / `done` / `error` / `reasoning` / `tool_call` / `tool_result`。前端 `parts` 数组模型渲染并行工具调用与 SubAgent。
 
 ---
 
-## 6.5. V1.4 — 深度搜索
+## 7. V1.4 — 深度搜索
 
-**目标**：Agent 配备深度搜索工具链，实现"搜索网络资料 → 爬取知识 → 整理产出 md 文章 → 写入知识库"闭环。知识库输出为 md 文件，简洁直接。
+**目标**：Agent 配备深度搜索工具链，搜索→爬取→整理→产出 md 文章。
 
-**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)，尤其 [05-firecrawl-vs-exa.md](research/knowledge-organization/05-firecrawl-vs-exa.md)
+**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)
 
-### 6.5.1 搜索 API 集成
-
-```mermaid
-flowchart LR
-    subgraph 主力["主力（私有部署，零边际成本）"]
-        SX["SearXNG<br/>自托管元搜索"]
-        FC["Firecrawl 自托管<br/>/scrape 提取"]
-    end
-    subgraph 增强["增强（可选，需 API Key）"]
-        EXA["Exa<br/>语义搜索 + highlights"]
-    end
-```
-
-| API | 自托管 | LLM 优化 | 定价 | 用途 |
-|-----|:---:|:---:|------|------|
-| **SearXNG** | ✅ | ❌ | 免费（仅基础设施） | 主力搜索：私有部署元搜索，聚合 130+ 引擎 |
-| **Firecrawl 自托管** | ✅ | ✅ | 免费（开源 Apache-2.0） | 主力提取：URL → 干净 Markdown，JS 渲染 |
-| **Exa** | ❌ | ✅ | $7-15 / 千次 | 可选增强：语义搜索，highlights 10x token 效率，deep-reasoning 多步推理 |
-
-**分层策略**：默认私有部署（SearXNG + Firecrawl 自托管，零边际成本，数据不出域）；用户配置 Exa API Key 后启用语义搜索增强。
-
-### 6.5.2 SearXNG 自托管
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| Docker 部署 | `searxng` + `valkey` 服务加入 docker-compose | JSON 输出启用；`it`/`science` 类别 |
-| settings.yml | `formats: [html, json]` 显式开启；`limiter: false`；`public_instance: false` | `?format=json` 返回 200；Agent 自动化流量不被限流 |
-| Go 集成 | 直接 HTTP GET `http://searxng:8080/search?q=...&format=json` | 无需 MCP 中间层；`net/http` + `encoding/json` |
-| Ops 域配置 | 预配置 `it`/`science` 类别优先 | StackOverflow/GitHub/厂商域名优先 |
-| 私有搜索验证 | 查询不出域，无 API 密钥 | 日志确认无第三方数据发送 |
-
-### 6.5.3 Firecrawl 自托管
-
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| Docker 部署 | Firecrawl `v2.11.162` + PostgreSQL + Redis + RabbitMQ + Playwright | `docker compose up` 启动；`/v2/scrape` 返回 Markdown |
-| 自托管能力 | 核心 scrape / crawl / map / search；Fetch + Playwright | JS 渲染页面正确提取；干净 Markdown 输出 |
-| 不支持项 | 截图 / 页面操作 / Agent / Interact | 需 Fire-engine 或 Cloud，自托管不含 |
-| Go 集成 | 直接 HTTP POST `http://firecrawl:3002/v2/scrape` | `net/http` + JSON；无官方 Go SDK |
-| 配置 | `USE_DB_AUTHENTICATION=false`（受信任网络） | 不暴露公网；仅 Docker 内部网络访问 |
-
-### 6.5.4 Agent 工具链
-
-新建 `deep_research` SubAgent，配备搜索工具集，与现有 `research` / `coder` SubAgent 并列。
+### 7.1 搜索 API 分层
 
 ```mermaid
 flowchart LR
-    subgraph 主Agent["主 Agent"]
-        MAIN["主 Agent<br/>决策 + 报告"]
+    subgraph 主力["主力（私有部署）"]
+        SX["SearXNG<br/>元搜索"]
+        FC["Firecrawl 自托管<br/>/scrape"]
     end
-    subgraph 深度搜索["deep_research SubAgent（新增）"]
-        WS["web_search<br/>SearXNG"]
-        WF["web_fetch<br/>Firecrawl /scrape"]
-        EXA["exa_search<br/>Exa（可选）"]
-        GEN["generate_article<br/>产出 md 文章"]
+    subgraph 增强["增强（可选）"]
+        EXA["Exa<br/>语义搜索"]
     end
-    MAIN -->|"委托研究任务"| WS
-    WS --> WF
-    WF --> GEN
-    GEN -->|"写入知识库"| KB["storage/kb/{kb_slug}/"]
 ```
 
-| 工具 | 来源 | 部署 | 验收标准 |
-|------|------|:----:|---------|
-| `web_search` | SearXNG | 自托管 | 聚合 130+ 引擎；`it`/`science` 类别；JSON 输出 |
-| `web_fetch` | Firecrawl `/scrape` | 自托管 | URL → 干净 Markdown；JS 渲染；metadata 提取 |
-| `exa_search`（可选） | Exa API | SaaS | highlights 10x token 效率；`type=deep` 多步推理 |
-| `generate_article` | 内部 | — | 搜索结果 → 结构化 Markdown；frontmatter 含 sources 引用 |
+| API | 自托管 | 定价 | 用途 |
+|-----|:---:|------|------|
+| SearXNG | ✅ | 免费 | 元搜索，聚合 130+ 引擎 |
+| Firecrawl 自托管 | ✅ | 免费（Apache-2.0） | URL → Markdown，JS 渲染 |
+| Exa | ❌ | $7-15/千次 | 语义搜索，highlights 10x token 效率 |
 
-**与 V1.3 Agent 基座集成**：
-- `deep_research` SubAgent 注册到 `AgentFactory.buildSubAgentTools()`
-- 搜索工具注册到 `ToolFactory.BuildSearchTools()`（与 `BuildTools()` / `BuildReadOnlyTools()` 平行）
-- 主 Agent 不直接使用搜索工具 — 通过 SubAgent 委托（与 GPT-Researcher MCP 委托模式一致）
-- SSE 事件复用 `tool_call` / `tool_result`，通过 `Label` 字段区分搜索/爬取/生成
+**分层**：默认私有部署（零成本，数据不出域）；用户配 Exa Key 后启用语义搜索增强。
 
-### 6.5.5 知识库输出（md 文件）
+### 7.2 SearXNG 自托管
 
-深度搜索产出为 md 文件，存入知识库目录，简洁直接。
+| 项 | 说明 |
+|----|------|
+| Docker | `searxng` + `valkey` 服务 |
+| 配置 | `formats: [html, json]`；`limiter: false`；`public_instance: false` |
+| Go 集成 | 直接 HTTP GET `http://searxng:8080/search?q=...&format=json` |
+| Ops 域 | `it`/`science` 类别优先 StackOverflow/GitHub/厂商域名 |
+
+### 7.3 Firecrawl 自托管
+
+| 项 | 说明 |
+|----|------|
+| Docker | Firecrawl `v2.11.162` + PostgreSQL + Redis + RabbitMQ + Playwright |
+| 能力 | 核心 scrape / crawl / map；Fetch + Playwright |
+| 不支持 | 截图 / 页面操作 / Agent / Interact（需 Cloud） |
+| Go 集成 | 直接 HTTP POST `http://firecrawl:3002/v2/scrape` |
+| 配置 | `USE_DB_AUTHENTICATION=false`（受信任网络，不暴露公网） |
+
+### 7.4 deep_research SubAgent
+
+新建 `deep_research` SubAgent，与 `research` / `coder` 并列。
 
 ```mermaid
 flowchart LR
-    GEN["generate_article"] -->|"产出"| MD["md 文件<br/>+ frontmatter"]
-    MD --> STORE["storage/kb/{kb_slug}/"]
-    STORE --> STATUS{"status"}
-    STATUS -->|"draft"| DRAFT["草稿<br/>不进 RAG"]
-    STATUS -->|"published"| PUB["发布<br/>触发 RAG 索引"]
-    PUB --> RAG["chunker → embedder<br/>→ pgvector + BM25"]
+    MAIN["主 Agent"] -->|"委托"| WS["web_search<br/>SearXNG"]
+    WS --> WF["web_fetch<br/>Firecrawl"]
+    WF --> GEN["generate_article<br/>产出 md"]
+    GEN --> KB["知识库"]
 ```
 
-| 项 | 说明 | 验收标准 |
-|----|------|---------|
-| frontmatter 最小字段 | `title` / `source_type: deep_research` / `sources`（URL 列表）/ `created` | Agent 生成时必填 sources |
-| 文件命名 | `{YYYYMMDD-HHmmss}-{slug}.md`，slug 取标题 kebab-case | 扁平存储，无目录层级 |
-| 引用标注 | 正文中行内编号 `[1]` `[2]`，frontmatter `sources` 维护编号→URL 映射 | 不用脚注（避免 chunker 切割引用） |
-| 状态管控 | 复用现有 `KnowledgeArticle` 状态机：Draft → Reviewing → Published | Agent 产出默认 `draft`；人工审核后 `published` |
-| RAG 衔接 | Published 后触发现有 chunker → embedder → pgvector + BM25 | 新增 `SourceType = 3`（深度搜索生成） |
-| 存储 | 写入 `StorageClient` + `KnowledgeArticle` 记录 | `MinioPath` 指向 md 文件 |
+| 工具 | 部署 | 说明 |
+|------|:----:|------|
+| `web_search` | 自托管 | 聚合 130+ 引擎；`it`/`science` 类别 |
+| `web_fetch` | 自托管 | URL → 干净 Markdown；JS 渲染 |
+| `exa_search`（可选） | SaaS | highlights 10x token 效率；`type=deep` 多步推理 |
+| `generate_article` | 内部 | 搜索结果 → Markdown；frontmatter 含 sources |
 
-### 6.5.6 Ops 域搜索场景
+**集成**：
+- 注册到 `AgentFactory.buildSubAgentTools()`
+- 搜索工具注册到 `ToolFactory.BuildSearchTools()`
+- 主 Agent 通过 SubAgent 委托（GPT-Researcher 模式）
+- SSE 复用 `tool_call` / `tool_result`，`Label` 区分工具类型
+
+### 7.5 知识库输出
+
+深度搜索产出 md 文件，存入知识库。
+
+| 项 | 说明 |
+|----|------|
+| frontmatter | `title` / `source_type: deep_research` / `sources`（URL 列表）/ `created` |
+| 文件命名 | `{YYYYMMDD-HHmmss}-{slug}.md`，扁平存储 |
+| 引用标注 | 行内编号 `[1]`，frontmatter `sources` 维护映射（不用脚注，避免 chunker 切割） |
+| 状态管控 | 复用现有状态机：Draft → Reviewing → Published |
+| RAG 衔接 | Published 后触发 chunker → embedder → pgvector + BM25 |
+| SourceType | 新增 `3`（深度搜索生成） |
+
+### 7.6 Ops 域场景
 
 | 场景 | 查询示例 | 来源 |
 |------|---------|------|
 | 错误代码查找 | "ORA-00942 error" | Stack Overflow、厂商文档 |
-| CVE 查询 | "CVE-2025-XXXX affected versions" | NVD、厂商安全公告 |
-| 软件版本兼容 | "PostgreSQL 17 pgvector compatibility" | 厂商文档、GitHub releases |
-| 内部 KB 未命中 | 内部无文档的问题 | 回退到网络搜索 |
+| CVE 查询 | "CVE-2025-XXXX" | NVD、厂商安全公告 |
+| 软件版本兼容 | "PostgreSQL 17 pgvector" | 厂商文档、GitHub releases |
+| 内部 KB 未命中 | 内部无文档的问题 | 回退网络搜索 |
 
 ---
 
-## 7. V2.0 — Agentic RAG（终点）
+## 8. V1.5 — 知识库组织
+
+**目标**：知识库底层重构为文件式 Markdown，确定组织形式，Agent 配备修改工具链。
+
+**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)，尤其 [04-recommendation.md](research/knowledge-organization/04-recommendation.md)
+
+### 8.1 组织形式
+
+混合式：目录树（按运维文档类型）+ frontmatter 标签（多维度筛选）。
+
+```mermaid
+flowchart LR
+    subgraph 输入["输入"]
+        UP["用户上传"] --> STORE["storage/kb/{kb_slug}/"]
+        AG["Agent 深度搜索"] --> STORE
+    end
+    subgraph 组织["组织"]
+        STORE --> TREE["目录树<br/>runbooks/ systems/ sops/"]
+        TREE --> FM["frontmatter<br/>title/type/tags/status"]
+        FM --> IDX["INDEX.md<br/>脚本自动重建"]
+    end
+    subgraph 输出["输出"]
+        IDX --> UI["前端目录树"]
+        TREE --> RAG["pgvector + BM25<br/>仅 published"]
+    end
+```
+
+### 8.2 目录结构
+
+```
+storage/kb/{kb_slug}/
+├── INDEX.md              # 目录索引（脚本自动重建，禁止手编）
+├── log.jsonl             # 审计日志（append-only）
+├── SCHEMA.md             # frontmatter 规范
+├── runbooks/             # 运维手册
+├── systems/              # 系统文档
+├── sops/                 # 标准操作流程
+├── postmortems/          # 故障复盘
+├── cves/                 # CVE 跟踪
+├── draft/                # 草稿（不进 RAG）
+└── inbox/                # 质量门未通过（不进 RAG）
+```
+
+### 8.3 frontmatter schema
+
+| 字段 | 必填 | 说明 |
+|------|:---:|------|
+| `title` | ✅ | 文档标题 |
+| `type` | ✅ | runbook/architecture/sop/postmortem/cve/draft/quarantined |
+| `status` | ✅ | draft/reviewing/published/disabled |
+| `created` / `updated` | ✅ | ISO 8601 时间戳 |
+| `tags` | — | 多维度标签数组 |
+| `system` | — | 关联系统 |
+| `severity` | — | SEV-1 到 SEV-4 |
+| `sources` | — | URL 列表（Agent 生成时必填） |
+| `source_type` | — | manual/upload/agent |
+| `credibility_score` | — | 1-10 可信度评分 |
+
+### 8.4 INDEX.md 自动重建
+
+- 脚本从 frontmatter 重建目录索引，写入 `INDEX.md`
+- 写入/更新/删除后立即触发；禁止手编
+- 扫描所有 `.md`（排除 `draft/` `inbox/`），按 `type` 分组，按 `title` 排序
+
+### 8.5 Agent 写入工具链
+
+```mermaid
+flowchart TD
+    AG["Agent 生成"] --> SCHEMA["Schema 验证"]
+    SCHEMA -->|"通过"| DEDUP["去重检查"]
+    SCHEMA -->|"不通过"| RETRY["重试上限 3 次"]
+    DEDUP -->|"新内容"| QUALITY["质量门"]
+    DEDUP -->|"重复"| UPDATE["kb_update"]
+    QUALITY -->|"通过"| DRAFT["写入 draft/<br/>status: draft"]
+    QUALITY -->|"不通过"| INBOX["隔离到 inbox/"]
+    DRAFT --> REVIEW["人工审核"]
+    DRAFT --> LOG["log.jsonl"]
+```
+
+| 工具 | 说明 |
+|------|------|
+| `kb_create` | 新建文章（schema 验证 → 去重 → 质量门 → 写入 draft） |
+| `kb_update` | 更新文章 |
+| `kb_move` | 移动/重命名 |
+| `kb_delete` | 删除文章 |
+| `kb_search` | 搜索已有文章（防止重复写入） |
+
+**多层防线**：Schema 验证（自动）→ 去重（自动）→ 质量门（自动）→ 草稿隔离（自动）→ 人工审核（手动）。
+
+### 8.6 RAG 衔接
+
+| 文件状态 | 存储位置 | 进 RAG | 进 INDEX.md | 前端可见 |
+|---------|---------|:------:|:-----------:|:-------:|
+| `published` | `{type}/` | 是 | 是 | 是 |
+| `draft` | `draft/` | 否 | 否 | 草稿区 |
+| `quarantined` | `inbox/` | 否 | 否 | 待处理区 |
+| `disabled` | `{type}/` | 否 | 否 | 否 |
+
+文件状态从 `draft` → `published` 时触发 RAG 索引；frontmatter `tags`/`system`/`severity` 作为 RAG 检索的元数据过滤条件。
+
+---
+
+## 9. V2.0 — Agentic RAG（终点）
 
 **目标**：Agent ReAct 循环替代固定 7 步管道，实现自主检索决策、网络搜索、多步推理。
 
-### 7.1 核心变化
+### 9.1 核心变化
 
 固定 7 步线性管道 → Agent ReAct 循环自主决策。
 
@@ -370,10 +437,10 @@ flowchart TD
         Q1["用户提问"] --> R1["改写"] --> R2["路由"] --> R3["混合检索"] --> R4["重排"] --> G1["生成"]
     end
     subgraph V2["Agentic RAG"]
-        Q2["用户提问"] --> AG["Agent Loop (Go 原生)"]
+        Q2["用户提问"] --> AG["Agent Loop"]
         AG -->|"think"| T1{"需要什么信息?"}
         T1 -->|"内部知识"| KB["search_knowledge_base"]
-        T1 -->|"实时信息"| WS["web_search (SearXNG)"]
+        T1 -->|"实时信息"| WS["web_search"]
         T1 -->|"结构化数据"| SQL["sql_query"]
         T1 -->|"申告历史"| TK["ticket_lookup"]
         KB & WS & SQL & TK --> AG
@@ -384,39 +451,26 @@ flowchart TD
     V1 -->|演进| V2
 ```
 
-### 7.2 Agent 基座：Eino 全栈
-
-| 维度 | Eino 全栈 |
-|------|---------------------|
-| Agent Loop | Eino ReactAgent；ReAct + Graph 编排 + DeepAgent + HITL interrupt/resume |
-| LLM Provider | eino-ext/openai；OpenAI 兼容（llama.cpp / DeepSeek / OpenAI） |
-| Stream Handling | Eino 框架内自动流拼接/合并/复制 |
-| SSE 输出 | Gin `fmt.Fprintf + Flush` ~20 行（标准库） |
-| 前端消费 | 保留现有 `ChatStreamProvider`（rAF 批处理 + 纯函数 reducer + 单测） |
-| 工具生态 | modelcontextprotocol/go-sdk v1.6.0；MCP client 消费第三方工具 |
-| 部署 | 单二进制；Eino 为 Go 库，无额外运行时 |
-| 成熟度 | 12k star，字节生产级（千级 QPS），Apache-2.0 |
-
-### 7.3 网络搜索与深度搜索
-
-V1.4 已部署 SearXNG + Firecrawl 自托管 + deep_research SubAgent。V2.0 启用 Agent 自主调用深度搜索与知识库写入工具。
+### 9.2 目标架构
 
 ```mermaid
-flowchart LR
-    AG["Agent Loop"] -->|"快速查询"| EXA["Exa MCP (高亮模式)"]
-    AG -->|"深度研究"| FC["Firecrawl Agent MCP"]
-    AG -->|"私有搜索"| SX["SearXNG (V1.4 部署)"]
-    AG -->|"页面提取"| WF["WebFetch MCP / firecrawl_scrape"]
+flowchart TB
+    FE["Frontend (Next.js)<br/>ChatStreamProvider"]
+    FE -->|"POST /api/chat"| SSE["Gin SSE bridge"]
+    SSE --> AGENT["agent/ 领域<br/>Eino ReactAgent"]
+    AGENT -->|"eino-ext/openai"| LLM["Eino ChatModel"]
+    AGENT -->|"同进程"| RAG["RAG Engine<br/>BM25 + pgvector + RRF + rerank"]
+    AGENT -->|"直接 HTTP"| SEARCH["web_search / web_fetch<br/>SearXNG + Firecrawl"]
+    AGENT -->|"直接 HTTP"| KB["kb_create / kb_update<br/>知识库工具链"]
+    SSE -->|"SSE stream"| FE
+    RAG --> PG[("PostgreSQL + pgvector")]
 ```
 
-| 能力 | 工具 | 说明 |
-|------|------|------|
-| 快速网络搜索 | Exa MCP / Firecrawl MCP | 高亮模式 10x token 效率 |
-| 深度研究 | `firecrawl_agent` MCP / GPT-Researcher MCP | 多轮迭代搜索→阅读→综合 |
-| 自托管搜索 | SearXNG + MCP（V1.4 部署） | 聚合 130+ 引擎，无 API 密钥，私有部署 |
-| Ops 域过滤 | SearXNG `it`/`science` 类别 | 优先 StackOverflow / GitHub / 厂商域名 |
+### 9.3 深度搜索与知识库
 
-### 7.4 Agent 场景
+V1.4 已部署 SearXNG + Firecrawl 自托管 + deep_research SubAgent。V1.5 已确定知识库组织形式 + Agent 写入工具链。V2.0 启用 Agent 自主调用完整工具链。
+
+### 9.4 Agent 场景
 
 | 场景 | Agent 模式 | 工具 |
 |------|-----------|------|
@@ -424,62 +478,39 @@ flowchart LR
 | 根因分析 | Plan-then-Execute | 日志查询、拓扑探索、指标查询、知识检索 |
 | 自助修复 | ReAct + Tool Use | API 调用、脚本执行（需人工审批门） |
 
-### 7.5 目标架构
-
-```mermaid
-flowchart TB
-    FE["Frontend (Next.js)<br/>ChatStreamProvider (保留)"]
-    FE -->|"POST /api/chat"| SSE["Gin SSE bridge<br/>fmt.Fprintf + Flush"]
-    SSE --> AGENT["agent/ 领域<br/>Eino ReactAgent"]
-    AGENT -->|"eino-ext/openai"| LLM["Eino ChatModel<br/>llama.cpp / DeepSeek / OpenAI"]
-    AGENT -->|"同进程"| RAG["RAG Engine (保留)<br/>BM25 + pgvector + RRF + rerank"]
-    AGENT -->|"MCP Client"| MCP["modelcontextprotocol/go-sdk<br/>web_search / web_fetch"]
-    MCP -->|"HTTP"| SX["SearXNG (V1.4 部署)"]
-    SSE -->|"SSE stream"| FE
-    RAG --> PG[("PostgreSQL + pgvector")]
-```
-
-### 7.6 废弃与新增
+### 9.5 废弃与保留
 
 | 废弃（固定管道） | 替代（Agentic） |
 |-----------|------------|
-| `ai.rag_query_rewrite` 开关 | Agent 自主决策（工具参数） |
+| `ai.rag_query_rewrite` 开关 | Agent 自主决策 |
 | `ai.rag_multi_route` 开关 | Agent 循环多次调用 |
 | `ai.rag_hybrid` 开关 | 工具参数 `strategy=hybrid` |
 | `ai.rag_rerank` 开关 | 工具参数 `rerank=true` |
 | 固定 `Pipeline.Execute()` | `agent.Agent.Run()` ReAct 循环 |
-| `LLMConfigManager` 单默认 | Agent 重建 + 多 Provider |
 
 | 保留 | 原因 |
 |------|------|
-| RAG 引擎（BM25 + vector + RRF + rerank） | Go 引擎作为工具后端 |
-| pgvector + PostgreSQL | 向量存储 + 业务数据不变 |
-| Document Processor | 文档处理管道不变 |
-| SSE 流式 + GenerationHub | 扩展事件类型（V1.3 预留） |
+| RAG 引擎 | Go 引擎作为工具后端 |
+| pgvector + PostgreSQL | 向量存储 + 业务数据 |
+| Document Processor | 文档处理管道 |
+| SSE 流式 + GenerationHub | 事件类型已扩展 |
 | Auth/RBAC/Ticket/Knowledge | 领域逻辑不变 |
 
-| 新增 | 说明 |
-|------|------|
-| `agent/` 领域 | Agent struct + Tool 接口 + ToolRegistry + Agent Loop |
-| MCP Client | 官方 Go MCP SDK，消费第三方工具 |
-| 前端 Agent 事件 UI | thinking / tool_call / tool_result / answer 渲染 |
-| 人工审批门（HITL） | 敏感操作（自助修复）必须人工确认 |
-| 事件知识自进化 | 已解决申告生成知识条目 → 嵌入 pgvector → RAG 检索历史经验 |
-
-### 7.7 验收标准
+### 9.6 验收标准
 
 | 验收项 | 标准 |
 |--------|------|
 | Agent 对话端到端 | 用户提问 → Agent 自主检索（≥1 轮）→ 带引用回答 |
-| 网络搜索 | 内部 KB 无结果时 Agent 自主触发 SearXNG 搜索 |
+| 网络搜索 | 内部 KB 无结果时 Agent 自主触发搜索 |
 | 深度搜索 | 复杂问题 Agent 多轮搜索（≥2 轮）并综合 |
-| Agent 事件 UI | thinking / tool_call / tool_result 实时渲染；用户可见推理过程 |
-| 降级 | Agent Loop 异常时回退固定管道；SearXNG 不可用时跳过网络搜索 |
-| 审计 | Agent 轨迹（工具调用、检索查询、推理步骤）写入审计日志 |
+| 知识库自进化 | 已解决申告生成知识条目 → 嵌入 pgvector |
+| Agent 事件 UI | thinking / tool_call / tool_result 实时渲染 |
+| 降级 | Agent Loop 异常时回退固定管道 |
+| 审计 | Agent 轨迹写入审计日志 |
 
 ---
 
-## 8. 里程碑
+## 10. 里程碑
 
 ```mermaid
 gantt
@@ -490,63 +521,64 @@ gantt
     section V1.0 已交付
     固定管道 RAG         :done, v1, 2026-06-01, 2026-09-01
 
-    section V1.1 存储简化
-    MinIO→本地 FS        :v11a, 2026-09-15, 14d
-    配置体系统一          :v11b, 2026-09-15, 7d
+    section V1.1 已交付
+    存储简化             :done, v11, 2026-09-01, 2026-09-15
 
-    section V1.2 业务完善
-    知识库上传增强        :v12a, 2026-10-01, 14d
-    申告管理增强          :v12b, 2026-10-01, 14d
-    看板增强+导出         :v12c, 2026-10-15, 14d
-    Markdown 富文本       :v12d, 2026-10-15, 21d
-    前端体验优化          :v12e, 2026-11-01, 14d
+    section V1.2 已交付
+    业务完善             :done, v12, 2026-09-15, 2026-11-01
 
-    section V1.3 Agent 基座
-    agent/ 领域 + Tool 接口 :v13a, 2026-12-01, 14d
-    LLMClient tool calling :v13b, 2026-12-01, 10d
-    Agent Loop + 并行工具  :v13c, 2026-12-15, 14d
-    MCP SDK 集成          :v13d, 2026-12-15, 10d
-    SSE 事件扩展          :v13e, 2026-12-25, 7d
+    section V1.3 已交付
+    Agent 基座           :done, v13, 2026-11-01, 2026-12-15
 
     section V1.4 深度搜索
-    SearXNG+Firecrawl 部署  :v14a, 2027-01-15, 14d
-    搜索工具集成 Go        :v14b, 2027-01-15, 14d
+    SearXNG+Firecrawl    :v14a, 2027-01-15, 14d
+    搜索工具集成          :v14b, 2027-01-15, 14d
     deep_research SubAgent :v14c, 2027-02-01, 21d
-    md 产出+RAG 衔接        :v14d, 2027-02-01, 14d
+    md 产出+RAG 衔接      :v14d, 2027-02-01, 14d
+
+    section V1.5 知识库组织
+    文件式重构+schema    :v15a, 2027-03-01, 14d
+    INDEX.md+审计日志    :v15b, 2027-03-01, 14d
+    Agent 写入工具链     :v15c, 2027-03-15, 21d
+    质量门+RAG 衔接       :v15d, 2027-03-15, 14d
 
     section V2.0 Agentic RAG
-    Agent 固定管道替代    :v20a, 2027-03-01, 14d
-    前端 Agent 事件 UI    :v20b, 2027-03-01, 21d
-    端到端集成+降级       :v20c, 2027-03-15, 14d
+    Agent 替代固定管道    :v20a, 2027-04-01, 14d
+    前端 Agent 事件 UI    :v20b, 2027-04-01, 21d
+    端到端集成+降级       :v20c, 2027-04-15, 14d
 ```
 
 ---
 
-## 9. 技术决策记录
+## 11. 技术决策记录
 
 | 决策 | 选择 | 依据 |
 |------|------|------|
-| 文档存储 | 本地 FS（移除 MinIO） | 单实例下本地 FS 足够；Dify/Open WebUI/AnythingLLM 均默认本地 |
-| 向量数据库 | 保留 pgvector | halfvec+HNSW 不可替代；增长最快 PG 扩展；sqlite-vec 无 ANN |
-| 业务数据库 | 保留 PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务；GORM 迁移安全 |
-| Agent 数据 | 未来 SQLite | ReAct 高频读写时拆分；当前非瓶颈 |
-| Agent 基座 | Eino (ByteDance) | 12k star 字节生产级；唯一同时覆盖 LLM Provider + Agent Loop + Stream Handling 的 Go 框架；sashabaranov/go-openai 不含 agent loop |
-| LLM Provider | eino-ext/openai | Eino 配套；OpenAI 兼容 → llama.cpp；含 tool calling + streaming |
-| SSE 输出 | Gin 标准库 `fmt.Fprintf + Flush` | 标准 SSE 模式（headers + http.Flusher + data: %s\n\n） |
-| 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0，与 Google 共维护 |
-| 网络搜索 | SearXNG（自托管）+ Exa/Firecrawl | 私有部署无 API 密钥；深度研究用 Firecrawl Agent |
-| 网页提取 | Firecrawl 自托管 `/scrape` | 开源 Apache-2.0；核心 scrape/crawl/map 自托管；JS 渲染；私有部署数据不出域 |
-| 语义搜索增强 | Exa API（可选，需用户配 Key） | highlights 10x token 效率；deep-reasoning 多步推理；SaaS 闭源，作为可选增强 |
-| 搜索工具集成 | 直接 HTTP（`net/http`），非 MCP 中间层 | SearXNG/Firecrawl/Exa 都是简单 HTTP JSON API；Go 原生 HTTP 足够 |
-| deep_research SubAgent | 新建 SubAgent，与 research/coder 并列 | 搜索工具有独立工具集和系统提示词；参考 GPT-Researcher MCP 委托模式 |
+| 文档存储 | 本地 FS（MinIO 可选） | 单实例下本地 FS 足够 |
+| 向量数据库 | pgvector | halfvec+HNSW 不可替代 |
+| 业务数据库 | PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务 |
+| Agent 数据 | SQLite（per session） | ReAct 高频读写隔离 |
+| Agent 基座 | Eino (ByteDance) | 唯一覆盖 LLM Provider + Agent Loop + Stream Handling 的 Go 框架 |
+| LLM Provider | eino-ext/openai | OpenAI 兼容 → llama.cpp；含 tool calling + streaming |
+| SSE 输出 | Gin `fmt.Fprintf + Flush` | 标准 SSE 模式 |
+| 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0 |
+| 网络搜索 | SearXNG（自托管） | 私有部署无 API 密钥；聚合 130+ 引擎 |
+| 网页提取 | Firecrawl 自托管 `/scrape` | 开源 Apache-2.0；JS 渲染；数据不出域 |
+| 语义搜索增强 | Exa API（可选） | highlights 10x token 效率；SaaS 闭源，可选增强 |
+| 搜索工具集成 | 直接 HTTP，非 MCP 中间层 | 简单 JSON API 用 `net/http` 足够 |
+| deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词；GPT-Researcher 委托模式 |
+| 知识库底层 | 纯 `.md` 文件 + YAML frontmatter | 与 Obsidian/Git 工具链兼容 |
+| 知识库组织 | 混合式：目录树 + frontmatter 标签 | 运维场景需目录导航 + 标签多维筛选 |
+| 知识库索引 | `INDEX.md` 声明式，脚本自动重建 | Agent 不手编索引 |
+| Agent 写入 | 专用工具接口（`kb_create` 等） | 工具内嵌质量门 + 去重 + 索引重建 |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
-| LLM Provider 热切换 | `LLMConfigManager.OnChange` → Eino ChatModel 替换 | `atomic.Value` 存储 ChatModel 实例 |
-| 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测，已足够好 |
-| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.4 |
+| LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
+| 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测 |
+| 版本终点 | V2.0 | 不规划 V2.x |
 
 ---
 
-## 10. 关联文档
+## 12. 关联文档
 
 | 文档 | 用途 |
 |------|------|
@@ -555,4 +587,4 @@ gantt
 | [`API/README.md`](API/README.md) | API 文档索引 |
 | [`FLOW/README.md`](FLOW/README.md) | 业务流程图 |
 | [`TODO.md`](TODO.md) | 代码级改进清单与优先级 |
-| [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 深度搜索工具调研 — 知识库组织形式、Markdown 底层存储、Agent 写入实践、Firecrawl vs Exa 深度对比 |
+| [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4/V1.5 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
