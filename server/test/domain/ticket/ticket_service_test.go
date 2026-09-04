@@ -3,7 +3,7 @@
 // Package service_test 验证 TicketService 业务逻辑。
 //
 // 测试覆盖全部方法：
-// CreateTicket / SupplementTicket / UpdateStatus / AddRecord / ListByUser / ListAll / GetDetail
+// CreateTicket / SupplementTicket / WithdrawTicket / UpdateStatus / AddRecord / ListByUser / ListAll / GetDetail
 package ticket_test
 
 import (
@@ -778,3 +778,72 @@ func TestTicketService_Deadline(t *testing.T) {
 	}
 }
 
+
+// =============================================================================
+// WithdrawTicket — 用户撤回未处理申告
+// =============================================================================
+
+func TestTicketService_WithdrawTicket(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	user := createTestUserForService(t, db, "tsvc_withdraw")
+
+	ticket := &model.Ticket{
+		TicketNo: "TK-WD-001", UserID: user.ID, Title: "撤回测试",
+		Description: "描述", ContactPhone: "x", Status: model.TicketStatusPending, Source: 1,
+	}
+	requireNoErr(t, db.Create(ticket).Error)
+
+	// 撤回成功
+	err := svc.WithdrawTicket(bgCtx, ticket.ID, user.ID)
+	requireNoErr(t, err)
+
+	// 验证状态变为已撤回
+	updated, _ := repo.FindByID(bgCtx, ticket.ID)
+	if updated.Status != model.TicketStatusWithdrawn {
+		t.Fatalf("期望状态 %d(已撤回), got %d", model.TicketStatusWithdrawn, updated.Status)
+	}
+}
+
+func TestTicketService_WithdrawTicket_WrongStatus(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	user := createTestUserForService(t, db, "tsvc_withdraw_ws")
+
+	// 处理中状态（非待处理）不可撤回
+	ticket := &model.Ticket{
+		TicketNo: "TK-WD-002", UserID: user.ID, Title: "撤回测试",
+		Description: "描述", ContactPhone: "x", Status: model.TicketStatusProcessing, Source: 1,
+	}
+	requireNoErr(t, db.Create(ticket).Error)
+
+	err := svc.WithdrawTicket(bgCtx, ticket.ID, user.ID)
+	if err == nil {
+		t.Fatal("非待处理状态应返回错误")
+	}
+}
+
+func TestTicketService_WithdrawTicket_NotOwner(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	owner := createTestUserForService(t, db, "tsvc_withdraw_owner")
+	other := createTestUserForService(t, db, "tsvc_withdraw_other")
+
+	ticket := &model.Ticket{
+		TicketNo: "TK-WD-003", UserID: owner.ID, Title: "撤回测试",
+		Description: "描述", ContactPhone: "x", Status: model.TicketStatusPending, Source: 1,
+	}
+	requireNoErr(t, db.Create(ticket).Error)
+
+	// 非申告人撤回应失败
+	err := svc.WithdrawTicket(bgCtx, ticket.ID, other.ID)
+	if err == nil {
+		t.Fatal("非申告人撤回应返回错误")
+	}
+}
