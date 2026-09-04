@@ -1,4 +1,4 @@
-// Agent 对话流式事件 reducer（纯函数，��。
+// Agent 对话流式事件 reducer（纯函数）。
 //
 // 处理 6 种事件：reasoning / token / tool_call / tool_result / done / error。
 // 消息用 parts 数组累积。
