@@ -28,8 +28,8 @@ flowchart LR
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
-| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md；Agent 记忆系统（两层 + 动态压缩） | 📋 规划中 |
-| V1.5 | 知识库组织 | 文件式 Markdown 知识库重构；目录树 + frontmatter；INDEX.md 自动重建；Agent 写入工具链 | 📋 规划中 |
+| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md；Memory as a Tool（remember/recall/forget 统一接口） | 📋 规划中 |
+| V1.5 | 统一记忆系统 | 记忆 + RAG + 知识库统一为 MemoryStore 接口；会话 checkpoint 迁入；复合评分检索（语义+时间+重要度）；文件式 Markdown 记忆层 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -339,154 +339,122 @@ deep_research SubAgent 的系统提示词和架构遵循以下原则（参考 [`
 | 软件版本兼容 | "PostgreSQL 17 pgvector" | 厂商文档、GitHub releases |
 | 内部 KB 未命中 | 内部无文档的问题 | 回退网络搜索 |
 
-### 7.8 Agent 记忆系统
+### 7.8 Agent 记忆系统（Memory as a Tool）
 
-Agent 配备两层记忆系统，支持动态压缩，与系统相关与用户无关。
+记忆 + RAG + 知识库统一为 Memory as a Tool 架构。Agent 通过工具调用自主管理记忆，与系统相关与用户无关。
 
-**调研依据**：[`docs/research/agent-memory/`](research/agent-memory/)
-
-```mermaid
-flowchart TB
-    subgraph 会话记忆["会话记忆（短时）"]
-        CTX["上下文窗口<br/>HeadAndTail 截断"]
-        CKPT["会话 Checkpoint<br/>thread_id 隔离"]
-        CTX <-->|"暂停/恢复"| CKPT
-    end
-    subgraph 系统记忆["系统记忆（跨会话）"]
-        SCOPE["scope: /system/{system_id}"]
-        VEC["pgvector 语义"]
-        BM25["BM25 关键词"]
-        SCOPE --> VEC
-        SCOPE --> BM25
-    end
-    会话记忆 -.->|"会话结束提取"| 系统记忆
-    系统记忆 -.->|"会话启动注入"| 会话记忆
-```
-
-**两层记忆**：
-
-| 层 | 持有 | 生命周期 | 隔离 | 持久化 |
-|----|------|---------|------|--------|
-| 会话记忆 | 上下文窗口 + 执行状态 | 单会话 | `thread_id` | SQLite（V1.3 已有） |
-| 系统记忆 | 系统拓扑、故障历史、操作记录 | 跨会话 | `system_id`（非 `user_id`） | PostgreSQL + pgvector |
-
-**动态压缩（三级管线，廉价到昂贵）**：
-
-| 级别 | 触发 | 操作 | 有损 | 参考 |
-|------|------|------|:---:|------|
-| 1. HeadAndTail | 每轮 | 保留系统 prompt + 最近对话，中间省略 | 否 | autogen |
-| 2. 去重清理 | token > 70% | 丢弃重复 tool result，保留 tool_use 记录 | 否 | Claude Code Snip |
-| 3. Autocompact | token > 85% | fork sub-agent 生成结构化摘要 | 是 | Claude Code Autocompact |
-
-**关键设计**：
-- 级别 1-2 无损——运维信息（错误日志、配置片段）不能被摘要丢失
-- 压缩而非摘要（参考 open_deep_research "DO NOT summarize"）
-- `system_id` scope，非 `user_id`——记忆与系统相关、与用户无关
-- 复合评分检索：`0.5*语义 + 0.3*时间衰减 + 0.2*重要度`（参考 crewAI）
-- 会话启动批量注入 top-K，会话结束批量提取（非每轮 side-query）
-- 暂停/恢复：Thread 可序列化，pause = 持久化，resume = 加载（参考 12-factor-agents Factor 6）
-
----
-
-## 8. V1.5 — 知识库组织
-
-**目标**：知识库底层重构为文件式 Markdown，确定组织形式，Agent 配备修改工具链。
-
-**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)，尤其 [04-recommendation.md](research/knowledge-organization/04-recommendation.md)
-
-### 8.1 组织形式
-
-混合式：目录树（按运维文档类型）+ frontmatter 标签（多维度筛选）。
+**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/) + [`docs/research/agent-memory/`](research/agent-memory/)
 
 ```mermaid
 flowchart LR
-    subgraph 输入["输入"]
-        UP["用户上传"] --> STORE["storage/kb/{kb_slug}/"]
-        AG["Agent 深度搜索"] --> STORE
+    subgraph Agent["Eino ReactAgent"]
+        TOOLS["现有 9 工具"]
+        MEM["记忆工具（新增）<br/>memory_remember<br/>memory_recall<br/>memory_forget"]
     end
-    subgraph 组织["组织"]
-        STORE --> TREE["目录树<br/>runbooks/ systems/ sops/"]
-        TREE --> FM["frontmatter<br/>title/type/tags/status"]
-        FM --> IDX["INDEX.md<br/>脚本自动重建"]
+    subgraph 统一存储["统一存储"]
+        PG["PostgreSQL<br/>memory_items 表"]
+        RAG["RAG 引擎<br/>knowledge scope 检索后端"]
     end
-    subgraph 输出["输出"]
-        IDX --> UI["前端目录树"]
-        TREE --> RAG["pgvector + BM25<br/>仅 published"]
-    end
+    MEM --> PG
+    MEM -->|"scope=knowledge"| RAG
 ```
 
-### 8.2 目录结构
+**三个记忆工具**：
 
+| 工具 | 说明 | 参考 |
+|------|------|------|
+| `memory_remember(text, scope, importance)` | 写入记忆 | Letta CRUD 工具 + AgeMem |
+| `memory_recall(query, scope, limit)` | 检索记忆（多信号混合） | mem0 + crewAI |
+| `memory_forget(scope, key)` | 删除记忆（标记 `invalid_at`，非物理删除） | Zep 双时序 |
+
+**三层 scope**：
+
+| scope | 持有 | 生命周期 | 隔离 | 检索后端 |
+|-------|------|---------|------|---------|
+| `session` | 会话执行状态、诊断过程 | 单会话 | `thread_id` | PostgreSQL 全文 + 时间排序 |
+| `knowledge` | 系统拓扑、故障历史、操作记录 | 跨会话 | `system_id`（非 `user_id`） | RAG 引擎（BM25 + pgvector + RRF） |
+| `episode` | 事件记忆（工单处理过程） | 跨会话 | `system_id` + `ticket_id` | pgvector 语义 |
+
+**动态压缩（三级管线）**：
+
+| 级别 | 触发 | 操作 | 有损 |
+|------|------|------|:---:|
+| 1. HeadAndTail | 每轮 | 保留系统 prompt + 最近对话，中间省略 | 否 |
+| 2. 去重清理 | token > 70% | 丢弃重复 tool result，保留 tool_use 记录 | 否 |
+| 3. Autocompact | token > 85% | fork sub-agent 生成结构化摘要 | 是 |
+
+**关键设计**：
+- **Memory as a Tool** — Agent 自主决定何时记忆/检索（参考 Letta + AgeMem ACL 2026）
+- **system_id scope** — 记忆与系统相关、与用户无关（参考 crewAI scope path）
+- **RAG 引擎保留** — 作为 `knowledge` scope 的检索后端，不替代
+- **JIT 注入** — 上下文只保留指针，内容按需加载（参考 Anthropic Context Engineering）
+- **无损优先压缩** — 运维信息（错误日志、配置片段）不能被摘要丢失
+- **暂停/恢复** — Thread 可序列化（参考 12-factor-agents Factor 6）
+
+**数据库变更**：
+```sql
+CREATE TABLE memory_items (
+    id            BIGSERIAL PRIMARY KEY,
+    scope         VARCHAR(32) NOT NULL,    -- session / knowledge / episode
+    system_id     VARCHAR(128),             -- 系统标识（scope key）
+    session_id    VARCHAR(128),             -- 会话标识（session scope）
+    content       TEXT NOT NULL,
+    category      VARCHAR(32),             -- topology / incident / operation / config / symptom
+    importance    REAL DEFAULT 0.5,
+    source        VARCHAR(32) DEFAULT 'agent',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_accessed TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    invalid_at    TIMESTAMPTZ              -- 事实失效（非删除）
+);
 ```
-storage/kb/{kb_slug}/
-├── INDEX.md              # 目录索引（脚本自动重建，禁止手编）
-├── log.jsonl             # 审计日志（append-only）
-├── SCHEMA.md             # frontmatter 规范
-├── runbooks/             # 运维手册
-├── systems/              # 系统文档
-├── sops/                 # 标准操作流程
-├── postmortems/          # 故障复盘
-├── cves/                 # CVE 跟踪
-├── draft/                # 草稿（不进 RAG）
-└── inbox/                # 质量门未通过（不进 RAG）
-```
 
-### 8.3 frontmatter schema
+---
 
-| 字段 | 必填 | 说明 |
-|------|:---:|------|
-| `title` | ✅ | 文档标题 |
-| `type` | ✅ | runbook/architecture/sop/postmortem/cve/draft/quarantined |
-| `status` | ✅ | draft/reviewing/published/disabled |
-| `created` / `updated` | ✅ | ISO 8601 时间戳 |
-| `tags` | — | 多维度标签数组 |
-| `system` | — | 关联系统 |
-| `severity` | — | SEV-1 到 SEV-4 |
-| `sources` | — | URL 列表（Agent 生成时必填） |
-| `source_type` | — | manual/upload/agent |
-| `credibility_score` | — | 1-10 可信度评分 |
+## 8. V1.5 — 统一记忆系统
 
-### 8.4 INDEX.md 自动重建
+**目标**：记忆 + RAG + 知识库统一为 `MemoryStore` 接口；会话 checkpoint 迁入；复合评分检索；文件式 Markdown 记忆层。
 
-- 脚本从 frontmatter 重建目录索引，写入 `INDEX.md`
-- 写入/更新/删除后立即触发；禁止手编
-- 扫描所有 `.md`（排除 `draft/` `inbox/`），按 `type` 分组，按 `title` 排序
+**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)，尤其 [04-recommendation.md](research/unified-memory/04-recommendation.md)
 
-### 8.5 Agent 写入工具链
+### 8.1 统一架构
 
 ```mermaid
-flowchart TD
-    AG["Agent 生成"] --> SCHEMA["Schema 验证"]
-    SCHEMA -->|"通过"| DEDUP["去重检查"]
-    SCHEMA -->|"不通过"| RETRY["重试上限 3 次"]
-    DEDUP -->|"新内容"| QUALITY["质量门"]
-    DEDUP -->|"重复"| UPDATE["kb_update"]
-    QUALITY -->|"通过"| DRAFT["写入 draft/<br/>status: draft"]
-    QUALITY -->|"不通过"| INBOX["隔离到 inbox/"]
-    DRAFT --> REVIEW["人工审核"]
-    DRAFT --> LOG["log.jsonl"]
+flowchart TB
+    subgraph 接口["统一 MemoryStore 接口"]
+        REM["remember(scope, key, value, metadata)"]
+        REC["recall(query, scope, limit)"]
+        FOR["forget(scope, key)"]
+    end
+    subgraph 三层["三层 scope"]
+        CTX["in-context<br/>Agent 上下文窗口"]
+        SES["session<br/>memory_items 表"]
+        KNOW["knowledge<br/>RAG 引擎 + 文件式 md"]
+    end
+    接口 --> 三层
 ```
 
-| 工具 | 说明 |
-|------|------|
-| `kb_create` | 新建文章（schema 验证 → 去重 → 质量门 → 写入 draft） |
-| `kb_update` | 更新文章 |
-| `kb_move` | 移动/重命名 |
-| `kb_delete` | 删除文章 |
-| `kb_search` | 搜索已有文章（防止重复写入） |
+### 8.2 会话 checkpoint 统一
 
-**多层防线**：Schema 验证（自动）→ 去重（自动）→ 质量门（自动）→ 草稿隔离（自动）→ 人工审核（手动）。
+会话 checkpoint 从 SQLite 迁入 `memory_items` 表（`scope='session'`），不再使用独立 SQLite 文件。暂停/恢复通过 `memory_recall(scope='session')` 实现。
 
-### 8.6 RAG 衔接
+### 8.3 复合评分检索
 
-| 文件状态 | 存储位置 | 进 RAG | 进 INDEX.md | 前端可见 |
-|---------|---------|:------:|:-----------:|:-------:|
-| `published` | `{type}/` | 是 | 是 | 是 |
-| `draft` | `draft/` | 否 | 否 | 草稿区 |
-| `quarantined` | `inbox/` | 否 | 否 | 待处理区 |
-| `disabled` | `{type}/` | 否 | 否 | 否 |
+```go
+// score = w_semantic * similarity + w_recency * decay + w_importance * importance
+// 默认权重：0.5 / 0.3 / 0.2
+// 运维场景半衰期：7 天
+composite := 0.5*semanticScore + 0.3*math.Pow(0.5, ageDays/7.0) + 0.2*importance
+```
 
-文件状态从 `draft` → `published` 时触发 RAG 索引；frontmatter `tags`/`system`/`severity` 作为 RAG 检索的元数据过滤条件。
+### 8.4 文件式记忆层（长期演进）
+
+`knowledge` scope 的底层从 DB text 字段迁移到文件式 Markdown：
+- `storage/memory/{system_id}/topology.md` — 系统拓扑
+- `storage/memory/{system_id}/incidents/` — 故障历史
+- `storage/memory/{system_id}/operations/` — 操作记录
+- pgvector + BM25 作为文件索引（可重建）
+
+**文件即真相，索引是派生**——参考 Memory Kernel "Files are truth, SQLite is cache"。
 
 ---
 
@@ -604,11 +572,11 @@ gantt
     md 产出+RAG 衔接      :v14d, 2027-02-01, 14d
     Agent 记忆系统       :v14e, 2027-02-15, 21d
 
-    section V1.5 知识库组织
-    文件式重构+schema    :v15a, 2027-03-01, 14d
-    INDEX.md+审计日志    :v15b, 2027-03-01, 14d
-    Agent 写入工具链     :v15c, 2027-03-15, 21d
-    质量门+RAG 衔接       :v15d, 2027-03-15, 14d
+    section V1.5 统一记忆系统
+    MemoryStore 接口     :v15a, 2027-03-01, 14d
+    会话 checkpoint 迁入  :v15b, 2027-03-01, 14d
+    复合评分+文件式记忆   :v15c, 2027-03-15, 21d
+    RAG 引擎融合          :v15d, 2027-03-15, 14d
 
     section V2.0 Agentic RAG
     Agent 替代固定管道    :v20a, 2027-04-01, 14d
@@ -635,12 +603,11 @@ gantt
 | 语义搜索增强 | Exa API（可选） | highlights 10x token 效率；SaaS 闭源，可选增强 |
 | 搜索工具集成 | 直接 HTTP，非 MCP 中间层 | 简单 JSON API 用 `net/http` 足够 |
 | deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词；GPT-Researcher 委托模式 |
-| Agent 记忆 | 两层：会话记忆 + 系统记忆 | 会话记忆用 SQLite checkpoint；系统记忆用 pgvector；与系统相关与用户无关 |
+| Agent 记忆 | Memory as a Tool — remember/recall/forget 工具 | Letta + AgeMem(ACL 2026)；Agent 自主决定何时记忆/检索 |
+| 记忆 + RAG + 知识库统一 | V1.5 统一为 MemoryStore 接口 | crewAI 统一 Memory 类；RAG 引擎作为 knowledge scope 检索后端 |
 | 记忆压缩 | 三级管线：HeadAndTail → 去重清理 → Autocompact | 无损优先，有损最后；运维信息不能被摘要丢失 |
 | 记忆 scope | `system_id`，非 `user_id` | 记忆与系统相关、与用户无关；参考 crewAI scope path |
-| 知识库底层 | 纯 `.md` 文件 + YAML frontmatter | 与 Obsidian/Git 工具链兼容 |
-| 知识库组织 | 混合式：目录树 + frontmatter 标签 | 运维场景需目录导航 + 标签多维筛选 |
-| 知识库索引 | `INDEX.md` 声明式，脚本自动重建 | Agent 不手编索引 |
+| 文件式记忆 | 文件即真相，索引是派生 | 参考 Memory Kernel + Claude Code；pgvector/BM25 可从文件重建 |
 | Agent 写入 | 专用工具接口（`kb_create` 等） | 工具内嵌质量门 + 去重 + 索引重建 |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
 | LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
@@ -658,5 +625,6 @@ gantt
 | [`API/README.md`](API/README.md) | API 文档索引 |
 | [`FLOW/README.md`](FLOW/README.md) | 业务流程图 |
 | [`TODO.md`](TODO.md) | 代码级改进清单与优先级 |
-| [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4/V1.5 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
-| [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比、OpsMind 两层方案 |
+| [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
+| [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比 |
+| [`research/unified-memory/`](research/unified-memory/) | V1.4/V1.5 调研 — 统一记忆架构：AgeMem/MEMORA/GAM 学术趋势 + crewAI/Letta/LangGraph 工业实践 + OpsMind 统一方案 |
