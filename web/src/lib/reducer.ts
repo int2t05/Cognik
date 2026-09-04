@@ -150,13 +150,13 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_result':
-      // 只更新 status: running → done（不创建独立 part，不追加 content）
+      // 配对到同 ID 的 tool_call part：更新 status=done + 追加 result content（与后端 \n--- result ---\n 分隔一致）
       return updateLastAssistant(s, (msg) => {
         const parts = [...msg.parts]
         const existing = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
         if (existing >= 0) {
           const toolPart = parts[existing] as Extract<MessagePart, { type: 'tool_call' }>
-          parts[existing] = { ...toolPart, status: 'done' }
+          parts[existing] = { ...toolPart, status: 'done', content: (toolPart.content || '') + '\n--- result ---\n' + (evt.content ?? '') }
         }
         return { ...msg, parts }
       })
