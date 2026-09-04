@@ -6,6 +6,7 @@ import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenu
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { IconButton } from '@/components/ui/icon-button';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
@@ -116,7 +117,12 @@ export default function RoleManagePage() {
           <DataTable
             columns={[
               { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
-              { accessorKey: 'permissions', header: '权限', cell: ({ row }) => <span className="flex flex-wrap gap-1.5 text-fine text-[var(--color-text-muted-48)]">{(row.original.permissions as string[]).join(', ') || '—'}</span> },
+              { accessorKey: 'permissions', meta: { width: '96px' }, header: '权限', cell: ({ row }) => {
+                const perms = row.original.permissions as string[];
+                return perms.length
+                  ? <Badge variant="neutral" className="cursor-default" title={perms.join(', ')}>{perms.length} 项权限</Badge>
+                  : <span className="text-fine text-[var(--color-text-muted-48)]">—</span>;
+              } },
               { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
                 <IconButton label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></IconButton>
                 <IconButton label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></IconButton>
