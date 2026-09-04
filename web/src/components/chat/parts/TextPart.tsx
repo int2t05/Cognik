@@ -1,5 +1,5 @@
 'use client';
-// TextPart — 流式文本渲染（对标 Vercel Streamdown 流式 markdown）。
+// TextPart — 流式文本渲染（� markdown）。
 // 流式中纯文本（避免每 token 重解析），完成后 markdown 渲染。
 
 import { memo, lazy, Suspense } from 'react';

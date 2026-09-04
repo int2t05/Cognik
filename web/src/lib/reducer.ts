@@ -1,7 +1,7 @@
-// Agent 对话流式事件 reducer（纯函数，对标 assistant-ui 消息累积模型）。
+// Agent 对话流式事件 reducer（纯函数，��。
 //
 // 处理 6 种事件：reasoning / token / tool_call / tool_result / done / error。
-// 消息用 parts 数组累积（对标 AI SDK UIMessage.parts）。
+// 消息用 parts 数组累积。
 // seq 去重保证断线重连不重复。
 
 import type { ChatMessage, MessagePart, SessionStream, SSEEvent } from './types'
