@@ -250,6 +250,18 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 	var answer string
 	// taskID → tool_call part 下标（子 Agent 事件归入对应 dispatch_subagent 卡片）。
 	taskParts := make(map[string]int)
+	// 增量写入计数器：每 persistEvery 个事件落库一次（status=generating），中断可恢复。
+	persistEvery := 10
+	eventCount := 0
+	// persistParts 增量写入 parts 到 DB（status=generating），保证中断可恢复。
+	persistParts := func(status string) {
+		partsJSON, _ := store.PartsToJSON(parts)
+		_ = s.store.UpdateMessage(context.Background(), &store.Message{
+			ID:     assistantID,
+			Parts:  partsJSON,
+			Status: status,
+		})
+	}
 
 	// findOrInitTaskPart 按 taskID 找/建 tool_call part，返回下标（子 Agent 事件归入此卡片）。
 	// ack tool_result 带 ID=tool_use_id + TaskID：映射到已有的 dispatch_subagent part（按 ID 匹配）。
@@ -300,6 +312,11 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 				Type: evt.Type, Content: evt.Content, ID: evt.ID,
 				Label: evt.Label, TaskID: evt.TaskID, Error: evt.Error,
 			})
+			// 子 Agent 事件增量写：结构事件立即写，其他去抖。
+			eventCount++
+			if evt.Type == agent.EventToolCall || evt.Type == agent.EventToolResult || eventCount%persistEvery == 0 {
+				persistParts(store.MessageStatusGenerating)
+			}
 			continue
 		}
 		switch evt.Type {
@@ -373,13 +390,8 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 				})
 			}
 		case agent.EventDone:
-			// 落库（parts 数组 + completed 状态）
-			partsJSON, _ := store.PartsToJSON(parts)
-			_ = s.store.UpdateMessage(context.Background(), &store.Message{
-				ID:     assistantID,
-				Parts:  partsJSON,
-				Status: store.MessageStatusCompleted,
-			})
+			// 最终落库（parts + completed 状态）
+			persistParts(store.MessageStatusCompleted)
 			now := time.Now().Format("2006-01-02 15:04:05")
 			s.gateway.Publish(runID, StreamEvent{Type: "done", Metadata: &StreamDoneMeta{
 				Answer:             answer,
@@ -393,6 +405,11 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 		case agent.EventError:
 			s.failMessage(assistantID, evt.Error)
 		}
+		// 增量写入：tool_call/tool_result 立即写（结构事件重要），其他事件去抖写。
+		eventCount++
+		if evt.Type == agent.EventToolCall || evt.Type == agent.EventToolResult || eventCount%persistEvery == 0 {
+			persistParts(store.MessageStatusGenerating)
+		}
 		// 透传事件（token/reasoning/tool_call/tool_result/error），seq 由 gateway.Publish 的 setSeq 对齐
 		s.gateway.Publish(runID, StreamEvent{
 			Type:    evt.Type,
@@ -405,12 +422,7 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 
 	// 超时/取消：保留部分回答（不删除），标记 cancelled
 	if gctx.Err() != nil {
-		partsJSON, _ := store.PartsToJSON(parts)
-		_ = s.store.UpdateMessage(context.Background(), &store.Message{
-			ID:     assistantID,
-			Parts:  partsJSON,
-			Status: store.MessageStatusCancelled,
-		})
+		persistParts(store.MessageStatusCancelled)
 		s.gateway.Publish(runID, StreamEvent{Type: "error", Error: "生成已停止"})
 	}
 }
