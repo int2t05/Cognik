@@ -1,4 +1,4 @@
-// Package ticket 申告领域数据访问、业务逻辑与 HTTP Handler。
+// Package ticket 工单领域数据访问、业务逻辑与 HTTP Handler。
 //
 // repository.go 封装 tickets / ticket_records 表 CRUD。
 package ticket
@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TicketRepo 申告数据访问
+// TicketRepo 工单数据访问
 type TicketRepo struct {
 	db *gorm.DB
 }
@@ -27,12 +27,12 @@ func NewTicketRepo(db *gorm.DB) *TicketRepo {
 // Ticket
 // =============================================================================
 
-// Create 创建申告工单。
+// Create 创建工单工单。
 func (r *TicketRepo) Create(ctx context.Context, ticket *model.Ticket) error {
 	return r.db.WithContext(ctx).Create(ticket).Error
 }
 
-// FindByID 按 ID 查询申告，预加载 User 和 TicketRecords。
+// FindByID 按 ID 查询工单，预加载 User 和 TicketRecords。
 func (r *TicketRepo) FindByID(ctx context.Context, id int64) (*model.Ticket, error) {
 	var ticket model.Ticket
 	err := r.db.WithContext(ctx).Preload("User").
@@ -47,7 +47,7 @@ func (r *TicketRepo) FindByID(ctx context.Context, id int64) (*model.Ticket, err
 	return &ticket, nil
 }
 
-// BatchDelete 批量删除申告（含关联处理记录）。
+// BatchDelete 批量删除工单（含关联处理记录）。
 func (r *TicketRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -59,12 +59,12 @@ func (r *TicketRepo) BatchDelete(ctx context.Context, ids []int64) (int64, error
 	return res.RowsAffected, res.Error
 }
 
-// Update 更新申告全部字段。
+// Update 更新工单全部字段。
 func (r *TicketRepo) Update(ctx context.Context, ticket *model.Ticket) error {
 	return r.db.WithContext(ctx).Save(ticket).Error
 }
 
-// UpdateStatus 以 CAS 方式更新申告状态。
+// UpdateStatus 以 CAS 方式更新工单状态。
 func (r *TicketRepo) UpdateStatus(ctx context.Context, id int64, expectedStatus, newStatus int) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&model.Ticket{}).
 		Where("id = ? AND status = ?", id, expectedStatus).
@@ -79,7 +79,7 @@ func (r *TicketRepo) IncrementSupplementCount(ctx context.Context, id int64) (bo
 	return result.RowsAffected > 0, result.Error
 }
 
-// ListByUser 分页查询指定用户的申告列表。
+// ListByUser 分页查询指定用户的工单列表。
 func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
@@ -105,7 +105,7 @@ func (r *TicketRepo) ListByUser(ctx context.Context, userID int64, page, pageSiz
 	return tickets, total, nil
 }
 
-// ListAll 分页查询全部申告，支持按状态筛选。
+// ListAll 分页查询全部工单，支持按状态筛选。
 func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int, keyword string) ([]model.Ticket, int64, error) {
 	var tickets []model.Ticket
 	var total int64
@@ -152,7 +152,7 @@ func (r *TicketRepo) ListAll(ctx context.Context, status int, page, pageSize int
 	return tickets, total, nil
 }
 
-// AutoCloseTickets 原子关闭超期申告并返回被关闭的 ticket ID 列表。
+// AutoCloseTickets 原子关闭超期工单并返回被关闭的 ticket ID 列表。
 func (r *TicketRepo) AutoCloseTickets(ctx context.Context, olderThan time.Time) ([]int64, error) {
 	var ids []int64
 	err := r.db.WithContext(ctx).Raw(
@@ -169,7 +169,7 @@ func (r *TicketRepo) AutoCloseTickets(ctx context.Context, olderThan time.Time) 
 	return ids, nil
 }
 
-// ListOverdue 查询已超时但仍未完结的申告（deadline_at 早于 now，状态非 closed/resolved）。
+// ListOverdue 查询已超时但仍未完结的工单（deadline_at 早于 now，状态非 closed/resolved）。
 func (r *TicketRepo) ListOverdue(ctx context.Context, now time.Time) ([]model.Ticket, error) {
 	var tickets []model.Ticket
 	err := r.db.WithContext(ctx).
@@ -186,12 +186,12 @@ func (r *TicketRepo) ListOverdue(ctx context.Context, now time.Time) ([]model.Ti
 // TicketRecord
 // =============================================================================
 
-// CreateRecord 创建申告处理记录。
+// CreateRecord 创建工单处理记录。
 func (r *TicketRepo) CreateRecord(ctx context.Context, record *model.TicketRecord) error {
 	return r.db.WithContext(ctx).Create(record).Error
 }
 
-// FindByTicketID 按申告 ID 查询全部处理记录。
+// FindByTicketID 按工单 ID 查询全部处理记录。
 func (r *TicketRepo) FindByTicketID(ctx context.Context, ticketID int64) ([]model.TicketRecord, error) {
 	var records []model.TicketRecord
 	err := r.db.WithContext(ctx).Where("ticket_id = ?", ticketID).Order("created_at ASC").Find(&records).Error

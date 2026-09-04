@@ -411,7 +411,7 @@ func wireApp() (*app, error) {
 	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
 	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
 
-	// 每轮提取 agent：对话轮结束后 fire-and-forget 提取运维经验写入 session 记忆。
+	// 每轮提取 agent：对话轮结束后 fire-and-forget 提取经验写入 session 记忆。
 	extractMemories := agent.NewExtractMemoriesAgent(memoryStore, agentModelFactory.GetModel)
 	agentRunner.WithPostRunHook(func(ctx context.Context, sessionID string, messages []*schema.Message) {
 		_ = extractMemories.Extract(ctx, sessionID, messages)

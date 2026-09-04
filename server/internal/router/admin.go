@@ -9,7 +9,7 @@ import (
 
 // registerAdminRoutes 注册后台管理路由（需 JWT + RBAC）。
 func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
-	// 申告管理
+	// 工单管理
 	rg.GET("/tickets", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.ListAll }))
 	rg.GET("/tickets/:id", middleware.RequirePermission(PermTicketRead), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.GetDetailAdmin }))
 	rg.PATCH("/tickets/:id/status", middleware.RequirePermission(PermTicketWrite), safeHandler(h, func() bool { return h.Ticket != nil }, func() gin.HandlerFunc { return h.Ticket.UpdateStatus }))

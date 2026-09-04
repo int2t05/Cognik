@@ -21,7 +21,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交申告由人工处理"
+const fallbackAIUnavailable = "当前 AI 服务暂不可用，请提交工单由人工处理"
 
 // StreamEvent SSE 流式事件（网关交付的事件单元）。
 type StreamEvent struct {

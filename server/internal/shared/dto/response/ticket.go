@@ -1,13 +1,13 @@
-// Package response 定义申告管理相关响应 DTO。
+// Package response 定义工单管理相关响应 DTO。
 package response
 
-// TicketListResponse 申告列表响应（分页）。
+// TicketListResponse 工单列表响应（分页）。
 type TicketListResponse struct {
 	Tickets []TicketItem `json:"items"`
 	Total   int64        `json:"total"`
 }
 
-// TicketItem 列表中的申告条目（精简字段）。
+// TicketItem 列表中的工单条目（精简字段）。
 type TicketItem struct {
 	ID              int64    `json:"id"`
 	TicketNo        string   `json:"ticket_no"`
@@ -24,7 +24,7 @@ type TicketItem struct {
 	UpdatedAt       string   `json:"updated_at"`
 }
 
-// TicketDetailResponse 申告详情响应（含提交人信息和处理记录时间线）。
+// TicketDetailResponse 工单详情响应（含提交人信息和处理记录时间线）。
 type TicketDetailResponse struct {
 	TicketItem
 	Description  string             `json:"description"`

@@ -13,13 +13,13 @@ const (
 	TicketStatusNeedSupplement int16 = 3 // 需补充信息
 	TicketStatusResolved       int16 = 4 // 已解决
 	TicketStatusClosed         int16 = 5 // 已关闭
-	TicketStatusWithdrawn      int16 = 6 // 已撤回（用户撤回未处理申告）
+	TicketStatusWithdrawn      int16 = 6 // 已撤回（用户撤回未处理工单）
 )
 
 // 工单来源
 const (
 	TicketSourcePortal int16 = 1 // 门户提交
-	TicketSourceChat   int16 = 2 // 问答转申告
+	TicketSourceChat   int16 = 2 // 问答转工单
 )
 
 // 文章来源类型
@@ -36,7 +36,7 @@ const (
 	TicketActionSupplement  = "supplement"   // 补充信息
 	TicketActionResolve     = "resolve"      // 解决
 	TicketActionClose       = "close"        // 关闭
-	TicketActionWithdraw    = "withdraw"     // 撤回（用户撤回未处理申告）
+	TicketActionWithdraw    = "withdraw"     // 撤回（用户撤回未处理工单）
 )
 
 // 知识文章审核状态
@@ -51,10 +51,10 @@ const (
 
 // 站内消息类型（新增时需同步前端 TYPE_LABEL 映射）
 const (
-	MessageTypeTicketSupplement  = "ticket_supplement"  // 申告补充信息
-	MessageTypeTicketResolved    = "ticket_resolved"    // 申告已解决
-	MessageTypeTicketClosed      = "ticket_closed"      // 申告已关闭
-	MessageTypeTicketOverdue      = "ticket_overdue"     // 申告处理超时
+	MessageTypeTicketSupplement  = "ticket_supplement"  // 工单补充信息
+	MessageTypeTicketResolved    = "ticket_resolved"    // 工单已解决
+	MessageTypeTicketClosed      = "ticket_closed"      // 工单已关闭
+	MessageTypeTicketOverdue      = "ticket_overdue"     // 工单处理超时
 	MessageTypeKnowledgeApproved = "knowledge_approved" // 知识文章审核通过
 	MessageTypeKnowledgeRejected = "knowledge_rejected" // 知识文章审核驳回
 	MessageTypeSystem            = "system"             // 系统通知

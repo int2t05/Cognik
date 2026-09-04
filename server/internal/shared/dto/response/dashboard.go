@@ -3,10 +3,10 @@ package response
 
 // StatsResponse 看板统计数据。
 type StatsResponse struct {
-	TodayTickets      int64   `json:"today_tickets"`      // 今日新增申告数
-	PendingTickets    int64   `json:"pending_tickets"`    // 待处理申告数（status=1）
-	ProcessingTickets int64   `json:"processing_tickets"` // 处理中申告数（status=2）
-	ResolvedTickets   int64   `json:"resolved_tickets"`   // 已解决申告数（status=4）
+	TodayTickets      int64   `json:"today_tickets"`      // 今日新增工单数
+	PendingTickets    int64   `json:"pending_tickets"`    // 待处理工单数（status=1）
+	ProcessingTickets int64   `json:"processing_tickets"` // 处理中工单数（status=2）
+	ResolvedTickets   int64   `json:"resolved_tickets"`   // 已解决工单数（status=4）
 	TodayChats        int64   `json:"today_chats"`        // 今日问答次数
 	AvgConfidence     float64 `json:"avg_confidence"`     // 今日平均置信度
 	KnowledgeCount    int64   `json:"knowledge_count"`    // 知识条目总数
@@ -22,6 +22,6 @@ type TrendResponse struct {
 // DataPoint 单个数据点（按天或按周聚合）。
 type DataPoint struct {
 	Date        string `json:"date"`         // 日期 YYYY-MM-DD
-	TicketCount int64  `json:"ticket_count"` // 该日新增申告数
+	TicketCount int64  `json:"ticket_count"` // 该日新增工单数
 	ChatCount   int64  `json:"chat_count"`   // 该日问答数
 }

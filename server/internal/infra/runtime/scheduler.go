@@ -1,5 +1,5 @@
 // Package runtime 提供运行时基础设施。
-// Scheduler 后台调度器，当前含 TicketAutoCloseJob（每小时关闭超 7 天申告）。
+// Scheduler 后台调度器，当前含 TicketAutoCloseJob（每小时关闭超 7 天工单）。
 package runtime
 
 import (
@@ -71,18 +71,18 @@ func (s *Scheduler) doAutoClose() {
 	defer cancel()
 	closed, err := s.ticketSvc.AutoClose(ctx, time.Now().Add(-7*24*time.Hour))
 	if err != nil {
-		slog.Error("自动关闭申告失败", "error", err)
+		slog.Error("自动关闭工单失败", "error", err)
 	} else if closed > 0 {
-		slog.Info("自动关闭申告完成", "count", closed)
+		slog.Info("自动关闭工单完成", "count", closed)
 	}
 }
 
-// RunAutoClose 手动关闭超期申告（暴露给测试使用）。
+// RunAutoClose 手动关闭超期工单（暴露给测试使用）。
 func (s *Scheduler) RunAutoClose(olderThan time.Time) (int64, error) {
 	return s.ticketSvc.AutoClose(context.Background(), olderThan)
 }
 
-// runOverdueScanLoop 每小时扫描 deadline_at 超时未完结的申告并发送通知。
+// runOverdueScanLoop 每小时扫描 deadline_at 超时未完结的工单并发送通知。
 func (s *Scheduler) runOverdueScanLoop(ctx context.Context) {
 	s.doOverdueScan()
 
@@ -106,13 +106,13 @@ func (s *Scheduler) doOverdueScan() {
 	defer cancel()
 	notified, err := s.ticketSvc.ScanOverdueTickets(ctx, time.Now())
 	if err != nil {
-		slog.Error("扫描超时申告失败", "error", err)
+		slog.Error("扫描超时工单失败", "error", err)
 	} else if notified > 0 {
-		slog.Info("超时申告通知已发送", "count", notified)
+		slog.Info("超时工单通知已发送", "count", notified)
 	}
 }
 
-// RunOverdueScan 手动扫描超时申告（暴露给测试使用）。
+// RunOverdueScan 手动扫描超时工单（暴露给测试使用）。
 func (s *Scheduler) RunOverdueScan(now time.Time) (int64, error) {
 	return s.ticketSvc.ScanOverdueTickets(context.Background(), now)
 }

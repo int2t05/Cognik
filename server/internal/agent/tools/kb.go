@@ -17,7 +17,7 @@ import (
 
 // KBFilter 知识库检索/列表过滤条件（frontmatter 元数据预过滤）。
 type KBFilter struct {
-	Type string   // runbook/architecture/sop/postmortem/cve
+	Type string   // guide/reference/procedure/analysis/note/faq/snippet
 	Tags []string // 多维度标签
 }
 
@@ -49,7 +49,7 @@ type KBCreateParams struct {
 	KBID     int64
 	Title    string
 	Content  string   // Markdown 正文
-	Type     string   // runbook/architecture/sop/postmortem/cve
+	Type     string   // guide/reference/procedure/analysis/note/faq/snippet
 	Tags     []string
 	Sources  []KBSource
 	System   string
@@ -110,7 +110,7 @@ func (t *KBTool) Info() *schema.ToolInfo {
 			"article_id": {Type: schema.Integer, Desc: "Article ID (alternative to slug)"},
 			"title":      {Type: schema.String, Desc: "Article title (action=create/update)"},
 			"content":    {Type: schema.String, Desc: "Markdown body (action=create/update)"},
-			"type":       {Type: schema.String, Desc: "runbook/architecture/sop/postmortem/cve (action=create/update)"},
+			"type":       {Type: schema.String, Desc: "guide/reference/procedure/analysis/note/faq/snippet (action=create/update)"},
 			"tags":       {Type: schema.Array, Desc: "Tag list"},
 			"limit":      {Type: schema.Integer, Desc: "Max results (default 5, action=search/list)"},
 		}),
