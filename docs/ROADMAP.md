@@ -312,20 +312,13 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 | 收敛控制 | 固定结构（N 子问题 × K 来源），硬性上限防无限循环；不做动态收敛判断 |
 | 工具降级 | 工具配额耗尽时分层降级（GitHub→索引文档→scrape→discovery）；记录访问限制 |
 
-### 7.5 知识库输出
+### 7.6 知识库输出
 
-深度搜索产出 md 文件，存入知识库。
+深度搜索产出 md 文件存入知识库，frontmatter 含 `source_type: deep_research` + `sources`（URL 列表），引用标注用行内编号 `[1]`。产出默认 `status: draft`，人工审核后 `published` 触发 RAG 索引。新增 `SourceType = 3`（深度搜索生成）。
 
-| 项 | 说明 |
-|----|------|
-| frontmatter | `title` / `source_type: deep_research` / `sources`（URL 列表）/ `created` |
-| 文件命名 | `{YYYYMMDD-HHmmss}-{slug}.md`，扁平存储 |
-| 引用标注 | 行内编号 `[1]`，frontmatter `sources` 维护映射（不用脚注，避免 chunker 切割） |
-| 状态管控 | 复用现有状态机：Draft → Reviewing → Published |
-| RAG 衔接 | Published 后触发 chunker → embedder → pgvector + BM25 |
-| SourceType | 新增 `3`（深度搜索生成） |
+> 知识库组织形式、目录结构、frontmatter schema、INDEX.md 自动重建、Agent 写入工具链详见 [§8 V1.5](#8-v15--知识库组织)。
 
-### 7.6 Ops 域场景
+### 7.7 Ops 域场景
 
 | 场景 | 查询示例 | 来源 |
 |------|---------|------|
