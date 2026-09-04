@@ -13,6 +13,7 @@ const (
 	TicketStatusNeedSupplement int16 = 3 // 需补充信息
 	TicketStatusResolved       int16 = 4 // 已解决
 	TicketStatusClosed         int16 = 5 // 已关闭
+	TicketStatusWithdrawn      int16 = 6 // 已撤回（用户撤回未处理申告）
 )
 
 // 工单来源
@@ -35,6 +36,7 @@ const (
 	TicketActionSupplement  = "supplement"   // 补充信息
 	TicketActionResolve     = "resolve"      // 解决
 	TicketActionClose       = "close"        // 关闭
+	TicketActionWithdraw    = "withdraw"     // 撤回（用户撤回未处理申告）
 )
 
 // 知识文章审核状态
@@ -93,6 +95,8 @@ func TicketStatusText(status int16) string {
 		return "已解决"
 	case TicketStatusClosed:
 		return "已关闭"
+	case TicketStatusWithdrawn:
+		return "已撤回"
 	default:
 		return "未知"
 	}

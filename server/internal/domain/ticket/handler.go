@@ -133,6 +133,25 @@ func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// WithdrawTicket 用户撤回未处理申告（仅申告人、仅待处理态）。
+//
+// POST /api/v1/portal/tickets/:id/withdraw
+func (h *TicketHandler) WithdrawTicket(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		return
+	}
+
+	userID, _ := getCurrentUserID(c)
+	if svcErr := h.svc.WithdrawTicket(c.Request.Context(), id, userID); svcErr != nil {
+		handleServiceError(c, svcErr)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // UpdateTicket 编辑申告（仅申告人可操作）。
 //
 // PATCH /api/v1/portal/tickets/:id

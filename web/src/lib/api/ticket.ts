@@ -16,6 +16,7 @@ export function getMyTickets(page: number, status?: number, keyword?: string) {
 export function getTicketDetail(id: number) { return apiFetch<TicketDetail>(`/api/v1/portal/tickets/${id}`); }
 export function updateTicket(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/portal/tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export function supplementTicket(id: number, content: string) { return apiFetch<null>(`/api/v1/portal/tickets/${id}/supplement`, { method: 'PATCH', body: JSON.stringify({ content }) }); }
+export function withdrawTicket(id: number) { return apiFetch<null>(`/api/v1/portal/tickets/${id}/withdraw`, { method: 'POST' }); }
 
 // 后台
 export function listAllTickets(page: number, status?: number, keyword?: string) {
