@@ -139,10 +139,6 @@ func (h *ChatHandler) UpdateThread(c *gin.Context) {
 	resp.Success(c, nil)
 }
 
-// =============================================================================
-// SSE 流式对话
-// =============================================================================
-
 // writeSSEEvent 将事件序列化为 SSE 帧：id: {seq}\ndata: {json}\n\n
 // id 字段供 SSE 标准 Last-Event-ID 重连。
 func writeSSEEvent(w gin.ResponseWriter, evt StreamEvent) error {
@@ -253,10 +249,6 @@ func writeStream(c *gin.Context, replay []StreamEvent, ch <-chan StreamEvent, un
 		}
 	}
 }
-
-// =============================================================================
-// 异步任务 API
-// =============================================================================
 
 // CreateTask 创建异步任务。
 // POST /api/v1/portal/threads/:id/tasks

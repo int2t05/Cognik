@@ -12,7 +12,7 @@ flowchart TD
     GW -->|"Publish(AgentEvent)"| RUN["🆕 internal/agent/<br/>AgentRunner 生产者"]
     RUN --> AGENT["Eino ReactAgent<br/>+ StreamToolCallChecker"]
     AGENT --> MODEL["eino-ext/openai<br/>ChatModel → llama.cpp"]
-    AGENT --> TOOLS["bash / read_file / write_file / edit_file / list_dir / glob / grep / mkdir"]
+    AGENT --> TOOLS["bash / async_bash / read_file / write_file / edit_file / list_dir / glob / grep / mkdir"]
     MODEL -->|"detached ctx"| GW
 ```
 
@@ -113,6 +113,7 @@ reader, _ := agent.Stream(ctx, input, opt)
 | 工具 | 对标 | 参数 | 高级特性 |
 |------|------|------|---------|
 | bash | Claude Code Bash | command, description, timeout | GitBash 自适应（Windows）、description 强制意图、timeout 可配（上限 10min）、workDir sandbox、截断 |
+| async_bash | Claude Code Bash（流式） | command, description | StreamableTool 接口，`schema.Pipe[string]` 流式输出 stdout/stderr（长命令不阻塞 SSE 流） |
 | read_file | Claude Code Read | path, offset, limit | 行号输出（cat -n）、offset/limit 行范围、1MB 行 buffer |
 | write_file | SWE-agent write+append | path, content, mode | mode: overwrite（默认）/ append（追加，不存在则创建）、自动建父目录 |
 | edit_file | Claude Code Edit / Aider SEARCH-REPLACE | path, old_string, new_string, replace_all | str_replace 精确匹配、唯一性校验、失败时邻近行反馈 |
@@ -121,7 +122,18 @@ reader, _ := agent.Stream(ctx, input, opt)
 | grep | Claude Code Grep / SWE-agent search_file | pattern, path, include, ignore_case | 正则递归搜索、行号、include 过滤 |
 | mkdir | 基础文件操作 | path | 递归创建父目录 |
 
-### 4.1 str_replace 设计依据（行业共识）
+### 4.1 SubAgent（对标 Claude Code Agent 工具）
+
+两个内置子 Agent 通过 `adk.NewAgentTool` 包装为工具，父 Agent 可委托任务给子 Agent（上下文隔离）：
+
+| 子 Agent | 工具集 | 对标 |
+|---------|--------|------|
+| research | read_file / glob / grep / list_dir（只读探查） | Claude Code Explore |
+| coder | bash / async_bash / edit_file / write_file / mkdir（读写操作） | Claude Code general-purpose |
+
+`BuildReadOnlyTools()` 供 research 子 Agent；`BuildTools()` 供主 Agent + coder 子 Agent。
+
+### 4.2 str_replace 设计依据（行业共识）
 
 str_replace 是 Claude Code / Anthropic API / Aider / SWE-agent / OpenHands / Cursor 全采用的编辑原语：
 - 只替换匹配片段，不重写整文件（省 token、抗行号漂移）
@@ -129,14 +141,14 @@ str_replace 是 Claude Code / Anthropic API / Aider / SWE-agent / OpenHands / Cu
 - 唯一性校验：非 replace_all 时 old_string 必须唯一，否则报错（避免歧义替换）
 - 失败时显示邻近行（Aider 最佳实践）— 让模型自纠正
 
-### 4.2 GitBash 自适应
+### 4.3 GitBash 自适应
 
 bash 工具在 Windows 默认用 GitBash（对齐开发环境）：
 - 优先 `OPSMIND_AGENT_BASH_BIN` env 覆盖
 - Windows 探测 GitBash 常见路径（Program Files/Git/bin/bash.exe 等）
 - 非 Windows 用 PATH 中的 bash，兜底 sh
 
-### 4.3 安全
+### 4.4 安全
 
 | 措施 | 实现 |
 |------|------|
@@ -160,10 +172,10 @@ fmt.Fprintf(w, "id: %d\ndata: %s\n\n", evt.Seq, jsonData)
 
 | Eino 来源 | AgentEvent.Type | 前端 reducer |
 |-----------|-----------------|------------|
-| MessageFuture ReasoningContent | `reasoning` | ✅ 已有 case |
-| StreamReader Content | `token` | ✅ 已有 case |
-| MessageFuture ToolCalls | `tool_call` | default（V2.0 渲染） |
-| MessageFuture Role==Tool | `tool_result` | default（V2.0 渲染） |
+| MessageFuture ReasoningContent | `reasoning` | ✅ 已有 case（合并到 reasoning part） |
+| StreamReader Content | `token` | ✅ 已有 case（合并到 text part） |
+| MessageFuture ToolCalls | `tool_call` | ✅ 已有 case（ID 合并 + JSON 闭合检测） |
+| MessageFuture Role==Tool | `tool_result` | ✅ 已有 case（ID 配对到 tool_call） |
 | Stream EOF | `done` | ✅ 已有 case |
 | 错误 | `error` | ✅ 已有 case |
 
@@ -178,25 +190,37 @@ llmConfigSvc.GetManager().OnChange(func() {
 })
 ```
 
-> OnChange 是覆盖式注册（`m.onChange = fn`），agent 重建必须在同一回调内，不能单独注册第二次。
+> Agent / Embedding / 知识库三路重建须合入同一 OnChange 回调（OnChange 是覆盖式注册，后注册覆盖前者）。
 
 ## 7. 配置
 
 | 环境变量 | 默认 | 用途 |
 |---------|------|------|
 | `OPSMIND_AGENT_WORK_DIR` | `./data/agent-workspace` | 工具沙箱目录 |
+| `OPSMIND_AGENT_DB` | `./data/agent.db` | Agent 对话数据 SQLite 文件路径 |
 | `OPSMIND_AGENT_TOOL_TIMEOUT` | `30s` | bash 执行超时 |
 | `OPSMIND_AGENT_TOOL_MAX_BYTES` | `65536` | 输出截断上限 |
 
 ## 8. API
 
+线程 CRUD + 流式对话 + 异步任务（SQLite 存储，与业务库隔离）：
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/portal/chat-sessions/:id/stream` | POST | 发送消息，SSE 流式回答 |
-| `/api/v1/portal/chat-sessions/:id/stream?since=N` | GET | 断线重连同游标重放 |
-| `/api/v1/portal/chat-sessions/:id/cancel` | POST | 取消生成 |
+| `/api/v1/portal/threads` | POST | 创建线程 |
+| `/api/v1/portal/threads` | GET | 列出当前用户线程 |
+| `/api/v1/portal/threads/:id` | GET | 获取线程详情（含消息） |
+| `/api/v1/portal/threads/:id` | DELETE | 删除线程 |
+| `/api/v1/portal/threads/:id` | PATCH | 更新线程（标题） |
+| `/api/v1/portal/threads/:id/stream` | POST | 发送消息，SSE 流式回答 |
+| `/api/v1/portal/threads/:id/stream?since=N` | GET | 断线重连同游标重放 |
+| `/api/v1/portal/threads/:id/cancel` | POST | 取消生成 |
+| `/api/v1/portal/threads/:id/tasks` | POST | 创建异步任务 |
+| `/api/v1/portal/threads/:id/tasks` | GET | 列出线程的异步任务 |
+| `/api/v1/portal/tasks/:id` | GET | 查询任务状态 |
+| `/api/v1/portal/tasks/:id/cancel` | POST | 取消任务 |
 
-POST body：`{"question": "..."}`（不变）。
+POST stream body：`{"question": "..."}`。
 
 ## 9. 验证计划
 
@@ -207,5 +231,5 @@ POST body：`{"question": "..."}`（不变）。
 5. 断线重连：`GET ?since=N` 续传
 6. 多订阅者：同 runID 两连接
 7. 热切换：改配置 → 新对话用新模型
-8. 网关单测：`go test ./internal/infra/runtime/...`
+8. 网关单测：`go test ./test/infra/runtime/... -tags=integration`
 9. 文档上传不受影响（Processor 路径不变）

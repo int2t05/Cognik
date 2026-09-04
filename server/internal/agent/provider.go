@@ -62,8 +62,7 @@ func (f *ChatModelFactory) rebuild(ctx context.Context, cfg *model.LlmConfig) er
 	return nil
 }
 
-// OnConfigChange LLMConfigManager.OnChange 回调：重建 ChatModel。
-// 必须在 setupLLMHotSwap 的同一 OnChange 回调内调用（OnChange 是覆盖式注册）。
+// OnConfigChange 重建 ChatModel（由 LLMConfigManager.OnChange 回调触发）。
 func (f *ChatModelFactory) OnConfigChange() {
 	cfg := f.configMgr.GetConfig()
 	if cfg == nil {

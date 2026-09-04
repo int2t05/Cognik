@@ -1,7 +1,7 @@
 // Package agent 提供 Agent Loop 基座。
 // agent.go：ReactAgent + SubAgent 构造。
 //
-// 主 Agent 使用 react.NewAgent（ToolCallingModel + 8 工具 + StreamToolCallChecker）。
+// 主 Agent 使用 react.NewAgent（ToolCallingModel + 9 工具 + StreamToolCallChecker）。
 // SubAgent 通过 adk.NewAgentTool 包装为工具，父 Agent 可委托任务给子 Agent。
 // 对标 Claude Code 的 Agent 工具（Explore/Plan/general-purpose）。
 package agent
@@ -61,7 +61,7 @@ func (f *AgentFactory) NewAgent(ctx context.Context) (*react.Agent, error) {
 
 	tools := f.toolFactory.BuildTools()
 
-	// 注册子 Agent 为工具（对标 Claude Code Explore/general-purpose）
+	// 注册子 Agent 为工具
 	subAgentTools := f.buildSubAgentTools(ctx)
 	tools = append(tools, subAgentTools...)
 

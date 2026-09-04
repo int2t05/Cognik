@@ -6,7 +6,7 @@
 //   - MessageFuture 的 GetMessageStreams → 中间消息（thinking/tool_call/tool_result）
 //
 // 生产者与交付渠道（runtime.Gateway）解耦：runner 只产出事件，由 chat 层订阅并 Publish 到网关。
-// detached ctx 保证客户端断开后生成继续跑完并落库。
+// 独立 ctx 保证客户端断开后生成继续跑完并落库。
 package agent
 
 import (
@@ -41,7 +41,7 @@ func (r *AgentRunner) Stream(ctx context.Context, input []*schema.Message) (<-ch
 	opt, future := react.WithMessageFuture() // 中间消息 future
 
 	// 生产者 1：排空 MessageFuture 的流式中间消息 → thinking/tool_call/tool_result。
-	// 注意：agent.Stream 用 GetMessageStreams（返回 *schema.StreamReader 的迭代器）。
+	// 生产者 2：读 StreamReader 主流 → token + reasoning（见下方主循环）。
 	go func() {
 		streamIter := future.GetMessageStreams()
 		for {

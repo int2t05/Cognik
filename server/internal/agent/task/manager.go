@@ -71,7 +71,7 @@ func (m *TaskManager) ExecuteTask(taskID int64, question string) {
 	task.Status = StatusRunning
 	_ = m.store.Update(ctx, task)
 
-	// detached ctx
+	// 独立 ctx（不受请求取消影响）
 	gctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	m.cancels.Store(taskID, cancel)
 	defer func() {
@@ -132,7 +132,7 @@ func (m *TaskManager) CancelTask(ctx context.Context, taskID, userID int64) erro
 		return fmt.Errorf("任务已完成，无法取消")
 	}
 
-	// 触发 cancel
+	// 触发取消
 	if cancel, ok := m.cancels.Load(taskID); ok {
 		cancel.(context.CancelFunc)()
 	}

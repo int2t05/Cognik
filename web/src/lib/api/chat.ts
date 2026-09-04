@@ -1,7 +1,7 @@
 import { apiFetch } from './client';
 import type { Thread, ThreadDetail } from '@/lib/types';
 
-// Thread CRUD
+// Thread 增删改查
 export function createThread(title?: string) {
   return apiFetch<Thread>('/api/v1/portal/threads', { method: 'POST', body: JSON.stringify({ title }) });
 }
