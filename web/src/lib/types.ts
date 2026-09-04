@@ -1,7 +1,6 @@
 // Agent 对话前端类型定义。
 //
 // 消息是 parts 数组，每个 part 有类型 + 内容 + 状态。
-// ��
 
 /** 消息部件（辨别联合）。 */
 export type MessagePart =
