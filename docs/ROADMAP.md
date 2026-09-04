@@ -29,7 +29,7 @@ flowchart LR
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；Agent 记忆能力（跨会话持久化 + 动态压缩） | 📋 规划中 |
-| V1.5 | 统一记忆系统 | 记忆 + RAG + 知识库统一为一个架构；文件式 Markdown 知识组织；草稿箱 + 异步处理管道；向量检索定位确认 | 📋 规划中 |
+| V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；上下文压缩；异步处理管道 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -273,39 +273,87 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 
 ---
 
-## 8. V1.5 — 统一记忆系统
+## 8. V1.5 — 记忆系统框架
 
-**目标**：记忆 + RAG + 知识库统一为一个架构。Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
+**目标**：搭建统一记忆系统框架。记忆 + RAG + 知识库统一为一个架构，Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
 
-**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)，尤其 [04-architecture.md](research/unified-memory/04-architecture.md)
+**设计文档**：[`docs/DESIGN.md`](DESIGN.md)　**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)
 
-### 8.1 统一架构需求
+### 8.1 文档组织架构
 
-- 记忆层级：L1 上下文窗口 → L2 工作集 → L3 会话历史 → L4 系统记忆 → Storage 知识库
-- 统一记忆操作接口（remember/recall/forget 覆盖所有层级）
-- 页表机制：上下文只保留指针（页目录），内容按需加载（页错误）
-- 知识库分库：按系统/领域维度分区，统一检索接口
-- 文件即真相：MD 文件 = 真相源，索引（pgvector/BM25）= 派生缓存
+```
+storage/
+├── kb/                                # 知识库（对外资产，审核后可引用）
+│   └── {kb_slug}/                     # 知识库分区
+│       ├── INDEX.md                    # 页目录（脚本自动重建）
+│       ├── draft/                      # 草稿（不进 RAG）
+│       │   └── {filename}.md
+│       └── published/                  # 已发布（进 RAG 索引）
+│           └── {filename}.md
+│
+├── memory/                            # 记忆（Agent 自用，参考 Claude Code）
+│   ├── global/                         # 全局记忆（跨会话）
+│   │   ├── MEMORY.md                    # 索引（启动加载，≤200 行）
+│   │   └── {name}.md
+│   └── sessions/                       # 会话记忆（单会话）
+│       └── {session_id}/
+│           ├── MEMORY.md
+│           └── {name}.md
+│
+└── _index/                            # 派生索引（可重建）
+    ├── pgvector/
+    ├── bm25/
+    └── ingest_queue.jsonl
+```
 
-### 8.2 知识库组织形式
+- **kb**：扁平 md 文件，`{draft|published}/{filename}.md`；图片统一到 `image/` 目录；分类靠 frontmatter `type`
+- **memory/global**：扁平 md + `MEMORY.md` 索引，参考 Claude Code `~/.claude/memories/`
+- **memory/sessions**：单会话隔离，结束后提取有价值内容到 `global/`
+- **文件即真相**：MD 文件 = 真相源，pgvector/BM25 = 派生索引（可重建）
 
-- 知识库底层为文件式 Markdown
-- 目录按运维文档类型组织
-- frontmatter 承载元数据（type/status/tags/sources）
-- INDEX.md 自动重建（脚本从 frontmatter 生成）
+### 8.2 Agent 记忆工具
 
-### 8.3 异步处理管道
+| 工具 | 说明 | scope |
+|------|------|-------|
+| `memory_remember(text, scope, importance)` | 写入记忆 | session / global |
+| `memory_recall(query, scope, limit)` | 检索记忆 | session / global / knowledge |
+| `memory_forget(scope, key)` | 标记失效（非物理删除） | session / global |
 
-- 深度搜索产出 → 草稿箱（消息队列）
+`scope=knowledge` 时路由到 RAG 引擎（BM25 + pgvector + RRF + rerank）。
+
+### 8.3 上下文压缩
+
+| 级别 | 触发 | 操作 | 有损 |
+|------|------|------|:---:|
+| 1. HeadAndTail | 每轮 | 保留首尾，中间省略 | 否 |
+| 2. 去重清理 | token > 70% | 丢弃重复 tool result | 否 |
+| 3. Autocompact | token > 85% | LLM 摘要 | 是 |
+
+复用 Eino SDK 内置 `summarization` + `reduction` 中间件 + `CheckPointStore`。
+
+### 8.4 检索方案
+
+| scope | 检索方式 | 理由 |
+|-------|---------|------|
+| knowledge（大语料） | BM25 + 向量 + RRF + rerank | 保留现有 RAG 引擎 |
+| global（Agent 自记忆） | 纯文本 + BM25 | 规模小，Claude Code 实证 |
+| session（会话记忆） | BM25 / 精确 | 不需要语义检索 |
+
+BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文本 + BM25。
+
+### 8.5 异步处理管道
+
+- 深度搜索产出 → `draft/{filename}.md`（消息队列 `ingest_queue.jsonl`）
 - 定时消费者：去重 → 质量门 → 分解 → 重组 → 索引入库
 - 审查门控：draft → published 状态机
 - 优雅降级：嵌入服务不可用时仍写入文件
 
-### 8.4 RAG 方案确认
+### 8.6 会话生命周期
 
-- 知识库 RAG（大语料）：BM25 + 向量 + reranker 混合（保留现有 RAG 引擎）
-- Agent 自记忆（system/episode scope）：纯文本 + BM25（规模小，Claude Code 实证）
-- BM25 为主，向量为补充——如果只能选一个，选 BM25
+- **启动**：加载 `global/MEMORY.md` → 注入 L1 上下文
+- **会话中**：三级压缩管线 → checkpoint 持久化 → `memory_recall` 按需检索
+- **会话结束**：扫描 `sessions/{id}/` → LLM 提取 → 写入 `global/` → 更新 `MEMORY.md`
+- **暂停/恢复**：Thread 可序列化，pause = 持久化，resume = 加载
 
 
 ## 9. V2.0 — Agentic RAG（终点）
@@ -422,11 +470,11 @@ gantt
     md 产出+RAG 衔接      :v14d, 2027-02-01, 14d
     Agent 记忆系统       :v14e, 2027-02-15, 21d
 
-    section V1.5 统一记忆系统
-    MemoryStore 接口     :v15a, 2027-03-01, 14d
-    会话 checkpoint 迁入  :v15b, 2027-03-01, 14d
-    复合评分+文件式记忆   :v15c, 2027-03-15, 21d
-    RAG 引擎融合          :v15d, 2027-03-15, 14d
+    section V1.5 记忆系统框架
+    文档组织+记忆工具     :v15a, 2027-03-01, 14d
+    上下文压缩+checkpoint  :v15b, 2027-03-01, 14d
+    异步管道+检索分层      :v15c, 2027-03-15, 21d
+    会话生命周期+提取      :v15d, 2027-03-15, 14d
 
     section V2.0 Agentic RAG
     Agent 替代固定管道    :v20a, 2027-04-01, 14d
@@ -451,7 +499,7 @@ gantt
 | 网络搜索 | 私有部署优先，可选 SaaS 增强 | 数据不出域优先 |
 | deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词 |
 | Agent 记忆 | 记忆操作作为 Agent 工具 | Agent 自主决定何时记忆/检索 |
-| 记忆统一 | 记忆 + RAG + 知识库统一为一个架构 | L1 上下文 → L4 系统记忆 → Storage 知识库 |
+| 记忆系统框架 | 记忆+RAG+知识库统一架构 | 上下文=L1 cache, md=disk, 页表=索引 |
 | 记忆压缩 | 无损优先，有损最后 | 运维信息不能被摘要丢失 |
 | 记忆 scope | 与系统相关，与用户无关 | scope = system_id |
 | 知识库组织 | 文件式 Markdown，索引是派生 | 文件即真相，可重建 |
