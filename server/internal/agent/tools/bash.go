@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -98,6 +99,8 @@ func (b *BashTool) Call(ctx context.Context, args string, emit agent.EventSink) 
 
 	cmd := exec.CommandContext(tCtx, b.bashBin, "-c", params.Command)
 	cmd.Dir = b.workDir
+	// 强制 UTF-8 输出（Python/其他程序在 Windows 下默认 GBK 致 emoji 乱码）。
+	cmd.Env = append(os.Environ(), "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8", "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
