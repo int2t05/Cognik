@@ -11,7 +11,7 @@ server:
   idle_timeout: 60s
 
 database:
-  host: localhost        # Docker 内: postgres
+  host: 127.0.0.1        # Docker 内: postgres
   port: 5432
   user: cognos
   password: "cognos_dev"  # 通过环境变量 COGNOS_DATABASE_PASSWORD 覆盖
