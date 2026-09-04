@@ -21,6 +21,8 @@ import (
 	"opsmind/internal/infra/cache"
 	"opsmind/internal/infra/config"
 	"opsmind/internal/infra/middleware"
+	"opsmind/internal/shared/pkg/errcode"
+	"opsmind/internal/shared/pkg/response"
 )
 
 // Handlers 聚合所有 Handler 实例，供路由注册使用。
@@ -49,11 +51,20 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 	}
 
 	r := gin.New()
+	r.HandleMethodNotAllowed = true
 
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS(parseCORSOrigins(cfg.CORS.AllowOrigins), cfg.Server.Mode))
 	r.Use(middleware.Logger())
+
+	// NoRoute / NoMethod — 未匹配路由或方法时返回统一 JSON 封装（非 Gin 默认 text/plain）
+	r.NoRoute(func(c *gin.Context) {
+		response.Error(c, errcode.ErrNotFound, "请求的资源不存在")
+	})
+	r.NoMethod(func(c *gin.Context) {
+		response.Error(c, errcode.ErrParam, "不支持的请求方法")
+	})
 
 	// /health — 存活探针（K8s liveness），仅检查进程存活
 	r.GET("/health", func(c *gin.Context) {
