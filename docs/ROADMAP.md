@@ -552,7 +552,7 @@ gantt
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
 | LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
 | 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测 |
-| 版本终点 | V2.0 | 不规划 V2.x |
+| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.6 |
 
 ---
 
@@ -567,4 +567,5 @@ gantt
 | [`TODO.md`](TODO.md) | 代码级改进清单与优先级 |
 | [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
 | [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比 |
-| [`research/unified-memory/`](research/unified-memory/) | V1.4/V1.5 调研 — 统一记忆架构：AgeMem/MEMORA/GAM 学术趋势 + crewAI/Letta/LangGraph 工业实践 + OpsMind 统一方案 |
+| [`research/unified-memory/`](research/unified-memory/) | V1.4/V1.5/V1.6 调研 — 统一记忆架构 + OS 类比 + 页表分库 + 异步管道 + 竞品对比 + 检索优化 |
+| [`DESIGN.md`](DESIGN.md) | V1.5/V1.6 设计文档 — 统一记忆系统完整架构 + 端到端业务流程 |
