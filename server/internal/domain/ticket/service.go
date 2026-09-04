@@ -216,6 +216,50 @@ func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID i
 	})
 }
 
+// WithdrawTicket 用户撤回未处理申告（仅申告人、仅待处理态可撤回）。
+// CAS: Pending→Withdrawn，创建撤回记录。
+func (s *TicketService) WithdrawTicket(ctx context.Context, id int64, userID int64) error {
+	ticket, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+		}
+		return err
+	}
+
+	if ticket.UserID != userID {
+		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可撤回"}
+	}
+
+	if ticket.Status != model.TicketStatusPending {
+		return AppError{Code: errcode.ErrParam, Message: "仅待处理状态可撤回"}
+	}
+
+	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txRepo := NewTicketRepo(tx)
+
+		record := &model.TicketRecord{
+			TicketID:   id,
+			OperatorID: userID,
+			Action:     model.TicketActionWithdraw,
+			Content:    "用户撤回申告",
+		}
+		if err := txRepo.CreateRecord(ctx, record); err != nil {
+			return err
+		}
+
+		// CAS: 仅在 status=Pending 时更新为 Withdrawn
+		rows, err := txRepo.UpdateStatus(ctx, id, int(model.TicketStatusPending), int(model.TicketStatusWithdrawn))
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
+		}
+		return nil
+	})
+}
+
 // =============================================================================
 // UpdateStatus
 // =============================================================================

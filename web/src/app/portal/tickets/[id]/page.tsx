@@ -1,8 +1,9 @@
 'use client';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
-import { getTicketDetail, supplementTicket, updateTicket } from '@/lib/api/ticket';
+import { getTicketDetail, supplementTicket, updateTicket, withdrawTicket } from '@/lib/api/ticket';
 import { IconButton } from '@/components/ui/icon-button';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -16,7 +17,7 @@ import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { useState } from 'react';
-import { ChevronLeft, Send, Pencil, Save, Loader2 } from 'lucide-react';
+import { ChevronLeft, Send, Pencil, Save, Loader2, Ban } from 'lucide-react';
 
 /** 申告状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
@@ -30,6 +31,7 @@ export default function TicketDetailPage() {
   const { data: ticket, error, mutate } = useSWR(`portal-ticket-${id}`, () => getTicketDetail(Number(id)));
   const [supplement, setSupplement] = useState('');
   const [sending, setSending] = useState(false);
+  const [withdrawConfirm, setWithdrawConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -83,6 +85,18 @@ export default function TicketDetailPage() {
   // 编辑/保存切换：未编辑时进入编辑，编辑中点击即保存
   const toggleEdit = () => editing ? handleSave() : startEdit();
 
+  const handleWithdraw = async () => {
+    setSending(true);
+    try {
+      await withdrawTicket(Number(id));
+      toast.success('已撤回申告');
+      setWithdrawConfirm(false);
+      mutate();
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, '撤回失败'));
+    } finally { setSending(false); }
+  };
+
   if (error) return <InlineError fullPage />;
   if (!ticket) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>;
 
@@ -92,6 +106,9 @@ export default function TicketDetailPage() {
         <IconButton label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></IconButton>
         {canEdit(ticket.status) && (
           <IconButton label={editing ? '保存' : '编辑'} disabled={sending} onClick={toggleEdit}>{sending ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>
+        )}
+        {ticket.status === 1 && (
+          <IconButton label="撤回" danger disabled={sending} onClick={() => setWithdrawConfirm(true)}><Ban /></IconButton>
         )}
       </div>
 
@@ -149,6 +166,16 @@ export default function TicketDetailPage() {
           )}
         </>
       )}
+      <ConfirmDialog
+        open={withdrawConfirm}
+        onOpenChange={setWithdrawConfirm}
+        title="撤回申告"
+        message="撤回后申告将不再处理，此操作不可撤销。确定要撤回吗？"
+        confirmLabel="撤回"
+        onConfirm={handleWithdraw}
+        loading={sending}
+        danger
+      />
     </div>
   );
 }

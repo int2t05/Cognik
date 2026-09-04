@@ -26,6 +26,7 @@ const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
   { value: 3, label: '需补充' },
   { value: 4, label: '已解决' },
   { value: 5, label: '已关闭' },
+  { value: 6, label: '已撤回' },
 ];
 
 export default function AdminTicketListPage() {

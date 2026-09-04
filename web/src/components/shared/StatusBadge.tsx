@@ -19,6 +19,7 @@ const TICKET_STATUS: Record<number, { label: string; variant: BadgeVariant }> = 
   3: { label: '需补充', variant: 'error' },
   4: { label: '已解决', variant: 'success' },
   5: { label: '已关闭', variant: 'neutral' },
+  6: { label: '已撤回', variant: 'neutral' },
 };
 
 const USER_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
