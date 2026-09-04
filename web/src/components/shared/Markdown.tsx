@@ -11,16 +11,15 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
-
-import 'katex/dist/katex.min.css';
 
 const Mermaid = dynamic(() => import('./Mermaid').then((m) => m.Mermaid), { ssr: false });
 
 interface MarkdownProps {
   content: string;
   className?: string;
-  /** 引用徽标渲染器；提供后文本中的 [N] 渲染为该返回节点。 */
+  articleId?: number;
   renderCitation?: (n: number) => ReactNode;
 }
 
@@ -33,15 +32,12 @@ function replaceCitationsOutsideCode(content: string): string {
   return parts.map((part, i) => (i % 2 === 1 ? part : part.replace(CITATION_RE, '[$1](#cite-$1)'))).join('');
 }
 
-export function Markdown({ content, className, renderCitation }: MarkdownProps) {
-  // 启用引用时：[N] → [N](#cite-N) 链接，交由 a 组件拦截（避免正则切分整段破坏列表/表格跨段）
-  // 仅在代码块外的文本替换；fenced ``` 代码块内的 [N]（如 arr[0]）保持原样，避免破坏代码渲染
+export function Markdown({ content, className, articleId, renderCitation }: MarkdownProps) {
   const source = renderCitation ? replaceCitationsOutsideCode(content) : content;
 
   const components: Components = {
     pre({ children }: ComponentProps<'pre'>) {
       const child = Array.isArray(children) ? children[0] : children;
-      // mermaid 代码块：去掉 pre 包裹，避免代码块样式应用到 SVG
       if (isValidElement<{ className?: string }>(child) && typeof child.props.className === 'string' && /language-mermaid/.test(child.props.className)) {
         return <div className="md-mermaid-wrap">{children}</div>;
       }
@@ -60,11 +56,20 @@ export function Markdown({ content, className, renderCitation }: MarkdownProps) 
       }
       return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
     },
+    img(props: ComponentProps<'img'>) {
+      const src = props.src;
+      let imgSrc = src;
+      if (typeof src === 'string' && src.startsWith('images/')) {
+        const aid = articleId ?? (typeof window !== 'undefined' ? (window.location.pathname.match(/\/(\d+)(?:\/[^/]*)?$/)?.[1] ?? '') : '');
+        imgSrc = `/api/v1/public/articles/${aid}/images/${src.slice(7)}`;
+      }
+      return <img src={imgSrc} alt={props.alt} className="max-w-full h-auto rounded-[var(--radius-lg)] my-2" />;
+    },
   };
 
   return (
     <div className={cn('md-body', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeHighlight]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]} components={components}>
         {source}
       </ReactMarkdown>
     </div>

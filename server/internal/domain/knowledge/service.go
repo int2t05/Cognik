@@ -35,25 +35,25 @@ var allowedDocumentTypes = map[string]bool{
 	"jpg": true, "png": true, "gif": true, "bmp": true, "webp": true,
 }
 
-// 存储两桶模型：
-//   - opsmind-documents：临时桶（原始文件、草稿正文、审核中各状态）
-//   - opsmind-published：已发布桶（正文已嵌入 pgvector，RAG 可检索）
+// 存储布局（单桶，三级目录）：
 //
-// 状态由 DB knowledge_articles.status 管理，存储不按状态分桶。
+//	opsmind-documents/kb-{kbID}/{draft|published}/article-{articleID}/{markdown.md, images/}
+//
+// 草稿与已发布由二级目录区分；L1=知识库 ID、L3=文章 ID 均不可变，
+// 标题变更不影响存储路径，消除标题目录孤儿。
 const (
-	minioBucketDocs      = "opsmind-documents"
-	minioBucketPublished = "opsmind-published"
+	minioBucket = "opsmind-documents"
 	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。
 	maxUploadFileCount = 10
 )
 
-// articleContentKey 返回文章在存储中的目录名（title 清洗特殊字符，无扩展名）。
-func articleContentKey(title string) string {
-	safe := strings.NewReplacer(
-		"/", "_", "\\", "_", ":", "_", "*", "_", "?", "_",
-		"\"", "_", "<", "_", ">", "_", "|", "_",
-	).Replace(title)
-	return safe
+// articleDir 返回文章在存储中的目录（kb-{kbID}/{draft|published}/article-{articleID}）。
+func articleDir(kbID, articleID int64, published bool) string {
+	status := "draft"
+	if published {
+		status = "published"
+	}
+	return fmt.Sprintf("kb-%d/%s/article-%d", kbID, status, articleID)
 }
 
 // formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
@@ -391,13 +391,18 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		Status:     1,
 		CreatedBy:  userID,
 		WordCount:  len([]rune(req.Content)),
-		MinioPath:  minioBucketDocs + "/" + articleContentKey(req.Title),
 	}
 	if err := s.repo.CreateArticle(ctx, article); err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content), nil)
+	// 先建后设路径：CreateArticle 拿到 ID 后再构造存储路径，避免 ID=0 缺陷。
+	dir := articleDir(req.KBID, article.ID, false)
+	article.MinioPath = minioBucket + "/" + dir
+	if err := s.repo.UpdateArticleMinioPath(ctx, article.ID, article.MinioPath); err != nil {
+		slog.Warn("更新文章存储路径失败", "article_id", article.ID, "error", err)
+	}
+	s.uploadArticleFilesAsync(minioBucket, dir, formatArticleText(req.Title, req.Content), nil)
 	return article, nil
 }
 
@@ -420,12 +425,13 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 	article.WordCount = len([]rune(req.Content))
 	article.Tags = marshalTags(req.Tags)
 	article.Status = newStatus
-	article.MinioPath = minioBucketDocs + "/" + articleContentKey(req.Title)
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
 	}
 
-	s.uploadArticleFilesAsync(minioBucketDocs, articleContentKey(req.Title), formatArticleText(req.Title, req.Content), nil)
+	// 路径基于 ID 稳定不变，标题变更不触发路径迁移；仅重传 markdown.md（内容已变）。
+	// 该函数仅允许草稿/驳回/停用态编辑，文件恒在 draft 目录。
+	s.uploadArticleFilesAsync(minioBucket, articleDir(article.KBID, article.ID, false), formatArticleText(req.Title, req.Content), nil)
 	return nil
 }
 
@@ -523,21 +529,22 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return errcode.AppError{Code: errcode.ErrParam, Message: "文章内容为空，无法发布"}
 	}
 
-	pubKey := articleContentKey(article.Title)
+	// 发布前文件位于 draft 目录；嵌入成功后由处理器回调移到 published 目录。
+	draftDir := articleDir(article.KBID, article.ID, false)
 	formatted := formatArticleText(article.Title, content)
 
 	// 同步上传正文到存储，确保处理器取任务时文件已就位
 	if s.storage != nil {
-		if err := s.storage.UploadFile(ctx, minioBucketDocs, pubKey, "markdown.md", strings.NewReader(formatted), int64(len(formatted)), "text/markdown"); err != nil {
+		if err := s.storage.UploadFile(ctx, minioBucket, draftDir, "markdown.md", strings.NewReader(formatted), int64(len(formatted)), "text/markdown"); err != nil {
 			return errcode.AppError{Code: errcode.ErrStorageUnavailable, Message: "上传文章正文失败: " + err.Error()}
 		}
 	}
 
-	// 更新文章状态（MinioPath 先指向临时桶，嵌入成功后再改指向已发布桶）
+	// 更新文章状态（MinioPath 指向 draft；嵌入成功后回调改为 published）
 	article.Status = model.ArticleStatusPublished
 	article.PublishedBy = &publisherID
 	article.ProcessStatus = "processing"
-	article.MinioPath = minioBucketDocs + "/" + pubKey
+	article.MinioPath = minioBucket + "/" + draftDir
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
 	}
@@ -546,16 +553,18 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	task := rag.ProcessTask{
 		ArticleID:      id,
 		KBID:           article.KBID,
-		Bucket:         minioBucketDocs,
-		Key:            pubKey,
+		Bucket:         minioBucket,
+		Key:            draftDir,
 		FileType:       "txt",
 		EmbeddingModel: s.effectiveEmbeddingModel(article.KnowledgeBase.EmbeddingModel),
 		OnStatusChange: func(aID int64, status, errMsg string) {
 			s.onPublishComplete(context.Background(), aID, status, errMsg)
 			if status == "completed" {
-				// 嵌入成功 → 迁移到已发布桶 → 更新路径 → 触发 BM25 重建
-				s.moveArticleDir(minioBucketDocs, minioBucketPublished, pubKey)
-				_ = s.repo.UpdateArticleMinioPath(context.Background(), aID, minioBucketPublished+"/"+pubKey)
+				// 嵌入成功 → 同桶 draft→published → 更新路径 → 触发 BM25 重建
+				publishedDir := articleDir(article.KBID, article.ID, true)
+				if err := s.moveArticleDir(minioBucket, draftDir, publishedDir); err == nil {
+					_ = s.repo.UpdateArticleMinioPath(context.Background(), aID, minioBucket+"/"+publishedDir)
+				}
 				if s.onKBChanged != nil {
 					s.onKBChanged(article.KBID)
 				}
@@ -586,9 +595,17 @@ func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅已发布状态可停用"}
 	}
 
-	// 停用时不删向量——搜索侧通过 status=4 过滤，保留以支持增量 embedding。
-	// 从已发布桶移回临时桶。
-	s.moveArticleDir(minioBucketPublished, minioBucketDocs, articleContentKey(article.Title))
+	// 停用时不删向量——搜索侧通过 status 过滤，保留以支持增量 embedding。
+	// 文件异步从 published 移回 draft，移动成功后更新 MinioPath（非阻塞；移动期间文件仍在 published，图片访问不受影响）。
+	publishedDir := articleDir(article.KBID, article.ID, true)
+	draftDir := articleDir(article.KBID, article.ID, false)
+	go func() {
+		if err := s.moveArticleDir(minioBucket, publishedDir, draftDir); err == nil {
+			_ = s.repo.UpdateArticleMinioPath(context.Background(), id, minioBucket+"/"+draftDir)
+		} else {
+			slog.Warn("停用迁移目录失败", "article_id", id, "error", err)
+		}
+	}()
 
 	if err := s.repo.UpdateArticleDisable(ctx, id); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章状态失败: " + err.Error()}
@@ -760,10 +777,12 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
 	}
 
-	key := articleContentKey(article.Title)
-	article.MinioPath = minioBucketDocs + "/" + key
-	_ = s.repo.UpdateArticle(ctx, article)
-	s.uploadArticleFilesAsync(minioBucketDocs, key, formatArticleText(title, text), result.Images)
+	dir := articleDir(kbID, article.ID, false)
+	article.MinioPath = minioBucket + "/" + dir
+	if err := s.repo.UpdateArticleMinioPath(ctx, article.ID, article.MinioPath); err != nil {
+		slog.Warn("更新文章存储路径失败", "article_id", article.ID, "error", err)
+	}
+	s.uploadArticleFilesAsync(minioBucket, dir, formatArticleText(title, text), result.Images)
 
 	return article, nil
 }
@@ -794,7 +813,7 @@ func (s *KnowledgeService) UploadAsset(ctx context.Context, filename string, con
 	}
 	ext := filepath.Ext(filename)
 	storedName := uuid.NewString() + ext
-	if err := s.storage.UploadFile(ctx, minioBucketDocs, "article-assets", storedName, reader, size, contentType); err != nil {
+	if err := s.storage.UploadFile(ctx, minioBucket, "article-assets", storedName, reader, size, contentType); err != nil {
 		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "文件上传失败: " + err.Error()}
 	}
 	return storedName, nil
@@ -806,7 +825,7 @@ func (s *KnowledgeService) AssetLocalPath(ctx context.Context, filename string) 
 	if s.storage == nil {
 		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储未初始化"}
 	}
-	return s.storage.GetFileURL(ctx, minioBucketDocs, "article-assets", filename)
+	return s.storage.GetFileURL(ctx, minioBucket, "article-assets", filename)
 }
 
 // GetDocumentStatus 查询文档处理状态。
@@ -978,15 +997,14 @@ func mapArticleToProcessStatus(article *model.KnowledgeArticle) string {
 	return "pending"
 }
 
-// cleanupArticleFiles 异步清理文章在两个桶中的 {标题}.txt。
+// cleanupArticleFiles 异步清理文章在草稿与已发布目录的文件（按 KBID+文章ID 构造，幂等删两态）。
 func (s *KnowledgeService) cleanupArticleFiles(article *model.KnowledgeArticle) {
 	if s.storage == nil {
 		return
 	}
 	bg := context.Background()
-	key := articleContentKey(article.Title)
-	s.deleteArticleDir(bg, minioBucketDocs, key)
-	s.deleteArticleDir(bg, minioBucketPublished, key)
+	s.deleteArticleDir(bg, minioBucket, articleDir(article.KBID, article.ID, false))
+	s.deleteArticleDir(bg, minioBucket, articleDir(article.KBID, article.ID, true))
 }
 
 // uploadArticleFilesAsync 异步上传正文和图片到存储（目录式 markdown.md + images/{name}），不阻塞主流程。
@@ -1007,38 +1025,69 @@ func (s *KnowledgeService) uploadArticleFilesAsync(bucket, dir, content string, 
 	}()
 }
 
-// moveArticleDir 从 srcBucket 移动到 dstBucket（下载目录→上传→删除源，尽力而为不阻塞主流程）。
-func (s *KnowledgeService) moveArticleDir(srcBucket, dstBucket, dir string) {
-	if s.storage == nil || srcBucket == "" || dstBucket == "" || dir == "" {
-		return
+// GetArticleImageURL 返回文章图片的访问 URL（本地路径或 MinIO 预签名 URL）。
+// 图片存储在 article.MinioPath 目录下的 images/ 子目录。
+func (s *KnowledgeService) GetArticleImageURL(ctx context.Context, articleID int64, filename string) (string, error) {
+	if s.storage == nil {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "存储服务未初始化"}
 	}
-	go func() {
-		bg := context.Background()
-		files, err := s.storage.DownloadDir(bg, srcBucket, dir)
+	article, err := s.findArticle(ctx, articleID)
+	if err != nil {
+		return "", err
+	}
+	if article.MinioPath == "" {
+		return "", errcode.AppError{Code: errcode.ErrNotFound, Message: "文章未关联存储路径"}
+	}
+	// MinioPath 格式：bucket/dir（如 opsmind-documents/kb-1/draft/article-2）
+	parts := strings.SplitN(article.MinioPath, "/", 2)
+	if len(parts) < 2 {
+		return "", errcode.AppError{Code: errcode.ErrUnknown, Message: "文章存储路径格式错误"}
+	}
+	bucket, dir := parts[0], parts[1]
+	return s.storage.GetFileURL(ctx, bucket, dir, "images/"+filename)
+}
+
+// moveArticleDir 在同桶内将 srcDir 整目录移动到 dstDir（下载→上传→删除源）。
+// 发布/停用切换状态目录时调用；同步执行，失败返回 error，调用方据此决定是否更新 MinioPath。
+func (s *KnowledgeService) moveArticleDir(bucket, srcDir, dstDir string) error {
+	if s.storage == nil || bucket == "" || srcDir == "" || dstDir == "" {
+		return nil
+	}
+	if srcDir == dstDir {
+		return nil
+	}
+	bg := context.Background()
+	files, err := s.storage.DownloadDir(bg, bucket, srcDir)
+	if err != nil {
+		slog.Warn("moveArticleDir 下载失败", "bucket", bucket, "src", srcDir, "error", err)
+		return err
+	}
+	uploadFailed := false
+	for filename, reader := range files {
+		data, err := io.ReadAll(reader)
+		reader.Close()
 		if err != nil {
-			slog.Warn("moveArticleDir 下载失败", "src", srcBucket, "dir", dir, "error", err)
-			return
+			slog.Warn("moveArticleDir 读取失败", "filename", filename, "error", err)
+			uploadFailed = true
+			continue
 		}
-		uploadFailed := false
-		for filename, reader := range files {
-			data, err := io.ReadAll(reader)
-			reader.Close()
-			if err != nil {
-				slog.Warn("moveArticleDir 读取失败", "filename", filename, "error", err)
-				uploadFailed = true
-				continue
-			}
-			if err := s.storage.UploadFile(bg, dstBucket, dir, filename, bytes.NewReader(data), int64(len(data)), "text/markdown"); err != nil {
-				slog.Warn("moveArticleDir 上传失败", "dst", dstBucket, "filename", filename, "error", err)
-				uploadFailed = true
-			}
+		ct := imageContentType(filename)
+		if strings.HasSuffix(filename, ".md") {
+			ct = "text/markdown"
 		}
-		if !uploadFailed {
-			if err := s.storage.DeleteDir(bg, srcBucket, dir); err != nil {
-				slog.Warn("moveArticleDir 删除源失败", "src", srcBucket, "dir", dir, "error", err)
-			}
+		if err := s.storage.UploadFile(bg, bucket, dstDir, filename, bytes.NewReader(data), int64(len(data)), ct); err != nil {
+			slog.Warn("moveArticleDir 上传失败", "dst", dstDir, "filename", filename, "error", err)
+			uploadFailed = true
 		}
-	}()
+	}
+	if uploadFailed {
+		return fmt.Errorf("moveArticleDir 部分文件上传失败 [%s → %s/%s]", srcDir, bucket, dstDir)
+	}
+	if err := s.storage.DeleteDir(bg, bucket, srcDir); err != nil {
+		slog.Warn("moveArticleDir 删除源失败", "src", srcDir, "error", err)
+		return err
+	}
+	return nil
 }
 
 // deleteArticleDir 安全删除文章目录（bucket/dir 为空或 storage 为 nil 时静默跳过）。

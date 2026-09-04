@@ -9,8 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cloudwego/eino-ext/components/model/openai"
+	"github.com/cloudwego/eino/schema"
 	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/adapter"
 	"opsmind/internal/shared/model"
 	"opsmind/internal/shared/pkg/errcode"
 
@@ -45,7 +46,7 @@ func NewLLMConfigManager() *LLMConfigManager {
 	return &LLMConfigManager{}
 }
 
-// OnChange 注册配置变更回调（覆盖式）。
+// OnChange 注册配置变更回调（覆盖式：后注册覆盖前注册，调用方须在同一回调内完成所有重建）。
 func (m *LLMConfigManager) OnChange(fn func()) {
 	m.onChange = fn
 }
@@ -262,29 +263,30 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 }
 
 // TestConnection 测试指定 LLM 配置的连接是否可用。
+// Eino ChatModel.Generate。
 func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[string]any, error) {
 	cfg, err := s.GetConfig(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	testClient, err := adapter.NewOpenAIClient(cfg.LLMBaseURL, cfg.LLMAPIKey, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// 临时构造 Eino ChatModel 测试连接
+	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		APIKey:  cfg.LLMAPIKey,
+		Model:   cfg.LLMModel,
+		BaseURL: cfg.LLMBaseURL,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("配置的 BaseURL 无效: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	testReq := adapter.ChatRequest{
-		Model:       cfg.LLMModel,
-		Messages:    []adapter.ChatMessage{{Role: "user", Content: "ping"}},
-		MaxTokens:   1,
-		Temperature: 0,
-	}
-
 	start := time.Now()
-	resp, err := testClient.ChatCompletion(ctx, testReq)
+	resp, err := chatModel.Generate(ctx, []*schema.Message{
+		schema.UserMessage("ping"),
+	})
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return nil, fmt.Errorf("连接测试失败: %w", err)
@@ -295,7 +297,6 @@ func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[st
 		"model":        cfg.LLMModel,
 		"latency_ms":   latency,
 		"test_message": resp.Content,
-		"tokens_used":  resp.TokensUsed,
 	}, nil
 }
 

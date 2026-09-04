@@ -21,7 +21,7 @@ import (
 type Pipeline struct {
 	vectorRetriever Retriever         // 向量检索器（不可为 nil）
 	bm25Retriever   Retriever         // BM25 检索器（nil 表示不启用）
-	llmClient       adapter.LLMClient // LLM 客户端（查询改写/多路）
+	llmClient       LLMClient // LLM 客户端（查询改写/多路）
 	reranker        adapter.Reranker  // 重排序器（nil 时降级跳过）
 	embedder        TextEmbedder      // 向量嵌入器（问题 embedding 缓存）
 	fusion          FusionStrategy    // 混合融合策略（默认 RRF k=60）
@@ -29,7 +29,7 @@ type Pipeline struct {
 }
 
 // NewPipeline 创建 Pipeline 实例。vectorRet 不可为 nil，bm25Ret/reranker 可为 nil（降级跳过）。
-func NewPipeline(vectorRet, bm25Ret Retriever, llm adapter.LLMClient, emb TextEmbedder, reranker adapter.Reranker, llmModel string) *Pipeline {
+func NewPipeline(vectorRet, bm25Ret Retriever, llm LLMClient, emb TextEmbedder, reranker adapter.Reranker, llmModel string) *Pipeline {
 	return &Pipeline{
 		vectorRetriever: vectorRet,
 		bm25Retriever:   bm25Ret,

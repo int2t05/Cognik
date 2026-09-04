@@ -74,6 +74,12 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 	// 公开系统配置（无需认证）
 	if h != nil && h.Config != nil {
 		r.GET("/api/v1/public/configs/:key", h.Config.GetPublic)
+		// 文章图片公开端点（img 标签无法携带 Authorization header）
+		if h != nil && h.Knowledge != nil {
+			r.GET("/api/v1/public/articles/:articleId/images/:filename", h.Knowledge.ServeArticleImage)
+		} else {
+			r.GET("/api/v1/public/articles/:articleId/images/:filename", placeholder())
+		}
 	} else {
 		r.GET("/api/v1/public/configs/:key", placeholder())
 	}
