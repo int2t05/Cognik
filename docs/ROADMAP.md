@@ -28,8 +28,8 @@ flowchart LR
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
-| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md；Memory as a Tool（remember/recall/forget 统一接口） | 📋 规划中 |
-| V1.5 | 统一记忆系统 | 记忆 + RAG + 知识库统一为 MemoryStore 接口；会话 checkpoint 迁入；复合评分检索（语义+时间+重要度）；文件式 Markdown 记忆层 | 📋 规划中 |
+| V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；Agent 记忆能力（跨会话持久化 + 动态压缩） | 📋 规划中 |
+| V1.5 | 统一记忆系统 | 记忆 + RAG + 知识库统一为一个架构；文件式 Markdown 知识组织；草稿箱 + 异步处理管道；向量检索定位确认 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -228,109 +228,41 @@ SSE 事件：`step` / `chunks` / `token` / `done` / `error` / `reasoning` / `too
 
 ## 7. V1.4 — 深度搜索
 
-**目标**：Agent 配备深度搜索工具链，搜索→爬取→整理→产出 md 文章。
+**目标**：Agent 配备深度搜索工具链，实现搜索→爬取→整理→产出 md 文章闭环；Agent 具备跨会话记忆能力和动态上下文压缩。
 
-**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)
+**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/) + [`docs/research/unified-memory/`](research/unified-memory/) + [`docs/research/agent-memory/`](research/agent-memory/)
 
-### 7.1 搜索 API 分层
+### 7.1 深度搜索工具链
 
-```mermaid
-flowchart LR
-    subgraph 主力["主力（私有部署）"]
-        SX["SearXNG<br/>元搜索"]
-        FC["Firecrawl 自托管<br/>/scrape"]
-    end
-    subgraph 增强["增强（可选）"]
-        EXA["Exa<br/>语义搜索"]
-    end
-```
+Agent 能搜索网络资料、爬取网页内容、整理产出结构化 Markdown 文章。
 
-| API | 自托管 | 定价 | 用途 |
-|-----|:---:|------|------|
-| SearXNG | ✅ | 免费 | 元搜索，聚合 130+ 引擎 |
-| Firecrawl 自托管 | ✅ | 免费（Apache-2.0） | URL → Markdown，JS 渲染 |
-| Exa | ❌ | $7-15/千次 | 语义搜索，highlights 10x token 效率 |
+**需求**：
+- 网络搜索能力（私有部署优先，可选 SaaS 增强）
+- 网页提取能力（URL → 干净 Markdown，JS 渲染）
+- 深度研究 SubAgent（与现有 research/coder 并列）
+- 搜索结果 → 结构化 md 文章（frontmatter + sources 引用）
+- 产出写入草稿箱（draft/），人工审核后发布触发 RAG 索引
 
-**分层**：默认私有部署（零成本，数据不出域）；用户配 Exa Key 后启用语义搜索增强。
+### 7.2 Agent 记忆能力
 
-### 7.2 SearXNG 自托管
+Agent 具备跨会话记忆和动态上下文压缩。
 
-| 项 | 说明 |
-|----|------|
-| Docker | `searxng` + `valkey` 服务 |
-| 配置 | `formats: [html, json]`；`limiter: false`；`public_instance: false` |
-| Go 集成 | 直接 HTTP GET `http://searxng:8080/search?q=...&format=json` |
-| Ops 域 | `it`/`science` 类别优先 StackOverflow/GitHub/厂商域名 |
+**需求**：
+- 记忆操作作为 Agent 工具（remember/recall/forget）
+- 记忆与系统相关、与用户无关（scope = system_id）
+- 上下文动态压缩（无损优先，有损最后）
+- 会话暂停/恢复（Thread 可序列化）
+- 复用 Eino SDK 内置中间件（summarization + reduction）+ CheckPointStore
 
-### 7.3 Firecrawl 自托管
+### 7.3 深度搜索方法论
 
-| 项 | 说明 |
-|----|------|
-| Docker | Firecrawl `v2.11.162` + PostgreSQL + Redis + RabbitMQ + Playwright |
-| 能力 | 核心 scrape / crawl / map；Fetch + Playwright |
-| 不支持 | 截图 / 页面操作 / Agent / Interact（需 Cloud） |
-| Go 集成 | 直接 HTTP POST `http://firecrawl:3002/v2/scrape` |
-| 配置 | `USE_DB_AUTHENTICATION=false`（受信任网络，不暴露公网） |
+deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill + `reference/` 下开源项目实践）：
 
-### 7.4 deep_research SubAgent
+**搜索原则**：分层搜索 / 源优先级 / 全页提取 / 对抗性验证 / 引用注册表 / 上下文压缩 / 收敛控制 / 工具降级
 
-新建 `deep_research` SubAgent，与 `research` / `coder` 并列。
+**架构原则**：三层分离（planner→execution→publisher）/ 多 LLM 角色分工 / 先大纲再填充 / 对抗性反思 / 累积式知识
 
-```mermaid
-flowchart LR
-    MAIN["主 Agent"] -->|"委托"| WS["web_search<br/>SearXNG"]
-    WS --> WF["web_fetch<br/>Firecrawl"]
-    WF --> GEN["generate_article<br/>产出 md"]
-    GEN --> KB["知识库"]
-```
-
-| 工具 | 部署 | 说明 |
-|------|:----:|------|
-| `web_search` | 自托管 | 聚合 130+ 引擎；`it`/`science` 类别 |
-| `web_fetch` | 自托管 | URL → 干净 Markdown；JS 渲染 |
-| `exa_search`（可选） | SaaS | highlights 10x token 效率；`type=deep` 多步推理 |
-| `generate_article` | 内部 | 搜索结果 → Markdown；frontmatter 含 sources |
-
-**集成**：
-- 注册到 `AgentFactory.buildSubAgentTools()`
-- 搜索工具注册到 `ToolFactory.BuildSearchTools()`
-- 主 Agent 通过 SubAgent 委托（GPT-Researcher 模式）
-- SSE 复用 `tool_call` / `tool_result`，`Label` 区分工具类型
-
-### 7.5 深度搜索方法论
-
-deep_research SubAgent 的系统提示词和架构遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill + `reference/` 下开源项目实践）：
-
-**搜索原则**
-
-| 原则 | 说明 | 来源 |
-|------|------|------|
-| 分层搜索 | 搜索→爬取→验证→综合，每步有明确输入输出；不跳过验证直接综合 | engineering-skills/research |
-| 源优先级 | GitHub 源 > 官方文档 > 社区信号 > SEO 列表；负向断言必须在 GitHub 上验证 | engineering-skills/research |
-| 全页提取 | 搜索 snippet 不可作为最终证据；必须 fetch 源页后才能总结 | engineering-skills/research |
-| 对抗性验证 | 每个关键断言回溯到一手源；记录标题/URL/日期/可靠性；冲突和过期数据显式标注 | engineering-skills/research |
-| 引用注册表 | 全局 source ID 注册表，防合成幻觉；正文行内引用 `[1]`，frontmatter 维护映射 | gpt-researcher |
-| 上下文压缩 | 子 Agent 返回前压缩发现（1-2K token），原始数据不传递；大结果卸载到文件 | deep-research learnings+directions |
-| 收敛控制 | 固定结构（N 子问题 × K 来源），硬性上限防无限循环；不做动态收敛判断 | deep-research depth/breadth |
-| 工具降级 | 工具配额耗尽时分层降级（GitHub→索引文档→scrape→discovery）；记录访问限制 | engineering-skills/research |
-
-**架构原则**
-
-| 原则 | 说明 | 来源 |
-|------|------|------|
-| 三层分离 | planner（规划）→ execution（搜集）→ publisher（聚合）三层职责分离，每层可独立配置 | gpt-researcher |
-| 多 LLM 角色分工 | 摘要用快模型、综合用强模型；规划用强模型、执行用快模型；降低成本 | open_deep_research |
-| 先大纲再填充 | generate_article 先列大纲再逐节生成带引用全文，而非一次性生成 | storm two-stage writing |
-| 对抗性反思 | 反思环节识别信息缺口（"thought-provoking questions"），而非友好评价总是投"足够" | storm Co-STORM Moderator |
-| 累积式知识 | 知识库写入不覆盖旧知识，ADD-only 累积增长；实体链接增强跨文档关联 | mem0 single-pass ADD-only |
-
-### 7.6 知识库输出
-
-深度搜索产出 md 文件存入知识库，frontmatter 含 `source_type: deep_research` + `sources`（URL 列表），引用标注用行内编号 `[1]`。产出默认 `status: draft`，人工审核后 `published` 触发 RAG 索引。新增 `SourceType = 3`（深度搜索生成）。
-
-> 知识库组织形式、目录结构、frontmatter schema、INDEX.md 自动重建、Agent 写入工具链详见 [§8 V1.5](#8-v15--知识库组织)。
-
-### 7.7 Ops 域场景
+### 7.4 Ops 域搜索场景
 
 | 场景 | 查询示例 | 来源 |
 |------|---------|------|
@@ -339,124 +271,42 @@ deep_research SubAgent 的系统提示词和架构遵循以下原则（参考 [`
 | 软件版本兼容 | "PostgreSQL 17 pgvector" | 厂商文档、GitHub releases |
 | 内部 KB 未命中 | 内部无文档的问题 | 回退网络搜索 |
 
-### 7.8 Agent 记忆系统（Memory as a Tool）
-
-记忆 + RAG + 知识库统一为 Memory as a Tool 架构。Agent 通过工具调用自主管理记忆，与系统相关与用户无关。
-
-**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/) + [`docs/research/agent-memory/`](research/agent-memory/)
-
-```mermaid
-flowchart LR
-    subgraph Agent["Eino ReactAgent"]
-        TOOLS["现有 9 工具"]
-        MEM["记忆工具（新增）<br/>memory_remember<br/>memory_recall<br/>memory_forget"]
-    end
-    subgraph 统一存储["统一存储"]
-        PG["PostgreSQL<br/>memory_items 表"]
-        RAG["RAG 引擎<br/>knowledge scope 检索后端"]
-    end
-    MEM --> PG
-    MEM -->|"scope=knowledge"| RAG
-```
-
-**三个记忆工具**：
-
-| 工具 | 说明 | 参考 |
-|------|------|------|
-| `memory_remember(text, scope, importance)` | 写入记忆 | Letta CRUD 工具 + AgeMem |
-| `memory_recall(query, scope, limit)` | 检索记忆（多信号混合） | mem0 + crewAI |
-| `memory_forget(scope, key)` | 删除记忆（标记 `invalid_at`，非物理删除） | Zep 双时序 |
-
-**三层 scope**：
-
-| scope | 持有 | 生命周期 | 隔离 | 检索后端 |
-|-------|------|---------|------|---------|
-| `session` | 会话执行状态、诊断过程 | 单会话 | `thread_id` | PostgreSQL 全文 + 时间排序 |
-| `knowledge` | 系统拓扑、故障历史、操作记录 | 跨会话 | `system_id`（非 `user_id`） | RAG 引擎（BM25 + pgvector + RRF） |
-| `episode` | 事件记忆（工单处理过程） | 跨会话 | `system_id` + `ticket_id` | pgvector 语义 |
-
-**动态压缩（三级管线）**：
-
-| 级别 | 触发 | 操作 | 有损 |
-|------|------|------|:---:|
-| 1. HeadAndTail | 每轮 | 保留系统 prompt + 最近对话，中间省略 | 否 |
-| 2. 去重清理 | token > 70% | 丢弃重复 tool result，保留 tool_use 记录 | 否 |
-| 3. Autocompact | token > 85% | fork sub-agent 生成结构化摘要 | 是 |
-
-**关键设计**：
-- **Memory as a Tool** — Agent 自主决定何时记忆/检索（参考 Letta + AgeMem ACL 2026）
-- **system_id scope** — 记忆与系统相关、与用户无关（参考 crewAI scope path）
-- **RAG 引擎保留** — 作为 `knowledge` scope 的检索后端，不替代
-- **JIT 注入** — 上下文只保留指针，内容按需加载（参考 Anthropic Context Engineering）
-- **无损优先压缩** — 运维信息（错误日志、配置片段）不能被摘要丢失
-- **暂停/恢复** — Thread 可序列化（参考 12-factor-agents Factor 6）
-
-**数据库变更**：
-```sql
-CREATE TABLE memory_items (
-    id            BIGSERIAL PRIMARY KEY,
-    scope         VARCHAR(32) NOT NULL,    -- session / knowledge / episode
-    system_id     VARCHAR(128),             -- 系统标识（scope key）
-    session_id    VARCHAR(128),             -- 会话标识（session scope）
-    content       TEXT NOT NULL,
-    category      VARCHAR(32),             -- topology / incident / operation / config / symptom
-    importance    REAL DEFAULT 0.5,
-    source        VARCHAR(32) DEFAULT 'agent',
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_accessed TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    invalid_at    TIMESTAMPTZ              -- 事实失效（非删除）
-);
-```
-
 ---
 
 ## 8. V1.5 — 统一记忆系统
 
-**目标**：记忆 + RAG + 知识库统一为 `MemoryStore` 接口；会话 checkpoint 迁入；复合评分检索；文件式 Markdown 记忆层。
+**目标**：记忆 + RAG + 知识库统一为一个架构。Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
 
-**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)，尤其 [04-recommendation.md](research/unified-memory/04-recommendation.md)
+**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)，尤其 [04-architecture.md](research/unified-memory/04-architecture.md)
 
-### 8.1 统一架构
+### 8.1 统一架构需求
 
-```mermaid
-flowchart TB
-    subgraph 接口["统一 MemoryStore 接口"]
-        REM["remember(scope, key, value, metadata)"]
-        REC["recall(query, scope, limit)"]
-        FOR["forget(scope, key)"]
-    end
-    subgraph 三层["三层 scope"]
-        CTX["in-context<br/>Agent 上下文窗口"]
-        SES["session<br/>memory_items 表"]
-        KNOW["knowledge<br/>RAG 引擎 + 文件式 md"]
-    end
-    接口 --> 三层
-```
+- 记忆层级：L1 上下文窗口 → L2 工作集 → L3 会话历史 → L4 系统记忆 → Storage 知识库
+- 统一记忆操作接口（remember/recall/forget 覆盖所有层级）
+- 页表机制：上下文只保留指针（页目录），内容按需加载（页错误）
+- 知识库分库：按系统/领域维度分区，统一检索接口
+- 文件即真相：MD 文件 = 真相源，索引（pgvector/BM25）= 派生缓存
 
-### 8.2 会话 checkpoint 统一
+### 8.2 知识库组织形式
 
-会话 checkpoint 从 SQLite 迁入 `memory_items` 表（`scope='session'`），不再使用独立 SQLite 文件。暂停/恢复通过 `memory_recall(scope='session')` 实现。
+- 知识库底层为文件式 Markdown
+- 目录按运维文档类型组织
+- frontmatter 承载元数据（type/status/tags/sources）
+- INDEX.md 自动重建（脚本从 frontmatter 生成）
 
-### 8.3 复合评分检索
+### 8.3 异步处理管道
 
-```go
-// score = w_semantic * similarity + w_recency * decay + w_importance * importance
-// 默认权重：0.5 / 0.3 / 0.2
-// 运维场景半衰期：7 天
-composite := 0.5*semanticScore + 0.3*math.Pow(0.5, ageDays/7.0) + 0.2*importance
-```
+- 深度搜索产出 → 草稿箱（消息队列）
+- 定时消费者：去重 → 质量门 → 分解 → 重组 → 索引入库
+- 审查门控：draft → published 状态机
+- 优雅降级：嵌入服务不可用时仍写入文件
 
-### 8.4 文件式记忆层（长期演进）
+### 8.4 RAG 方案确认
 
-`knowledge` scope 的底层从 DB text 字段迁移到文件式 Markdown：
-- `storage/memory/{system_id}/topology.md` — 系统拓扑
-- `storage/memory/{system_id}/incidents/` — 故障历史
-- `storage/memory/{system_id}/operations/` — 操作记录
-- pgvector + BM25 作为文件索引（可重建）
+- 知识库 RAG（大语料）：BM25 + 向量 + reranker 混合（保留现有 RAG 引擎）
+- Agent 自记忆（system/episode scope）：纯文本 + BM25（规模小，Claude Code 实证）
+- BM25 为主，向量为补充——如果只能选一个，选 BM25
 
-**文件即真相，索引是派生**——参考 Memory Kernel "Files are truth, SQLite is cache"。
-
----
 
 ## 9. V2.0 — Agentic RAG（终点）
 
@@ -598,17 +448,14 @@ gantt
 | LLM Provider | eino-ext/openai | OpenAI 兼容 → llama.cpp；含 tool calling + streaming |
 | SSE 输出 | Gin `fmt.Fprintf + Flush` | 标准 SSE 模式 |
 | 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0 |
-| 网络搜索 | SearXNG（自托管） | 私有部署无 API 密钥；聚合 130+ 引擎 |
-| 网页提取 | Firecrawl 自托管 `/scrape` | 开源 Apache-2.0；JS 渲染；数据不出域 |
-| 语义搜索增强 | Exa API（可选） | highlights 10x token 效率；SaaS 闭源，可选增强 |
-| 搜索工具集成 | 直接 HTTP，非 MCP 中间层 | 简单 JSON API 用 `net/http` 足够 |
-| deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词；GPT-Researcher 委托模式 |
-| Agent 记忆 | Memory as a Tool — remember/recall/forget 工具 | Letta + AgeMem(ACL 2026)；Agent 自主决定何时记忆/检索 |
-| 记忆 + RAG + 知识库统一 | V1.5 统一为 MemoryStore 接口 | crewAI 统一 Memory 类；RAG 引擎作为 knowledge scope 检索后端 |
-| 记忆压缩 | 三级管线：HeadAndTail → 去重清理 → Autocompact | 无损优先，有损最后；运维信息不能被摘要丢失 |
-| 记忆 scope | `system_id`，非 `user_id` | 记忆与系统相关、与用户无关；参考 crewAI scope path |
-| 文件式记忆 | 文件即真相，索引是派生 | 参考 Memory Kernel + Claude Code；pgvector/BM25 可从文件重建 |
-| Agent 写入 | 专用工具接口（`kb_create` 等） | 工具内嵌质量门 + 去重 + 索引重建 |
+| 网络搜索 | 私有部署优先，可选 SaaS 增强 | 数据不出域优先 |
+| deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词 |
+| Agent 记忆 | 记忆操作作为 Agent 工具 | Agent 自主决定何时记忆/检索 |
+| 记忆统一 | 记忆 + RAG + 知识库统一为一个架构 | L1 上下文 → L4 系统记忆 → Storage 知识库 |
+| 记忆压缩 | 无损优先，有损最后 | 运维信息不能被摘要丢失 |
+| 记忆 scope | 与系统相关，与用户无关 | scope = system_id |
+| 知识库组织 | 文件式 Markdown，索引是派生 | 文件即真相，可重建 |
+| RAG 检索 | BM25 为主，向量为补充 | BEIR 基准 + Claude Code 实证 |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
 | LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
 | 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测 |
