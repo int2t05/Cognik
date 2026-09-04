@@ -164,7 +164,7 @@ classDiagram
 
 - `LLMClient` / `EmbeddingClient`：OpenAI-compatible 实现，指数退避重试（maxRetries=3，429/503 可重试）
 - `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验
-- `StorageClient`：Local + MinIO 双实现（目录式），桶：`opsmind-documents` 文档 + `opsmind-published` 发布
+- `StorageClient`：Local + MinIO 双实现（目录式），桶：`opsmind-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
 
 ## 3. 前端架构
 
