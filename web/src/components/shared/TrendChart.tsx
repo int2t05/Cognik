@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { IconButton } from '@/components/ui/icon-button';
 import { Toggle } from '@/components/ui/toggle';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Search } from 'lucide-react';
 import { type TrendPoint } from '@/lib/api/dashboard';
 
 interface TrendChartProps {
@@ -98,7 +98,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             className="h-8 px-2 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
-          <IconButton variant="ghost" size="sm" onClick={applyCustom}>查询</IconButton>
+          <IconButton variant="ghost" size="sm" onClick={applyCustom}><Search size={14} />查询</IconButton>
         </div>
       </div>
       {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}
@@ -127,18 +127,18 @@ function Chart({ data }: { data: TrendPoint[] }) {
 
   return (
     <>
-      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-1 h-[200px] pb-1">
+      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-1 h-[200px] pb-1 min-w-0 overflow-hidden">
         {data.map((d) => (
           <div key={d.date} className="flex-1 flex flex-col items-center justify-end min-w-0">
-            <div className="flex gap-0.5 items-end h-[160px]">
+            <div className="flex gap-0.5 items-end h-[160px] w-full justify-center">
               <div
                 title={`${d.date} 申告: ${d.ticket_count}`}
-                className="w-3 rounded-t-sm bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
+                className="flex-1 max-w-3 rounded-t-sm bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
                 style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
               <div
                 title={`${d.date} 问答: ${d.chat_count}`}
-                className="w-3 rounded-t-sm bg-[var(--color-success)] opacity-70 min-h-0 transition-[height] duration-300"
+                className="flex-1 max-w-3 rounded-t-sm bg-[var(--color-success)] opacity-70 min-h-0 transition-[height] duration-300"
                 style={{ height: `${(d.chat_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
             </div>

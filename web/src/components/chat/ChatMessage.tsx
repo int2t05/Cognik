@@ -58,7 +58,7 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
         })}
 
         {/* 空消息 + streaming 时显示加载指示器 */}
-        {message.parts.length === 0 && isStreaming && (
+        {(message.parts?.length ?? 0) === 0 && isStreaming && (
           <span className="inline-flex items-center gap-1 text-[13px] text-[var(--color-text-muted-48)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" style={{ animationDelay: '200ms' }} />
