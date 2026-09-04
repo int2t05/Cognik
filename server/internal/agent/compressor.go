@@ -82,10 +82,13 @@ func (c *Compressor) Compress(ctx context.Context, messages []*schema.Message) [
 	// 级别 1: Tool Result Budget——单条 tool_result 超限截断为占位
 	messages = c.toolResultBudget(messages)
 
-	// 级别 2: Microcompact——按 tool_use ID 清理旧 tool_result（保留 tool_use 记录）
+	// 级别 2: Snip——消息级裁剪（token 超 50% 时丢弃最旧非系统消息）
+	messages = c.snip(messages)
+
+	// 级别 3: Microcompact——按 tool_use ID 清理旧 tool_result（保留 tool_use 记录）
 	messages = c.microcompact(messages)
 
-	// 级别 3: HeadAndTail——保留系统+最近窗口，中间 tool_result 截断
+	// 级别 4: HeadAndTail——保留系统+最近窗口，中间 tool_result 截断
 	messages = c.headAndTail(messages)
 
 	// 检查是否还需降量
@@ -121,7 +124,46 @@ func (c *Compressor) toolResultBudget(messages []*schema.Message) []*schema.Mess
 	return result
 }
 
-// microcompact 按 tool_use ID 清理旧 tool_result（级别 2）。
+// snip 消息级裁剪（级别 2）——token 超 50% 时丢弃最旧非系统消息。
+// 保留系统消息 + 最近窗口，中间最旧的消息直接移除（比 HeadAndTail 截断更激进）。
+func (c *Compressor) snip(messages []*schema.Message) []*schema.Message {
+	if len(messages) <= c.recentKeep+1 {
+		return messages
+	}
+	ratio := c.tokenRatio(messages)
+	if ratio < 0.50 {
+		return messages // token 未到 50%，不需要裁剪
+	}
+
+	// 系统消息边界
+	sysEnd := 0
+	for i, m := range messages {
+		if m.Role != schema.System {
+			break
+		}
+		sysEnd = i + 1
+	}
+
+	recentStart := len(messages) - c.recentKeep
+	if recentStart <= sysEnd {
+		return messages
+	}
+
+	// 丢弃中间区段最旧的 1/3 消息（保留剩余 2/3 供后续 HeadAndTail/Microcompact 处理）
+	middle := messages[sysEnd:recentStart]
+	dropCount := len(middle) / 3
+	if dropCount == 0 {
+		return messages
+	}
+
+	result := make([]*schema.Message, 0, len(messages)-dropCount)
+	result = append(result, messages[:sysEnd]...)
+	result = append(result, middle[dropCount:]...) // 丢弃最旧的 dropCount 条
+	result = append(result, messages[recentStart:]...)
+	return result
+}
+
+// microcompact 按 tool_use ID 清理旧 tool_result（级别 3）。
 // 保留最近 recentKeep 条消息中的 tool_result 完整，更早的 tool_result 清空内容但保留 tool_use 记录。
 // 模型仍知道调过什么工具，只是看不到旧结果——参考 Claude Code microCompact 思想。
 func (c *Compressor) microcompact(messages []*schema.Message) []*schema.Message {

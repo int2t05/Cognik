@@ -21,6 +21,7 @@ type IngestItem struct {
 	ArticleID int64      `json:"article_id"`
 	KBID      int64      `json:"kb_id"`
 	FilePath  string     `json:"file_path"`
+	Action    string     `json:"action"`      // create / update / delete
 	TS        time.Time `json:"ts"`
 	Status    string    `json:"status"`     // pending / processing / done
 	LeaseAt   *time.Time `json:"lease_at"`   // processing 时的租约时间

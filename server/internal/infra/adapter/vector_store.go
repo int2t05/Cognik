@@ -4,6 +4,7 @@ package adapter
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -164,6 +165,12 @@ func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) e
 
 // CosineSearch 使用 <=> 算子检索 topK 相似向量；1 - 距离 = 相似度分数。
 func (s *PgvectorStore) CosineSearch(ctx context.Context, kbID int64, embedding []float32, topK int) ([]SearchResult, error) {
+	return s.CosineSearchWithFilter(ctx, kbID, embedding, topK, nil)
+}
+
+// CosineSearchWithFilter 带 metadata 过滤的向量检索。
+// tags 为空时不加过滤；非空时用 JSONB ?| 操作符匹配任一标签。
+func (s *PgvectorStore) CosineSearchWithFilter(ctx context.Context, kbID int64, embedding []float32, topK int, tags []string) ([]SearchResult, error) {
 	if len(embedding) == 0 {
 		return nil, fmt.Errorf("embedding 为空，无法执行向量检索 (kb_id=%d)", kbID)
 	}
@@ -177,11 +184,18 @@ func (s *PgvectorStore) CosineSearch(ctx context.Context, kbID int64, embedding 
 		1 - (kc.embedding <=> $1::halfvec) AS score
 		FROM knowledge_chunks kc
 		JOIN knowledge_articles ka ON ka.id = kc.article_id
-		WHERE kc.kb_id = $2 AND ka.status = 4
-		ORDER BY kc.embedding <=> $1::halfvec
-		LIMIT $3`
+		WHERE kc.kb_id = $2 AND ka.status = 4`
+	args := []interface{}{float32ToPgVector(embedding), kbID}
 
-	rows, err := s.db.QueryContext(ctx, query, float32ToPgVector(embedding), kbID, topK)
+	if len(tags) > 0 {
+		tagsJSON, _ := json.Marshal(tags)
+		query += ` AND ka.tags ?| $3::jsonb`
+		args = append(args, string(tagsJSON))
+	}
+
+	query += ` ORDER BY kc.embedding <=> $1::halfvec LIMIT ` + fmt.Sprintf("%d", topK)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("向量检索失败 (kb_id=%d): %w", kbID, err)
 	}
