@@ -369,7 +369,7 @@ func wireApp() (*app, error) {
 	}
 	taskRegistry := agent.NewTaskRegistry()
 
-	// 上下文压缩器：三级管线（HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
+	// 上下文压缩器：五级管线（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
 	summarizeFn := func(ctx context.Context, msgs []*schema.Message) (string, error) {
 		m := agentModelFactory.GetModel()
 		if m == nil {
@@ -390,7 +390,7 @@ func wireApp() (*app, error) {
 
 	loop := agent.NewLoop(agentModelFactory.GetModel, registry, taskRegistry, 20, 3, systemPrompt, agent.WithCompressor(compressor))
 	agentRunner := agent.NewAgentRunner(loop)
-	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 三级上下文压缩）")
+	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 五级上下文压缩 + 记忆提取）")
 
 	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
 	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)
@@ -411,12 +411,30 @@ func wireApp() (*app, error) {
 	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
 	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
 
+	// 每轮提取 agent：对话轮结束后 fire-and-forget 提取运维经验写入 session 记忆。
+	extractMemories := agent.NewExtractMemoriesAgent(memoryStore, agentModelFactory.GetModel)
+	agentRunner.WithPostRunHook(func(ctx context.Context, sessionID string, messages []*schema.Message) {
+		_ = extractMemories.Extract(ctx, sessionID, messages)
+	})
+
+	// 跨会话复盘 agent：双门触发（24h + 5 会话）+ forked agent 合并去重。
+	autoDream := agent.NewAutoDream(filepath.Join(cfg.Memory.StorageRoot, "memory"), agentModelFactory.GetModel)
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			autoDream.MaybeConsolidate(context.Background())
+		}
+	}()
+
 	chatService := session.NewChatService(agentStore, agentRunner, genHub,
 		session.WithSessionEndHook(func(ctx context.Context, threadID int64) error {
+			// 会话结束触发复盘检查
+			go autoDream.MaybeConsolidate(context.Background())
 			return sessionExtractor.Extract(ctx, threadID)
 		}),
 	)
-	slog.Info("ChatService 已初始化（含会话记忆提取钩子）")
+	slog.Info("ChatService 已初始化（含会话记忆提取 + 跨会话复盘）")
 
 	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)

@@ -114,7 +114,7 @@ func (t *MemoryTool) doRemember(ctx context.Context, p memoryParams) (string, er
 	if p.Key == "" {
 		return "", fmt.Errorf("key is required for action=remember")
 	}
-	key, err := t.store.Remember(ctx, p.Text, p.Scope, p.Key, p.Importance, "")
+	key, err := t.store.Remember(ctx, p.Text, p.Scope, p.Key, p.Importance, agent.SessionIDFromCtx(ctx))
 	if err != nil {
 		return "", fmt.Errorf("写入记忆失败: %w", err)
 	}
@@ -129,7 +129,7 @@ func (t *MemoryTool) doRecall(ctx context.Context, p memoryParams) (string, erro
 	if limit <= 0 {
 		limit = 5
 	}
-	entries, err := t.store.Recall(ctx, p.Query, p.Scope, limit, "")
+	entries, err := t.store.Recall(ctx, p.Query, p.Scope, limit, agent.SessionIDFromCtx(ctx))
 	if err != nil {
 		return "", fmt.Errorf("检索记忆失败: %w", err)
 	}
@@ -147,7 +147,7 @@ func (t *MemoryTool) doForget(ctx context.Context, p memoryParams) (string, erro
 	if p.Key == "" {
 		return "", fmt.Errorf("key is required for action=forget")
 	}
-	if err := t.store.Forget(ctx, p.Scope, p.Key, ""); err != nil {
+	if err := t.store.Forget(ctx, p.Scope, p.Key, agent.SessionIDFromCtx(ctx)); err != nil {
 		return "", fmt.Errorf("标记失效失败: %w", err)
 	}
 	return fmt.Sprintf("记忆已标记失效（scope=%s, key=%s）", p.Scope, p.Key), nil
@@ -160,14 +160,14 @@ func (t *MemoryTool) doUpdate(ctx context.Context, p memoryParams) (string, erro
 	if strings.TrimSpace(p.Text) == "" {
 		return "", fmt.Errorf("text is required for action=update")
 	}
-	if err := t.store.Update(ctx, p.Scope, p.Key, p.Text, ""); err != nil {
+	if err := t.store.Update(ctx, p.Scope, p.Key, p.Text, agent.SessionIDFromCtx(ctx)); err != nil {
 		return "", fmt.Errorf("更新记忆失败: %w", err)
 	}
 	return fmt.Sprintf("记忆已更新（scope=%s, key=%s）", p.Scope, p.Key), nil
 }
 
 func (t *MemoryTool) doList(ctx context.Context, p memoryParams) (string, error) {
-	items, err := t.store.List(ctx, p.Scope, "")
+	items, err := t.store.List(ctx, p.Scope, agent.SessionIDFromCtx(ctx))
 	if err != nil {
 		return "", fmt.Errorf("列出记忆失败: %w", err)
 	}

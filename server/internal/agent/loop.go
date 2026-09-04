@@ -97,7 +97,7 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 			return "", err
 		}
 
-		// 上下文压缩：每步 LLM 调用前对消息历史执行三级压缩（HeadAndTail → 去重 → Autocompact）。
+		// 上下文压缩：每步 LLM 调用前对消息历史执行五级压缩（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact）。
 		if l.compressor != nil {
 			messages = l.compressor.Compress(ctx, messages)
 		}
