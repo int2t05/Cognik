@@ -18,11 +18,12 @@ type Deps struct {
 	MaxBytes      int64
 	SearchChain   *adapter.SearchChain  // 可选：nil 则不注册 web_search
 	FetchChain    *adapter.FetchChain   // 可选：nil 则不注册 web_fetch
-	ArticleWriter ArticleWriter         // 可选：nil 则不注册 generate_article
+	KBStore       KBStore                // 可选：nil 则不注册 kb（知识库 CRUD+检索）
+	MemoryStore   MemoryStore            // 可选：nil 则不注册 memory
 }
 
 // Build 装配所有工具，返回 []agent.Tool。
-// web 工具条件注册（依赖注入时才加入），OS 工具始终注册。
+// web/kb/memory 工具条件注册（依赖注入时才加入），OS 工具始终注册。
 func Build(deps Deps) []agent.Tool {
 	tools := []agent.Tool{
 		NewBashTool(deps.WorkDir, deps.Timeout, deps.MaxBytes),
@@ -40,8 +41,11 @@ func Build(deps Deps) []agent.Tool {
 	if deps.FetchChain != nil {
 		tools = append(tools, NewWebFetchTool(deps.FetchChain, deps.MaxBytes))
 	}
-	if deps.ArticleWriter != nil {
-		tools = append(tools, NewGenerateArticleTool(deps.ArticleWriter))
+	if deps.KBStore != nil {
+		tools = append(tools, NewKBTool(deps.KBStore))
+	}
+	if deps.MemoryStore != nil {
+		tools = append(tools, NewMemoryTool(deps.MemoryStore))
 	}
 	return tools
 }

@@ -1,0 +1,271 @@
+// Package tools 提供 Agent 内置工具集。
+//
+// kb.go：知识库文章工具（SyncTool）。action 参数区分 6 操作：
+// search/get/list/create/update/delete。检索封装纯检索原语（无 query_rewrite/multi_route）。
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"opsmind/internal/agent"
+
+	"github.com/cloudwego/eino/schema"
+)
+
+// KBFilter 知识库检索/列表过滤条件（frontmatter 元数据预过滤）。
+type KBFilter struct {
+	Type string   // runbook/architecture/sop/postmortem/cve
+	Tags []string // 多维度标签
+}
+
+// KBEntry 知识库检索结果（chunk 粒度）。
+type KBEntry struct {
+	Content  string            `json:"content"`  // chunk 正文
+	Score    float64           `json:"score"`    // 相关度
+	Source   string            `json:"source"`   // 文件路径（引用追踪）
+	Metadata map[string]any    `json:"metadata"` // frontmatter 元数据
+}
+
+// KBArticle 完整文章（get 返回）。
+type KBArticle struct {
+	Frontmatter map[string]any `json:"frontmatter"` // frontmatter 元数据
+	Content     string         `json:"content"`     // Markdown 正文
+	FilePath    string         `json:"file_path"`   // 文件路径
+}
+
+// KBListItem 文章列表条目（仅标题，不返回全文）。
+type KBListItem struct {
+	Slug     string   `json:"slug"`
+	Title    string   `json:"title"`
+	Type     string   `json:"type"`
+	Tags     []string `json:"tags"`
+}
+
+// KBCreateParams 新建文章参数。
+type KBCreateParams struct {
+	KBID     int64
+	Title    string
+	Content  string   // Markdown 正文
+	Type     string   // runbook/architecture/sop/postmortem/cve
+	Tags     []string
+	Sources  []KBSource
+	System   string
+	Severity string
+}
+
+// KBSource 引用来源（Agent 生成时必填）。
+type KBSource struct {
+	URL   string `json:"url"`
+	Title string `json:"title"`
+}
+
+// KBUpdateFields 更新文章字段（零值字段不更新）。
+type KBUpdateFields struct {
+	Title   *string
+	Content *string
+	Type    *string
+	Tags    []string
+}
+
+// KBStore 知识库文章存储抽象（CRUD + 检索）。
+// 实现包装 KnowledgeService（CRUD）与 RAG 引擎检索步骤（search）。
+type KBStore interface {
+	// Search 检索文章（BM25+pgvector→RRF→rerank，返回 chunks）。
+	Search(ctx context.Context, query string, kbID int64, limit int, filter KBFilter) ([]KBEntry, error)
+	// Get 按 slug 或 article_id 读完整文章 + frontmatter。
+	Get(ctx context.Context, kbID int64, slug string, articleID int64) (*KBArticle, error)
+	// List 列出文章标题列表（按 type/tags 过滤，不返回全文）。
+	List(ctx context.Context, kbID int64, filter KBFilter) ([]KBListItem, error)
+	// Create 新建 Draft 文章（质量门 + frontmatter 生成）。
+	Create(ctx context.Context, params KBCreateParams) (slug string, err error)
+	// Update 更新文章内容/frontmatter（增量 re-index）。
+	Update(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error
+	// Delete 删文章 + 清理 pgvector/BM25 索引。
+	Delete(ctx context.Context, kbID int64, slug string, articleID int64) error
+}
+
+// KBTool 知识库文章工具（实现 agent.SyncTool）。
+type KBTool struct {
+	store KBStore
+}
+
+// NewKBTool 创建知识库工具。
+func NewKBTool(store KBStore) *KBTool {
+	return &KBTool{store: store}
+}
+
+// Info 返回工具元信息。
+func (t *KBTool) Info() *schema.ToolInfo {
+	return &schema.ToolInfo{
+		Name: "kb",
+		Desc: "Knowledge base article operations. action: search (RAG retrieve chunks), get (read full article by slug or article_id), list (list titles by type/tags), create (new draft + quality gate), update (edit + re-index), delete (remove + cleanup index).",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"action":     {Type: schema.String, Desc: "search/get/list/create/update/delete", Required: true},
+			"kb_id":      {Type: schema.Integer, Desc: "Target knowledge base ID", Required: true},
+			"query":      {Type: schema.String, Desc: "Search query (action=search)"},
+			"slug":       {Type: schema.String, Desc: "Article slug (action=get/update/delete)"},
+			"article_id": {Type: schema.Integer, Desc: "Article ID (alternative to slug)"},
+			"title":      {Type: schema.String, Desc: "Article title (action=create/update)"},
+			"content":    {Type: schema.String, Desc: "Markdown body (action=create/update)"},
+			"type":       {Type: schema.String, Desc: "runbook/architecture/sop/postmortem/cve (action=create/update)"},
+			"tags":       {Type: schema.Array, Desc: "Tag list"},
+			"limit":      {Type: schema.Integer, Desc: "Max results (default 5, action=search/list)"},
+		}),
+	}
+}
+
+// kbParams kb 工具参数。
+type kbParams struct {
+	Action    string     `json:"action"`
+	KBID      int64      `json:"kb_id"`
+	Query     string     `json:"query,omitempty"`
+	Slug      string     `json:"slug,omitempty"`
+	ArticleID int64      `json:"article_id,omitempty"`
+	Title     string     `json:"title,omitempty"`
+	Content   string     `json:"content,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	Tags      []string   `json:"tags,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+}
+
+// Call 按 action 路由到 KBStore 方法。
+func (t *KBTool) Call(ctx context.Context, args string, emit agent.EventSink) (string, error) {
+	var p kbParams
+	if err := json.Unmarshal([]byte(args), &p); err != nil {
+		return "", fmt.Errorf("invalid args: %w", err)
+	}
+	if p.KBID <= 0 {
+		return "", fmt.Errorf("kb_id is required")
+	}
+
+	switch p.Action {
+	case "search":
+		return t.doSearch(ctx, p)
+	case "get":
+		return t.doGet(ctx, p)
+	case "list":
+		return t.doList(ctx, p)
+	case "create":
+		return t.doCreate(ctx, p)
+	case "update":
+		return t.doUpdate(ctx, p)
+	case "delete":
+		return t.doDelete(ctx, p)
+	default:
+		return "", fmt.Errorf("unknown action: %s", p.Action)
+	}
+}
+
+func (t *KBTool) doSearch(ctx context.Context, p kbParams) (string, error) {
+	if strings.TrimSpace(p.Query) == "" {
+		return "", fmt.Errorf("query is required for action=search")
+	}
+	limit := p.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+	entries, err := t.store.Search(ctx, p.Query, p.KBID, limit, KBFilter{Type: p.Type, Tags: p.Tags})
+	if err != nil {
+		return "", fmt.Errorf("检索失败: %w", err)
+	}
+	if len(entries) == 0 {
+		return "无检索结果", nil
+	}
+	var sb strings.Builder
+	for i, e := range entries {
+		fmt.Fprintf(&sb, "[%d] score=%.3f\n    %s\n    来源: %s\n", i+1, e.Score, e.Content, e.Source)
+	}
+	return strings.TrimSpace(sb.String()), nil
+}
+
+func (t *KBTool) doGet(ctx context.Context, p kbParams) (string, error) {
+	if p.Slug == "" && p.ArticleID <= 0 {
+		return "", fmt.Errorf("slug 或 article_id is required for action=get")
+	}
+	article, err := t.store.Get(ctx, p.KBID, p.Slug, p.ArticleID)
+	if err != nil {
+		return "", fmt.Errorf("读取文章失败: %w", err)
+	}
+	var sb strings.Builder
+	if len(article.Frontmatter) > 0 {
+		sb.WriteString("---\n")
+		for k, v := range article.Frontmatter {
+			fmt.Fprintf(&sb, "%s: %v\n", k, v)
+		}
+		sb.WriteString("---\n\n")
+	}
+	sb.WriteString(article.Content)
+	return sb.String(), nil
+}
+
+func (t *KBTool) doList(ctx context.Context, p kbParams) (string, error) {
+	items, err := t.store.List(ctx, p.KBID, KBFilter{Type: p.Type, Tags: p.Tags})
+	if err != nil {
+		return "", fmt.Errorf("列出文章失败: %w", err)
+	}
+	if len(items) == 0 {
+		return "无文章", nil
+	}
+	var sb strings.Builder
+	for i, item := range items {
+		fmt.Fprintf(&sb, "[%d] %s (%s) slug=%s\n", i+1, item.Title, item.Type, item.Slug)
+	}
+	return strings.TrimSpace(sb.String()), nil
+}
+
+func (t *KBTool) doCreate(ctx context.Context, p kbParams) (string, error) {
+	if strings.TrimSpace(p.Title) == "" {
+		return "", fmt.Errorf("title is required for action=create")
+	}
+	if strings.TrimSpace(p.Content) == "" {
+		return "", fmt.Errorf("content is required for action=create")
+	}
+	if p.Type == "" {
+		return "", fmt.Errorf("type is required for action=create")
+	}
+	slug, err := t.store.Create(ctx, KBCreateParams{
+		KBID:    p.KBID,
+		Title:   p.Title,
+		Content: p.Content,
+		Type:    p.Type,
+		Tags:    p.Tags,
+	})
+	if err != nil {
+		return "", fmt.Errorf("创建文章失败: %w", err)
+	}
+	return fmt.Sprintf("文章已写入知识库（slug: %s，Draft 状态，待人工审核后 Published 进 RAG）", slug), nil
+}
+
+func (t *KBTool) doUpdate(ctx context.Context, p kbParams) (string, error) {
+	if p.Slug == "" && p.ArticleID <= 0 {
+		return "", fmt.Errorf("slug 或 article_id is required for action=update")
+	}
+	fields := KBUpdateFields{}
+	if p.Title != "" {
+		fields.Title = &p.Title
+	}
+	if p.Content != "" {
+		fields.Content = &p.Content
+	}
+	if p.Type != "" {
+		fields.Type = &p.Type
+	}
+	fields.Tags = p.Tags
+	if err := t.store.Update(ctx, p.KBID, p.Slug, p.ArticleID, fields); err != nil {
+		return "", fmt.Errorf("更新文章失败: %w", err)
+	}
+	return "文章已更新（增量 re-index）", nil
+}
+
+func (t *KBTool) doDelete(ctx context.Context, p kbParams) (string, error) {
+	if p.Slug == "" && p.ArticleID <= 0 {
+		return "", fmt.Errorf("slug 或 article_id is required for action=delete")
+	}
+	if err := t.store.Delete(ctx, p.KBID, p.Slug, p.ArticleID); err != nil {
+		return "", fmt.Errorf("删除文章失败: %w", err)
+	}
+	return "文章已删除（索引已清理）", nil
+}

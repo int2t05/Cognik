@@ -33,12 +33,21 @@ type Loop struct {
 	maxConsecutiveDispatch int
 	instruction            string             // 系统提示词（Run 时 prepend 为 SystemMessage）
 	toolInfos              []*schema.ToolInfo // 从 registry 提取，绑给 LLM
+	compressor             *Compressor        // 上下文压缩器（nil 时不压缩）
+}
+
+// LoopOption Loop 函数选项。
+type LoopOption func(*Loop)
+
+// WithCompressor 注入上下文压缩器。
+func WithCompressor(c *Compressor) LoopOption {
+	return func(l *Loop) { l.compressor = c }
 }
 
 // NewLoop 创建循环。
 // modelGetter 动态获取 ChatModel（热切换时返回新实例）；maxStep<=0 用默认值。
 // instruction 为系统提示词，Run 时 prepend 为首条 SystemMessage。
-func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskRegistry *TaskRegistry, maxStep, maxConsecutiveDispatch int, instruction string) *Loop {
+func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskRegistry *TaskRegistry, maxStep, maxConsecutiveDispatch int, instruction string, opts ...LoopOption) *Loop {
 	if maxStep <= 0 {
 		maxStep = defaultMaxStep
 	}
@@ -52,7 +61,7 @@ func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskR
 			toolInfos = append(toolInfos, info)
 		}
 	}
-	return &Loop{
+	l := &Loop{
 		modelGetter:            modelGetter,
 		registry:               registry,
 		taskRegistry:           taskRegistry,
@@ -61,6 +70,10 @@ func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskR
 		instruction:            instruction,
 		toolInfos:              toolInfos,
 	}
+	for _, opt := range opts {
+		opt(l)
+	}
+	return l
 }
 
 // Run 执行 ReAct 循环，emit 推流式事件，返回最终回答。
@@ -82,6 +95,11 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 	for step := 0; step < l.maxStep; step++ {
 		if err := ctx.Err(); err != nil {
 			return "", err
+		}
+
+		// 上下文压缩：每步 LLM 调用前对消息历史执行三级压缩（HeadAndTail → 去重 → Autocompact）。
+		if l.compressor != nil {
+			messages = l.compressor.Compress(ctx, messages)
 		}
 
 		msg, err := l.drainModelStream(ctx, messages, emit)

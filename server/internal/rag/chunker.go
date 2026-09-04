@@ -35,6 +35,8 @@ func NewChunker(chunkSize, chunkOverlap int) *Chunker {
 	return &Chunker{ChunkSize: chunkSize, ChunkOverlap: chunkOverlap}
 }
 
+// Split 将文本分块。先按 Markdown 标题边界切分（保留结构），超长 section 走递归字符分割。
+// 分隔符优先级：\n\n → \n → 句号 → … → 空串（rune 滑动窗口）。
 func (c *Chunker) Split(text string) []string {
 	if len(text) == 0 {
 		return nil
@@ -43,8 +45,21 @@ func (c *Chunker) Split(text string) []string {
 	if utf8.RuneCountInString(text) <= c.ChunkSize {
 		return []string{text}
 	}
-	splits := c.splitText(text, separators)
-	chunks := c.mergeSplits(splits)
+	// 先按 Markdown 标题切分，每个 section 带父标题上下文
+	sections := splitByMarkdownHeadings(text)
+	var chunks []string
+	for _, sec := range sections {
+		if utf8.RuneCountInString(sec.content) <= c.ChunkSize {
+			chunks = append(chunks, sec.contextualized())
+			continue
+		}
+		// 超长 section 走递归字符分割，保留父标题上下文 prepend
+		splits := c.splitText(sec.content, separators)
+		merged := c.mergeSplits(splits)
+		for _, m := range merged {
+			chunks = append(chunks, sec.prependContext(m))
+		}
+	}
 	return c.addOverlap(chunks)
 }
 
@@ -184,32 +199,133 @@ func head(runes []rune, n int) string {
 }
 
 // =============================================================================
-// normalizeText
+// Markdown 标题感知分块
 // =============================================================================
 
+// markdownSection Markdown 文档的一个标题段落，携带父标题路径作为上下文。
+type markdownSection struct {
+	headings []string // 父标题路径（如 ["# PostgreSQL 高 CPU", "## 排查步骤"]）
+	content  string   // 段落正文（不含标题行）
+}
+
+// contextualized 将 headings + content 拼接为完整文本（短 section 直接返回）。
+func (s markdownSection) contextualized() string {
+	if len(s.headings) == 0 {
+		return s.content
+	}
+	return strings.Join(s.headings, "\n") + "\n" + s.content
+}
+
+// prependContext 将父标题路径 prepend 到 chunk 前，保留结构上下文。
+func (s markdownSection) prependContext(chunk string) string {
+	if len(s.headings) == 0 {
+		return chunk
+	}
+	return strings.Join(s.headings, "\n") + "\n" + chunk
+}
+
+// splitByMarkdownHeadings 按 # / ## / ### 标题行切分文档，每个 section 携带父标题路径。
+// 无标题的文档返回单个 section（headings 为空）。
+func splitByMarkdownHeadings(text string) []markdownSection {
+	lines := strings.Split(text, "\n")
+	var sections []markdownSection
+	var headings []string
+	var content []string
+
+	flush := func() {
+		if len(content) == 0 && len(sections) > 0 {
+			return
+		}
+		sections = append(sections, markdownSection{
+			headings: append([]string{}, headings...),
+			content:  strings.TrimSpace(strings.Join(content, "\n")),
+		})
+		content = nil
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isMarkdownHeading(trimmed) {
+			flush()
+			level := headingLevel(trimmed)
+			title := strings.TrimSpace(trimmed[level:])
+			// 标题路径截断到当前层级（# 是 level 1，## 是 level 2）
+			if level <= len(headings) {
+				headings = headings[:level-1]
+			}
+			headings = append(headings, strings.Repeat("#", level)+" "+title)
+		} else {
+			content = append(content, line)
+		}
+	}
+	flush()
+
+	if len(sections) == 0 {
+		return []markdownSection{{content: text}}
+	}
+	return sections
+}
+
+// isMarkdownHeading 判断一行是否是 Markdown 标题（1-6 个 # 开头，后跟空格）。
+func isMarkdownHeading(line string) bool {
+	if line == "" || !strings.HasPrefix(line, "#") {
+		return false
+	}
+	return headingLevel(line) > 0
+}
+
+// headingLevel 返回标题层级（1-6），非标题返回 0。
+func headingLevel(line string) int {
+	level := 0
+	for _, c := range line {
+		if c == '#' {
+			level++
+			if level > 6 {
+				return 0
+			}
+		} else {
+			break
+		}
+	}
+	if level == 0 || level > len(line) || line[level] != ' ' {
+		return 0
+	}
+	return level
+}
+
+// normalizeText 预处理文本：CRLF 归一化、压缩多余空行、全角转半角。
+// 保留代码块缩进——围栏 ``` 内不做行内空白压缩，避免破坏代码语义。
 func normalizeText(text string) string {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
+	// 仅压缩 3+ 连续换行为 2 个，保留标题层级间的段落分隔
 	for strings.Contains(text, "\n\n\n") {
 		text = strings.ReplaceAll(text, "\n\n\n", "\n\n")
 	}
+
 	lines := strings.Split(text, "\n")
+	inCodeBlock := false
 	for i, line := range lines {
-		if f := strings.Fields(line); len(f) > 0 {
-			lines[i] = strings.Join(f, " ")
-		} else {
-			lines[i] = ""
+		trimmed := strings.TrimSpace(line)
+		// 检测围栏代码块开关（``` 或 ~~~）
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inCodeBlock = !inCodeBlock
+			continue
 		}
-	}
-	text = strings.Join(lines, "\n")
-	runes := []rune(text)
-	for i, r := range runes {
-		switch {
-		case r == '　':
-			runes[i] = ' '
-		case r >= '！' && r <= '～':
-			runes[i] = r - 0xFEE0
+		if inCodeBlock {
+			continue // 代码块内保留原样（含缩进）
 		}
+		// 代码块外：全角 CJK 标点转半角（BM25 精确匹配用）
+		runes := []rune(line)
+		for j, r := range runes {
+			switch {
+			case r == '　':
+				runes[j] = ' '
+			case r >= '！' && r <= '～':
+				runes[j] = r - 0xFEE0
+			}
+		}
+		lines[i] = string(runes)
 	}
-	return strings.TrimSpace(string(runes))
+	return strings.TrimSpace(strings.Join(lines, "\n"))
 }

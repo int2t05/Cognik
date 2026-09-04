@@ -10,25 +10,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/eino/components/tool"
+	"opsmind/internal/agent"
 	agenttools "opsmind/internal/agent/tools"
 )
 
-// newToolFactory 创建临时 workDir 的测试工厂。
-func newToolFactory(t *testing.T) (*agenttools.ToolFactory, string) {
+// newWorkDir 创建临时 workDir（替代废弃的 ToolFactory）。
+func newWorkDir(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	return agenttools.NewToolFactory(dir, 5*time.Second, 64*1024), dir
+	return t.TempDir()
 }
 
-// runInvokable 辅助调用 InvokableTool.Run（成功路径）。
-func runInvokable(t *testing.T, it interface {
-	InvokableRun(ctx context.Context, argsJSON string, opts ...tool.Option) (string, error)
-}, args string) string {
+// runSyncTool 辅助调用 SyncTool.Call（成功路径）。
+func runSyncTool(t *testing.T, tool agent.SyncTool, args string) string {
 	t.Helper()
-	out, err := it.InvokableRun(context.Background(), args)
+	out, err := tool.Call(context.Background(), args, nil)
 	if err != nil {
-		t.Fatalf("InvokableRun error: %v", err)
+		t.Fatalf("Call error: %v", err)
 	}
 	return out
 }
@@ -36,11 +33,11 @@ func runInvokable(t *testing.T, it interface {
 // --- read_file ---
 
 func TestReadFile_LineNumbersAndOffset(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("line1\nline2\nline3\nline4\nline5\n"), 0644)
 
 	rf := agenttools.NewReadFileTool(dir, 64*1024)
-	out := runInvokable(t, rf, `{"path":"a.txt","offset":2,"limit":2}`)
+	out := runSyncTool(t, rf, `{"path":"a.txt","offset":2,"limit":2}`)
 	if !strings.Contains(out, "     2\tline2") {
 		t.Errorf("应含行号 2 + line2，得到:\n%s", out)
 	}
@@ -56,19 +53,19 @@ func TestReadFile_LineNumbersAndOffset(t *testing.T) {
 }
 
 func TestReadFile_EmptyFile(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "empty.txt"), []byte(""), 0644)
 	rf := agenttools.NewReadFileTool(dir, 64*1024)
-	out := runInvokable(t, rf, `{"path":"empty.txt"}`)
+	out := runSyncTool(t, rf, `{"path":"empty.txt"}`)
 	if !strings.Contains(out, "no content") {
 		t.Errorf("空文件应返回 no content 提示，得到:\n%s", out)
 	}
 }
 
 func TestReadFile_PathTraversalBlocked(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	rf := agenttools.NewReadFileTool(dir, 64*1024)
-	_, err := rf.InvokableRun(context.Background(), `{"path":"../../../etc/passwd"}`)
+	_, err := rf.Call(context.Background(), `{"path":"../../../etc/passwd"}`, nil)
 	if err == nil {
 		t.Fatal("路径穿越应被拒绝")
 	}
@@ -77,9 +74,9 @@ func TestReadFile_PathTraversalBlocked(t *testing.T) {
 // --- write_file ---
 
 func TestWriteFile_Overwrite(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	wf := agenttools.NewWriteFileTool(dir, 64*1024)
-	out := runInvokable(t, wf, `{"path":"f.txt","content":"hello"}`)
+	out := runSyncTool(t, wf, `{"path":"f.txt","content":"hello"}`)
 	if !strings.Contains(out, "wrote") {
 		t.Errorf("应返回 wrote，得到: %s", out)
 	}
@@ -87,7 +84,7 @@ func TestWriteFile_Overwrite(t *testing.T) {
 	if string(data) != "hello" {
 		t.Errorf("文件内容应为 hello，得到 %s", data)
 	}
-	runInvokable(t, wf, `{"path":"f.txt","content":"world"}`)
+	runSyncTool(t, wf, `{"path":"f.txt","content":"world"}`)
 	data, _ = os.ReadFile(filepath.Join(dir, "f.txt"))
 	if string(data) != "world" {
 		t.Errorf("覆盖后应为 world，得到 %s", data)
@@ -95,10 +92,10 @@ func TestWriteFile_Overwrite(t *testing.T) {
 }
 
 func TestWriteFile_Append(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	wf := agenttools.NewWriteFileTool(dir, 64*1024)
-	runInvokable(t, wf, `{"path":"log.txt","content":"line1\n"}`)
-	out := runInvokable(t, wf, `{"path":"log.txt","content":"line2\n","mode":"append"}`)
+	runSyncTool(t, wf, `{"path":"log.txt","content":"line1\n"}`)
+	out := runSyncTool(t, wf, `{"path":"log.txt","content":"line2\n","mode":"append"}`)
 	if !strings.Contains(out, "appended") {
 		t.Errorf("应返回 appended，得到: %s", out)
 	}
@@ -109,9 +106,9 @@ func TestWriteFile_Append(t *testing.T) {
 }
 
 func TestWriteFile_AppendCreateIfMissing(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	wf := agenttools.NewWriteFileTool(dir, 64*1024)
-	out := runInvokable(t, wf, `{"path":"new.txt","content":"first","mode":"append"}`)
+	out := runSyncTool(t, wf, `{"path":"new.txt","content":"first","mode":"append"}`)
 	if !strings.Contains(out, "appended") {
 		t.Errorf("append 模式文件不存在应创建，得到: %s", out)
 	}
@@ -122,9 +119,9 @@ func TestWriteFile_AppendCreateIfMissing(t *testing.T) {
 }
 
 func TestWriteFile_ParentDirCreated(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	wf := agenttools.NewWriteFileTool(dir, 64*1024)
-	runInvokable(t, wf, `{"path":"sub/dir/f.txt","content":"x"}`)
+	runSyncTool(t, wf, `{"path":"sub/dir/f.txt","content":"x"}`)
 	data, _ := os.ReadFile(filepath.Join(dir, "sub", "dir", "f.txt"))
 	if string(data) != "x" {
 		t.Errorf("应自动创建父目录，得到 %s", data)
@@ -134,12 +131,12 @@ func TestWriteFile_ParentDirCreated(t *testing.T) {
 // --- edit_file ---
 
 func TestEditFile_StrReplace(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	p := filepath.Join(dir, "e.txt")
 	os.WriteFile(p, []byte("foo bar baz"), 0644)
 
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	out := runInvokable(t, ef, `{"path":"e.txt","old_string":"bar","new_string":"QUX"}`)
+	out := runSyncTool(t, ef, `{"path":"e.txt","old_string":"bar","new_string":"QUX"}`)
 	if !strings.Contains(out, "replaced 1") {
 		t.Errorf("应替换 1 处，得到: %s", out)
 	}
@@ -150,12 +147,12 @@ func TestEditFile_StrReplace(t *testing.T) {
 }
 
 func TestEditFile_DeleteByEmptyNew(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	p := filepath.Join(dir, "e.txt")
 	os.WriteFile(p, []byte("keep remove keep"), 0644)
 
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	runInvokable(t, ef, `{"path":"e.txt","old_string":"remove ","new_string":""}`)
+	runSyncTool(t, ef, `{"path":"e.txt","old_string":"remove ","new_string":""}`)
 	data, _ := os.ReadFile(p)
 	if string(data) != "keep keep" {
 		t.Errorf("删除后应为 keep keep，得到 %s", data)
@@ -163,12 +160,12 @@ func TestEditFile_DeleteByEmptyNew(t *testing.T) {
 }
 
 func TestEditFile_ReplaceAll(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	p := filepath.Join(dir, "e.txt")
 	os.WriteFile(p, []byte("x x x"), 0644)
 
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	out := runInvokable(t, ef, `{"path":"e.txt","old_string":"x","new_string":"y","replace_all":true}`)
+	out := runSyncTool(t, ef, `{"path":"e.txt","old_string":"x","new_string":"y","replace_all":true}`)
 	if !strings.Contains(out, "replaced 3") {
 		t.Errorf("应替换 3 处，得到: %s", out)
 	}
@@ -179,41 +176,40 @@ func TestEditFile_ReplaceAll(t *testing.T) {
 }
 
 func TestEditFile_AmbiguousNoReplaceAll(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	p := filepath.Join(dir, "e.txt")
 	os.WriteFile(p, []byte("dup dup"), 0644)
 
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	_, err := ef.InvokableRun(context.Background(), `{"path":"e.txt","old_string":"dup","new_string":"z"}`)
+	_, err := ef.Call(context.Background(), `{"path":"e.txt","old_string":"dup","new_string":"z"}`, nil)
 	if err == nil || !strings.Contains(err.Error(), "appears 2 times") {
 		t.Fatalf("多处匹配无 replace_all 应报错，得到: %v", err)
 	}
 }
 
 func TestEditFile_NotFoundFeedback(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	p := filepath.Join(dir, "e.txt")
 	os.WriteFile(p, []byte("line1\nline2\nline3\n"), 0644)
 
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	_, err := ef.InvokableRun(context.Background(), `{"path":"e.txt","old_string":"nonexistent","new_string":"x"}`)
+	_, err := ef.Call(context.Background(), `{"path":"e.txt","old_string":"nonexistent","new_string":"x"}`, nil)
 	if err == nil {
 		t.Fatal("未匹配应报错")
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Errorf("错误应含 not found，得到: %v", err)
 	}
-	// Aider 风格：未匹配时应返回文件内容/邻近行上下文（小文件返回全文，大文件返回 Nearby 片段）
 	if !strings.Contains(err.Error(), "line2") {
 		t.Errorf("错误应含文件内容上下文(line2)，得到: %v", err)
 	}
 }
 
 func TestEditFile_NewStringMustDiffer(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "e.txt"), []byte("same"), 0644)
 	ef := agenttools.NewEditFileTool(dir, 64*1024)
-	_, err := ef.InvokableRun(context.Background(), `{"path":"e.txt","old_string":"same","new_string":"same"}`)
+	_, err := ef.Call(context.Background(), `{"path":"e.txt","old_string":"same","new_string":"same"}`, nil)
 	if err == nil || !strings.Contains(err.Error(), "must differ") {
 		t.Fatalf("相同 old/new 应报错，得到: %v", err)
 	}
@@ -222,9 +218,9 @@ func TestEditFile_NewStringMustDiffer(t *testing.T) {
 // --- bash ---
 
 func TestBash_Success(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	b := agenttools.NewBashTool(dir, 5*time.Second, 64*1024)
-	out := runInvokable(t, b, `{"command":"echo hello","description":"test echo"}`)
+	out := runSyncTool(t, b, `{"command":"echo hello","description":"test echo"}`)
 	if !strings.Contains(out, "exit_code=0") {
 		t.Errorf("应 exit_code=0，得到: %s", out)
 	}
@@ -234,19 +230,18 @@ func TestBash_Success(t *testing.T) {
 }
 
 func TestBash_NonZeroExit(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	b := agenttools.NewBashTool(dir, 5*time.Second, 64*1024)
-	out := runInvokable(t, b, `{"command":"exit 3","description":"test exit"}`)
+	out := runSyncTool(t, b, `{"command":"exit 3","description":"test exit"}`)
 	if !strings.Contains(out, "exit_code=3") {
 		t.Errorf("应 exit_code=3，得到: %s", out)
 	}
 }
 
 func TestBash_WorkDirSandbox(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	b := agenttools.NewBashTool(dir, 5*time.Second, 64*1024)
-	// bash 在 workDir 内执行：写一个文件，从 Go 侧验证它出现在 workDir
-	out := runInvokable(t, b, `{"command":"echo sandbox > probe.txt","description":"write probe"}`)
+	out := runSyncTool(t, b, `{"command":"echo sandbox > probe.txt","description":"write probe"}`)
 	if !strings.Contains(out, "exit_code=0") {
 		t.Errorf("应 exit_code=0，得到: %s", out)
 	}
@@ -260,9 +255,9 @@ func TestBash_WorkDirSandbox(t *testing.T) {
 }
 
 func TestBash_Timeout(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	b := agenttools.NewBashTool(dir, 200*time.Millisecond, 64*1024)
-	out := runInvokable(t, b, `{"command":"sleep 5","description":"test timeout"}`)
+	out := runSyncTool(t, b, `{"command":"sleep 5","description":"test timeout"}`)
 	if !strings.Contains(out, "timeout") {
 		t.Errorf("超时应返回 timeout 提示，得到: %s", out)
 	}
@@ -271,20 +266,19 @@ func TestBash_Timeout(t *testing.T) {
 // --- list_dir ---
 
 func TestListDir_Entries(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
 	os.WriteFile(filepath.Join(dir, "b.go"), []byte("b"), 0644)
 	os.Mkdir(filepath.Join(dir, "sub"), 0755)
 
 	ld := agenttools.NewListDirTool(dir, 64*1024)
-	out := runInvokable(t, ld, `{"path":"."}`)
+	out := runSyncTool(t, ld, `{"path":"."}`)
 	if !strings.Contains(out, "a.txt") || !strings.Contains(out, "b.go") {
 		t.Errorf("应列出文件，得到:\n%s", out)
 	}
 	if !strings.Contains(out, "d") {
 		t.Errorf("目录应有 d 标记，得到:\n%s", out)
 	}
-	// 目录优先：sub 应出现在 a.txt 之前
 	subIdx := strings.Index(out, "sub")
 	aIdx := strings.Index(out, "a.txt")
 	if subIdx < 0 || aIdx < 0 || subIdx > aIdx {
@@ -293,9 +287,9 @@ func TestListDir_Entries(t *testing.T) {
 }
 
 func TestListDir_PathTraversalBlocked(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	ld := agenttools.NewListDirTool(dir, 64*1024)
-	_, err := ld.InvokableRun(context.Background(), `{"path":"../../"}`)
+	_, err := ld.Call(context.Background(), `{"path":"../../"}`, nil)
 	if err == nil {
 		t.Fatal("路径穿越应被拒绝")
 	}
@@ -304,7 +298,7 @@ func TestListDir_PathTraversalBlocked(t *testing.T) {
 // --- glob ---
 
 func TestGlob_RecursiveMatch(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.MkdirAll(filepath.Join(dir, "src", "sub"), 0755)
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("x"), 0644)
 	os.WriteFile(filepath.Join(dir, "src", "b.go"), []byte("x"), 0644)
@@ -312,8 +306,7 @@ func TestGlob_RecursiveMatch(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "d.txt"), []byte("x"), 0644)
 
 	g := agenttools.NewGlobTool(dir, 64*1024)
-	out := runInvokable(t, g, `{"pattern":"**/*.go"}`)
-	// 匹配 3 个 .go 文件（a.go / src/b.go / src/sub/c.go）
+	out := runSyncTool(t, g, `{"pattern":"**/*.go"}`)
 	if !strings.Contains(out, "a.go") || !strings.Contains(out, "src/b.go") || !strings.Contains(out, "src/sub/c.go") {
 		t.Errorf("**/*.go 应匹配 3 个 go 文件，得到:\n%s", out)
 	}
@@ -323,10 +316,10 @@ func TestGlob_RecursiveMatch(t *testing.T) {
 }
 
 func TestGlob_NoMatch(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("x"), 0644)
 	g := agenttools.NewGlobTool(dir, 64*1024)
-	out := runInvokable(t, g, `{"pattern":"**/*.go"}`)
+	out := runSyncTool(t, g, `{"pattern":"**/*.go"}`)
 	if !strings.Contains(out, "no files") {
 		t.Errorf("无匹配应返回 no files，得到: %s", out)
 	}
@@ -335,12 +328,12 @@ func TestGlob_NoMatch(t *testing.T) {
 // --- grep ---
 
 func TestGrep_ContentMatch(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "f.go"), []byte("package main\n\nfunc foo() {\n\treturn\n}\n"), 0644)
 	os.WriteFile(filepath.Join(dir, "g.txt"), []byte("TODO: fix this\n"), 0644)
 
 	gp := agenttools.NewGrepTool(dir, 64*1024)
-	out := runInvokable(t, gp, `{"pattern":"func \\w+\\("}`)
+	out := runSyncTool(t, gp, `{"pattern":"func \\w+\\("}`)
 	if !strings.Contains(out, "f.go:3") {
 		t.Errorf("应匹配 f.go 第 3 行的 func foo(，得到:\n%s", out)
 	}
@@ -350,23 +343,23 @@ func TestGrep_ContentMatch(t *testing.T) {
 }
 
 func TestGrep_IgnoreCase(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("Hello World\n"), 0644)
 
 	gp := agenttools.NewGrepTool(dir, 64*1024)
-	out := runInvokable(t, gp, `{"pattern":"hello","ignore_case":true}`)
+	out := runSyncTool(t, gp, `{"pattern":"hello","ignore_case":true}`)
 	if !strings.Contains(out, "a.txt:1") {
 		t.Errorf("忽略大小写应匹配 Hello，得到:\n%s", out)
 	}
 }
 
 func TestGrep_IncludeFilter(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("match\n"), 0644)
 	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("match\n"), 0644)
 
 	gp := agenttools.NewGrepTool(dir, 64*1024)
-	out := runInvokable(t, gp, `{"pattern":"match","include":"*.go"}`)
+	out := runSyncTool(t, gp, `{"pattern":"match","include":"*.go"}`)
 	if strings.Contains(out, "b.txt") {
 		t.Errorf("include *.go 不应匹配 b.txt，得到:\n%s", out)
 	}
@@ -376,10 +369,10 @@ func TestGrep_IncludeFilter(t *testing.T) {
 }
 
 func TestGrep_NoMatch(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello\n"), 0644)
 	gp := agenttools.NewGrepTool(dir, 64*1024)
-	out := runInvokable(t, gp, `{"pattern":"nonexistent"}`)
+	out := runSyncTool(t, gp, `{"pattern":"nonexistent"}`)
 	if !strings.Contains(out, "no matches") {
 		t.Errorf("无匹配应返回 no matches，得到: %s", out)
 	}
@@ -388,9 +381,9 @@ func TestGrep_NoMatch(t *testing.T) {
 // --- mkdir ---
 
 func TestMkdir_CreateWithParents(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	m := agenttools.NewMkdirTool(dir)
-	out := runInvokable(t, m, `{"path":"a/b/c"}`)
+	out := runSyncTool(t, m, `{"path":"a/b/c"}`)
 	if !strings.Contains(out, "created") {
 		t.Errorf("应返回 created，得到: %s", out)
 	}
@@ -401,9 +394,9 @@ func TestMkdir_CreateWithParents(t *testing.T) {
 }
 
 func TestMkdir_PathTraversalBlocked(t *testing.T) {
-	_, dir := newToolFactory(t)
+	dir := newWorkDir(t)
 	m := agenttools.NewMkdirTool(dir)
-	_, err := m.InvokableRun(context.Background(), `{"path":"../../escape"}`)
+	_, err := m.Call(context.Background(), `{"path":"../../escape"}`, nil)
 	if err == nil {
 		t.Fatal("路径穿越应被拒绝")
 	}

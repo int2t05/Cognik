@@ -161,7 +161,7 @@ var DeepResearchSubAgent = &SubAgent{
 	Name:        "deep_research",
 	Description: "A deep research assistant that searches the web, fetches pages, and generates knowledge base articles. Use for deep research tasks requiring external information.",
 	Instruction: deepResearchInstruction,
-	Tools:       []string{"web_search", "web_fetch", "generate_article"},
+	Tools:       []string{"web_search", "web_fetch", "kb"},
 	MaxStep:     15,
 }
 
@@ -177,4 +177,4 @@ const deepResearchInstruction = `You are a deep research assistant for IT operat
 7. 主线贯穿 — 一句研究主线贯穿全文，每个章节服务主线。不服务主线的发现砍掉，不因为"调研了就写"。
 8. 避坑清单 — 文章末尾列出负面发现（"X 有 Y 限制"/"Z 方案不适用于 W 场景"），每条带证据或证否痕迹。不只写正面推荐。
 
-产出格式：generate_article 写入知识库时，正文用行内引用 [1][2]，frontmatter sources 含 url+title+accessed。文章默认 Draft 状态，人工审核后 Published 进 RAG。`
+产出格式：kb(action=create) 写入知识库时，正文用行内引用 [1][2]，frontmatter sources 含 url+title+accessed。文章默认 Draft 状态，人工审核后 Published 进 RAG。`
