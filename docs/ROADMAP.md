@@ -441,7 +441,7 @@ flowchart TB
 
 ### 9.3 深度搜索与知识库
 
-V1.4 已部署 SearXNG + Firecrawl 自托管 + deep_research SubAgent。V1.5 已确定知识库组织形式 + Agent 写入工具链。V2.0 启用 Agent 自主调用完整工具链。
+V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 已优化检索质量。V2.0 启用 Agent 自主调用完整工具链。
 
 ### 9.4 Agent 场景
 
@@ -516,10 +516,15 @@ gantt
     异步管道+检索分层      :v15c, 2027-03-15, 21d
     会话生命周期+提取      :v15d, 2027-03-15, 14d
 
+    section V1.6 检索优化
+    Sandwich+BM25+RRF     :v16a, 2027-04-01, 14d
+    Contextual Retrieval  :v16b, 2027-04-01, 21d
+    Chunking+Metadata+Packing :v16c, 2027-04-15, 14d
+
     section V2.0 Agentic RAG
-    Agent 替代固定管道    :v20a, 2027-04-01, 14d
-    前端 Agent 事件 UI    :v20b, 2027-04-01, 21d
-    端到端集成+降级       :v20c, 2027-04-15, 14d
+    Agent 替代固定管道    :v20a, 2027-05-01, 14d
+    前端 Agent 事件 UI    :v20b, 2027-05-01, 21d
+    端到端集成+降级       :v20c, 2027-05-15, 14d
 ```
 
 ---
