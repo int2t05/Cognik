@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { getAppName } from '@/lib/config/defaults';
@@ -41,6 +42,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+  const { theme } = useTheme();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -84,7 +86,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] p-6 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-6">
           <div className="mb-4">
-            <Image src="/icon.svg" alt={displayName} width={48} height={48} className="mx-auto" priority />
+            <Image src={theme === 'dark' ? '/icon-dark.svg' : '/icon-light.svg'} alt={displayName} width={48} height={48} className="mx-auto" priority />
           </div>
           <h1 className="text-display-md font-semibold text-[var(--color-ink)] mb-1.5">
             {displayName}
