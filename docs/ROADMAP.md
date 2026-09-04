@@ -28,7 +28,7 @@ flowchart LR
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
-| V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；Agent 记忆能力（跨会话持久化 + 动态压缩） | 📋 规划中 |
+| V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；上下文压缩；异步处理管道 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
