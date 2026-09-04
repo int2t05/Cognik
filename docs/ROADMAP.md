@@ -27,7 +27,7 @@ flowchart LR
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | 📋 规划中 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关(Gateway)；9 OS 工具(bash/async_bash/read/write/edit/list/glob/grep/mkdir)；SubAgent(research+coder)；异步任务；SQLite 隔离；threads API；parts 数组模型前端渲染 | ✅ 已交付 |
-| V1.4 | 深度搜索 | SearXNG 部署；网络搜索工具；深度研究架构（规划器→搜索器→反思器→合成器）；搜索 API 集成 | 📋 规划中 |
+| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 语义搜索（可选）；deep_research SubAgent；搜索→爬取→整理→产出 md 文章→写入知识库 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -214,15 +214,17 @@ flowchart TB
 
 ### 6.2 MCP 工具集成
 
-通过官方 Go MCP SDK（`modelcontextprotocol/go-sdk` v1.6.0）消费第三方工具，无需手写集成。V1.3 先集成知识库 / 申告 / SQL 等同进程工具；网络搜索工具在 V1.4 接入。
+通过官方 Go MCP SDK（`modelcontextprotocol/go-sdk` v1.6.0）消费第三方工具，无需手写集成。V1.3 先集成知识库 / 申告 / SQL 等同进程工具；深度搜索工具在 V1.4 接入。
 
 | 工具 | 来源 | 调用方式 | 版本 |
 |------|------|----------|------|
 | `search_knowledge_base` | Go RAG Engine | 同进程 `rag.Pipeline.Search()` | V1.3 |
 | `ticket_lookup` | Go Ticket Service | 同进程 `ticket.Service.Query()` | V1.3 |
 | `sql_query` | Go SQL 执行 | 同进程 `db.Raw()`（只读） | V1.3 |
-| `web_search` | SearXNG MCP | MCP Client → HTTP → SearXNG | V1.4 |
-| `web_fetch` | Firecrawl / Exa MCP | MCP Client → HTTP | V1.4 |
+| `web_search` | SearXNG | 直接 HTTP（`net/http`） | V1.4 |
+| `web_fetch` | Firecrawl 自托管 `/scrape` | 直接 HTTP | V1.4 |
+| `exa_search`（可选） | Exa API | 直接 HTTP（需用户配 Key） | V1.4 |
+| `generate_article` | Go Agent | 搜索结果 → 结构化 Markdown | V1.4 |
 
 ### 6.3 SSE 事件扩展
 
@@ -241,46 +243,109 @@ V1.3 阶段 `GenerationHub` 的 `StreamEvent` 类型扩展，但前端不渲染�
 
 ## 6.5. V1.4 — 深度搜索
 
-**目标**：为 Agent 接入网络搜索与深度研究能力，实现自主决策何时搜网络、从哪个源搜、是否多轮搜索。
+**目标**：Agent 配备深度搜索工具链，实现"搜索网络资料 → 爬取知识 → 整理产出 md 文章 → 写入知识库"闭环。知识库输出为 md 文件，简洁直接。
 
-### 6.5.1 SearXNG 自托管搜索
+**调研依据**：[`docs/research/knowledge-organization/`](research/knowledge-organization/)，尤其 [05-firecrawl-vs-exa.md](research/knowledge-organization/05-firecrawl-vs-exa.md)
+
+### 6.5.1 搜索 API 集成
+
+```mermaid
+flowchart LR
+    subgraph 主力["主力（私有部署，零边际成本）"]
+        SX["SearXNG<br/>自托管元搜索"]
+        FC["Firecrawl 自托管<br/>/scrape 提取"]
+    end
+    subgraph 增强["增强（可选，需 API Key）"]
+        EXA["Exa<br/>语义搜索 + highlights"]
+    end
+```
+
+| API | 自托管 | LLM 优化 | 定价 | 用途 |
+|-----|:---:|:---:|------|------|
+| **SearXNG** | ✅ | ❌ | 免费（仅基础设施） | 主力搜索：私有部署元搜索，聚合 130+ 引擎 |
+| **Firecrawl 自托管** | ✅ | ✅ | 免费（开源 Apache-2.0） | 主力提取：URL → 干净 Markdown，JS 渲染 |
+| **Exa** | ❌ | ✅ | $7-15 / 千次 | 可选增强：语义搜索，highlights 10x token 效率，deep-reasoning 多步推理 |
+
+**分层策略**：默认私有部署（SearXNG + Firecrawl 自托管，零边际成本，数据不出域）；用户配置 Exa API Key 后启用语义搜索增强。
+
+### 6.5.2 SearXNG 自托管
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| Docker 部署 | `searxng` 服务加入 docker-compose | JSON 输出启用；`it`/`science` 类别 |
-| MCP 集成 | 通过官方 Go MCP SDK 消费 SearXNG MCP 服务器 | `search` / `fetch_url` 工具注册到 Tool Registry |
-| Ops 域配置 | 预配置技术搜索引擎优先 | StackOverflow/GitHub/厂商域名 |
+| Docker 部署 | `searxng` + `valkey` 服务加入 docker-compose | JSON 输出启用；`it`/`science` 类别 |
+| settings.yml | `formats: [html, json]` 显式开启；`limiter: false`；`public_instance: false` | `?format=json` 返回 200；Agent 自动化流量不被限流 |
+| Go 集成 | 直接 HTTP GET `http://searxng:8080/search?q=...&format=json` | 无需 MCP 中间层；`net/http` + `encoding/json` |
+| Ops 域配置 | 预配置 `it`/`science` 类别优先 | StackOverflow/GitHub/厂商域名优先 |
 | 私有搜索验证 | 查询不出域，无 API 密钥 | 日志确认无第三方数据发送 |
 
-### 6.5.2 搜索 API 集成
+### 6.5.3 Firecrawl 自托管
 
-| API | 自托管 | LLM 优化 | 用途 |
-|-----|:---:|:---:|------|
-| **SearXNG** | ✅ | ❌ | 主力：私有部署元搜索 |
-| **Exa** | ❌ | ✅ | 高亮模式 10x token 效率 |
-| **Firecrawl** | ❌ | ✅ | 深度研究 + 单页提取 |
+| 项 | 说明 | 验收标准 |
+|----|------|---------|
+| Docker 部署 | Firecrawl `v2.11.162` + PostgreSQL + Redis + RabbitMQ + Playwright | `docker compose up` 启动；`/v2/scrape` 返回 Markdown |
+| 自托管能力 | 核心 scrape / crawl / map / search；Fetch + Playwright | JS 渲染页面正确提取；干净 Markdown 输出 |
+| 不支持项 | 截图 / 页面操作 / Agent / Interact | 需 Fire-engine 或 Cloud，自托管不含 |
+| Go 集成 | 直接 HTTP POST `http://firecrawl:3002/v2/scrape` | `net/http` + JSON；无官方 Go SDK |
+| 配置 | `USE_DB_AUTHENTICATION=false`（受信任网络） | 不暴露公网；仅 Docker 内部网络访问 |
 
-### 6.5.3 深度研究架构
+### 6.5.4 Agent 工具链
+
+新建 `deep_research` SubAgent，配备搜索工具集，与现有 `research` / `coder` SubAgent 并列。
 
 ```mermaid
-flowchart TD
-    QUERY["用户复杂查询"] --> PL["规划器<br/>分解为 3-7 个子问题"]
-    PL --> SA["搜索子代理<br/>并行运行, 独立上下文"]
-    SA -->|"广度搜索"| SR["SearXNG / Exa"]
-    SA -->|"深度阅读"| WF["WebFetch / Firecrawl"]
-    SA --> RF["反思器<br/>对比发现与计划"]
-    RF -->|"不足"| PL
-    RF -->|"充足"| SY["合成器<br/>引用注册表 → 最终报告"]
+flowchart LR
+    subgraph 主Agent["主 Agent"]
+        MAIN["主 Agent<br/>决策 + 报告"]
+    end
+    subgraph 深度搜索["deep_research SubAgent（新增）"]
+        WS["web_search<br/>SearXNG"]
+        WF["web_fetch<br/>Firecrawl /scrape"]
+        EXA["exa_search<br/>Exa（可选）"]
+        GEN["generate_article<br/>产出 md 文章"]
+    end
+    MAIN -->|"委托研究任务"| WS
+    WS --> WF
+    WF --> GEN
+    GEN -->|"写入知识库"| KB["storage/kb/{kb_slug}/"]
+```
+
+| 工具 | 来源 | 部署 | 验收标准 |
+|------|------|:----:|---------|
+| `web_search` | SearXNG | 自托管 | 聚合 130+ 引擎；`it`/`science` 类别；JSON 输出 |
+| `web_fetch` | Firecrawl `/scrape` | 自托管 | URL → 干净 Markdown；JS 渲染；metadata 提取 |
+| `exa_search`（可选） | Exa API | SaaS | highlights 10x token 效率；`type=deep` 多步推理 |
+| `generate_article` | 内部 | — | 搜索结果 → 结构化 Markdown；frontmatter 含 sources 引用 |
+
+**与 V1.3 Agent 基座集成**：
+- `deep_research` SubAgent 注册到 `AgentFactory.buildSubAgentTools()`
+- 搜索工具注册到 `ToolFactory.BuildSearchTools()`（与 `BuildTools()` / `BuildReadOnlyTools()` 平行）
+- 主 Agent 不直接使用搜索工具 — 通过 SubAgent 委托（与 GPT-Researcher MCP 委托模式一致）
+- SSE 事件复用 `tool_call` / `tool_result`，通过 `Label` 字段区分搜索/爬取/生成
+
+### 6.5.5 知识库输出（md 文件）
+
+深度搜索产出为 md 文件，存入知识库目录，简洁直接。
+
+```mermaid
+flowchart LR
+    GEN["generate_article"] -->|"产出"| MD["md 文件<br/>+ frontmatter"]
+    MD --> STORE["storage/kb/{kb_slug}/"]
+    STORE --> STATUS{"status"}
+    STATUS -->|"draft"| DRAFT["草稿<br/>不进 RAG"]
+    STATUS -->|"published"| PUB["发布<br/>触发 RAG 索引"]
+    PUB --> RAG["chunker → embedder<br/>→ pgvector + BM25"]
 ```
 
 | 项 | 说明 | 验收标准 |
 |----|------|---------|
-| 规划器 | 分解复杂查询为 3-7 个子问题 | 每个子问题含搜索策略 + 成功标准 |
-| 搜索子代理 | 并行运行，每个独立上下文窗口 | 广度搜索 → 深度阅读有潜力 URL |
-| 反思器 | 对抗性评论员识别弱点/矛盾 | 硬性上限防止无限循环 |
-| 合成器 | 引用注册表防合成幻觉 | 压缩发现 + 引用 → 最终报告 |
+| frontmatter 最小字段 | `title` / `source_type: deep_research` / `sources`（URL 列表）/ `created` | Agent 生成时必填 sources |
+| 文件命名 | `{YYYYMMDD-HHmmss}-{slug}.md`，slug 取标题 kebab-case | 扁平存储，无目录层级 |
+| 引用标注 | 正文中行内编号 `[1]` `[2]`，frontmatter `sources` 维护编号→URL 映射 | 不用脚注（避免 chunker 切割引用） |
+| 状态管控 | 复用现有 `KnowledgeArticle` 状态机：Draft → Reviewing → Published | Agent 产出默认 `draft`；人工审核后 `published` |
+| RAG 衔接 | Published 后触发现有 chunker → embedder → pgvector + BM25 | 新增 `SourceType = 3`（深度搜索生成） |
+| 存储 | 写入 `StorageClient` + `KnowledgeArticle` 记录 | `MinioPath` 指向 md 文件 |
 
-### 6.5.4 Ops 域搜索场景
+### 6.5.6 Ops 域搜索场景
 
 | 场景 | 查询示例 | 来源 |
 |------|---------|------|
@@ -334,7 +399,7 @@ flowchart TD
 
 ### 7.3 网络搜索与深度搜索
 
-V1.4 已部署 SearXNG + 深度研究架构。V2.0 启用 Agent 自主调用网络搜索工具。
+V1.4 已部署 SearXNG + Firecrawl 自托管 + deep_research SubAgent。V2.0 启用 Agent 自主调用深度搜索与知识库写入工具。
 
 ```mermaid
 flowchart LR
@@ -444,10 +509,10 @@ gantt
     SSE 事件扩展          :v13e, 2026-12-25, 7d
 
     section V1.4 深度搜索
-    SearXNG 部署+MCP     :v14a, 2027-01-15, 14d
-    网络搜索工具注册      :v14b, 2027-01-15, 7d
-    深度研究架构          :v14c, 2027-02-01, 21d
-    Ops 域搜索场景验证    :v14d, 2027-02-01, 14d
+    SearXNG+Firecrawl 部署  :v14a, 2027-01-15, 14d
+    搜索工具集成 Go        :v14b, 2027-01-15, 14d
+    deep_research SubAgent :v14c, 2027-02-01, 21d
+    md 产出+RAG 衔接        :v14d, 2027-02-01, 14d
 
     section V2.0 Agentic RAG
     Agent 固定管道替代    :v20a, 2027-03-01, 14d
@@ -470,6 +535,10 @@ gantt
 | SSE 输出 | Gin 标准库 `fmt.Fprintf + Flush` | 标准 SSE 模式（headers + http.Flusher + data: %s\n\n） |
 | 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0，与 Google 共维护 |
 | 网络搜索 | SearXNG（自托管）+ Exa/Firecrawl | 私有部署无 API 密钥；深度研究用 Firecrawl Agent |
+| 网页提取 | Firecrawl 自托管 `/scrape` | 开源 Apache-2.0；核心 scrape/crawl/map 自托管；JS 渲染；私有部署数据不出域 |
+| 语义搜索增强 | Exa API（可选，需用户配 Key） | highlights 10x token 效率；deep-reasoning 多步推理；SaaS 闭源，作为可选增强 |
+| 搜索工具集成 | 直接 HTTP（`net/http`），非 MCP 中间层 | SearXNG/Firecrawl/Exa 都是简单 HTTP JSON API；Go 原生 HTTP 足够 |
+| deep_research SubAgent | 新建 SubAgent，与 research/coder 并列 | 搜索工具有独立工具集和系统提示词；参考 GPT-Researcher MCP 委托模式 |
 | Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
 | LLM Provider 热切换 | `LLMConfigManager.OnChange` → Eino ChatModel 替换 | `atomic.Value` 存储 ChatModel 实例 |
 | 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测，已足够好 |
@@ -486,3 +555,4 @@ gantt
 | [`API/README.md`](API/README.md) | API 文档索引 |
 | [`FLOW/README.md`](FLOW/README.md) | 业务流程图 |
 | [`TODO.md`](TODO.md) | 代码级改进清单与优先级 |
+| [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 深度搜索工具调研 — 知识库组织形式、Markdown 底层存储、Agent 写入实践、Firecrawl vs Exa 深度对比 |
