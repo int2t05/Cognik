@@ -5,7 +5,7 @@
 'use client';
 
 import { forwardRef } from 'react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Send, Square, Loader2, ListPlus } from 'lucide-react';
 
@@ -57,9 +57,9 @@ export const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             </span>
           )}
           {streaming ? (
-            <Button variant="destructive" size="icon" onClick={onStop} aria-label="停止生成"><Square /></Button>
+            <IconButton label="停止生成" danger onClick={onStop}><Square /></IconButton>
           ) : (
-            <Button size="icon" disabled={!value.trim() || disabled || loading} onClick={onSend} aria-label="发送">{loading ? <Loader2 className="animate-spin" /> : <Send />}</Button>
+            <IconButton label="发送" disabled={!value.trim() || disabled || loading} onClick={onSend}>{loading ? <Loader2 className="animate-spin" /> : <Send />}</IconButton>
           )}
         </div>
       </div>

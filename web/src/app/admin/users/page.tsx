@@ -8,7 +8,7 @@ import { getRoleList } from '@/lib/api/role';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
@@ -21,7 +21,7 @@ import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/compone
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { formatDate } from '@/lib/date';
-import { UserPlus, Pencil, Lock, Unlock, Loader2, Users } from 'lucide-react';
+import { UserPlus, Pencil, Lock, Unlock, Loader2, Users, Save } from 'lucide-react';
 
 export default function UserListPage() {
   const [page, setPage] = useState(1);
@@ -95,7 +95,7 @@ export default function UserListPage() {
           <PageTitle className="mb-0">用户管理</PageTitle>
           <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
-        <Button size="icon" onClick={openCreate} aria-label="新建用户"><UserPlus /></Button>
+        <IconButton label="新建用户" onClick={openCreate}><UserPlus /></IconButton>
       </div>
       {error && <InlineError />}
       <div className="mb-4">
@@ -116,9 +116,9 @@ export default function UserListPage() {
               { accessorKey: 'status', meta: { width: '88px' }, header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
               { accessorKey: 'created_at', meta: { width: '120px' }, header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
               { id: 'actions', meta: { width: '96px' }, header: '操作', cell: ({ row }) => <div className="flex gap-2">
-                <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(row.original)}><Pencil /></Button>
-                {row.original.status === 1 ? <Button variant="destructive" size="icon" aria-label="冻结" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></Button>
-                  : <Button variant="secondary" size="icon" aria-label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></Button>}
+                <IconButton label="编辑" onClick={() => openEdit(row.original)}><Pencil /></IconButton>
+                {row.original.status === 1 ? <IconButton label="冻结" danger onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></IconButton>
+                  : <IconButton label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></IconButton>}
               </div> },
             ]}
             data={items} loading={!data && !error}
@@ -146,7 +146,7 @@ export default function UserListPage() {
               ))}
             </div>
           </Field>
-          <DialogFooter><Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>取消</Button><Button size="lg" disabled={saving} onClick={handleSave}>{saving && <Loader2 className="animate-spin" />}保存</Button></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 

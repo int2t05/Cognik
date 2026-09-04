@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Calendar, Loader2 } from 'lucide-react';
 import { type TrendPoint } from '@/lib/api/dashboard';
@@ -98,7 +98,7 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
             className="h-8 px-2 text-caption rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] outline-none transition focus-visible:border-[var(--color-accent)] focus-visible:shadow-[var(--focus-ring)]"
             aria-label="结束日期"
           />
-          <Button variant="ghost" size="sm" onClick={applyCustom}>查询</Button>
+          <IconButton variant="ghost" size="sm" onClick={applyCustom}>查询</IconButton>
         </div>
       </div>
       {rangeError && <p className="text-[var(--color-error)] text-fine mb-3">{rangeError}</p>}

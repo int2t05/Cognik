@@ -112,11 +112,16 @@ var imageRefRe = regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
 // 形式嵌入（尤其表格内），需与 markdown ![]() 同等归一。
 var htmlImgSrcRe = regexp.MustCompile(`(<img\b[^>]*\bsrc=["'])([^"'>]+)(["'][^>]*>)`)
 
+// imageRelPrefix 是图片在文章 markdown 中的相对引用前缀。
+// markdown 存于 kb-{kbID}/{draft|published}/article-{id}.md，图片存于桶根 image/ 目录，
+// 故相对路径为 ../../image/（上两级回到桶根）。
+const imageRelPrefix = "../../image/"
+
 // normalizeImagePaths 归一图片引用与 Images map key，收敛双引擎差异。
 //
-// 不变式（归一后任意引擎均满足）：markdown 图片引用（![]() 与 HTML <img>）均为 image/{name}，Images[name] 存在。
+// 不变式（归一后任意引擎均满足）：markdown 图片引用（![]() 与 HTML <img>）均为 imageRelPrefix{name}，Images[name] 存在。
 //   - Images map key → 内容 sha256 前 16 hex + 原扩展名（内容寻址去重 + 全局唯一）。
-//   - markdown ![]() 与 HTML <img src> 非 http(s)/data: 引用 → 改写为 image/{新hash名}（按旧名映射）。
+//   - markdown ![]() 与 HTML <img src> 非 http(s)/data: 引用 → 改写为 imageRelPrefix{新hash名}（按旧名映射）。
 //   - 网络/base64 引用不动；MinerU 未导出引用保留原样。
 func normalizeImagePaths(r *local.ParseResult) {
 	if r == nil || len(r.Images) == 0 {
@@ -143,7 +148,7 @@ func hashedName(oldKey string, data []byte) string {
 	return hex.EncodeToString(sum[:8]) + filepath.Ext(filepath.Base(oldKey))
 }
 
-// rewriteImageRefs 把 markdown 中指向已知图片的引用统一为 image/{新名}。
+// rewriteImageRefs 把 markdown 中指向已知图片的引用统一为 imageRelPrefix{新名}。
 // 覆盖两类语法：markdown ![](path) 与 HTML <img src="path">；http(s)/data: 与未命中引用保留原样。
 func rewriteImageRefs(markdown string, rename map[string]string) string {
 	// 第一遍：markdown ![]() 语法
@@ -154,7 +159,7 @@ func rewriteImageRefs(markdown string, rename map[string]string) string {
 			return match
 		}
 		if newName, ok := rename[filepath.Base(src)]; ok {
-			return fmt.Sprintf("![%s](image/%s)", alt, newName)
+			return fmt.Sprintf("![%s](%s%s)", alt, imageRelPrefix, newName)
 		}
 		return match
 	})
@@ -166,7 +171,7 @@ func rewriteImageRefs(markdown string, rename map[string]string) string {
 			return match
 		}
 		if newName, ok := rename[filepath.Base(src)]; ok {
-			return fmt.Sprintf("%simage/%s%s", prefix, newName, suffix)
+			return fmt.Sprintf("%s%s%s%s", prefix, imageRelPrefix, newName, suffix)
 		}
 		return match
 	})

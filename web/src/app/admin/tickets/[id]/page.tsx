@@ -10,7 +10,7 @@ import {
   type TicketDetail,
 } from '@/lib/api/ticket';
 import { getKBList } from '@/lib/api/knowledge';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Field } from '@/components/ui/form-field';
@@ -88,7 +88,7 @@ export default function AdminTicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></Button>
+        <IconButton label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></IconButton>
         <PageTitle className="mb-0">{ticket.title}</PageTitle>
       </div>
       <div className="mb-5 flex items-center gap-3">
@@ -111,16 +111,16 @@ export default function AdminTicketDetailPage() {
 
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
-          <Button size="lg" disabled={processing} onClick={() => handleAction('start')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}开始处理</Button>
+          <IconButton size="lg" disabled={processing} onClick={() => handleAction('start')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}开始处理</IconButton>
         )}
         {ticket.status === 2 && (
           <>
-            <Button size="lg" disabled={processing} onClick={() => handleAction('resolve')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}标记解决</Button>
-            <Button variant="ghost" size="sm" disabled={processing} onClick={() => handleAction('request_info')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <MessageSquare size={16} />}索要补充</Button>
+            <IconButton size="lg" disabled={processing} onClick={() => handleAction('resolve')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}标记解决</IconButton>
+            <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction('request_info')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <MessageSquare size={16} />}索要补充</IconButton>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
-          <Button variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭申告</Button>
+          <IconButton variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭申告</IconButton>
         )}
       </div>
 
@@ -153,7 +153,7 @@ export default function AdminTicketDetailPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />生成</Button>
+          <IconButton variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />生成</IconButton>
         </div>
       </Card>
 

@@ -10,7 +10,7 @@ import {
   updateLLMConfig,
   type LLMConfig,
 } from '@/lib/api/llm_config';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -22,7 +22,7 @@ import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
-import { Cpu, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
+import { Cpu, Pencil, Trash2, Star, Loader2, Save, Plug } from 'lucide-react';
 
 type LLMConfigForm = Record<string, string | number | boolean>;
 
@@ -162,14 +162,14 @@ export default function LLMConfigPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <PageTitle className="mb-0">LLM 配置</PageTitle>
-        <Button size="icon" aria-label="新建 LLM 配置" onClick={openCreate}><Cpu /></Button>
+        <IconButton label="新建 LLM 配置" onClick={openCreate}><Cpu /></IconButton>
       </div>
 
       <div className="grid gap-4">
         {!configs ? (
           <Loader2 className="animate-spin" />
         ) : configs.length === 0 ? (
-          <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', onClick: openCreate }} />
+          <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', icon: <Cpu size={16} />, onClick: openCreate }} />
         ) : (
           [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((config) => (
             <Card key={config.id}>
@@ -187,10 +187,10 @@ export default function LLMConfigPage() {
                 </div>
                 <div className="flex gap-2">
                   {!config.is_default && (
-                    <Button variant="ghost" size="icon" aria-label="设为默认" onClick={() => handleSetDefault(config.id)}><Star /></Button>
+                    <IconButton label="设为默认" onClick={() => handleSetDefault(config.id)}><Star /></IconButton>
                   )}
-                  <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => openEdit(config)}><Pencil /></Button>
-                  <Button variant="secondary" size="icon" aria-label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 /></Button>
+                  <IconButton label="编辑" onClick={() => openEdit(config)}><Pencil /></IconButton>
+                  <IconButton label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 /></IconButton>
                 </div>
               </div>
             </Card>
@@ -277,13 +277,11 @@ export default function LLMConfigPage() {
           )}
           <DialogFooter>
             {editId && (
-              <Button variant="secondary" size="sm" disabled={testing}>{testing && <Loader2 className="animate-spin" />}测试连接</Button>
+              <IconButton variant="secondary" size="sm" disabled={testing}>{testing ? <Loader2 className="animate-spin" /> : <Plug size={16} />}测试连接</IconButton>
             )}
             <div className="flex-1" />
-            <Button variant="ghost" size="sm" onClick={() => setShowDialog(false)}>
-              取消
-            </Button>
-            <Button size="lg" disabled={saving}>{saving && <Loader2 className="animate-spin" />}保存</Button>
+            
+            <IconButton size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

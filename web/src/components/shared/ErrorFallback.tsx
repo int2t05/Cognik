@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface ErrorFallbackProps {
   error: Error & { digest?: string };
@@ -37,9 +37,9 @@ export function ErrorFallback({
       <h2 className="text-title font-semibold text-[var(--color-ink)]">{title}</h2>
       <p className="text-caption text-[var(--color-text-muted-48)]">{message}</p>
       {reset && (
-        <Button variant="outline" size="lg" onClick={reset}>
+        <IconButton variant="outline" size="lg" onClick={reset}>
           {resetLabel}
-        </Button>
+        </IconButton>
       )}
     </div>
   );

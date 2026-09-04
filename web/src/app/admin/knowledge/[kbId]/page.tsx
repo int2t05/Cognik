@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getArticleList } from '@/lib/api/knowledge';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/date';
 import { FilePlus, FileText, ChevronLeft } from 'lucide-react';
@@ -55,10 +55,10 @@ export default function ArticleListPage() {
     <div>
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/admin/knowledge')} aria-label="返回"><ChevronLeft /></Button>
+          <IconButton label="返回" onClick={() => router.push('/admin/knowledge')}><ChevronLeft /></IconButton>
           <PageTitle className="mb-0">知识文章</PageTitle>
         </div>
-        <Button size="icon" onClick={() => router.push(`/admin/knowledge/${kbId}/new`)} aria-label="新建文章"><FilePlus /></Button>
+        <IconButton label="新建文章" onClick={() => router.push(`/admin/knowledge/${kbId}/new`)}><FilePlus /></IconButton>
       </div>
       {error && <InlineError />}
       <div className="mb-4">

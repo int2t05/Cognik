@@ -3,7 +3,7 @@
  *  trigger 永远只显示 label（宽度恒定），激活时加小圆点指示，避免选中值文本变长撑宽列。
  *  约定 options 首项为"全部"——非首项被选时显示激活圆点。 */
 import { ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,7 @@ export function TableFilterHeader<V extends string | number>({ label, value, opt
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
+        <IconButton
           variant="ghost"
           size="sm"
           className={cn(
@@ -37,7 +37,7 @@ export function TableFilterHeader<V extends string | number>({ label, value, opt
           <span>{label}</span>
           {filtered && <span className="size-1.5 rounded-full bg-[var(--color-accent)]" />}
           <ChevronDown size={14} className="size-3.5 text-[var(--color-text-muted-48)]" />
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[10rem]">
         <DropdownMenuRadioGroup

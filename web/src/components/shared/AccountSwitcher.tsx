@@ -6,7 +6,7 @@
 
 import { useRouter } from 'next/navigation';
 import { UserPlus, Trash2, LogIn } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,10 +46,10 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="menu" aria-label="切换账号" className={className}>
+        <IconButton variant="menu" aria-label="切换账号" className={className}>
           <UserPlus size={18} />
           {!iconOnly && '切换账号'}
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64 p-0">
         <div className="px-4 py-3 border-b border-[var(--color-divider-soft)]">
@@ -78,16 +78,15 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                       {a.username}
                     </span>
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => { e.stopPropagation(); removeAccount(a.username); }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    aria-label={`移除 ${a.username}`}
-                    className="shrink-0 rounded-full text-[var(--color-text-muted-48)] hover:text-[var(--color-error)]"
+                  <IconButton
+                    label={`移除 ${a.username}`}
+                    danger
+                    size="icon-sm"
+                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); removeAccount(a.username); }}
+                    onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
                   >
                     <Trash2 size={14} />
-                  </Button>
+                  </IconButton>
                 </DropdownMenuItem>
               );
             })
@@ -95,10 +94,10 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
         </div>
 
         <div className="border-t border-[var(--color-divider-soft)]">
-          <Button variant="menu" onClick={handleNewLogin} className="w-full justify-start font-semibold">
+          <IconButton variant="menu" onClick={handleNewLogin} className="w-full justify-start font-semibold">
             <LogIn size={18} />
             其他账号登录
-          </Button>
+          </IconButton>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

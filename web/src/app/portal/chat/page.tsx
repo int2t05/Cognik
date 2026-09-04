@@ -8,12 +8,12 @@ import { useChatStreamStore, type ChatMessage } from '@/contexts/ChatStreamProvi
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Plus, MessageSquare, Trash2, Loader2, Clock, CornerUpLeft, Pencil, PanelLeftClose, PanelLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { updateThread } from '@/lib/api/chat';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function ChatPage() {
   const { token } = useAuth();
@@ -84,16 +84,16 @@ export default function ChatPage() {
       {sidebarOpen && (
         <div className="w-60 border-r border-[var(--color-hairline)] flex flex-col shrink-0">
           <div className="p-3 flex items-center gap-2">
-            <Button
+            <IconButton
               variant="outline"
               className="flex-1 justify-start gap-2"
               onClick={handleNewChat}
             >
               <Plus size={16} /> 新对话
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} aria-label="收起侧边栏">
+            </IconButton>
+            <IconButton label="收起侧边栏" onClick={() => setSidebarOpen(false)}>
               <PanelLeftClose size={16} />
-            </Button>
+            </IconButton>
           </div>
           <div className="flex-1 overflow-y-auto px-2">
             {threadsLoading && (
@@ -128,18 +128,8 @@ export default function ChatPage() {
                 )}
                 {editingId !== t.id && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      className="text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]"
-                      onClick={(e) => { e.stopPropagation(); handleStartEdit(t.id, t.title); }}
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      className="text-red-400 hover:text-red-600"
-                      onClick={(e) => { e.stopPropagation(); setDeleteId(t.id); }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    <IconButton label="重命名" size="icon-sm" onClick={(e) => { e.stopPropagation(); handleStartEdit(t.id, t.title); }}><Pencil size={12} /></IconButton>
+                    <IconButton label="删除" danger size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteId(t.id); }}><Trash2 size={12} /></IconButton>
                   </div>
                 )}
               </div>
@@ -153,9 +143,9 @@ export default function ChatPage() {
         {/* 顶栏：收起时显示展开按钮 + 当前会话名 */}
         {!sidebarOpen && (
           <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-hairline)]">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} aria-label="展开侧边栏">
+            <IconButton label="展开侧边栏" onClick={() => setSidebarOpen(true)}>
               <PanelLeft size={16} />
-            </Button>
+            </IconButton>
             {sessionId && (
               <span className="text-[13px] text-[var(--color-text-muted-48)] truncate">
                 {threads.find(t => t.id === sessionId)?.title || '对话'}
@@ -202,15 +192,10 @@ export default function ChatPage() {
                   <div key={qmsg.id} className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-[var(--radius-lg)] px-4 py-2 opacity-70">
                     <Clock size={13} className="shrink-0 animate-pulse text-[var(--color-text-muted-48)]" />
                     <span className="flex-1 text-[13px] text-[var(--color-ink)] truncate">{qmsg.content}</span>
-                    <button
-                      className="shrink-0 text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)] transition-colors"
-                      onClick={() => {
+                    <IconButton label="取消排队" size="icon-sm" onClick={() => {
                         const text = store.removeQueueItem(sessionId!, i);
                         if (text) setInput(text);
-                      }}
-                    >
-                      <CornerUpLeft size={14} />
-                    </button>
+                      }}><CornerUpLeft size={14} /></IconButton>
                   </div>
                 ))}
               </div>
@@ -247,15 +232,13 @@ export default function ChatPage() {
           </DialogHeader>
           <p className="text-[13px] text-[var(--color-text-muted-48)]">删除后无法恢复，该会话的所有消息将被清除。</p>
           <DialogFooter className="flex-row justify-end gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" size="sm">取消</Button>
-            </DialogClose>
-            <Button variant="destructive" size="sm" onClick={async () => {
+            
+            <IconButton variant="destructive" size="sm" onClick={async () => {
               if (deleteId !== null) await removeSession(deleteId);
               setDeleteId(null);
             }}>
               <Trash2 size={14} className="mr-1" /> 删除
-            </Button>
+            </IconButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

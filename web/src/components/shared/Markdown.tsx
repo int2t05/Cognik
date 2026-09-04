@@ -24,6 +24,18 @@ interface MarkdownProps {
 
 const CITATION_RE = /\[(\d+)\](?!\()/g;
 
+/** 相对 image/ 引用匹配：markdown ![]() 与 HTML <img> 两种语法形式。
+ *  解析器归一输出 ../../image/{name}（文章 md 相对桶根 image/ 目录）；兼容历史 image/ 前缀。 */
+const REL_IMG_MD_RE = /(!\[[^\]]*\]\()(?:\.\.\/\.\.\/)?image\//g;
+const REL_IMG_HTML_RE = /(<img\b[^>]*\bsrc=["'])(?:\.\.\/\.\.\/)?image\//g;
+
+/** rewriteRelativeImages 把相对 ../../image/{name} 引用重写为公开端点绝对路径（源文本层处理，两种语法均覆盖）。 */
+function rewriteRelativeImages(content: string): string {
+  return content
+    .replace(REL_IMG_MD_RE, '$1/api/v1/public/images/')
+    .replace(REL_IMG_HTML_RE, '$1/api/v1/public/images/');
+}
+
 /** replaceCitationsOutsideCode 仅在 fenced 代码块外替换 [N] 引用，保留代码块内的 [N] 原样。
  *  按 ``` 分段，奇数索引段（代码块内容）跳过。 */
 function replaceCitationsOutsideCode(content: string): string {
@@ -32,7 +44,9 @@ function replaceCitationsOutsideCode(content: string): string {
 }
 
 export function Markdown({ content, className, renderCitation }: MarkdownProps) {
-  const source = renderCitation ? replaceCitationsOutsideCode(content) : content;
+  // 源文本层重写：相对 image/ 引用 → 公开端点（覆盖 ![]() 与 <img>）；[N] 引用徽标
+  let source = rewriteRelativeImages(content);
+  if (renderCitation) source = replaceCitationsOutsideCode(source);
 
   const components: Components = {
     pre({ children }: ComponentProps<'pre'>) {
@@ -54,14 +68,6 @@ export function Markdown({ content, className, renderCitation }: MarkdownProps) 
         if (Number.isFinite(n)) return <>{renderCitation(n)}</>;
       }
       return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-    },
-    img(props: ComponentProps<'img'>) {
-      const { src } = props;
-      // 统一 image/{name} 前缀（解析器归一输出）→ 公开图片端点；网络/base64 透传
-      const imgSrc = typeof src === 'string' && src.startsWith('image/')
-        ? `/api/v1/public/images/${src.slice(6)}`
-        : src;
-      return <img src={imgSrc} alt={props.alt} className="max-w-full h-auto rounded-[var(--radius-lg)] my-2" />;
     },
   };
 

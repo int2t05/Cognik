@@ -1,6 +1,6 @@
 /** InlineError — 统一错误提示，支持内联与全页两种模式，消除各页面加载失败写法差异。 */
 import { AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface InlineErrorProps {
   message?: string;
@@ -15,9 +15,9 @@ export function InlineError({ message = '加载失败，请刷新重试', onRetr
         <AlertTriangle size={20} />
         <span>{message}</span>
         {onRetry && (
-          <Button variant="link" size="sm" onClick={onRetry} className="text-[var(--color-error)] underline">
+          <IconButton variant="link" size="sm" onClick={onRetry} className="text-[var(--color-error)] underline">
             重试
-          </Button>
+          </IconButton>
         )}
       </div>
     );
@@ -28,9 +28,9 @@ export function InlineError({ message = '加载失败，请刷新重试', onRetr
       <AlertTriangle size={12} />
       <span>{message}</span>
       {onRetry && (
-        <Button variant="link" size="sm" onClick={onRetry} className="text-[var(--color-error)] underline">
+        <IconButton variant="link" size="sm" onClick={onRetry} className="text-[var(--color-error)] underline">
           重试
-        </Button>
+        </IconButton>
       )}
     </div>
   );

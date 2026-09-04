@@ -5,7 +5,7 @@ import { getMessages, markAsRead, markAllRead } from '@/lib/api/message';
 import { PAGE_SIZE } from '@/lib/api/constants';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -77,9 +77,9 @@ export default function MessagesPage() {
       <div className="flex items-center justify-between mb-5">
         <PageTitle className="mb-0">站内消息</PageTitle>
         {!isEmpty && (
-          <Button variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
+          <IconButton variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
             <CheckCheck size={16} />全部已读
-          </Button>
+          </IconButton>
         )}
       </div>
 
@@ -97,13 +97,13 @@ export default function MessagesPage() {
               { accessorKey: 'created_at', meta: { width: '120px' }, header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
               { id: 'actions', meta: { width: '60px' }, header: '', cell: ({ row }) =>
                 !row.original.is_read ? (
-                  <Button variant="ghost" size="icon" aria-label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></Button>
+                  <IconButton label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></IconButton>
                 ) : NAVIGABLE_TYPES.has(row.original.related_type) ? (
-                  <Button variant="ghost" size="icon" aria-label="跳转" onClick={() => {
+                  <IconButton label="跳转" onClick={() => {
                     if (row.original.related_type === 'ticket') router.push(`/portal/tickets/${row.original.related_id}`);
                   }}>
                     <ExternalLink />
-                  </Button>
+                  </IconButton>
                 ) : null
               },
             ]}

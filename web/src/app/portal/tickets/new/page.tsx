@@ -2,7 +2,7 @@
 import { useState, useMemo, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/api/ticket';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
@@ -76,8 +76,8 @@ export default function TicketSubmitPage() {
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">
-          <Button size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交申告</Button>
-          <Button variant="ghost" size="sm" type="button" onClick={() => router.push("/portal/tickets")}>取消</Button>
+          <IconButton size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交申告</IconButton>
+          
         </div>
       </form>
     </div>

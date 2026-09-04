@@ -6,10 +6,10 @@ import useSWR from 'swr';
 import { getUploadConfig } from '@/lib/api/knowledge';
 import { uploadFileXHR, type UploadProgress } from '@/lib/api/upload';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import { UploadCloud, X, FileText, CheckCircle, XCircle, Loader2, Pencil } from 'lucide-react';
+import { UploadCloud, X, FileText, CheckCircle, XCircle, Loader2, Pencil, RotateCw, Trash2 } from 'lucide-react';
 
 /** 扩展名 → 类型归一化（与后端 detectFileType 对齐，jpeg 归一为 jpg）。 */
 const EXT_TO_TYPE: Record<string, string> = {
@@ -204,19 +204,17 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
                 {item.state === 'success' && <p className="mt-1 text-fine text-[var(--color-success)]">上传成功</p>}
               </div>
               {item.state === 'pending' && (
-                <button onClick={() => removeItem(item.id)} aria-label="移除" className="text-[var(--color-text-muted-48)] hover:text-[var(--color-ink)]">
-                  <X size={16} />
-                </button>
+                <IconButton label="移除" size="icon-sm" onClick={() => removeItem(item.id)}><X size={16} /></IconButton>
               )}
               {item.state === 'failed' && (
-                <Button variant="ghost" size="sm" onClick={() => uploadOne(item)} disabled={uploading || retryingIds.has(item.id)}>
-                  {retryingIds.has(item.id) ? <Loader2 className="animate-spin" size={14} /> : null}重试
-                </Button>
+                <IconButton variant="ghost" size="sm" onClick={() => uploadOne(item)} disabled={uploading || retryingIds.has(item.id)}>
+                  {retryingIds.has(item.id) ? <Loader2 className="animate-spin" size={14} /> : <RotateCw size={14} />}重试
+                </IconButton>
               )}
               {item.state === 'success' && item.articleId && (
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/knowledge/${kbId}/${item.articleId}?edit=1`)}>
+                <IconButton variant="ghost" size="sm" onClick={() => router.push(`/admin/knowledge/${kbId}/${item.articleId}?edit=1`)}>
                   <Pencil size={14} />编辑
-                </Button>
+                </IconButton>
               )}
             </div>
           ))}
@@ -226,11 +224,11 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
       {/* 操作栏 */}
       {queue.length > 0 && (
         <div className="mt-4 flex gap-3">
-          <Button onClick={uploadAll} disabled={!hasPending || uploading}>
+          <IconButton onClick={uploadAll} disabled={!hasPending || uploading}>
             {uploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
             {uploading ? '上传中...' : '开始上传'}
-          </Button>
-          {!uploading && <Button variant="ghost" size="sm" onClick={() => setQueue([])}>清空</Button>}
+          </IconButton>
+          {!uploading && <IconButton variant="ghost" size="sm" onClick={() => setQueue([])}><Trash2 size={14} />清空</IconButton>}
         </div>
       )}
     </div>
