@@ -6,7 +6,6 @@ import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenu
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { IconButton } from '@/components/ui/icon-button';
-import { Toggle } from '@/components/ui/toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
@@ -139,12 +138,15 @@ export default function RoleManagePage() {
           <Field label="权限">
             <div className="flex flex-wrap gap-1.5">
               {knownPermissions.map((p) => (
-                <Toggle key={p} variant="pill" size="pill-sm"
+                <IconButton
+                  key={p}
+                  variant="segmented"
+                  size="sm"
                   pressed={perms.includes(p)}
-                  onPressedChange={() => togglePerm(p)}
+                  onClick={() => togglePerm(p)}
                 >
                   {p}
-                </Toggle>
+                </IconButton>
               ))}
             </div>
           </Field>

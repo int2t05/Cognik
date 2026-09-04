@@ -4,7 +4,7 @@ import { forwardRef, type ReactNode } from 'react';
 import { Tooltip } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'default' | 'ghost' | 'destructive' | 'outline' | 'secondary' | 'link' | 'menu';
+type ButtonVariant = 'default' | 'ghost' | 'destructive' | 'outline' | 'secondary' | 'link' | 'menu' | 'segmented';
 type ButtonSize = 'sm' | 'default' | 'lg' | 'icon' | 'icon-sm';
 
 /** IconButton — 全站统一按钮组件，取代散落的 Button。
@@ -23,16 +23,20 @@ const IconButtonImpl = forwardRef<
     size?: ButtonSize;
     /** 破坏性操作（删除等）的快捷标记，等价 variant="destructive" */
     danger?: boolean;
+    /** segmented 选中态（variant="segmented" 时），用于 segmented control 选中项 */
+    pressed?: boolean;
   }
->(function IconButton({ className, children, label, variant = 'ghost', size = 'default', danger, ...props }, ref) {
+>(function IconButton({ className, children, label, variant = 'ghost', size = 'default', danger, pressed, ...props }, ref) {
   const btn = (
     <button
       ref={ref}
       type="button"
       aria-label={label}
+      aria-pressed={pressed}
       data-slot="button"
       data-variant={danger ? 'destructive' : variant}
       data-size={size}
+      data-state={pressed ? 'on' : 'off'}
       className={cn(
         'inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-md)] text-sm font-medium whitespace-nowrap outline-none transition-colors',
         'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50',
@@ -46,6 +50,8 @@ const IconButtonImpl = forwardRef<
         variant === 'secondary' && 'bg-transparent text-[var(--color-text-muted-80)] hover:bg-[var(--color-tile-1)] hover:text-[var(--color-ink)]',
         variant === 'link' && 'bg-transparent text-[var(--color-accent)] underline-offset-4 hover:underline',
         variant === 'menu' && 'bg-transparent text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)] text-callout font-medium',
+        // segmented — pill 圆角 + hairline border，选中态品牌色填充（替代 Toggle pill）
+        variant === 'segmented' && 'rounded-full border border-[var(--color-hairline)] bg-transparent text-[var(--color-ink)] hover:bg-[var(--color-divider-soft)] data-[state=on]:bg-[var(--color-accent)] data-[state=on]:border-[var(--color-accent)] data-[state=on]:text-[var(--color-on-accent)] data-[state=on]:hover:bg-[var(--color-accent-hover)]',
         danger && 'bg-transparent text-[var(--color-ink)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)]',
         // 尺寸
         size === 'sm' && 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
