@@ -25,16 +25,17 @@ func NewAgentRunner(loop *Loop) *AgentRunner {
 // Stream 跑 ReAct 循环，返回事件 channel。
 // ctx 应为 detached（带超时）— 客户端断开不停止生成。
 func (r *AgentRunner) Stream(ctx context.Context, input []*schema.Message) (<-chan AgentEvent, error) {
-	out := make(chan AgentEvent, 256)
+	out := make(chan AgentEvent, 1024)
 
 	// 生产者：Loop.Run 内部通过 emit 推 reasoning/token/tool_call/tool_result 事件。
 	// Loop.Run 返回后 emit done（或 error），然后关闭 channel。
+	// 阻塞发送（背压）：慢消费者暂停 Loop 生成，不丢事件；ctx 取消时解除阻塞防死锁。
 	go func() {
 		defer close(out)
 		emit := func(evt AgentEvent) {
 			select {
 			case out <- evt:
-			default: // channel 满（慢消费者）丢弃，生成 goroutine 始终跑完
+			case <-ctx.Done(): // ctx 取消时不再阻塞，防死锁
 			}
 		}
 		result, err := r.loop.Run(ctx, input, emit)

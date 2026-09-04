@@ -1,8 +1,8 @@
 'use client';
-// ReasoningPart — 思考过程展示（对标 Vercel ai-elements/reasoning.tsx）。
-// Collapsible 折叠 + 流式微光动画。
+// ReasoningPart — 思考过程展示。
+// Collapsible 折叠（默认收起，点击展开），流式微光动画指示状态。
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, Brain } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
 
@@ -12,17 +12,7 @@ interface Props {
 }
 
 export function ReasoningPart({ part, streaming }: Props) {
-  const [open, setOpen] = useState(streaming ?? false);
-
-  // 流式中自动展开，结束后自动收起
-  useEffect(() => {
-    if (streaming) {
-      setOpen(true);
-    } else {
-      const t = setTimeout(() => setOpen(false), 1000);
-      return () => clearTimeout(t);
-    }
-  }, [streaming]);
+  const [open, setOpen] = useState(false);
 
   return (
     <details open={open} className="my-2 group">

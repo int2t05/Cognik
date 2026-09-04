@@ -23,7 +23,7 @@ const (
 	// runGracePeriod 生成完成后缓冲保留时长，覆盖完成瞬间断线的客户端重连。
 	runGracePeriod = 30 * time.Second
 	// subChanBuffer 订阅通道缓冲；慢订阅者写满即丢弃（可凭 since 重连补回），保证生成不被阻塞。
-	subChanBuffer = 256
+	subChanBuffer = 1024
 	// eventStoreCap 单 run 事件缓冲上限（环形覆盖最旧事件，防止长生成内存膨胀）。
 	eventStoreCap = 1024
 )

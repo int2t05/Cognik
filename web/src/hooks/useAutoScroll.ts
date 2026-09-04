@@ -1,4 +1,4 @@
-/** useAutoScroll 对话区自动滚动：首次强制到底，流式跟随，非流式仅底部附近跟随。 */
+/** useAutoScroll 对话区自动滚动：首次强制到底，流式跟随（周期触发），非流式仅底部附近跟随。 */
 
 import { useRef, useEffect, useCallback } from 'react';
 
@@ -36,24 +36,32 @@ export function useAutoScroll({
     return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }, [containerRef]);
 
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     const shouldScroll = streaming || isNearBottom();
-
     if (!shouldScroll && !scrolledRef.current && messageCount > 0) {
       scrolledRef.current = true;
       el.scrollTop = el.scrollHeight;
       return;
     }
     if (!shouldScroll) return;
-
     if (enableVirtual && rowVirtualizer && rowVirtualizer.getTotalSize() > 0) {
       rowVirtualizer.scrollToIndex(messageCount + (currentStep ? 1 : 0) - 1, { align: 'end' });
     } else {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messageCount, currentStep, enableVirtual, rowVirtualizer, streaming, isNearBottom, containerRef]);
+  }, [containerRef, streaming, isNearBottom, messageCount, currentStep, enableVirtual, rowVirtualizer]);
+
+  // 消息数/步骤变化触发滚动
+  useEffect(() => { scrollToBottom(); }, [scrollToBottom, messageCount, currentStep]);
+
+  // 流式时周期触发滚动（token 增长不触发 messageCount 变化，需独立 ticker）
+  useEffect(() => {
+    if (!streaming) return;
+    const tick = setInterval(scrollToBottom, 100);
+    return () => clearInterval(tick);
+  }, [streaming, scrollToBottom]);
 
   // 切换会话时重置首次滚动标记
   const resetScroll = useCallback(() => { scrolledRef.current = false; }, []);
