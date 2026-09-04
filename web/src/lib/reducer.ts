@@ -48,13 +48,10 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
   if (evt.task_id) {
     return updateLastAssistant(s, (msg) => {
       const parts = [...msg.parts] as any[]
-      // 按 task_id 找已有的 tool_call 卡片；没有则新建。
-      let idx = parts.findIndex(p => p.type === 'tool_call' && (p.id === evt.task_id || p.id === evt.id))
-      if (idx < 0) {
-        // ack tool_result 带 evt.id（tool_use_id）→ 找 dispatch_subagent 的 tool_call part
-        if (evt.id) {
-          idx = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
-        }
+      // 优先按 task_id 找已映射的卡片；找不到则按 evt.id（ack 阶段，part id 仍是 tool_use_id）。
+      let idx = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.task_id)
+      if (idx < 0 && evt.id) {
+        idx = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
       }
       if (idx < 0) {
         parts.push({
@@ -63,18 +60,19 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
         })
         idx = parts.length - 1
       }
-      // 子 Agent 事件追加到卡片 content（不混入顶层 text/reasoning）
       const part = parts[idx]
       if (evt.type === 'token' || evt.type === 'reasoning') {
+        // 子 Agent 的思考/输出 → 追加到卡片 content
         parts[idx] = { ...part, content: (part.content || '') + (evt.content ?? '') }
       } else if (evt.type === 'tool_call') {
         parts[idx] = { ...part, content: (part.content || '') + '\n[tool_call] ' + (evt.label ?? '') + ': ' + (evt.content ?? '') }
       } else if (evt.type === 'tool_result') {
-        // ack tool_result（id=tool_use_id ≠ task_id）：仅追加内容，保持 running。
+        // ack tool_result（id=tool_use_id ≠ task_id）：把卡片 id 统一为 task_id（后续事件按 task_id 命中），保持 running。
         // task_completion tool_result（id=task_id）：标记 done + 追加最终结果。
         const isCompletion = evt.id === evt.task_id
         parts[idx] = {
           ...part,
+          id: isCompletion ? part.id : evt.task_id,
           status: isCompletion ? 'done' : part.status,
           content: (part.content || '') + (isCompletion ? '\n--- result ---\n' : '\n') + (evt.content ?? ''),
         }
