@@ -28,12 +28,10 @@ storage/
 │   └── {kb_slug}/                         # 知识库分区
 │       ├── INDEX.md                        # 页目录（脚本自动重建）
 │       ├── log.jsonl                       # 审计日志
-│       ├── {doc_slug}/                     # 每篇文档一个文件夹（md + 图片）
-│       │   ├── index.md
-│       │   └── images/
-│       └── {doc_slug}/
-│           ├── index.md
-│           └── images/
+│       ├── draft/                           # 草稿（未审核，不进 RAG）
+│       │   └── {filename}.md
+│       ├── published/                       # 已发布（进 RAG 索引）
+│       │   └── {filename}.md
 │
 ├── memory/                                # 记忆（Agent 自用，参考 Claude Code）
 │   ├── global/                             # 全局记忆（跨会话）
@@ -44,7 +42,6 @@ storage/
 │       └── {session_id}/
 │           ├── MEMORY.md
 │           └── diagnosed-pg-cpu-issue.md
-│
 └── _index/                                # 派生索引（可重建，gitignored）
     ├── pgvector/
     ├── bm25/
@@ -55,7 +52,7 @@ storage/
 
 | 维度 | 决策 | 理由 |
 |------|------|------|
-| kb 文档结构 | `{doc_slug}/index.md + images/` 文件夹式 | 文档有本地图片，需同目录存放 |
+| kb 文档结构 | `{kb_slug}/{draft|published}/{filename}.md` | 扁平 md 文件；图片统一到 `image/` 目录 |
 | kb 无分类子目录 | 分类靠 frontmatter `type` 字段 | 扁平存放，INDEX.md 按 type 分组渲染 |
 | memory 扁平文件 | 参考 Claude Code `~/.claude/memories/` | 可检查、可编辑、无数据库 |
 | memory 两个粒度 | `global/`（跨会话）+ `sessions/{id}/`（单会话） | 与系统相关与用户无关 |
@@ -68,7 +65,7 @@ storage/
 
 ### 3.1 kb 文档
 
-`kb/{kb_slug}/postgres-high-cpu/index.md`:
+`kb/{kb_slug}/published/postgres-high-cpu.md`:
 
 ```yaml
 ---
@@ -88,7 +85,7 @@ updated: "2026-09-04T10:00:00+08:00"
 
 # PostgreSQL 高 CPU 排障
 
-![CPU 监控图](images/pg-cpu-graph.png)
+![CPU 监控图](/image/pg-cpu-graph.png)
 ```
 
 ### 3.2 global 记忆
@@ -126,10 +123,10 @@ modified: "2026-09-04T10:00:00+08:00"
 # 知识库目录
 
 ## 运维手册
-- [PostgreSQL 高 CPU 排障](postgres-high-cpu/) `runbook` `postgres` `SEV-2`
+- [PostgreSQL 高 CPU 排障](published/postgres-high-cpu.md) `runbook` `postgres` `SEV-2`
 
 ## 系统文档
-- [PostgreSQL 集群架构](pg-cluster-architecture/) `architecture` `postgres`
+- [PostgreSQL 集群架构](published/pg-cluster-architecture.md) `architecture` `postgres`
 ```
 
 ---
@@ -141,7 +138,7 @@ modified: "2026-09-04T10:00:00+08:00"
 | L1 上下文窗口 | Agent 内存 | — | — | 当前会话 |
 | L3 会话记忆 | `memory/sessions/{id}/*.md` | `MEMORY.md` | BM25 / 精确 | 单会话 |
 | L4 全局记忆 | `memory/global/*.md` | `MEMORY.md` | BM25 | 跨会话 |
-| Storage 知识库 | `kb/{kb_slug}/{doc_slug}/index.md` | `INDEX.md` | RAG 引擎 | 持久 |
+| Storage 知识库 | `kb/{kb_slug}/{draft|published}/*.md` | `INDEX.md` | RAG 引擎 | 持久 |
 
 ---
 
@@ -172,7 +169,7 @@ Eino SDK 内置 `summarization` + `reduction` 中间件 + `CheckPointStore`，�
 ## 7. 异步处理管道
 
 ```
-deep_research 产出 → kb/{kb_slug}/{doc_slug}/ (status: draft)
+deep_research 产出 → kb/{kb_slug}/draft/{filename}.md (status: draft)
                           ↓ enqueue <5ms
                     _index/ingest_queue.jsonl
                           ↓ 定时消费者
@@ -389,7 +386,7 @@ PostgreSQL CPU 高的排查步骤[1]：
 ...
 
 引用：
-[1] kb/runbooks/postgres-high-cpu/index.md
+[1] kb/published/postgres-high-cpu.md
 [2] memory/global/pg-cluster-vacuum-pattern.md
 ```
 
@@ -400,7 +397,7 @@ PostgreSQL CPU 高的排查步骤[1]：
 | 现有组件 | 统一架构中的角色 | 变更 |
 |---------|----------------|------|
 | RAG 引擎 | knowledge scope 检索后端 | 保留；+Sandwich Reorder +Contextual Retrieval |
-| KnowledgeArticle + KnowledgeChunk | kb 文件索引 | 新增 `file_path` 指向 `{doc_slug}/index.md` |
+| KnowledgeArticle + KnowledgeChunk | kb 文件索引 | 新增 `file_path` 指向 `{draft|published}/{filename}.md` |
 | Eino ReactAgent | L1 上下文管理者 | +summarization +reduction 中间件 |
 | SQLite（V1.3） | L3 CheckPointStore | 迁移到 `sessions/{id}/` 文件式 |
 | 9 工具 + SubAgent | Agent 能力 | +memory_remember/recall/forget 工具 |
