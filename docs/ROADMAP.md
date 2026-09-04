@@ -26,7 +26,7 @@ flowchart LR
 | V1.0 | 固定管道 RAG | 7 步 RAG 管道 + 申告状态机 + 知识库 CRUD + RBAC + SSE 流式 | ✅ 已交付 |
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | 📋 规划中 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
-| V1.3 | Agent 基座 | 原生 Go Agent Loop；LLMClient tool calling 扩展；Tool Registry；MCP SDK 集成；SSE 事件扩展 | 📋 规划中 |
+| V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关(Gateway)；9 OS 工具(bash/async_bash/read/write/edit/list/glob/grep/mkdir)；SubAgent(research+coder)；异步任务；SQLite 隔离；threads API；parts 数组模型前端渲染 | ✅ 已交付 |
 | V1.4 | 深度搜索 | SearXNG 部署；网络搜索工具；深度研究架构（规划器→搜索器→反思器→合成器）；搜索 API 集成 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
