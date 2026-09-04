@@ -141,7 +141,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
           style={{ width: sidebarWidth }}
         >
           <div className={`flex items-center gap-3 px-4 py-4 border-b border-[var(--color-divider-soft)] overflow-hidden ${collapsed ? 'justify-center' : ''}`}>
-            <Image src="/icon.svg" alt="" width={28} height={28} className="shrink-0" />
+            <Image src={theme === 'dark' ? '/icon-dark.svg' : '/icon-light.svg'} alt="" width={28} height={28} className="shrink-0" />
             {!collapsed && <span className="text-title font-semibold text-[var(--color-ink)] truncate">{appName || 'OpsMind'}</span>}
           </div>
           <nav className="flex-1 py-2 overflow-y-auto overscroll-behavior-contain" aria-label="主导航">
