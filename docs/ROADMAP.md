@@ -297,6 +297,21 @@ flowchart LR
 - 主 Agent 通过 SubAgent 委托（GPT-Researcher 模式）
 - SSE 复用 `tool_call` / `tool_result`，`Label` 区分工具类型
 
+### 7.5 深度搜索方法论
+
+deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill）：
+
+| 原则 | 说明 |
+|------|------|
+| 分层搜索 | 搜索→爬取→验证→综合，每步有明确输入输出；不跳过验证直接综合 |
+| 源优先级 | GitHub 源 > 官方文档 > 社区信号 > SEO 列表；负向断言必须在 GitHub 上验证 |
+| 全页提取 | 搜索 snippet 不可作为最终证据；必须 fetch 源页后才能总结 |
+| 对抗性验证 | 每个关键断言回溯到一手源；记录标题/URL/日期/可靠性；冲突和过期数据显式标注 |
+| 引用注册表 | 全局 source ID 注册表，防合成幻觉；正文行内引用 `[1]`，frontmatter 维护映射 |
+| 上下文压缩 | 子 Agent 返回前压缩发现（1-2K token），原始数据不传递；大结果卸载到文件 |
+| 收敛控制 | 固定结构（N 子问题 × K 来源），硬性上限防无限循环；不做动态收敛判断 |
+| 工具降级 | 工具配额耗尽时分层降级（GitHub→索引文档→scrape→discovery）；记录访问限制 |
+
 ### 7.5 知识库输出
 
 深度搜索产出 md 文件，存入知识库。
