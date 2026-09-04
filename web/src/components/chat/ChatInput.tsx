@@ -24,10 +24,18 @@ interface ChatInputProps {
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
   ({ value, onChange, onSend, onStop, disabled, loading, streaming, queueCount = 0, placeholder }, ref) => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Alt+Enter / Shift+Enter 换行；Enter 发送（streaming 时进队列）
+      // Alt+Enter / Shift+Enter / Ctrl+Enter 换行；Enter 发送（streaming 时进队列）
       if (e.key === 'Enter') {
-        if (e.altKey || e.shiftKey) {
-          // 允许默认换行，不拦截
+        if (e.altKey || e.shiftKey || e.ctrlKey) {
+          // 手动在光标处插入换行，避免部分浏览器/IME 拦截 Alt+Enter 默认行为
+          e.preventDefault();
+          const ta = e.currentTarget;
+          const start = ta.selectionStart;
+          const end = ta.selectionEnd;
+          const next = value.slice(0, start) + '\n' + value.slice(end);
+          onChange(next);
+          // 恢复光标到换行后
+          requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = start + 1; });
           return;
         }
         e.preventDefault();

@@ -9,7 +9,6 @@ import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { DataTable } from '@/components/ui/data-table';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import { IconButton } from '@/components/ui/icon-button';
-import { Toggle } from '@/components/ui/toggle';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -140,9 +139,9 @@ export default function UserListPage() {
           <Field label="角色">
             <div className="flex flex-wrap gap-2">
               {roles.map(role => (
-                <Toggle key={role.id} variant="pill" size="pill-sm"
+                <IconButton key={role.id} variant="segmented" size="sm"
                   pressed={form.role_ids.includes(role.id)}
-                  onPressedChange={() => toggleRole(role.id)}>{role.name}</Toggle>
+                  onClick={() => toggleRole(role.id)}>{role.name}</IconButton>
               ))}
             </div>
           </Field>

@@ -102,7 +102,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">数据看板</PageTitle>
         <IconButton label="刷新" onClick={handleRefresh}><RotateCw /></IconButton>

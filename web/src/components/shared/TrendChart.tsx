@@ -3,7 +3,6 @@
 
 import { useState } from 'react';
 import { IconButton } from '@/components/ui/icon-button';
-import { Toggle } from '@/components/ui/toggle';
 import { Calendar, Loader2, Search } from 'lucide-react';
 import { type TrendPoint } from '@/lib/api/dashboard';
 
@@ -66,20 +65,20 @@ export function TrendChart({ data, loading, error, dateRange, onDateRangeChange 
   };
 
   return (
-    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5">
+    <div className="bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-5 min-w-0 overflow-hidden">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h3 className="text-title font-semibold text-[var(--color-ink)]">趋势图</h3>
         <div className="flex items-center gap-2 flex-wrap">
           {PRESETS.map((p) => (
-            <Toggle
+            <IconButton
               key={p.days}
-              variant="pill"
-              size="pill-md"
+              variant="segmented"
+              size="sm"
               pressed={activePreset === p.days}
-              onPressedChange={() => applyPreset(p.days)}
+              onClick={() => applyPreset(p.days)}
             >
               {p.label}
-            </Toggle>
+            </IconButton>
           ))}
           <span className="text-[var(--color-hairline)]">|</span>
           <Calendar size={12} className="text-[var(--color-text-muted-48)] shrink-0" />
