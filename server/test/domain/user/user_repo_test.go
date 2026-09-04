@@ -3,7 +3,7 @@
 // Package repository_test 验证 UserRepo 数据访问层。
 //
 // 测试覆盖 5 个核心方法：GetByID/GetByUsername/GetByPhone/ExistsByPhone/Create。
-// 使用独立的 opsmind_test 数据库，每个测试用例通过清理保证隔离性。
+// 使用独立的 cognos_test 数据库，每个测试用例通过清理保证隔离性。
 package user_test
 
 import (
@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,9 +28,9 @@ func setupUserTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 

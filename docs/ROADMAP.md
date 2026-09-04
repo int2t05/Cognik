@@ -1,10 +1,10 @@
-# OpsMind 产品技术路线图
+# Cognos 产品技术路线图
 
 > 从 V1.0 到 V2.0 的版本规划。代码级改进清单见 [`TODO.md`](TODO.md)，技术架构详见 [`TECH.md`](TECH.md)。
 
 ## 1. 项目愿景
 
-OpsMind 是面向企业 IT 运维的**私有部署 AI 数字员工系统**。核心目标：让运维团队从重复性咨询中解放，让知识沉淀为可复用资产，让 AI 成为运维流程的第一响应者。
+Cognos 是面向企业 IT 运维的**私有部署 AI 数字员工系统**。核心目标：让运维团队从重复性咨询中解放，让知识沉淀为可复用资产，让 AI 成为运维流程的第一响应者。
 
 **设计原则**：私有部署优先（数据不出域）、自建 RAG 引擎（全链路可控可审计）、单体分层架构（简洁可维护）。
 
@@ -42,7 +42,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((OpsMind V1.0))
+  root((Cognos V1.0))
     智能问答
       自建 7 步 RAG 管道
       BM25 + 向量混合 + RRF
@@ -487,7 +487,7 @@ V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 �
 
 ```mermaid
 gantt
-    title OpsMind V1.0 → V2.0 里程碑
+    title Cognos V1.0 → V2.0 里程碑
     dateFormat YYYY-MM-DD
     axisFormat %Y-%m
 

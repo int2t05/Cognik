@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="OpsMind">
+  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="Cognos">
 </p>
 
-<h1 align="center">OpsMind</h1>
+<h1 align="center">Cognos</h1>
 
-<p align="center">私有部署的运维数字员工</p>
+<p align="center">私有部署的知识管理平台</p>
 
 <p align="center">
-  <a href="https://github.com/int2t05/OpsMind/releases"><img alt="version" src="https://img.shields.io/badge/version-v1.4-5b5bd6"></a>
+  <a href="https://github.com/int2t05/Cognos/releases"><img alt="version" src="https://img.shields.io/badge/version-v1.4-5b5bd6"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
@@ -15,9 +15,9 @@
 
 ## 这是什么
 
-企业运维团队每天被重复性咨询淹没——密码重置、权限申请、系统报障。OpsMind 把这些工作交给一个能自主调用工具、多步推理的 Agent，让运维经验沉淀为可复用的知识。
+企业团队每天被重复性咨询淹没——密码重置、权限申请、系统报障。Cognos 把这些工作交给一个能自主调用工具、多步推理的 Agent，让运维经验沉淀为可复用的知识。
 
-OpsMind 从 Agent 循环到业务流程全部自建，支持本地 llama.cpp 推理，数据不出域。
+Cognos 从 Agent 循环到业务流程全部自建，支持本地 llama.cpp 推理，数据不出域。
 
 ## 核心能力
 
@@ -64,7 +64,7 @@ graph TB
 **前置条件：** Docker + Docker Compose · 8 GB 内存 · 10 GB 磁盘
 
 ```bash
-git clone https://github.com/int2t05/OpsMind.git && cd OpsMind
+git clone https://github.com/int2t05/Cognos.git && cd Cognos
 cp .env.example .env
 # 编辑 .env：设置 JWT_SECRET（必填）和 LLM 配置
 docker compose up -d --build
@@ -93,7 +93,7 @@ docker compose --profile ai-local up -d --build
 初始化数据库并加载种子数据：
 
 ```bash
-docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/seed_essential.sql
+docker compose exec -T postgres psql -U cognos -d cognos < server/migrations/seed_essential.sql
 ```
 
 预置账号：
@@ -101,7 +101,7 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 | 账号 | 密码 | 角色 |
 |------|------|------|
 | `admin` | `Admin@123` | 系统管理员 |
-| `operator1` | `Operator@123` | 运维人员 |
+| `operator1` | `Operator@123` | 团队成员 |
 | `knowledge` | `Knowledge@123` | 知识库管理员 |
 | `reporter1` | `Reporter@123` | 报障人 |
 
@@ -127,7 +127,7 @@ stateDiagram-v2
 ## 项目结构
 
 ```
-OpsMind/
+Cognos/
 ├── server/                      # Go 后端（Gin + GORM）
 │   ├── internal/
 │   │   ├── agent/               # 自建 ReAct Loop + 统一工具接口 + SubAgent + SQLite store

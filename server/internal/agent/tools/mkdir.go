@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"opsmind/internal/agent"
+	"cognos/internal/agent"
 
 	"github.com/cloudwego/eino/schema"
 )

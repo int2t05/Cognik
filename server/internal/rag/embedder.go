@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"opsmind/internal/infra/adapter"
+	"cognos/internal/infra/adapter"
 )
 
 // Embedder 批量文本向量化器，封装 EmbeddingClient 的自动分批与部分失败处理。

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

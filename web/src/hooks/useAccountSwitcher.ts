@@ -6,7 +6,7 @@ import { useAuth } from './useAuth';
 import { getUnreadCount } from '@/lib/api/message';
 import { STORAGE_KEY, MAX_ACCOUNTS, EXPIRE_MS, type SavedAccount } from '@/lib/account-store';
 
-const ACCOUNTS_EVENT = 'opsmind-accounts-change';
+const ACCOUNTS_EVENT = 'cognos-accounts-change';
 
 function loadAccounts(): SavedAccount[] {
   if (typeof window === 'undefined') return [];

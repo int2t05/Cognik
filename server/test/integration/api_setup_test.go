@@ -24,23 +24,23 @@ import (
 	"testing"
 	"time"
 
-	llmconfig "opsmind/internal/domain/chat/llm_config"
-	"opsmind/internal/domain/chat/session"
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/domain/system/audit"
-	sysconfig "opsmind/internal/domain/system/config"
-	"opsmind/internal/domain/system/dashboard"
-	"opsmind/internal/domain/system/message"
-	"opsmind/internal/domain/ticket"
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/infra/cache"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/infra/runtime"
-	"opsmind/internal/router"
-	"opsmind/internal/shared/pkg/hash"
+	llmconfig "cognos/internal/domain/chat/llm_config"
+	"cognos/internal/domain/chat/session"
+	"cognos/internal/domain/knowledge"
+	"cognos/internal/domain/system/audit"
+	sysconfig "cognos/internal/domain/system/config"
+	"cognos/internal/domain/system/dashboard"
+	"cognos/internal/domain/system/message"
+	"cognos/internal/domain/ticket"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/domain/user/auth"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/infra/cache"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/infra/runtime"
+	"cognos/internal/router"
+	"cognos/internal/shared/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -77,8 +77,8 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	gin.SetMode(gin.TestMode)
 
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind",
-		Password: "opsmind_dev", DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos",
+		Password: "cognos_dev", DBName: "cognos_test", SSLMode: "disable",
 	}
 	jwtCfg := config.JWTConfig{
 		Secret: "test_secret_key_2024", AccessExpire: 2 * time.Hour, RefreshExpire: 168 * time.Hour,

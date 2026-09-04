@@ -11,7 +11,7 @@ tests/
 .gitignore
 
 # Binary
-opsmind-server*
+cognos-server*
 *.exe
 
 # Misc

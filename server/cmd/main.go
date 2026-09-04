@@ -1,4 +1,4 @@
-// Package main 是 OpsMind 后端服务入口。
+// Package main 是 Cognos 后端服务入口。
 package main
 
 import (
@@ -17,31 +17,31 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/cloudwego/eino/schema"
 
-	"opsmind/internal/domain/chat/llm_config"
-	"opsmind/internal/domain/chat/session"
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/domain/system/audit"
-	sysconfig "opsmind/internal/domain/system/config"
-	"opsmind/internal/domain/system/dashboard"
-	"opsmind/internal/domain/system/message"
-	"opsmind/internal/domain/ticket"
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/agent"
-	agenttools "opsmind/internal/agent/tools"
-	"opsmind/internal/agent/store"
-	"opsmind/internal/infra/adapter"
-	"opsmind/internal/infra/cache"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	opslog "opsmind/internal/infra/log"
-	"opsmind/internal/infra/runtime"
-	"opsmind/internal/infra/storage"
-	"opsmind/internal/parser"
-	"opsmind/internal/parser/mineru"
-	"opsmind/internal/rag"
-	"opsmind/internal/router"
+	"cognos/internal/domain/chat/llm_config"
+	"cognos/internal/domain/chat/session"
+	"cognos/internal/domain/knowledge"
+	"cognos/internal/domain/system/audit"
+	sysconfig "cognos/internal/domain/system/config"
+	"cognos/internal/domain/system/dashboard"
+	"cognos/internal/domain/system/message"
+	"cognos/internal/domain/ticket"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/domain/user/auth"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/agent"
+	agenttools "cognos/internal/agent/tools"
+	"cognos/internal/agent/store"
+	"cognos/internal/infra/adapter"
+	"cognos/internal/infra/cache"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	opslog "cognos/internal/infra/log"
+	"cognos/internal/infra/runtime"
+	"cognos/internal/infra/storage"
+	"cognos/internal/parser"
+	"cognos/internal/parser/mineru"
+	"cognos/internal/rag"
+	"cognos/internal/router"
 )
 
 // app 持有所有已初始化的组件。
@@ -57,7 +57,7 @@ type app struct {
 }
 
 func main() {
-	slog.Info("OpsMind 服务启动中...")
+	slog.Info("Cognos 服务启动中...")
 
 	app, err := wireApp()
 	if err != nil {
@@ -83,7 +83,7 @@ func wireApp() (*app, error) {
 	a.cfg = cfg
 
 	// 初始化日志
-	logDir := os.Getenv("OPSMIND_LOG_DIR")
+	logDir := os.Getenv("COGNOS_LOG_DIR")
 	if logDir == "" {
 		logDir = filepath.Join("..", "logs")
 	}
@@ -96,7 +96,7 @@ func wireApp() (*app, error) {
 	// 生产模式 JWT 密钥非空校验
 	if cfg.JWT.Secret == "" {
 		if cfg.Server.Mode == "release" {
-			return nil, fmt.Errorf("JWT 密钥为空，生产模式不允许启动，请设置 OPSMIND_JWT_SECRET")
+			return nil, fmt.Errorf("JWT 密钥为空，生产模式不允许启动，请设置 COGNOS_JWT_SECRET")
 		}
 		slog.Warn("JWT 密钥为空，JWT 认证功能不可用（仅调试模式允许）")
 	}
@@ -108,9 +108,9 @@ func wireApp() (*app, error) {
 	}
 	slog.Info("数据库连接成功")
 
-	// AutoMigrate（开发环境自动迁移，生产环境通过 OPSMIND_DB_SKIP_MIGRATE 跳过）
-	if os.Getenv("OPSMIND_DB_SKIP_MIGRATE") == "true" {
-		slog.Info("已跳过数据库自动迁移（OPSMIND_DB_SKIP_MIGRATE=true）")
+	// AutoMigrate（开发环境自动迁移，生产环境通过 COGNOS_DB_SKIP_MIGRATE 跳过）
+	if os.Getenv("COGNOS_DB_SKIP_MIGRATE") == "true" {
+		slog.Info("已跳过数据库自动迁移（COGNOS_DB_SKIP_MIGRATE=true）")
 	} else {
 		if err := database.AutoMigrate(db); err != nil {
 			return nil, fmt.Errorf("数据库迁移失败: %w", err)
@@ -244,7 +244,7 @@ func wireApp() (*app, error) {
 
 
 	bm25TTL := 30 * time.Minute
-	if s := os.Getenv("OPSMIND_AI_BM25_REBUILD_MINUTES"); s != "" {
+	if s := os.Getenv("COGNOS_AI_BM25_REBUILD_MINUTES"); s != "" {
 		var minutes int
 		if _, err := fmt.Sscanf(s, "%d", &minutes); err == nil && minutes > 0 {
 			bm25TTL = time.Duration(minutes) * time.Minute
@@ -257,7 +257,7 @@ func wireApp() (*app, error) {
 	var processor *rag.Processor
 	if a.vectorStore != nil || a.storageClient != nil {
 		procWorkers := 2
-		if s := os.Getenv("OPSMIND_AI_PROCESSOR_WORKERS"); s != "" {
+		if s := os.Getenv("COGNOS_AI_PROCESSOR_WORKERS"); s != "" {
 			var n int
 			if _, err := fmt.Sscanf(s, "%d", &n); err == nil && n > 0 {
 				procWorkers = n
@@ -336,9 +336,9 @@ func wireApp() (*app, error) {
 	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
 
 	toolDeps := agenttools.Deps{
-		WorkDir:     envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
-		Timeout:     envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
-		MaxBytes:    int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
+		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", "./data/agent-workspace"),
+		Timeout:     envDuration("COGNOS_AGENT_TOOL_TIMEOUT", 30*time.Second),
+		MaxBytes:    int64(envInt("COGNOS_AGENT_TOOL_MAX_BYTES", 65536)),
 		SearchChain: searchChain,
 		FetchChain:  fetchChain,
 		KBStore:     kbStore,
@@ -402,11 +402,11 @@ func wireApp() (*app, error) {
 	slog.Info("Gateway 网关已初始化")
 
 	// Agent 对话数据存储（SQLite，与业务 PostgreSQL 隔离）
-	agentStore, err := store.NewSQLiteStore(envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
+	agentStore, err := store.NewSQLiteStore(envStr("COGNOS_AGENT_DB", "./data/agent.db"))
 	if err != nil {
 		return nil, fmt.Errorf("创建 Agent SQLite 存储失败: %w", err)
 	}
-	slog.Info("Agent SQLite 存储已初始化", "path", envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
+	slog.Info("Agent SQLite 存储已初始化", "path", envStr("COGNOS_AGENT_DB", "./data/agent.db"))
 
 	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
 	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
@@ -548,7 +548,7 @@ func (a *app) run() error {
 		a.logCleanup()
 	}
 
-	slog.Info("OpsMind 服务已停止")
+	slog.Info("Cognos 服务已停止")
 	return nil
 }
 

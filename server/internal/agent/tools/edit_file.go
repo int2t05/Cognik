@@ -16,7 +16,7 @@ import (
 	"os"
 	"strings"
 
-	"opsmind/internal/agent"
+	"cognos/internal/agent"
 
 	"github.com/cloudwego/eino/schema"
 )

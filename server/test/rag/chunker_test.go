@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"opsmind/internal/rag"
+	"cognos/internal/rag"
 )
 
 // --- 基础分块 ---

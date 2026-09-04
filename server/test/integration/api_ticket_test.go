@@ -26,7 +26,7 @@ func TestAPI_Ticket_PortalCreateFull(t *testing.T) {
 	resp := ts.doReporter(t, http.MethodPost, "/api/v1/portal/tickets", map[string]interface{}{
 		"title": "full test ticket", "description": "with all fields", "urgency": 2, "impact_scope": 2,
 		"affected_systems": []string{"Email", "VPN"}, "contact_phone": "13800003001",
-		"contact_email": "reporter@opsmind.local",
+		"contact_email": "reporter@cognos.local",
 	})
 	assertCode(t, resp, 0)
 

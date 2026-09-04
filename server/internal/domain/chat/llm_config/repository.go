@@ -6,7 +6,7 @@ package llmconfig
 import (
 	"context"
 
-	"opsmind/internal/shared/model"
+	"cognos/internal/shared/model"
 
 	"gorm.io/gorm"
 )

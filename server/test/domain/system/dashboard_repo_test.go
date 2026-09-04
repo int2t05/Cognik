@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
-	"opsmind/internal/domain/system/dashboard"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
+	"cognos/internal/domain/system/dashboard"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
 
 	"gorm.io/gorm"
 )
@@ -20,8 +20,8 @@ func setupDashboardRepoTestDB(t *testing.T) *gorm.DB {
 	port, _ := strconv.Atoi(getEnv("TEST_DB_PORT", "5432"))
 	db, err := database.Init(config.DatabaseConfig{
 		Host: getEnv("TEST_DB_HOST", "localhost"), Port: port,
-		User: getEnv("TEST_DB_USER", "opsmind"), Password: getEnv("TEST_DB_PASSWORD", "opsmind_dev"),
-		DBName: getEnv("TEST_DB_NAME", "opsmind_test"), SSLMode: getEnv("TEST_DB_SSLMODE", "disable"),
+		User: getEnv("TEST_DB_USER", "cognos"), Password: getEnv("TEST_DB_PASSWORD", "cognos_dev"),
+		DBName: getEnv("TEST_DB_NAME", "cognos_test"), SSLMode: getEnv("TEST_DB_SSLMODE", "disable"),
 	})
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)

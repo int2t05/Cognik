@@ -7,13 +7,13 @@ import (
 	"regexp"
 	"strings"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/cache"
-	"opsmind/internal/shared/dto/request"
-	respDto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/shared/pkg/hash"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/infra/cache"
+	"cognos/internal/shared/dto/request"
+	respDto "cognos/internal/shared/dto/response"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
+	"cognos/internal/shared/pkg/hash"
 
 	"gorm.io/gorm"
 )

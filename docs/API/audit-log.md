@@ -182,7 +182,7 @@ Content-Type: application/json
 
 ```json
 {
-  "value": "OpsMind"
+  "value": "Cognos"
 }
 ```
 
@@ -215,7 +215,7 @@ GET /api/v1/public/configs/:key
 **响应示例：**
 
 ```json
-{ "code": 0, "message": "success", "data": { "value": "OpsMind" } }
+{ "code": 0, "message": "success", "data": { "value": "Cognos" } }
 ```
 
 **错误码：**

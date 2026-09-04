@@ -10,8 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	llmconfig "opsmind/internal/domain/chat/llm_config"
-	"opsmind/internal/shared/model"
+	llmconfig "cognos/internal/domain/chat/llm_config"
+	"cognos/internal/shared/model"
 
 	"github.com/gin-gonic/gin"
 )

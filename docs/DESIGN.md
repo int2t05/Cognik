@@ -1,4 +1,4 @@
-# OpsMind Agentic RAG 架构设计
+# Cognos Agentic RAG 架构设计
 
 > 基于 `docs/research/`（25 篇研究）+ `reference/`（133 参考仓库）+ 实现代码产出。Agentic RAG 自主决策为核心，检索/记忆/搜索/写入均为 Agent 工具。
 
@@ -203,10 +203,10 @@ flowchart LR
 | 维度 | 设计 | 参考 |
 |------|------|------|
 | Agent 写入 | Agent 调 `kb(action=create)` 写 markdown + frontmatter | SurfSense `build_note_document()` |
-| 异步索引 | 写 Draft 后入队 <5ms 返回，消费者异步 chunk+embed | SurfSense Celery / OpsMind IngestQueue |
+| 异步索引 | 写 Draft 后入队 <5ms 返回，消费者异步 chunk+embed | SurfSense Celery / Cognos IngestQueue |
 | 去重 | content-hash 去重（搜索同一主题不重复创建） | SurfSense `content_hash` + `unique_identifier_hash` |
 | 压缩节点 | 多源搜索结果去重（dedup not summarize，保留原始信息） | open_deep_research `compress_research` |
-| 审核门控 | Draft → 人工审核 → Published（deep_research 文章可配置自动发布） | OpsMind 状态机 |
+| 审核门控 | Draft → 人工审核 → Published（deep_research 文章可配置自动发布） | Cognos 状态机 |
 
 ### 5.3 缺口（待补）
 
@@ -238,9 +238,9 @@ Agent 写 draft.md → IngestQueue.Enqueue() <5ms
 
 | 机制 | 实现 | 参考 |
 |------|------|------|
-| 队列 | `_index/ingest_queue.jsonl`（append-only，<5ms enqueue） | OpsMind IngestQueue |
+| 队列 | `_index/ingest_queue.jsonl`（append-only，<5ms enqueue） | Cognos IngestQueue |
 | 消费者 | 定时轮询（5s）+ lease（60s TTL）+ 崩溃恢复（processing→pending） | Dify Celery / RAGFlow Redis Stream |
-| 处理 | goroutine pool（2 workers）+ 增量 diff（chunk hash 复用未变 embedding） | OpsMind Processor |
+| 处理 | goroutine pool（2 workers）+ 增量 diff（chunk hash 复用未变 embedding） | Cognos Processor |
 | 索引 | pgvector halfvec(1024) + HNSW + BM25（gse 分词） | 已有 |
 
 ### 6.2 检索管道（Agent 驱动）

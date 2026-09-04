@@ -65,7 +65,7 @@ func generateToken(userID int64, username string, roles []string, permissions []
 		Permissions: permissions,
 		TokenType:   tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    "opsmind",
+			Issuer:    "cognos",
 			Subject:   fmt.Sprintf("%d", userID),
 			ID:        fmt.Sprintf("%d-%d", userID, now.UnixNano()),
 			IssuedAt:  jwt.NewNumericDate(now),

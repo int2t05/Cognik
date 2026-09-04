@@ -20,11 +20,11 @@ func TestAPI_Config_SetAndGet(t *testing.T) {
 
 	// Set
 	assertCode(t, ts.doAuth(t, http.MethodPut, "/api/v1/admin/configs/app_name",
-		map[string]interface{}{"value": "OpsMind-Test"}), 0)
+		map[string]interface{}{"value": "Cognos-Test"}), 0)
 
 	// Get 验证
 	data := assertOK(t, ts.doAuth(t, http.MethodGet, "/api/v1/admin/configs/app_name", nil))["data"]
-	assert.Equal(t, "OpsMind-Test", data)
+	assert.Equal(t, "Cognos-Test", data)
 }
 
 func TestAPI_Config_UpdateReadBack(t *testing.T) {

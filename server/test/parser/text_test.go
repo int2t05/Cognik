@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/parser"
-	"opsmind/internal/parser/local"
+	"cognos/internal/parser"
+	"cognos/internal/parser/local"
 )
 
 // TestParseTxt 验证纯文本文件解析。
@@ -25,12 +25,12 @@ func TestParseTxt(t *testing.T) {
 
 // TestParseTxt_UTF8 验证 UTF-8 编码文本正确解析。
 func TestParseTxt_UTF8(t *testing.T) {
-	text := "运维 OpsMind 系统 - 账号 Account 管理"
+	text := "运维 Cognos 系统 - 账号 Account 管理"
 	result, err := local.ParseTxt(strings.NewReader(text))
 	if err != nil {
 		t.Fatalf("UTF-8 文本解析失败: %v", err)
 	}
-	if !strings.Contains(result.Markdown, "OpsMind") {
+	if !strings.Contains(result.Markdown, "Cognos") {
 		t.Error("UTF-8 英文内容应保留")
 	}
 	if !strings.Contains(result.Markdown, "账号") {

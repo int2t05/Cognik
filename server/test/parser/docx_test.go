@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/parser"
-	"opsmind/internal/parser/local"
+	"cognos/internal/parser"
+	"cognos/internal/parser/local"
 )
 
 // TestParseDocx 验证 DOCX 解析基本功能（直接调用 local.ParseDocx）。

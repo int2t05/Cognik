@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/schema"
-	"opsmind/internal/agent"
-	"opsmind/internal/agent/store"
-	"opsmind/internal/infra/runtime"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/agent"
+	"cognos/internal/agent/store"
+	"cognos/internal/infra/runtime"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

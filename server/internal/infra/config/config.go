@@ -1,4 +1,4 @@
-// Package config 负责加载配置（Viper 读取 config.yaml + 环境变量覆盖，前缀 OPSMIND）。
+// Package config 负责加载配置（Viper 读取 config.yaml + 环境变量覆盖，前缀 COGNOS）。
 package config
 
 import (
@@ -219,86 +219,86 @@ func Load(configPath string) (*AppConfig, error) {
 // bindEnvs 显式绑定环境变量到配置 key。
 func bindEnvs(v *viper.Viper) {
 	// Server
-	v.BindEnv("server.port", "OPSMIND_SERVER_PORT")
-	v.BindEnv("server.mode", "OPSMIND_SERVER_MODE")
-	v.BindEnv("server.read_timeout", "OPSMIND_SERVER_READ_TIMEOUT")
-	v.BindEnv("server.write_timeout", "OPSMIND_SERVER_WRITE_TIMEOUT")
-	v.BindEnv("server.idle_timeout", "OPSMIND_SERVER_IDLE_TIMEOUT")
+	v.BindEnv("server.port", "COGNOS_SERVER_PORT")
+	v.BindEnv("server.mode", "COGNOS_SERVER_MODE")
+	v.BindEnv("server.read_timeout", "COGNOS_SERVER_READ_TIMEOUT")
+	v.BindEnv("server.write_timeout", "COGNOS_SERVER_WRITE_TIMEOUT")
+	v.BindEnv("server.idle_timeout", "COGNOS_SERVER_IDLE_TIMEOUT")
 
 	// Database
-	v.BindEnv("database.host", "OPSMIND_DATABASE_HOST")
-	v.BindEnv("database.port", "OPSMIND_DATABASE_PORT")
-	v.BindEnv("database.user", "OPSMIND_DATABASE_USER")
-	v.BindEnv("database.password", "OPSMIND_DATABASE_PASSWORD")
-	v.BindEnv("database.dbname", "OPSMIND_DATABASE_DBNAME")
-	v.BindEnv("database.sslmode", "OPSMIND_DATABASE_SSLMODE")
-	v.BindEnv("database.max_open_conns", "OPSMIND_DATABASE_MAX_OPEN_CONNS")
-	v.BindEnv("database.max_idle_conns", "OPSMIND_DATABASE_MAX_IDLE_CONNS")
-	v.BindEnv("database.conn_max_lifetime", "OPSMIND_DATABASE_CONN_MAX_LIFETIME")
+	v.BindEnv("database.host", "COGNOS_DATABASE_HOST")
+	v.BindEnv("database.port", "COGNOS_DATABASE_PORT")
+	v.BindEnv("database.user", "COGNOS_DATABASE_USER")
+	v.BindEnv("database.password", "COGNOS_DATABASE_PASSWORD")
+	v.BindEnv("database.dbname", "COGNOS_DATABASE_DBNAME")
+	v.BindEnv("database.sslmode", "COGNOS_DATABASE_SSLMODE")
+	v.BindEnv("database.max_open_conns", "COGNOS_DATABASE_MAX_OPEN_CONNS")
+	v.BindEnv("database.max_idle_conns", "COGNOS_DATABASE_MAX_IDLE_CONNS")
+	v.BindEnv("database.conn_max_lifetime", "COGNOS_DATABASE_CONN_MAX_LIFETIME")
 
 	// JWT
-	v.BindEnv("jwt.secret", "OPSMIND_JWT_SECRET")
-	v.BindEnv("jwt.access_expire", "OPSMIND_JWT_ACCESS_EXPIRE")
-	v.BindEnv("jwt.refresh_expire", "OPSMIND_JWT_REFRESH_EXPIRE")
+	v.BindEnv("jwt.secret", "COGNOS_JWT_SECRET")
+	v.BindEnv("jwt.access_expire", "COGNOS_JWT_ACCESS_EXPIRE")
+	v.BindEnv("jwt.refresh_expire", "COGNOS_JWT_REFRESH_EXPIRE")
 
 	// Storage
-	v.BindEnv("storage.driver", "OPSMIND_STORAGE_DRIVER")
-	v.BindEnv("storage.local.base_dir", "OPSMIND_STORAGE_LOCAL_BASE_DIR")
-	v.BindEnv("storage.minio.endpoint", "OPSMIND_MINIO_ENDPOINT")
-	v.BindEnv("storage.minio.access_key", "OPSMIND_MINIO_ACCESS_KEY")
-	v.BindEnv("storage.minio.secret_key", "OPSMIND_MINIO_SECRET_KEY")
-	v.BindEnv("storage.minio.use_ssl", "OPSMIND_MINIO_USE_SSL")
+	v.BindEnv("storage.driver", "COGNOS_STORAGE_DRIVER")
+	v.BindEnv("storage.local.base_dir", "COGNOS_STORAGE_LOCAL_BASE_DIR")
+	v.BindEnv("storage.minio.endpoint", "COGNOS_MINIO_ENDPOINT")
+	v.BindEnv("storage.minio.access_key", "COGNOS_MINIO_ACCESS_KEY")
+	v.BindEnv("storage.minio.secret_key", "COGNOS_MINIO_SECRET_KEY")
+	v.BindEnv("storage.minio.use_ssl", "COGNOS_MINIO_USE_SSL")
 
 	// LLM
-	v.BindEnv("llm.base_url", "OPSMIND_LLM_BASE_URL")
-	v.BindEnv("llm.api_key", "OPSMIND_LLM_API_KEY")
-	v.BindEnv("llm.model", "OPSMIND_LLM_MODEL")
-	v.BindEnv("llm.max_tokens", "OPSMIND_LLM_MAX_TOKENS")
-	v.BindEnv("llm.timeout", "OPSMIND_LLM_TIMEOUT")
+	v.BindEnv("llm.base_url", "COGNOS_LLM_BASE_URL")
+	v.BindEnv("llm.api_key", "COGNOS_LLM_API_KEY")
+	v.BindEnv("llm.model", "COGNOS_LLM_MODEL")
+	v.BindEnv("llm.max_tokens", "COGNOS_LLM_MAX_TOKENS")
+	v.BindEnv("llm.timeout", "COGNOS_LLM_TIMEOUT")
 
 	// Embedding
-	v.BindEnv("embedding.base_url", "OPSMIND_EMBEDDING_BASE_URL")
-	v.BindEnv("embedding.api_key", "OPSMIND_EMBEDDING_API_KEY")
-	v.BindEnv("embedding.model", "OPSMIND_EMBEDDING_MODEL")
-	v.BindEnv("embedding.dimension", "OPSMIND_EMBEDDING_DIMENSION")
-	v.BindEnv("embedding.timeout", "OPSMIND_EMBEDDING_TIMEOUT")
+	v.BindEnv("embedding.base_url", "COGNOS_EMBEDDING_BASE_URL")
+	v.BindEnv("embedding.api_key", "COGNOS_EMBEDDING_API_KEY")
+	v.BindEnv("embedding.model", "COGNOS_EMBEDDING_MODEL")
+	v.BindEnv("embedding.dimension", "COGNOS_EMBEDDING_DIMENSION")
+	v.BindEnv("embedding.timeout", "COGNOS_EMBEDDING_TIMEOUT")
 
 	// AI
-	v.BindEnv("ai.chunk_size", "OPSMIND_AI_CHUNK_SIZE")
-	v.BindEnv("ai.chunk_overlap", "OPSMIND_AI_CHUNK_OVERLAP")
+	v.BindEnv("ai.chunk_size", "COGNOS_AI_CHUNK_SIZE")
+	v.BindEnv("ai.chunk_overlap", "COGNOS_AI_CHUNK_OVERLAP")
 
 	// Search（深度搜索工具链，降级链模式）
-	v.BindEnv("search.exa.api_key", "OPSMIND_SEARCH_EXA_API_KEY")
-	v.BindEnv("search.tavily.api_key", "OPSMIND_SEARCH_TAVILY_API_KEY")
-	v.BindEnv("search.firecrawl.api_key", "OPSMIND_SEARCH_FIRECRAWL_API_KEY")
-	v.BindEnv("search.max_results", "OPSMIND_SEARCH_MAX_RESULTS")
-	v.BindEnv("search.timeout", "OPSMIND_SEARCH_TIMEOUT")
+	v.BindEnv("search.exa.api_key", "COGNOS_SEARCH_EXA_API_KEY")
+	v.BindEnv("search.tavily.api_key", "COGNOS_SEARCH_TAVILY_API_KEY")
+	v.BindEnv("search.firecrawl.api_key", "COGNOS_SEARCH_FIRECRAWL_API_KEY")
+	v.BindEnv("search.max_results", "COGNOS_SEARCH_MAX_RESULTS")
+	v.BindEnv("search.timeout", "COGNOS_SEARCH_TIMEOUT")
 
 	// CORS
-	v.BindEnv("cors.allow_origins", "OPSMIND_CORS_ALLOW_ORIGINS")
+	v.BindEnv("cors.allow_origins", "COGNOS_CORS_ALLOW_ORIGINS")
 
 	// Rerank
-	v.BindEnv("rerank.enabled", "OPSMIND_RERANK_ENABLED")
-	v.BindEnv("rerank.python_path", "OPSMIND_RERANK_PYTHON_PATH")
-	v.BindEnv("rerank.script_path", "OPSMIND_RERANK_SCRIPT_PATH")
+	v.BindEnv("rerank.enabled", "COGNOS_RERANK_ENABLED")
+	v.BindEnv("rerank.python_path", "COGNOS_RERANK_PYTHON_PATH")
+	v.BindEnv("rerank.script_path", "COGNOS_RERANK_SCRIPT_PATH")
 
 	// Parser
-	v.BindEnv("parser.engine", "OPSMIND_PARSER_ENGINE")
+	v.BindEnv("parser.engine", "COGNOS_PARSER_ENGINE")
 	v.BindEnv("parser.mineru.api_key", "MINERU_API_KEY")
-	v.BindEnv("parser.mineru.endpoint", "OPSMIND_MINERU_ENDPOINT")
-	v.BindEnv("parser.mineru.timeout", "OPSMIND_MINERU_TIMEOUT")
-	v.BindEnv("parser.python.path", "OPSMIND_PARSER_PYTHON_PATH")
+	v.BindEnv("parser.mineru.endpoint", "COGNOS_MINERU_ENDPOINT")
+	v.BindEnv("parser.mineru.timeout", "COGNOS_MINERU_TIMEOUT")
+	v.BindEnv("parser.python.path", "COGNOS_PARSER_PYTHON_PATH")
 
 	// Knowledge
-	v.BindEnv("kb.max_upload_size", "OPSMIND_KB_MAX_UPLOAD_SIZE")
+	v.BindEnv("kb.max_upload_size", "COGNOS_KB_MAX_UPLOAD_SIZE")
 
 	// Memory（记忆系统，文件式存储 + 上下文压缩阈值）
-	v.BindEnv("memory.storage_root", "OPSMIND_MEMORY_STORAGE_ROOT")
-	v.BindEnv("memory.memory_max_lines", "OPSMIND_MEMORY_MAX_LINES")
-	v.BindEnv("memory.compress_dedup", "OPSMIND_MEMORY_COMPRESS_DEDUP")
-	v.BindEnv("memory.compress_compact", "OPSMIND_MEMORY_COMPRESS_COMPACT")
-	v.BindEnv("memory.ingest_poll_interval", "OPSMIND_MEMORY_INGEST_POLL_INTERVAL")
-	v.BindEnv("memory.ingest_lease_ttl", "OPSMIND_MEMORY_INGEST_LEASE_TTL")
+	v.BindEnv("memory.storage_root", "COGNOS_MEMORY_STORAGE_ROOT")
+	v.BindEnv("memory.memory_max_lines", "COGNOS_MEMORY_MAX_LINES")
+	v.BindEnv("memory.compress_dedup", "COGNOS_MEMORY_COMPRESS_DEDUP")
+	v.BindEnv("memory.compress_compact", "COGNOS_MEMORY_COMPRESS_COMPACT")
+	v.BindEnv("memory.ingest_poll_interval", "COGNOS_MEMORY_INGEST_POLL_INTERVAL")
+	v.BindEnv("memory.ingest_lease_ttl", "COGNOS_MEMORY_INGEST_LEASE_TTL")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -341,9 +341,9 @@ func setDefaults(v *viper.Viper) {
 	// Database
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.user", "opsmind")
+	v.SetDefault("database.user", "cognos")
 	v.SetDefault("database.password", "")
-	v.SetDefault("database.dbname", "opsmind")
+	v.SetDefault("database.dbname", "cognos")
 	v.SetDefault("database.sslmode", "disable")
 	v.SetDefault("database.max_open_conns", 0) // 0 = 不限，由 PostgreSQL max_connections 控制
 	v.SetDefault("database.max_idle_conns", 0) // 0 = 不限
@@ -361,7 +361,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("storage.minio.access_key", "minioadmin")
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
 	v.SetDefault("storage.minio.use_ssl", false)
-	v.SetDefault("storage.buckets.documents", "opsmind-documents")
+	v.SetDefault("storage.buckets.documents", "cognos-documents")
 
 	// LLM
 	v.SetDefault("llm.base_url", "http://llama-cpp:8080/v1")

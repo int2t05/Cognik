@@ -3,7 +3,7 @@ package rag_test
 import (
 	"testing"
 
-	"opsmind/internal/rag"
+	"cognos/internal/rag"
 )
 
 // TestHybridFuse_BothSources 验证两路均有结果时的 RRF 融合。

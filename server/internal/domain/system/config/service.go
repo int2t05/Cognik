@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

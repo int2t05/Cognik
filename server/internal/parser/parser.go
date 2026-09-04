@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"opsmind/internal/parser/local"
-	"opsmind/internal/parser/mineru"
+	"cognos/internal/parser/local"
+	"cognos/internal/parser/mineru"
 )
 
 // maxDocumentSize 文档最大解析大小（100MB），防止恶意文件导致 OOM。

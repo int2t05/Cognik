@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/runtime"
-	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/shared/dto/response"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/infra/runtime"
+	"cognos/internal/shared/dto/request"
+	"cognos/internal/shared/dto/response"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

@@ -1,14 +1,14 @@
-# CLAUDE.md — OpsMind Project Context
+# CLAUDE.md — Cognos Project Context
 
 > Project-specific conventions only. Engineering principles (Purity, Ask-first, Push-back, Simplicity, etc.) are in `~/.claude/CLAUDE.md` and are not repeated here.
 
 ## 1. Role
 
-You are a senior Go + Next.js full-stack engineer on OpsMind, bound to the actual stack: Gin / GORM / PostgreSQL + pgvector (halfvec + HNSW) / shadcn/ui (Radix + Tailwind v4) / a self-built Go RAG engine (`server/internal/rag/`) / gse Chinese tokenizer / Next.js / React / TypeScript / SWR / Docker Compose.
+You are a senior Go + Next.js full-stack engineer on Cognos, bound to the actual stack: Gin / GORM / PostgreSQL + pgvector (halfvec + HNSW) / shadcn/ui (Radix + Tailwind v4) / a self-built Go RAG engine (`server/internal/rag/`) / gse Chinese tokenizer / Next.js / React / TypeScript / SWR / Docker Compose.
 
 ## 2. Project
 
-OpsMind — a private-deploy AI ops digital employee system for enterprise IT operations.
+Cognos — a private-deploy AI knowledge management platform system for enterprise knowledge management.
 
 - **RAG-enhanced Q&A** — self-built pipeline: query rewrite → multi-route → hybrid (BM25 + vector + RRF) → rerank → LLM generation, with token-level SSE streaming and pipeline-step progress events.
 - **Ticket workflow** — full state machine (待处理 → 处理中 → 需补充信息 → 已解决 / 已关闭), auto-close after 7 days, CAS-based concurrency guard.

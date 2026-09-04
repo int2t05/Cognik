@@ -36,7 +36,7 @@ POST /api/v1/auth/login
       "username": "admin",
       "real_name": "系统管理员",
       "phone": "13800000001",
-      "email": "admin@opsmind.local",
+      "email": "admin@cognos.local",
       "first_login": false
     },
     "roles": ["系统管理员"],
@@ -99,7 +99,7 @@ POST /api/v1/auth/refresh
       "username": "admin",
       "real_name": "系统管理员",
       "phone": "13800000001",
-      "email": "admin@opsmind.local",
+      "email": "admin@cognos.local",
       "first_login": false
     },
     "roles": ["系统管理员"],

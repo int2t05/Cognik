@@ -1,7 +1,7 @@
 // Package router 负责注册 Gin 路由。
 package router
 
-import "opsmind/internal/domain/user/role"
+import "cognos/internal/domain/user/role"
 
 const (
 	PermUserManage      = role.PermUserManage

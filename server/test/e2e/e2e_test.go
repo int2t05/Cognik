@@ -385,10 +385,10 @@ func TestE2E_MessagesConfigHealth(t *testing.T) {
 	assertAPIError(t, r4)
 
 	// System config
-	e2e.doAuth(t, http.MethodPut, "/api/v1/admin/configs/app_name", map[string]interface{}{"value": "OpsMind-E2E"})
+	e2e.doAuth(t, http.MethodPut, "/api/v1/admin/configs/app_name", map[string]interface{}{"value": "Cognos-E2E"})
 	r5 := e2e.doAuth(t, http.MethodGet, "/api/v1/admin/configs/app_name", nil)
 	body5 := assertOK(t, r5)
-	assertField(t, body5["data"] == "OpsMind-E2E", "配置值匹配")
+	assertField(t, body5["data"] == "Cognos-E2E", "配置值匹配")
 
 	// Health — 返回 {"status":"ok"} 非标准 code/message 格式
 	r6 := e2e.do(t, http.MethodGet, "/health", nil, "")

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/parser"
-	"opsmind/internal/parser/local"
+	"cognos/internal/parser"
+	"cognos/internal/parser/local"
 )
 
 // TestParseXLSX 验证 XLSX 解析基本功能（直接调用 local.ParseXLSX）。
