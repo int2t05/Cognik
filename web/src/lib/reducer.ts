@@ -201,7 +201,8 @@ export function parseThreadMessage(tm: {
 }): ChatMessage {
   let parts: MessagePart[] = []
   try {
-    parts = JSON.parse(tm.parts) as MessagePart[]
+    const parsed = JSON.parse(tm.parts)
+    parts = Array.isArray(parsed) ? parsed : []
   } catch {
     parts = []
   }
