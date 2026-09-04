@@ -38,7 +38,7 @@ export default function TicketQueryPage() {
   const clearFilters = () => { setStatus(-1); setKeyword(''); setPage(1); };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">我的申告</PageTitle>
         <IconButton label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></IconButton>

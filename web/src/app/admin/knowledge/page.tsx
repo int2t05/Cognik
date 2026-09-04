@@ -68,7 +68,7 @@ export default function KnowledgeListPage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5 gap-3">
         <PageTitle className="mb-0">知识库管理</PageTitle>
         <div className="flex items-center gap-3">

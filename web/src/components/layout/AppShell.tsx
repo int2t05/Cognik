@@ -158,7 +158,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
         </aside>
       )}
 
-      <div className="flex-1 flex flex-col transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
+      <div className="flex-1 flex flex-col min-w-0 transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center gap-4 px-5 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
           {sidebarVisible && (
             <IconButton label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight /> : <ChevronLeft />}</IconButton>

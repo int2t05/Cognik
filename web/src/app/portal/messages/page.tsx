@@ -73,7 +73,7 @@ export default function MessagesPage() {
   const clearFilters = () => { setType(''); setPage(1); };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex items-center justify-between mb-5">
         <PageTitle className="mb-0">站内消息</PageTitle>
         {!isEmpty && (

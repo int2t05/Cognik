@@ -99,7 +99,7 @@ export default function RoleManagePage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <PageTitle className="mb-0">角色管理</PageTitle>
         <IconButton label="新建角色" onClick={openCreate}><ShieldPlus /></IconButton>

@@ -147,7 +147,7 @@ export default function SystemConfigPage() {
   const configsLoading = !configs && !error;
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <PageTitle>系统配置</PageTitle>
       {error && <InlineError />}
       {configsLoading ? (

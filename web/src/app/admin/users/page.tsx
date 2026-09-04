@@ -88,7 +88,7 @@ export default function UserListPage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
           <PageTitle className="mb-0">用户管理</PageTitle>
