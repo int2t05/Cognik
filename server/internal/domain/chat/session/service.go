@@ -278,9 +278,13 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 				parts = append(parts, store.MessagePart{Type: store.PartText, Content: evt.Content})
 			}
 		case agent.EventToolCall:
-			// 合并 args 到同 ID 的 tool_call part（Eino 拆分 args 为多个 chunk，仅首 chunk 有 id/label）
+			// Eino 拆分 args 为多个 chunk：首 chunk 有 id+label，后续 chunk 均为空。
+			// 并行工具时，第二个工具的首 chunk 有不同 id。
+			// 匹配策略：
+			//   1. 有 id → 按 id 精确匹配
+			//   2. 无 id（后续 chunk）→ 从后往前找最后一个有 label 的 running tool_call，
+			//      且其 content 未闭合 }（JSON 完整则不再追加，创建新 part）
 			found := false
-			// 优先按 ID 匹配
 			if evt.ID != "" {
 				for i := range parts {
 					if parts[i].Type == store.PartToolCall && parts[i].ID == evt.ID {
@@ -290,12 +294,13 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 					}
 				}
 			}
-			// ID 匹配不到 → 合并到最后一个 running tool_call（后续 chunk 无 id）
 			if !found {
 				for i := len(parts) - 1; i >= 0; i-- {
-					if parts[i].Type == store.PartToolCall && parts[i].Status == "running" {
-						parts[i].Content += evt.Content
-						found = true
+					if parts[i].Type == store.PartToolCall && parts[i].Status == "running" && parts[i].Label != "" {
+						if !strings.HasSuffix(strings.TrimRight(parts[i].Content, " \t\r\n"), "}") {
+							parts[i].Content += evt.Content
+							found = true
+						}
 						break
 					}
 				}
