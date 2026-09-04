@@ -28,7 +28,7 @@ flowchart LR
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
-| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md | 📋 规划中 |
+| V1.4 | 深度搜索 | SearXNG 自托管 + Firecrawl 自托管；Exa 可选；deep_research SubAgent；搜索→爬取→产出 md；Agent 记忆系统（两层 + 动态压缩） | 📋 规划中 |
 | V1.5 | 知识库组织 | 文件式 Markdown 知识库重构；目录树 + frontmatter；INDEX.md 自动重建；Agent 写入工具链 | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
@@ -339,6 +339,53 @@ deep_research SubAgent 的系统提示词和架构遵循以下原则（参考 [`
 | 软件版本兼容 | "PostgreSQL 17 pgvector" | 厂商文档、GitHub releases |
 | 内部 KB 未命中 | 内部无文档的问题 | 回退网络搜索 |
 
+### 7.8 Agent 记忆系统
+
+Agent 配备两层记忆系统，支持动态压缩，与系统相关与用户无关。
+
+**调研依据**：[`docs/research/agent-memory/`](research/agent-memory/)
+
+```mermaid
+flowchart TB
+    subgraph 会话记忆["会话记忆（短时）"]
+        CTX["上下文窗口<br/>HeadAndTail 截断"]
+        CKPT["会话 Checkpoint<br/>thread_id 隔离"]
+        CTX <-->|"暂停/恢复"| CKPT
+    end
+    subgraph 系统记忆["系统记忆（跨会话）"]
+        SCOPE["scope: /system/{system_id}"]
+        VEC["pgvector 语义"]
+        BM25["BM25 关键词"]
+        SCOPE --> VEC
+        SCOPE --> BM25
+    end
+    会话记忆 -.->|"会话结束提取"| 系统记忆
+    系统记忆 -.->|"会话启动注入"| 会话记忆
+```
+
+**两层记忆**：
+
+| 层 | 持有 | 生命周期 | 隔离 | 持久化 |
+|----|------|---------|------|--------|
+| 会话记忆 | 上下文窗口 + 执行状态 | 单会话 | `thread_id` | SQLite（V1.3 已有） |
+| 系统记忆 | 系统拓扑、故障历史、操作记录 | 跨会话 | `system_id`（非 `user_id`） | PostgreSQL + pgvector |
+
+**动态压缩（三级管线，廉价到昂贵）**：
+
+| 级别 | 触发 | 操作 | 有损 | 参考 |
+|------|------|------|:---:|------|
+| 1. HeadAndTail | 每轮 | 保留系统 prompt + 最近对话，中间省略 | 否 | autogen |
+| 2. 去重清理 | token > 70% | 丢弃重复 tool result，保留 tool_use 记录 | 否 | Claude Code Snip |
+| 3. Autocompact | token > 85% | fork sub-agent 生成结构化摘要 | 是 | Claude Code Autocompact |
+
+**关键设计**：
+- 级别 1-2 无损——运维信息（错误日志、配置片段）不能被摘要丢失
+- 压缩而非摘要（参考 open_deep_research "DO NOT summarize"）
+- `system_id` scope，非 `user_id`——记忆与系统相关、与用户无关
+- 复合评分检索：`0.5*语义 + 0.3*时间衰减 + 0.2*重要度`（参考 crewAI）
+- 会话启动批量注入 top-K，会话结束批量提取（非每轮 side-query）
+- 暂停/恢复：Thread 可序列化，pause = 持久化，resume = 加载（参考 12-factor-agents Factor 6）
+
 ---
 
 ## 8. V1.5 — 知识库组织
@@ -555,6 +602,7 @@ gantt
     搜索工具集成          :v14b, 2027-01-15, 14d
     deep_research SubAgent :v14c, 2027-02-01, 21d
     md 产出+RAG 衔接      :v14d, 2027-02-01, 14d
+    Agent 记忆系统       :v14e, 2027-02-15, 21d
 
     section V1.5 知识库组织
     文件式重构+schema    :v15a, 2027-03-01, 14d
@@ -587,6 +635,9 @@ gantt
 | 语义搜索增强 | Exa API（可选） | highlights 10x token 效率；SaaS 闭源，可选增强 |
 | 搜索工具集成 | 直接 HTTP，非 MCP 中间层 | 简单 JSON API 用 `net/http` 足够 |
 | deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词；GPT-Researcher 委托模式 |
+| Agent 记忆 | 两层：会话记忆 + 系统记忆 | 会话记忆用 SQLite checkpoint；系统记忆用 pgvector；与系统相关与用户无关 |
+| 记忆压缩 | 三级管线：HeadAndTail → 去重清理 → Autocompact | 无损优先，有损最后；运维信息不能被摘要丢失 |
+| 记忆 scope | `system_id`，非 `user_id` | 记忆与系统相关、与用户无关；参考 crewAI scope path |
 | 知识库底层 | 纯 `.md` 文件 + YAML frontmatter | 与 Obsidian/Git 工具链兼容 |
 | 知识库组织 | 混合式：目录树 + frontmatter 标签 | 运维场景需目录导航 + 标签多维筛选 |
 | 知识库索引 | `INDEX.md` 声明式，脚本自动重建 | Agent 不手编索引 |
@@ -608,3 +659,4 @@ gantt
 | [`FLOW/README.md`](FLOW/README.md) | 业务流程图 |
 | [`TODO.md`](TODO.md) | 代码级改进清单与优先级 |
 | [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4/V1.5 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
+| [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比、OpsMind 两层方案 |
