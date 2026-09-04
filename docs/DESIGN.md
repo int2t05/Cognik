@@ -30,10 +30,10 @@ flowchart TB
 
 ### 两条管道解耦
 
-| 管道 | 执行者 | 职责 | 耗时 |
-|------|--------|------|------|
-| 索引管道 | 异步消费者（IngestQueue + Processor） | parse → chunk → embed → pgvector + BM25 | 秒级 |
-| 检索管道 | Agent ReAct | 决策检索 → 评估充分性 → 补充搜索 → 合成回答 | 毫秒级 |
+| 管道     | 执行者                                | 职责                                           | 耗时   |
+| -------- | ------------------------------------- | ---------------------------------------------- | ------ |
+| 索引管道 | 异步消费者（IngestQueue + Processor） | parse → chunk → embed → pgvector + BM25     | 秒级   |
+| 检索管道 | Agent ReAct                           | 决策检索 → 评估充分性 → 补充搜索 → 合成回答 | 毫秒级 |
 
 Agent 的角色是**检索和触发写入**，不是索引。Agent 调 `kb(action=create)` 写 draft + 入队 <5ms 即返回，消费者异步处理 embed。参考 Dify(Celery) / RAGFlow(Redis Stream) / RustyRAG(同步)——全部是独立消费者队列，Agent 不参与嵌入。
 
@@ -76,14 +76,14 @@ storage/
 kb(action, kb_id, ...)
 ```
 
-| action | 语义 | RAG |
-|--------|------|:---:|
-| `search` | 检索文章（BM25+pgvector→RRF→rerank，返回 chunks） | ✅ |
-| `get` | 读完整文章 + frontmatter | — |
-| `list` | 列出文章标题列表 | — |
-| `create` | 新建 Draft 文章（质量门 + frontmatter 生成 + 入队索引） | 否 |
-| `update` | 更新文章（增量 re-index） | 视变更 |
-| `delete` | 删文章 + 清理索引 | — |
+| action     | 语义                                                    |  RAG  |
+| ---------- | ------------------------------------------------------- | :----: |
+| `search` | 检索文章（BM25+pgvector→RRF→rerank，返回 chunks）     |   ✅   |
+| `get`    | 读完整文章 + frontmatter                                |   —   |
+| `list`   | 列出文章标题列表                                        |   —   |
+| `create` | 新建 Draft 文章（质量门 + frontmatter 生成 + 入队索引） |   否   |
+| `update` | 更新文章（增量 re-index）                               | 视变更 |
+| `delete` | 删文章 + 清理索引                                       |   —   |
 
 `kb(action=search)` 封装**纯检索原语**：BM25 + pgvector → RRF → cross-encoder rerank → 置信度计算。不含 query 改写 / multi-route——Agent ReAct 自行改写查询、多角度检索（CRAG 模式）。
 
@@ -93,21 +93,21 @@ kb(action, kb_id, ...)
 memory(action, scope, ...)
 ```
 
-| action | 语义 | scope |
-|--------|------|-------|
-| `remember` | 写入记忆 | session / global |
-| `recall` | 检索记忆（BM25 / 子串匹配） | session / global |
-| `forget` | 标记失效（frontmatter `status: disabled`） | session / global |
-| `update` | 更新已有记忆（同 key 覆盖） | session / global |
-| `list` | 列出某 scope 所有记忆条目 | session / global |
+| action       | 语义                                        | scope            |
+| ------------ | ------------------------------------------- | ---------------- |
+| `remember` | 写入记忆                                    | session / global |
+| `recall`   | 检索记忆（BM25 / 子串匹配）                 | session / global |
+| `forget`   | 标记失效（frontmatter`status: disabled`） | session / global |
+| `update`   | 更新已有记忆（同 key 覆盖）                 | session / global |
+| `list`     | 列出某 scope 所有记忆条目                   | session / global |
 
 ### web 工具 + SubAgent
 
-| 工具 | 用途 | 降级链 |
-|------|------|--------|
-| `web_search` | 网络搜索 | Exa → Tavily → DuckDuckGo |
-| `web_fetch` | 页面提取 | Firecrawl → 本地 http.Get |
-| `deep_research` SubAgent | 深度调研（web_search + web_fetch + kb(create)） | 委托模式 |
+| 工具                       | 用途                                            | 降级链                      |
+| -------------------------- | ----------------------------------------------- | --------------------------- |
+| `web_search`             | 网络搜索                                        | Exa → Tavily → DuckDuckGo |
+| `web_fetch`              | 页面提取                                        | Firecrawl → 本地 http.Get  |
+| `deep_research` SubAgent | 深度调研（web_search + web_fetch + kb(create)） | 委托模式                    |
 
 ---
 
@@ -140,13 +140,13 @@ flowchart TD
 
 Agent 评估检索结果质量，决定是否补充检索（Corrective RAG 模式）。复杂度路由（Adaptive RAG）：
 
-| 查询复杂度 | Agent 行为 | 工具链 |
-|-----------|-----------|--------|
-| 零跳（简单问候） | 直接回答 | 无 |
-| 单跳（事实查找） | KB 检索一次 | `kb(search)` |
-| 多跳（关联推理） | 迭代检索 | `kb(search)` × N |
-| 时效性（最新信息） | web 搜索 | `web_search` + `web_fetch` |
-| KB-miss fallback | KB 未命中 → web 搜索 → 写回 KB | `kb(search)` → `web_*` → `kb(create)` |
+| 查询复杂度         | Agent 行为                       | 工具链                                        |
+| ------------------ | -------------------------------- | --------------------------------------------- |
+| 零跳（简单问候）   | 直接回答                         | 无                                            |
+| 单跳（事实查找）   | KB 检索一次                      | `kb(search)`                                |
+| 多跳（关联推理）   | 迭代检索                         | `kb(search)` × N                           |
+| 时效性（最新信息） | web 搜索                         | `web_search` + `web_fetch`                |
+| KB-miss fallback   | KB 未命中 → web 搜索 → 写回 KB | `kb(search)` → `web_*` → `kb(create)` |
 
 参考 RAGFlow `agentic_rag_graph.py` 的 SCA（Sufficient Context Agent）——评估检索充分性，不足则重写查询再搜。
 
@@ -200,13 +200,13 @@ flowchart LR
 
 ### 5.2 设计要点
 
-| 维度 | 设计 | 参考 |
-|------|------|------|
-| Agent 写入 | Agent 调 `kb(action=create)` 写 markdown + frontmatter | SurfSense `build_note_document()` |
-| 异步索引 | 写 Draft 后入队 <5ms 返回，消费者异步 chunk+embed | SurfSense Celery / Cognos IngestQueue |
-| 去重 | content-hash 去重（搜索同一主题不重复创建） | SurfSense `content_hash` + `unique_identifier_hash` |
-| 压缩节点 | 多源搜索结果去重（dedup not summarize，保留原始信息） | open_deep_research `compress_research` |
-| 审核门控 | Draft → 人工审核 → Published（deep_research 文章可配置自动发布） | Cognos 状态机 |
+| 维度       | 设计                                                               | 参考                                                   |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------------------------ |
+| Agent 写入 | Agent 调`kb(action=create)` 写 markdown + frontmatter            | SurfSense`build_note_document()`                     |
+| 异步索引   | 写 Draft 后入队 <5ms 返回，消费者异步 chunk+embed                  | SurfSense Celery / Cognos IngestQueue                  |
+| 去重       | content-hash 去重（搜索同一主题不重复创建）                        | SurfSense`content_hash` + `unique_identifier_hash` |
+| 压缩节点   | 多源搜索结果去重（dedup not summarize，保留原始信息）              | open_deep_research`compress_research`                |
+| 审核门控   | Draft → 人工审核 → Published（deep_research 文章可配置自动发布） | Cognos 状态机                                          |
 
 ### 5.3 缺口（待补）
 
@@ -236,12 +236,12 @@ Agent 写 draft.md → IngestQueue.Enqueue() <5ms
                 INDEX.md 刷新
 ```
 
-| 机制 | 实现 | 参考 |
-|------|------|------|
-| 队列 | `_index/ingest_queue.jsonl`（append-only，<5ms enqueue） | Cognos IngestQueue |
-| 消费者 | 定时轮询（5s）+ lease（60s TTL）+ 崩溃恢复（processing→pending） | Dify Celery / RAGFlow Redis Stream |
-| 处理 | goroutine pool（2 workers）+ 增量 diff（chunk hash 复用未变 embedding） | Cognos Processor |
-| 索引 | pgvector halfvec(1024) + HNSW + BM25（gse 分词） | 已有 |
+| 机制   | 实现                                                                    | 参考                               |
+| ------ | ----------------------------------------------------------------------- | ---------------------------------- |
+| 队列   | `_index/ingest_queue.jsonl`（append-only，<5ms enqueue）              | Cognos IngestQueue                 |
+| 消费者 | 定时轮询（5s）+ lease（60s TTL）+ 崩溃恢复（processing→pending）       | Dify Celery / RAGFlow Redis Stream |
+| 处理   | goroutine pool（2 workers）+ 增量 diff（chunk hash 复用未变 embedding） | Cognos Processor                   |
+| 索引   | pgvector halfvec(1024) + HNSW + BM25（gse 分词）                        | 已有                               |
 
 ### 6.2 检索管道（Agent 驱动）
 
@@ -255,13 +255,13 @@ Agent 写 draft.md → IngestQueue.Enqueue() <5ms
                 Agent 评估充分性（CRAG）→ 充分则生成回答，否则 web_search
 ```
 
-| 步骤 | 实现 | 备注 |
-|------|------|------|
-| BM25 检索 | `rag.BM25Retriever.Retrieve()` | gse 分词, k1=1.5, b=0.75, 内存索引 30min TTL |
-| 向量检索 | `rag.VectorRetriever.Retrieve()` | pgvector cosine, BGE-M3 embedding |
-| RRF 融合 | `rag.HybridFuse()` | k=30（可配置） |
-| rerank | `rag.Rerank()` | cross-encoder subprocess |
-| 置信度 | `computeConfidence()` | 分层：cosine → +BM25(0.4) → +rerank(0.6) |
+| 步骤      | 实现                               | 备注                                         |
+| --------- | ---------------------------------- | -------------------------------------------- |
+| BM25 检索 | `rag.BM25Retriever.Retrieve()`   | gse 分词, k1=1.5, b=0.75, 内存索引 30min TTL |
+| 向量检索  | `rag.VectorRetriever.Retrieve()` | pgvector cosine, BGE-M3 embedding            |
+| RRF 融合  | `rag.HybridFuse()`               | k=30（可配置）                               |
+| rerank    | `rag.Rerank()`                   | cross-encoder subprocess                     |
+| 置信度    | `computeConfidence()`            | 分层：cosine → +BM25(0.4) → +rerank(0.6)   |
 
 ---
 
@@ -269,11 +269,11 @@ Agent 写 draft.md → IngestQueue.Enqueue() <5ms
 
 ### 7.1 记忆层级
 
-| 层级 | 物理存储 | 索引 | 检索方式 | 生命周期 |
-|------|---------|------|---------|---------|
-| L1 上下文窗口 | Agent 内存 | — | — | 当前会话 |
-| L3 会话记忆 | `memory/sessions/{id}/*.md` | `MEMORY.md` | BM25 / 子串 | 单会话 |
-| L4 全局记忆 | `memory/global/*.md` | `MEMORY.md` | BM25 | 跨会话 |
+| 层级          | 物理存储                      | 索引          | 检索方式    | 生命周期 |
+| ------------- | ----------------------------- | ------------- | ----------- | -------- |
+| L1 上下文窗口 | Agent 内存                    | —            | —          | 当前会话 |
+| L3 会话记忆   | `memory/sessions/{id}/*.md` | `MEMORY.md` | BM25 / 子串 | 单会话   |
+| L4 全局记忆   | `memory/global/*.md`        | `MEMORY.md` | BM25        | 跨会话   |
 
 参考 Claude Code `~/.claude/memories/`：可检查、可编辑、无数据库。`MEMORY.md` ≤200 行，超出合并旧条目。
 
@@ -297,34 +297,34 @@ flowchart TD
     RC --> LLM
 ```
 
-| 级别 | 触发 | 操作 | 有损 | 来源 |
-|------|------|------|:---:|------|
-| 1. Tool Result Budget | 每轮 | 单条 tool_result 内容超限时替换为截断/占位 | 是 | Claude Code `toolResultStorage.ts` |
-| 2. Snip | 每轮 | 消息级裁剪——丢弃最旧的对话段 | 是 | Claude Code `snipCompact.ts` |
-| 3. Microcompact | 每轮 / 时间间隔 60min | 按 tool_use ID 清理旧 tool_result（保留 tool_use 记录） | 是 | Claude Code `microCompact.ts` |
-| 4. Context Collapse | 读时 | 消息跨度折叠为摘要投影（原始消息保留在存储，可逆） | 否（可逆） | Claude Code `contextCollapse/` |
-| 5a. SessionMemory 压缩 | token 超阈值 | 用已有会话笔记裁剪（无 LLM 调用） | 是 | Claude Code `sessionMemoryCompact.ts` |
-| 5b. Autocompact | 5a 不充分 | forked agent LLM 摘要整个历史 | 是 | Claude Code `autoCompact.ts` |
-| 6. Reactive Compact | API 返回 413 | 尾部剥除消息重试（最后手段） | 是 | Claude Code `reactiveCompact.ts` |
+| 级别                   | 触发                  | 操作                                                    |    有损    | 来源                                   |
+| ---------------------- | --------------------- | ------------------------------------------------------- | :--------: | -------------------------------------- |
+| 1. Tool Result Budget  | 每轮                  | 单条 tool_result 内容超限时替换为截断/占位              |     是     | Claude Code`toolResultStorage.ts`    |
+| 2. Snip                | 每轮                  | 消息级裁剪——丢弃最旧的对话段                          |     是     | Claude Code`snipCompact.ts`          |
+| 3. Microcompact        | 每轮 / 时间间隔 60min | 按 tool_use ID 清理旧 tool_result（保留 tool_use 记录） |     是     | Claude Code`microCompact.ts`         |
+| 4. Context Collapse    | 读时                  | 消息跨度折叠为摘要投影（原始消息保留在存储，可逆）      | 否（可逆） | Claude Code`contextCollapse/`        |
+| 5a. SessionMemory 压缩 | token 超阈值          | 用已有会话笔记裁剪（无 LLM 调用）                       |     是     | Claude Code`sessionMemoryCompact.ts` |
+| 5b. Autocompact        | 5a 不充分             | forked agent LLM 摘要整个历史                           |     是     | Claude Code`autoCompact.ts`          |
+| 6. Reactive Compact    | API 返回 413          | 尾部剥除消息重试（最后手段）                            |     是     | Claude Code`reactiveCompact.ts`      |
 
 #### 设计要点
 
-| 机制 | 设计 | Claude Code 参考 |
-|------|------|-----------------|
-| 逐级递进 | 每级检查上一级是否已降量到阈值以下，充分则跳过后续 | `query.ts:379-467` 顺序执行 |
-| 级 1-3 无损优先 | 保留 tool_use 记录，只清 tool_result 内容——模型知道调过什么 | `microCompact.ts` 保留 tool_use |
-| 级 4 可逆投影 | 折叠视图存储在独立 collapse store，原始消息不删 | `contextCollapse/operations.ts` |
-| 级 5a 无 LLM 调用 | 用后台 SessionMemory 已提取的笔记裁剪，避免 LLM 摘要成本 | `sessionMemoryCompact.ts` |
-| 级 5b forked agent | 摘要用 forked subagent（共享父 prompt cache），输出 compact_boundary + preservedSegment | `compact.ts:387-763` |
-| 熔断器 | 连续 3 次 autocompact 失败后停止重试，避免烧 token | `autoCompact.ts:70` `MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES=3` |
-| 恢复 | `--resume` 时读 compact_boundary，沿 preservedSegment.tailUuid 回溯恢复 | `compact.ts:349-367` |
+| 机制               | 设计                                                                                    | Claude Code 参考                                                 |
+| ------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 逐级递进           | 每级检查上一级是否已降量到阈值以下，充分则跳过后续                                      | `query.ts:379-467` 顺序执行                                    |
+| 级 1-3 无损优先    | 保留 tool_use 记录，只清 tool_result 内容——模型知道调过什么                           | `microCompact.ts` 保留 tool_use                                |
+| 级 4 可逆投影      | 折叠视图存储在独立 collapse store，原始消息不删                                         | `contextCollapse/operations.ts`                                |
+| 级 5a 无 LLM 调用  | 用后台 SessionMemory 已提取的笔记裁剪，避免 LLM 摘要成本                                | `sessionMemoryCompact.ts`                                      |
+| 级 5b forked agent | 摘要用 forked subagent（共享父 prompt cache），输出 compact_boundary + preservedSegment | `compact.ts:387-763`                                           |
+| 熔断器             | 连续 3 次 autocompact 失败后停止重试，避免烧 token                                      | `autoCompact.ts:70` `MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES=3` |
+| 恢复               | `--resume` 时读 compact_boundary，沿 preservedSegment.tailUuid 回溯恢复               | `compact.ts:349-367`                                           |
 
 #### 可压缩工具白名单
 
 Microcompact 只清理低价值工具结果，保留关键工具完整：
 
-| 可压缩 | 不可压缩 |
-|--------|---------|
+| 可压缩                                                                      | 不可压缩                                        |
+| --------------------------------------------------------------------------- | ----------------------------------------------- |
 | FileRead / Bash / Grep / Glob / WebSearch / WebFetch / FileEdit / FileWrite | kb(search) / memory(recall) / dispatch_subagent |
 
 参考 Claude Code `microCompact.ts:41-50`——可压缩的是"看一眼就够"的工具；不可压缩的是"决策依据"工具（检索结果、记忆、子 Agent 产出）。
@@ -360,20 +360,22 @@ flowchart TB
     end
 ```
 
-| 后台 agent | 触发 | 做什么 | 参考 |
-|-----------|------|--------|------|
-| ExtractMemories | 每轮结束（fire-and-forget） | forked agent 从对话记录提取经验，4 类型分类，游标追踪只处理新消息 | Claude Code `extractMemories.ts` |
-| SessionExtractor | 会话结束（已有） | session 记忆 → LLM 提取 → 写入 global | Claude Code SessionMemory |
-| AutoDream | 双门（24h + 5 会话 + 锁） | forked agent 跨会话合并去重、删除矛盾、更新 MEMORY.md 索引 | Claude Code `autoDream.ts` |
+| 后台 agent       | 触发                        | 做什么                                                            | 参考                              |
+| ---------------- | --------------------------- | ----------------------------------------------------------------- | --------------------------------- |
+| ExtractMemories  | 每轮结束（fire-and-forget） | forked agent 从对话记录提取经验，4 类型分类，游标追踪只处理新消息 | Claude Code`extractMemories.ts` |
+| SessionExtractor | 会话结束（已有）            | session 记忆 → LLM 提取 → 写入 global                           | Claude Code SessionMemory         |
+| AutoDream        | 双门（24h + 5 会话 + 锁）   | forked agent 跨会话合并去重、删除矛盾、更新 MEMORY.md 索引        | Claude Code`autoDream.ts`       |
 
 ### 7.4 AutoDream 复盘设计
 
 **双门触发**（最便宜的先检查）：
+
 1. 时间门：`hoursSince(lastConsolidatedAt) >= 24h`——1 次 stat（锁文件 mtime）
 2. 会话数门：`新会话数 >= 5`——1 次目录扫描（10min 节流）
 3. 锁：无其他进程在复盘——1 次文件写（PID）
 
 **forked agent 4 阶段 prompt**（参考 Claude Code `consolidationPrompt.ts`）：
+
 1. **Orient**：ls 记忆目录，读 MEMORY.md，浏览现有记忆条目
 2. **Gather**：收集新增记忆 + 检测矛盾（现有记忆 vs 新增）
 3. **Consolidate**：合并重复（而非创建近似副本），转换相对日期为绝对日期，删除矛盾事实
@@ -389,20 +391,20 @@ flowchart TB
 
 ### P0（零 LLM 成本，立即提升）
 
-| 项 | 改动 | 效果 | 来源 |
-|----|------|------|------|
-| Sandwich Reorder | ~15 行 | Lost in the Middle 缓解 | Dify `reorder.py` |
-| BM25 Enriched Texts | ~30 行 | 关键词召回率提升（title×2 + tags + content） | Open WebUI |
-| RRF k=30 | 1 行配置 | rerank 候选质量提升 | RustyRAG k=20 |
+| 项                  | 改动     | 效果                                          | 来源               |
+| ------------------- | -------- | --------------------------------------------- | ------------------ |
+| Sandwich Reorder    | ~15 行   | Lost in the Middle 缓解                       | Dify`reorder.py` |
+| BM25 Enriched Texts | ~30 行   | 关键词召回率提升（title×2 + tags + content） | Open WebUI         |
+| RRF k=30            | 1 行配置 | rerank 候选质量提升                           | RustyRAG k=20      |
 
 ### P1（显著提升）
 
-| 项 | 改动 | 效果 | 来源 |
-|----|------|------|------|
+| 项                   | 改动    | 效果                                                   | 来源              |
+| -------------------- | ------- | ------------------------------------------------------ | ----------------- |
 | Contextual Retrieval | ~100 行 | 失败率降低 49-67%（索引时 LLM 生成上下文摘要 prepend） | Anthropic 2024.09 |
-| Token-based Chunking | ~20 行 | chunk 大小一致性（rune → token） | RAGFlow |
-| Metadata 预过滤 | ~50 行 | 搜索空间缩小（frontmatter type/tags 过滤） | Dify |
-| Context Packing | ~50 行 | token 预算内贪心填充 | typegraph.ai |
+| Token-based Chunking | ~20 行  | chunk 大小一致性（rune → token）                      | RAGFlow           |
+| Metadata 预过滤      | ~50 行  | 搜索空间缩小（frontmatter type/tags 过滤）             | Dify              |
+| Context Packing      | ~50 行  | token 预算内贪心填充                                   | typegraph.ai      |
 
 ### 8.1 Contextual Retrieval（最大优化机会）
 
@@ -438,10 +440,10 @@ flowchart LR
 
 当前不需要。知识库查询多为单跳事实查找，BM25 + 向量混合已足够。
 
-| 查询类型 | 向量 RAG | GraphRAG |
-|---------|:---------:|:--------:|
-| 简单事实查找 | 72% | 62% |
-| 多跳关系查询 | 43-51% | 80-91% |
+| 查询类型     | 向量 RAG | GraphRAG |
+| ------------ | :------: | :------: |
+| 简单事实查找 |   72%   |   62%   |
+| 多跳关系查询 |  43-51%  |  80-91%  |
 
 触发条件：>15% 查询需关联 2+ 篇文章才能回答时，评估 HippoRAG（PageRank 适合关联推理）或 LightRAG。`reference/` 已克隆 5 个 GraphRAG 仓库备用。
 
@@ -449,35 +451,35 @@ flowchart LR
 
 ## 10. 与现有架构映射
 
-| 组件 | 角色 | 状态 |
-|------|----------|------|
-| Agent ReAct Loop（`loop.go`） | 核心决策循环 | 已有 |
-| kb 工具（6 action） | 知识库 CRUD + 检索 | 已有 |
-| memory 工具（5 action） | 记忆 CRUD + 检索 | 已有 |
-| web_search / web_fetch | 网络搜索 + 页面提取 | 已有 |
-| deep_research SubAgent | 深度调研委托 | 已有 |
-| Compressor（三级） | 上下文压缩 | 已有 |
-| IngestQueue + Processor | 异步索引管道（非 Agent） | 已有 |
-| SessionExtractor | 会话结束提取 | 已有 |
-| INDEX.md 重建 | 页目录自动重建 | 已有 |
-| Markdown-aware chunker | 结构正确性分块 | 已有 |
-| VectorRetriever + BM25 + RRF + rerank | 纯检索原语 | 已有 |
-| ExtractMemories（每轮 forked agent） | 经验提取 | 待实现 |
-| AutoDream（跨会话复盘 forked agent） | 记忆合并去重 | 待实现 |
-| Sandwich Reorder + BM25 Enriched + RRF k | P0 检索优化 | 待实现 |
-| Contextual Retrieval + Token Chunking + Metadata + Packing | P1 检索优化 | 待实现 |
-| content-hash 去重 + 压缩节点 | 搜索闭环去重 | 待实现 |
+| 组件                                                       | 角色                     | 状态   |
+| ---------------------------------------------------------- | ------------------------ | ------ |
+| Agent ReAct Loop（`loop.go`）                            | 核心决策循环             | 已有   |
+| kb 工具（6 action）                                        | 知识库 CRUD + 检索       | 已有   |
+| memory 工具（5 action）                                    | 记忆 CRUD + 检索         | 已有   |
+| web_search / web_fetch                                     | 网络搜索 + 页面提取      | 已有   |
+| deep_research SubAgent                                     | 深度调研委托             | 已有   |
+| Compressor（三级）                                         | 上下文压缩               | 已有   |
+| IngestQueue + Processor                                    | 异步索引管道（非 Agent） | 已有   |
+| SessionExtractor                                           | 会话结束提取             | 已有   |
+| INDEX.md 重建                                              | 页目录自动重建           | 已有   |
+| Markdown-aware chunker                                     | 结构正确性分块           | 已有   |
+| VectorRetriever + BM25 + RRF + rerank                      | 纯检索原语               | 已有   |
+| ExtractMemories（每轮 forked agent）                       | 经验提取                 | 待实现 |
+| AutoDream（跨会话复盘 forked agent）                       | 记忆合并去重             | 待实现 |
+| Sandwich Reorder + BM25 Enriched + RRF k                   | P0 检索优化              | 待实现 |
+| Contextual Retrieval + Token Chunking + Metadata + Packing | P1 检索优化              | 待实现 |
+| content-hash 去重 + 压缩节点                               | 搜索闭环去重             | 待实现 |
 
 ---
 
 ## 关联文档
 
-| 文档 | 用途 |
-|------|------|
-| [`research/v2-agentic-rag/`](research/v2-agentic-rag/) | Agentic RAG 模式 + 架构缺口（6 篇） |
-| [`research/unified-memory/`](research/unified-memory/) | 记忆系统 + 检索优化（10 篇） |
-| [`research/agent-memory/`](research/agent-memory/) | Claude Code 记忆机制（4 篇） |
-| [`research/knowledge-organization/`](research/knowledge-organization/) | 知识库组织（6 篇） |
-| [`research/knowledge-framework-synthesis.md`](research/knowledge-framework-synthesis.md) | 综合裁决 |
-| [`ROADMAP.md`](ROADMAP.md) §9 | V1.6 检索优化（7 项） |
-| [`ROADMAP.md`](ROADMAP.md) §10 | V2.0 Agentic RAG |
+| 文档                                                                                      | 用途                                |
+| ----------------------------------------------------------------------------------------- | ----------------------------------- |
+| [`research/v2-agentic-rag/`](research/v2-agentic-rag/)                                   | Agentic RAG 模式 + 架构缺口（6 篇） |
+| [`research/unified-memory/`](research/unified-memory/)                                   | 记忆系统 + 检索优化（10 篇）        |
+| [`research/agent-memory/`](research/agent-memory/)                                       | Claude Code 记忆机制（4 篇）        |
+| [`research/knowledge-organization/`](research/knowledge-organization/)                   | 知识库组织（6 篇）                  |
+| [`research/knowledge-framework-synthesis.md`](research/knowledge-framework-synthesis.md) | 综合裁决                            |
+| [`ROADMAP.md`](ROADMAP.md) §9                                                           | V1.6 检索优化（7 项）               |
+| [`ROADMAP.md`](ROADMAP.md) §10                                                          | V2.0 Agentic RAG                    |
