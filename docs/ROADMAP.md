@@ -299,18 +299,30 @@ flowchart LR
 
 ### 7.5 深度搜索方法论
 
-deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill）：
+deep_research SubAgent 的系统提示词和架构遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill + `reference/` 下开源项目实践）：
 
-| 原则 | 说明 |
-|------|------|
-| 分层搜索 | 搜索→爬取→验证→综合，每步有明确输入输出；不跳过验证直接综合 |
-| 源优先级 | GitHub 源 > 官方文档 > 社区信号 > SEO 列表；负向断言必须在 GitHub 上验证 |
-| 全页提取 | 搜索 snippet 不可作为最终证据；必须 fetch 源页后才能总结 |
-| 对抗性验证 | 每个关键断言回溯到一手源；记录标题/URL/日期/可靠性；冲突和过期数据显式标注 |
-| 引用注册表 | 全局 source ID 注册表，防合成幻觉；正文行内引用 `[1]`，frontmatter 维护映射 |
-| 上下文压缩 | 子 Agent 返回前压缩发现（1-2K token），原始数据不传递；大结果卸载到文件 |
-| 收敛控制 | 固定结构（N 子问题 × K 来源），硬性上限防无限循环；不做动态收敛判断 |
-| 工具降级 | 工具配额耗尽时分层降级（GitHub→索引文档→scrape→discovery）；记录访问限制 |
+**搜索原则**
+
+| 原则 | 说明 | 来源 |
+|------|------|------|
+| 分层搜索 | 搜索→爬取→验证→综合，每步有明确输入输出；不跳过验证直接综合 | engineering-skills/research |
+| 源优先级 | GitHub 源 > 官方文档 > 社区信号 > SEO 列表；负向断言必须在 GitHub 上验证 | engineering-skills/research |
+| 全页提取 | 搜索 snippet 不可作为最终证据；必须 fetch 源页后才能总结 | engineering-skills/research |
+| 对抗性验证 | 每个关键断言回溯到一手源；记录标题/URL/日期/可靠性；冲突和过期数据显式标注 | engineering-skills/research |
+| 引用注册表 | 全局 source ID 注册表，防合成幻觉；正文行内引用 `[1]`，frontmatter 维护映射 | gpt-researcher |
+| 上下文压缩 | 子 Agent 返回前压缩发现（1-2K token），原始数据不传递；大结果卸载到文件 | deep-research learnings+directions |
+| 收敛控制 | 固定结构（N 子问题 × K 来源），硬性上限防无限循环；不做动态收敛判断 | deep-research depth/breadth |
+| 工具降级 | 工具配额耗尽时分层降级（GitHub→索引文档→scrape→discovery）；记录访问限制 | engineering-skills/research |
+
+**架构原则**
+
+| 原则 | 说明 | 来源 |
+|------|------|------|
+| 三层分离 | planner（规划）→ execution（搜集）→ publisher（聚合）三层职责分离，每层可独立配置 | gpt-researcher |
+| 多 LLM 角色分工 | 摘要用快模型、综合用强模型；规划用强模型、执行用快模型；降低成本 | open_deep_research |
+| 先大纲再填充 | generate_article 先列大纲再逐节生成带引用全文，而非一次性生成 | storm two-stage writing |
+| 对抗性反思 | 反思环节识别信息缺口（"thought-provoking questions"），而非友好评价总是投"足够" | storm Co-STORM Moderator |
+| 累积式知识 | 知识库写入不覆盖旧知识，ADD-only 累积增长；实体链接增强跨文档关联 | mem0 single-pass ADD-only |
 
 ### 7.6 知识库输出
 
