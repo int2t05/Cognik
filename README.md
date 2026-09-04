@@ -7,7 +7,7 @@
 <p align="center"><strong>私有部署的 AI 运维数字员工</strong><br>让每家企业拥有自己的智能运维助手</p>
 
 <p align="center">
-  <a href="https://github.com/int2t05/OpsMind/releases"><img alt="version" src="https://img.shields.io/badge/version-v1.3-5b5bd6"></a>
+  <a href="https://github.com/int2t05/OpsMind/releases"><img alt="version" src="https://img.shields.io/badge/version-v1.4-5b5bd6"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
   <img alt="go" src="https://img.shields.io/badge/Go-1.24+-00ADD8">
   <img alt="next" src="https://img.shields.io/badge/Next.js-15-black">
@@ -22,16 +22,16 @@
 
 OpsMind 不是另一个 ChatGPT 套壳。它是一个**从 Agent 循环到业务流程都自建**的运维数字员工系统：
 
-- **Agent Loop** — 基于 Eino 的 ReAct 循环，自主调用工具、多步推理、委托子 Agent
-- **订阅渠道网关** — 生产者与交付渠道解耦，SSE 断线重连、多订阅者、慢消费者不阻塞
+- **Agent Loop** — 自建 ReAct 循环，自主调用工具、多步推理、子 Agent 异步派发
+- **订阅渠道网关** — 生产者与交付渠道解耦，SSE 断线重连、多订阅者、背压不丢事件
 - **数据不出域** — 业务库 PostgreSQL，Agent 数据 SQLite 隔离，支持本地 llama.cpp 推理
 
 ```mermaid
 graph LR
     A["👤 用户提问"] --> GW["🛰 订阅渠道网关"]
     GW --> AG["🤖 Agent ReAct 循环"]
-    AG -->|"工具调用"| T["🔧 9 内置工具"]
-    AG -->|"委托"| SA["🧑‍💻 SubAgent"]
+    AG -->|"工具调用"| T["🔧 8 OS 工具 + 3 web 工具"]
+    AG -->|"异步派发"| SA["🧑‍💻 SubAgent"]
     AG -->|"回答"| GW
     GW -->|"SSE 流式"| A
     T --> RAG["📚 RAG 引擎<br>(V2.0 接入)"]
@@ -54,10 +54,10 @@ flowchart LR
 
 | 🤖 Agent 对话 | 🔧 内置工具 | 🎫 申告管理 | 🔐 权限看板 |
 |:---|:---|:---|:---|
-| Eino ReAct 循环 + token 级 SSE 流式 | bash / async_bash / read_file / write_file / edit_file | 完整状态机流转 | JWT 双令牌 + RBAC |
+| 自建 ReAct 循环 + token 级 SSE 流式 | bash / read_file / write_file / edit_file | 完整状态机流转 | JWT 双令牌 + RBAC |
 | reasoning + tool_call + tool_result 全事件渲染 | list_dir / glob / grep / mkdir | 站内消息实时通知 | 4 个预设角色，菜单动态渲染 |
-| SubAgent 委托（research 只读 + coder 读写） | workDir sandbox + timeout + 截断 | 7 天无操作自动关闭 | 实时统计卡片 + 趋势图 |
-| 异步任务后台执行 + SQLite 持久化 | GitBash 自适应（Windows） | 处理记录 → 知识候选 | 敏感操作全量审计日志 |
+| SubAgent 异步派发（research / coder / deep_research） | web_search / web_fetch / generate_article | 7 天无操作自动关闭 | 实时统计卡片 + 趋势图 |
+| SQLite 增量写入 + 中断可恢复 | workDir sandbox + timeout + 截断 | 处理记录 → 知识候选 | 敏感操作全量审计日志 |
 
 ## 架构
 
@@ -70,8 +70,8 @@ graph TB
         H["Handler"] --> SVC["Service"]
         SVC --> GW["Gateway 订阅渠道网关"]
         SVC --> AG["agent/ Agent Runner"]
-        AG --> MODEL["Eino ChatModel → llama.cpp"]
-        AG --> TOOLS["9 内置工具 + SubAgent"]
+        AG --> MODEL["ChatModel → llama.cpp"]
+        AG --> TOOLS["8 OS 工具 + 3 web 工具 + SubAgent"]
         SVC --> R["Repository → PostgreSQL"]
         H --> RAG["RAG 引擎 (V2.0)"]
     end
@@ -168,7 +168,7 @@ stateDiagram-v2
 OpsMind/
 ├── server/                      # Go 后端（Gin + GORM）
 │   ├── internal/
-│   │   ├── agent/               # Agent 基座（Eino ReactAgent + Runner + 工具 + SubAgent + SQLite store）
+│   │   ├── agent/               # Agent 基座（自建 ReAct Loop + 统一工具接口 + SubAgent + SQLite store）
 │   │   ├── domain/              # 业务领域（chat / knowledge / ticket / user / system）
 │   │   ├── infra/               # 基础设施（adapter / config / database / runtime / storage）
 │   │   ├── rag/                 # 自建 RAG 引擎（V2.0 接入 Agent）
@@ -198,8 +198,8 @@ OpsMind/
 | [路线图](docs/ROADMAP.md) | 战略方向、里程碑、技术决策记录 |
 | [PRD](docs/PRD.md) | 产品需求 — 功能定义、业务规则 |
 | [TECH](docs/TECH.md) | 技术架构 — 分层设计、DDL、ADR |
-| [V1.3 PRD](docs/v1.3/PRD.md) | V1.3 版本级需求 — Agent 基座 |
-| [V1.3 TECH](docs/v1.3/tech.md) | V1.3 版本级架构 — 网关引擎、Eino 集成 |
+| [V1.4 PRD](docs/v1.4/prd.md) | V1.4 版本级需求 — 深度搜索工具 |
+| [V1.4 TECH](docs/v1.4/tech.md) | V1.4 版本级架构 — 自建 Loop、SubAgent 异步、搜索降级链 |
 | [API](docs/API/README.md) | 接口文档，覆盖全部端点 |
 | [测试流程](test/README.md) | 验收测试场景与步骤 |
 
@@ -210,7 +210,7 @@ OpsMind/
 | V1.0 | 固定管道 RAG | ✅ 已交付 |
 | V1.2 | 业务完善 | ✅ 已交付 |
 | V1.3 | Agent 基座 | ✅ 已交付 |
-| V1.4 | 深度搜索工具 | 📋 规划中 |
+| V1.4 | 深度搜索 + Agent 重构 | ✅ 已交付 |
 | V2.0 | Agentic RAG | 📋 规划中 |
 
 详见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。技术债务清单见 [`docs/TODO.md`](docs/TODO.md)。
