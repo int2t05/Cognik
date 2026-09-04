@@ -7,10 +7,16 @@ import (
 	"sort"
 )
 
-const (
-	// rrfK RRF 平滑常数，标准值 60。
-	rrfK = 60
-)
+// rrfK RRF 平滑常数，默认 30（RustyRAG 实证 k=20-30 优于标准 60）。
+// k 值越小，排名靠前结果得分优势越大，rerank 效果越好。
+var rrfK = 30
+
+// SetRRFK 设置 RRF k 值（配置注入，运行时可调）。
+func SetRRFK(k int) {
+	if k > 0 {
+		rrfK = k
+	}
+}
 
 // HybridFuse 使用 RRF 融合向量检索和 BM25 检索结果。
 // 融合时保留 RawCosineScore 与 Bm25NormScore，由 KBStore.Search 后续加权混合为置信度。

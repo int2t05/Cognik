@@ -332,7 +332,10 @@ func wireApp() (*app, error) {
 	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
 	// kb 工具：知识库 CRUD + 检索（封装纯检索原语，修复死代码断裂）。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
-	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService)
+	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue)
+
+	// RRF k=30（RustyRAG 实证 k=20-30 优于标准 60）
+	rag.SetRRFK(30)
 	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
 
 	toolDeps := agenttools.Deps{

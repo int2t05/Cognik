@@ -51,6 +51,7 @@ type Processor struct {
 	embedder TextEmbedder
 	store    adapter.VectorStore
 	storage  storage.StorageClient
+	contextualGen ContextualGenerator // Contextual Retrieval（nil 时跳过）
 
 	taskCh   chan ProcessTask
 	poolSize int
@@ -60,6 +61,11 @@ type Processor struct {
 
 	stopped   atomic.Bool // Stop 幂等防护
 	closeOnce sync.Once   // taskCh 安全关闭
+}
+
+// SetContextualGenerator 注入 Contextual Retrieval 生成器（索引时为 chunk 生成上下文摘要）。
+func (p *Processor) SetContextualGenerator(gen ContextualGenerator) {
+	p.contextualGen = gen
 }
 
 // NewProcessor 创建文档处理器实例。storage 为 nil 时降级到 Content 模式。
@@ -243,6 +249,13 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 		p.updateStatus(task, "failed", "分块结果为空")
 		return
 	}
+
+	// Contextual Retrieval：为每个 chunk 生成 LLM 上下文摘要 prepend（失败率 -49~67%）
+	if p.contextualGen != nil {
+		p.updateStatus(task, "contextual", "")
+		chunks = GenerateContextualPrefixes(ctx, p.contextualGen, content, chunks)
+	}
+
 	if task.OnMetrics != nil {
 		task.OnMetrics(articleID, len([]rune(content)), len(chunks))
 	}

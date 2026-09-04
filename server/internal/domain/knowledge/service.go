@@ -1176,6 +1176,8 @@ func RebuildBM25ForKB(repo *KnowledgeRepo, store adapter.VectorStore, bm25 *rag.
 				Content:    c.Content,
 				ChunkIndex: c.ChunkIndex,
 				Tags:       tagList,
+				Title:      a.Title,
+				Source:     model.ArticleSourceTypeText(a.SourceType),
 			})
 		}
 	}

@@ -23,16 +23,18 @@ type kbStoreImpl struct {
 	bm25Retriever    *rag.BM25Retriever
 	reranker         adapter.Reranker
 	articleSvc       *knowledge.KnowledgeService
+	ingestQueue      *rag.IngestQueue // 异步索引队列（update 时入队触发增量 re-index）
 }
 
 // NewKBStoreImpl 创建 KBStore 实现。
-// vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD。
-func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService) KBStore {
+// vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD；ingestQueue 用于 update 入队。
+func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue) KBStore {
 	return &kbStoreImpl{
 		vectorRetriever: vr,
 		bm25Retriever:   br,
 		reranker:        rr,
 		articleSvc:      svc,
+		ingestQueue:     iq,
 	}
 }
 
@@ -65,6 +67,12 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 
 	// 置信度计算（分层：cosine → +BM25 → +rerank）
 	computeConfidence(deduped, len(bm25Results) > 0, s.reranker != nil && len(reranked) > 1)
+
+	// Sandwich Reorder：高分放首尾，低分放中间（Lost in the Middle 缓解）
+	deduped = rag.SandwichReorder(deduped)
+
+	// Context Packing：token 预算内贪心填充（最大化有效信息量）
+	deduped = rag.PackContext(deduped, 2000)
 
 	// 映射为 KBEntry
 	entries := make([]KBEntry, 0, len(deduped))
@@ -179,7 +187,7 @@ func formatArticleFrontmatter(p KBCreateParams) string {
 	return sb.String()
 }
 
-// Update 更新文章（委托 KnowledgeService.UpdateArticle）。
+// Update 更新文章（委托 KnowledgeService.UpdateArticle + 入队触发增量 re-index）。
 func (s *kbStoreImpl) Update(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error {
 	if articleID <= 0 {
 		return fmt.Errorf("article_id is required for update")
@@ -194,7 +202,20 @@ func (s *kbStoreImpl) Update(ctx context.Context, kbID int64, slug string, artic
 	if len(fields.Tags) > 0 {
 		req.Tags = fields.Tags
 	}
-	return s.articleSvc.UpdateArticle(ctx, articleID, req)
+	if err := s.articleSvc.UpdateArticle(ctx, articleID, req); err != nil {
+		return err
+	}
+
+	// 入队触发增量 re-index（Processor 的 loadOldEmbeddings + computeHashes 仅 re-embed 变更 chunk）
+	if s.ingestQueue != nil {
+		_ = s.ingestQueue.Enqueue(rag.IngestItem{
+			ArticleID: articleID,
+			KBID:      kbID,
+			FilePath:   fmt.Sprintf("kb-%d/published/article-%d.md", kbID, articleID),
+			Action:    "update",
+		})
+	}
+	return nil
 }
 
 // Delete 删文章（委托 KnowledgeService.DeleteArticle）。

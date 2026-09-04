@@ -102,7 +102,9 @@ type BM25Document struct {
 	KBID       int64    `json:"kb_id"`
 	Content    string   `json:"content"`
 	ChunkIndex int      `json:"chunk_index"`
-	Tags       []string `json:"tags"` // 文章标签，作为 BM25 关键词补充索引
+	Tags       []string `json:"tags"`  // 文章标签，作为 BM25 关键词补充索引
+	Title      string   `json:"title"` // 文章标题，enriched text 重复两次增加权重
+	Source     string   `json:"source"` // 来源类型
 }
 
 // =============================================================================
@@ -214,7 +216,14 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 
 	for _, doc := range docs {
 		idx.docMeta[doc.ChunkID] = doc
-		tokens := r.segmenter.Segment(doc.Content)
+
+		// BM25 Enriched Texts：title×2 + tags + content 构造富文本索引（参考 Open WebUI）
+		// title 重复两次增加 BM25 词频权重，提升标题关键词召回率
+		enriched := doc.Content
+		if doc.Title != "" {
+			enriched = doc.Title + " " + doc.Title + " " + enriched
+		}
+		tokens := r.segmenter.Segment(enriched)
 
 		// 统计词频 + 有效词数（token 数作文档长度，见 docLens 注释）
 		tf := make(map[string]int)
