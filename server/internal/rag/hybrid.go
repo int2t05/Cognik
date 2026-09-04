@@ -7,25 +7,13 @@ import (
 	"sort"
 )
 
-// =============================================================================
-// RRF 混合融合
-// =============================================================================
-
 const (
 	// rrfK RRF 平滑常数，标准值 60。
 	rrfK = 60
 )
 
-// rrfFusion 将 HybridFuse 适配为 FusionStrategy 接口，Pipeline 默认融合实现。
-type rrfFusion struct{}
-
-// Fuse 委托给 HybridFuse（RRF k=60）。
-func (r *rrfFusion) Fuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult {
-	return HybridFuse(vectorResults, bm25Results, topK)
-}
-
 // HybridFuse 使用 RRF 融合向量检索和 BM25 检索结果。
-// 融合时保留 RawCosineScore 与 Bm25NormScore，由 computeConfidenceScores 后续加权混合。
+// 融合时保留 RawCosineScore 与 Bm25NormScore，由 KBStore.Search 后续加权混合为置信度。
 func HybridFuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult {
 	if len(vectorResults) == 0 && len(bm25Results) == 0 {
 		return nil

@@ -86,3 +86,12 @@ parser:
 # 知识库
 kb:
   max_upload_size: 51200       # 上传大小上限(KB)，51200 = 50MB
+
+# 记忆系统（文件式存储 + 上下文压缩）
+memory:
+  storage_root: "storage/"          # 记忆+知识库存储根目录
+  memory_max_lines: 200             # MEMORY.md 最大行数，超出合并旧条目
+  compress_dedup: 0.70              # 去重清理触发阈值（token 占比）
+  compress_compact: 0.85            # Autocompact 触发阈值（token 占比）
+  ingest_poll_interval: 5s          # 异步队列轮询间隔
+  ingest_lease_ttl: 60s             # 消费 lease TTL

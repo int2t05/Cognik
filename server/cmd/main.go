@@ -15,6 +15,7 @@ import (
 
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/cloudwego/eino/schema"
 
 	"opsmind/internal/domain/chat/llm_config"
 	"opsmind/internal/domain/chat/session"
@@ -41,8 +42,6 @@ import (
 	"opsmind/internal/parser/mineru"
 	"opsmind/internal/rag"
 	"opsmind/internal/router"
-	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/shared/model"
 )
 
 // app 持有所有已初始化的组件。
@@ -239,9 +238,10 @@ func wireApp() (*app, error) {
 	docParser := parser.NewParser(parser.WithMinerU(mineruEngine))
 	chunker := rag.NewChunker(cfg.AI.ChunkSize, cfg.AI.ChunkOverlap)
 
-	// 向量检索器 + RAG Pipeline 不参与 Agent 生成路径。
-	// bm25Retriever 保留：KB 发布时 RebuildBM25ForKB 异步重建索引仍需。
-	
+	// 向量检索器：kb(action=search) 通过 KBStore 封装纯检索原语（BM25+pgvector→RRF→rerank）。
+	// bm25Retriever 同时服务于 KB 检索与发布时 RebuildBM25ForKB 异步重建。
+	vectorRetriever := rag.NewVectorRetriever(embedder, a.vectorStore)
+
 
 	bm25TTL := 30 * time.Minute
 	if s := os.Getenv("OPSMIND_AI_BM25_REBUILD_MINUTES"); s != "" {
@@ -264,6 +264,21 @@ func wireApp() (*app, error) {
 			}
 		}
 		processor = rag.NewProcessor(docParser, chunker, embedder, a.vectorStore, a.storageClient, procWorkers)
+	}
+
+	// 异步处理管道：文件即真相场景下 Agent 写入 draft 后入队，定时消费者处理。
+	var ingestQueue *rag.IngestQueue
+	var ingestConsumer *rag.IngestConsumer
+	if processor != nil {
+		queuePath := filepath.Join(cfg.Memory.StorageRoot, "_index/ingest_queue.jsonl")
+		ingestQueue, err = rag.NewIngestQueue(queuePath)
+		if err != nil {
+			slog.Warn("异步处理队列初始化失败", "error", err)
+		} else {
+			ingestConsumer = rag.NewIngestConsumer(ingestQueue, processor, cfg.Memory.IngestLeaseTTL, cfg.Memory.IngestPollInterval)
+			go ingestConsumer.Start(context.Background())
+			slog.Info("异步处理管道已启动", "queue", queuePath, "poll", cfg.Memory.IngestPollInterval)
+		}
 	}
 
 	knowledgeService := knowledge.NewKnowledgeService(knowledgeRepo,
@@ -315,13 +330,19 @@ func wireApp() (*app, error) {
 	fetchChain := adapter.NewFetchChain(fetchBackends)
 
 	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
+	// kb 工具：知识库 CRUD + 检索（封装纯检索原语，修复死代码断裂）。
+	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
+	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService)
+	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
+
 	toolDeps := agenttools.Deps{
-		WorkDir:       envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
-		Timeout:       envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
-		MaxBytes:      int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
-		SearchChain:   searchChain,
-		FetchChain:    fetchChain,
-		ArticleWriter: &deepResearchWriter{svc: knowledgeService},
+		WorkDir:     envStr("OPSMIND_AGENT_WORK_DIR", "./data/agent-workspace"),
+		Timeout:     envDuration("OPSMIND_AGENT_TOOL_TIMEOUT", 30*time.Second),
+		MaxBytes:    int64(envInt("OPSMIND_AGENT_TOOL_MAX_BYTES", 65536)),
+		SearchChain: searchChain,
+		FetchChain:  fetchChain,
+		KBStore:     kbStore,
+		MemoryStore: memoryStore,
 	}
 	registry := agent.NewToolRegistry()
 	for _, t := range agenttools.Build(toolDeps) {
@@ -335,15 +356,41 @@ func wireApp() (*app, error) {
 	}
 	registry.Register(agent.NewDispatchSubagentTool(subAgents, agentModelFactory, registry, 3))
 
-	// 自建 Loop（系统提示词从 LLM 配置注入）。
+	// 自建 Loop（系统提示词从 LLM 配置注入 + 全局记忆索引注入）。
 	systemPrompt := ""
 	if llmCfg := llmConfigSvc.GetManager().GetConfig(); llmCfg != nil && llmCfg.SystemPrompt != "" {
 		systemPrompt = llmCfg.SystemPrompt
 	}
+	// 启动加载：读取 global/MEMORY.md 注入 L1 上下文（Agent 启动即知晓跨会话经验）。
+	globalMemoryPath := filepath.Join(cfg.Memory.StorageRoot, "memory/global/MEMORY.md")
+	if memoryData, err := os.ReadFile(globalMemoryPath); err == nil && len(memoryData) > 0 {
+		systemPrompt += "\n\n## 全局记忆\n" + string(memoryData)
+		slog.Info("全局记忆索引已加载", "path", globalMemoryPath, "bytes", len(memoryData))
+	}
 	taskRegistry := agent.NewTaskRegistry()
-	loop := agent.NewLoop(agentModelFactory.GetModel, registry, taskRegistry, 20, 3, systemPrompt)
+
+	// 上下文压缩器：三级管线（HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
+	summarizeFn := func(ctx context.Context, msgs []*schema.Message) (string, error) {
+		m := agentModelFactory.GetModel()
+		if m == nil {
+			return "", fmt.Errorf("ChatModel 未初始化")
+		}
+		sumReq := append([]*schema.Message{schema.SystemMessage("你是对话历史压缩器。将以下对话历史压缩为关键信息摘要，保留：用户意图、已执行的工具调用及结论、未解决的问题。不超过 500 字。")},
+			msgs...)
+		resp, err := m.Generate(ctx, sumReq)
+		if err != nil {
+			return "", err
+		}
+		return resp.Content, nil
+	}
+	compressor := agent.NewCompressor(cfg.LLM.MaxTokens,
+		agent.WithSummarize(summarizeFn),
+		agent.WithMaxTokens(cfg.LLM.MaxTokens),
+	)
+
+	loop := agent.NewLoop(agentModelFactory.GetModel, registry, taskRegistry, 20, 3, systemPrompt, agent.WithCompressor(compressor))
 	agentRunner := agent.NewAgentRunner(loop)
-	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发）")
+	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 三级上下文压缩）")
 
 	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
 	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)
@@ -361,8 +408,15 @@ func wireApp() (*app, error) {
 	}
 	slog.Info("Agent SQLite 存储已初始化", "path", envStr("OPSMIND_AGENT_DB", "./data/agent.db"))
 
-	chatService := session.NewChatService(agentStore, agentRunner, genHub)
-	slog.Info("ChatService 已初始化")
+	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
+	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
+
+	chatService := session.NewChatService(agentStore, agentRunner, genHub,
+		session.WithSessionEndHook(func(ctx context.Context, threadID int64) error {
+			return sessionExtractor.Extract(ctx, threadID)
+		}),
+	)
+	slog.Info("ChatService 已初始化（含会话记忆提取钩子）")
 
 	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)
@@ -478,25 +532,6 @@ func (a *app) run() error {
 
 	slog.Info("OpsMind 服务已停止")
 	return nil
-}
-
-// deepResearchWriter 桥接 ArticleWriter 接口到 KnowledgeService.CreateArticle。
-// Agent 生成的文章 SourceType=3（深度搜索），状态 Draft，待人工审核。
-type deepResearchWriter struct {
-	svc *knowledge.KnowledgeService
-}
-
-func (w *deepResearchWriter) CreateArticle(ctx context.Context, title, content string, kbID int64) (int64, error) {
-	article, err := w.svc.CreateArticle(ctx, request.CreateArticleRequest{
-		KBID:       kbID,
-		Title:      title,
-		Content:    content,
-		SourceType: model.SourceTypeDeepResearch,
-	}, 0) // userID=0 表示 Agent 生成
-	if err != nil {
-		return 0, err
-	}
-	return article.ID, nil
 }
 
 // setupLLMHotSwap 注册 LLM 配置变更回调，热重建 Agent ChatModel + Embedding 客户端。

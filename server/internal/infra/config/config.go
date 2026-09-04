@@ -23,6 +23,7 @@ type AppConfig struct {
 	CORS      CORSConfig      `mapstructure:"cors"`
 	Parser    ParserConfig    `mapstructure:"parser"`
 	Knowledge KnowledgeConfig `mapstructure:"kb"`
+	Memory    MemoryConfig    `mapstructure:"memory"`
 }
 
 // SearchConfig 深度搜索工具链配置（web_search/web_fetch 后端，降级链模式）。
@@ -166,6 +167,16 @@ type KnowledgeConfig struct {
 	MaxUploadSizeKB int `mapstructure:"max_upload_size"` // 上传大小上限(KB)，默认 51200(50MB)
 }
 
+// MemoryConfig 记忆系统配置（文件式存储根目录 + MEMORY.md 行数上限 + 上下文压缩阈值）。
+type MemoryConfig struct {
+	StorageRoot     string        `mapstructure:"storage_root"`      // 记忆+知识库存储根目录，默认 storage/
+	MemoryMaxLines  int           `mapstructure:"memory_max_lines"`  // MEMORY.md 最大行数，默认 200
+	CompressDedup   float64       `mapstructure:"compress_dedup"`    // 去重清理触发阈值，默认 0.70
+	CompressCompact float64       `mapstructure:"compress_compact"`  // Autocompact 触发阈值，默认 0.85
+	IngestPollInterval time.Duration `mapstructure:"ingest_poll_interval"` // 异步队列轮询间隔，默认 5s
+	IngestLeaseTTL  time.Duration `mapstructure:"ingest_lease_ttl"`  // 消费 lease TTL，默认 60s
+}
+
 // Load 加载配置文件并应用环境变量覆盖。
 // configPath 为空时使用默认路径 ./internal/config/config.yaml。
 func Load(configPath string) (*AppConfig, error) {
@@ -280,6 +291,14 @@ func bindEnvs(v *viper.Viper) {
 
 	// Knowledge
 	v.BindEnv("kb.max_upload_size", "OPSMIND_KB_MAX_UPLOAD_SIZE")
+
+	// Memory（记忆系统，文件式存储 + 上下文压缩阈值）
+	v.BindEnv("memory.storage_root", "OPSMIND_MEMORY_STORAGE_ROOT")
+	v.BindEnv("memory.memory_max_lines", "OPSMIND_MEMORY_MAX_LINES")
+	v.BindEnv("memory.compress_dedup", "OPSMIND_MEMORY_COMPRESS_DEDUP")
+	v.BindEnv("memory.compress_compact", "OPSMIND_MEMORY_COMPRESS_COMPACT")
+	v.BindEnv("memory.ingest_poll_interval", "OPSMIND_MEMORY_INGEST_POLL_INTERVAL")
+	v.BindEnv("memory.ingest_lease_ttl", "OPSMIND_MEMORY_INGEST_LEASE_TTL")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -383,4 +402,12 @@ func setDefaults(v *viper.Viper) {
 
 	// Knowledge
 	v.SetDefault("kb.max_upload_size", 51200)
+
+	// Memory（记忆系统）
+	v.SetDefault("memory.storage_root", "storage/")
+	v.SetDefault("memory.memory_max_lines", 200)
+	v.SetDefault("memory.compress_dedup", 0.70)
+	v.SetDefault("memory.compress_compact", 0.85)
+	v.SetDefault("memory.ingest_poll_interval", "5s")
+	v.SetDefault("memory.ingest_lease_ttl", "60s")
 }

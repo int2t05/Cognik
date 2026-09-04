@@ -47,18 +47,31 @@ type StreamDoneMeta struct {
 
 // ChatService Agent 对话服务。
 type ChatService struct {
-	store       store.ChatStore           // SQLite 对话数据存储
-	agentRunner *agent.AgentRunner        // 事件生产者（Eino ReAct 循环）
-	gateway     *runtime.Gateway[StreamEvent]
+	store        store.ChatStore           // SQLite 对话数据存储
+	agentRunner  *agent.AgentRunner        // 事件生产者（Eino ReAct 循环）
+	gateway      *runtime.Gateway[StreamEvent]
+	onSessionEnd func(ctx context.Context, threadID int64) error // 会话结束钩子（记忆提取，best-effort）
+}
+
+// ChatServiceOption 函数选项模式。
+type ChatServiceOption func(*ChatService)
+
+// WithSessionEndHook 设置会话结束钩子（删除会话前触发记忆提取）。
+func WithSessionEndHook(fn func(ctx context.Context, threadID int64) error) ChatServiceOption {
+	return func(s *ChatService) { s.onSessionEnd = fn }
 }
 
 // NewChatService 创建 ChatService。
-func NewChatService(store store.ChatStore, agentRunner *agent.AgentRunner, gateway *runtime.Gateway[StreamEvent]) *ChatService {
-	return &ChatService{
+func NewChatService(store store.ChatStore, agentRunner *agent.AgentRunner, gateway *runtime.Gateway[StreamEvent], opts ...ChatServiceOption) *ChatService {
+	s := &ChatService{
 		store:       store,
 		agentRunner: agentRunner,
 		gateway:     gateway,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // CreateThread 创建对话线程。
@@ -100,10 +113,16 @@ func (s *ChatService) GetThreadDetail(ctx context.Context, threadID, userID int6
 	return &ThreadDetail{Thread: *thread, Messages: msgs}, nil
 }
 
-// DeleteThread 删除对话线程。
+// DeleteThread 删除对话线程。会话结束前触发记忆提取（best-effort，失败不阻塞删除）。
 func (s *ChatService) DeleteThread(ctx context.Context, threadID, userID int64) error {
 	if s.store == nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
+	}
+	// 会话结束提取：扫描会话记忆 → LLM 提取 → 写入 global（best-effort）
+	if s.onSessionEnd != nil {
+		if err := s.onSessionEnd(ctx, threadID); err != nil {
+			slog.Warn("会话记忆提取失败", "thread_id", threadID, "error", err)
+		}
 	}
 	if err := s.store.DeleteThread(ctx, threadID, userID); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "删除会话失败"}
