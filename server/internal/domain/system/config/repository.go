@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"opsmind/internal/shared/model"
+	"cognos/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

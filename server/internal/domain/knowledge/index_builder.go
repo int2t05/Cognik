@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"opsmind/internal/shared/model"
+	"cognos/internal/shared/model"
 )
 
 // IndexBuilder 知识库页目录重建器。从已发布文章生成 INDEX.md。

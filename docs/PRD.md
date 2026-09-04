@@ -1,4 +1,4 @@
-# OpsMind — 产品需求文档
+# Cognos — 产品需求文档
 
 > 私有部署的 AI 运维数字员工系统。关联文档：[TECH](TECH.md) · [API](API/README.md) · [FLOW](FLOW/README.md)
 
@@ -16,7 +16,7 @@ flowchart LR
         Admin["系统管理员<br/>用户权限 / 系统配置"]
     end
 
-    subgraph System["OpsMind"]
+    subgraph System["Cognos"]
         Web["Next.js 前端<br/>门户端 + 管理后台"]
         Server["Go 后端 :8080<br/>Handler → Service → Repository"]
         RAG["RAG 引擎<br/>BM25 + 向量 + RRF + 重排序"]
@@ -45,8 +45,8 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Client["浏览器"] --> Web["opsmind-web :3000<br/>Next.js standalone"]
-    Web --> Server["opsmind-server :8080<br/>Go Gin"]
+    Client["浏览器"] --> Web["cognos-web :3000<br/>Next.js standalone"]
+    Web --> Server["cognos-server :8080<br/>Go Gin"]
     Server --> Postgres[("postgres :5432<br/>pgvector + HNSW")]
     Server -.->|storage profile| Minio[("minio :9000/:9001<br/>S3-compatible<br/>可选，默认 Local")]
     Server -.->|ai-local profile| LlamaCpp["llama-cpp :8080/v1<br/>可选"]

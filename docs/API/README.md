@@ -1,10 +1,10 @@
-# OpsMind API 文档
+# Cognos API 文档
 
 > **Base URL:** `/api/v1`
 
 ## Overview
 
-OpsMind 后端提供 RESTful JSON API，分为三组路由：
+Cognos 后端提供 RESTful JSON API，分为三组路由：
 
 | Route Group | Prefix | Auth | Description |
 |--------|------|----------|------|

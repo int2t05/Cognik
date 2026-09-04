@@ -78,7 +78,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-> 在已有会话中发送消息，SSE 流式返回 AI 答案。支持多轮对话——历史消息自动注入 LLM 上下文（滑动窗口上限 10 条，约 5 轮 Q&A，可通过 `OPSMIND_AI_MAX_HISTORY_MESSAGES` 调整）。
+> 在已有会话中发送消息，SSE 流式返回 AI 答案。支持多轮对话——历史消息自动注入 LLM 上下文（滑动窗口上限 10 条，约 5 轮 Q&A，可通过 `COGNOS_AI_MAX_HISTORY_MESSAGES` 调整）。
 
 **请求体：**
 

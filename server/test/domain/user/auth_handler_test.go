@@ -13,13 +13,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/hash"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/domain/user/auth"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -51,9 +51,9 @@ func setupHandlerTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 

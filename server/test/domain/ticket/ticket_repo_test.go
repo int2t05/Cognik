@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/domain/ticket"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/ticket"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -25,8 +25,8 @@ import (
 func setupTicketTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
-		DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
+		DBName: "cognos_test", SSLMode: "disable",
 	}
 	db, err := database.Init(dbCfg)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/rag"
+	"cognos/internal/rag"
 )
 
 // newQueue 创建临时队列。

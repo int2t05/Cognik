@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/agent/store"
+	"cognos/internal/agent/store"
 )
 
 // newTestStore 创建内存 SQLite 测试存储（无文件锁问题）。

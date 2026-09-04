@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"opsmind/internal/agent/tools"
+	"cognos/internal/agent/tools"
 )
 
 // newMemoryStore 创建临时存储目录的 FileMemoryStore。

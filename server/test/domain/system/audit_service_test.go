@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"testing"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -23,8 +23,8 @@ func setupAuditServiceTestDB(t *testing.T) *gorm.DB {
 	port, _ := strconv.Atoi(envOrDefault("TEST_DB_PORT", "5432"))
 	db, err := database.Init(config.DatabaseConfig{
 		Host: envOrDefault("TEST_DB_HOST", "localhost"), Port: port,
-		User: envOrDefault("TEST_DB_USER", "opsmind"), Password: envOrDefault("TEST_DB_PASSWORD", "opsmind_dev"),
-		DBName: envOrDefault("TEST_DB_NAME", "opsmind_test"), SSLMode: envOrDefault("TEST_DB_SSLMODE", "disable"),
+		User: envOrDefault("TEST_DB_USER", "cognos"), Password: envOrDefault("TEST_DB_PASSWORD", "cognos_dev"),
+		DBName: envOrDefault("TEST_DB_NAME", "cognos_test"), SSLMode: envOrDefault("TEST_DB_SSLMODE", "disable"),
 	})
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)

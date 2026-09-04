@@ -90,7 +90,7 @@ func (c *DuckDuckGoClient) Search(ctx context.Context, query string, maxResults 
 	if err != nil {
 		return nil, fmt.Errorf("创建 DuckDuckGo 请求失败: %w", err)
 	}
-	req.Header.Set("User-Agent", "OpsMind (AI Ops Assistant)")
+	req.Header.Set("User-Agent", "Cognos (AI Ops Assistant)")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

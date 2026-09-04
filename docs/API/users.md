@@ -29,7 +29,7 @@ Authorization: Bearer <token>
       "username": "admin",
       "real_name": "系统管理员",
       "phone": "13800000001",
-      "email": "admin@opsmind.local",
+      "email": "admin@cognos.local",
       "status": 1,
       "first_login": false,
       "roles": ["系统管理员"],
@@ -65,7 +65,7 @@ Authorization: Bearer <token>
   "password": "NewUser123",
   "real_name": "新用户",
   "phone": "13800001000",
-  "email": "newuser@opsmind.local",
+  "email": "newuser@cognos.local",
   "role_ids": [4]
 }
 ```
@@ -108,7 +108,7 @@ Authorization: Bearer <token>
     "username": "admin",
     "real_name": "系统管理员",
     "phone": "13800000001",
-    "email": "admin@opsmind.local",
+    "email": "admin@cognos.local",
     "status": 1,
     "first_login": false,
     "roles": ["系统管理员"],
@@ -145,7 +145,7 @@ Authorization: Bearer <token>
 {
   "real_name": "新姓名",
   "phone": "13800001001",
-  "email": "updated@opsmind.local",
+  "email": "updated@cognos.local",
   "role_ids": [4]
 }
 ```

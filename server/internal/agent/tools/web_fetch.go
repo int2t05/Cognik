@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	"opsmind/internal/agent"
-	"opsmind/internal/infra/adapter"
+	"cognos/internal/agent"
+	"cognos/internal/infra/adapter"
 
 	"github.com/cloudwego/eino/schema"
 )

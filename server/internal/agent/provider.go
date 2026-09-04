@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	llmconfig "opsmind/internal/domain/chat/llm_config"
-	"opsmind/internal/shared/model"
+	llmconfig "cognos/internal/domain/chat/llm_config"
+	"cognos/internal/shared/model"
 )
 
 // ChatModelFactory 构造并热切换 Eino ChatModel。

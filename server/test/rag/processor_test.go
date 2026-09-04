@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/infra/adapter"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/parser"
-	"opsmind/internal/rag"
+	"cognos/internal/infra/adapter"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/parser"
+	"cognos/internal/rag"
 
 	"gorm.io/gorm"
 )
@@ -31,9 +31,9 @@ import (
 // ragVectorStoreDSN 返回 pgvector 测试数据库连接字符串。
 func ragVectorStoreDSN() string {
 	host := "localhost"
-	user := "opsmind"
-	password := "opsmind_dev"
-	dbname := "opsmind_test"
+	user := "cognos"
+	password := "cognos_dev"
+	dbname := "cognos_test"
 	if env := os.Getenv("DB_HOST"); env != "" {
 		host = env
 	}
@@ -50,9 +50,9 @@ func ragVectorStoreDSN() string {
 func ragMustGormDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	host := "localhost"
-	user := "opsmind"
-	password := "opsmind_dev"
-	dbname := "opsmind_test"
+	user := "cognos"
+	password := "cognos_dev"
+	dbname := "cognos_test"
 	if env := os.Getenv("DB_HOST"); env != "" {
 		host = env
 	}

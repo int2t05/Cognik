@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/cloudwego/eino/schema"
-	"opsmind/internal/agent"
+	"cognos/internal/agent"
 )
 
 // newCompressor 创建测试用压缩器。

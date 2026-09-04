@@ -14,7 +14,7 @@ V1.3 交付 Agent 基座（自建 ReAct Loop + 9 工具 + SubAgent + SQLite 隔�
 
 搭建统一记忆系统框架——记忆 + RAG + 知识库统一为一个架构。
 
-| OS 类比 | OpsMind 对应 | 物理实现 |
+| OS 类比 | Cognos 对应 | 物理实现 |
 |---------|-------------|---------|
 | L1 Cache | Agent 上下文窗口 | ReAct Loop 内存 |
 | RAM | 会话记忆 | `memory/sessions/{id}/` |

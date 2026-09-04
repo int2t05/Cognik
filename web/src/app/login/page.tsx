@@ -92,7 +92,7 @@ export default function LoginPage() {
             {displayName}
           </h1>
           <p className="text-callout text-[var(--color-text-muted-48)]">
-            运维数字员工系统
+            知识管理平台系统
           </p>
           <p className="text-caption text-[var(--color-text-muted-48)] mt-1">
             智能问答 · 申告管理 · 知识库

@@ -160,7 +160,7 @@ func createMinimalPDF(t *testing.T) []byte {
 
 	// Object 4 (Content stream)
 	obj4Offset := b.Len()
-	b.WriteString("4 0 obj\n<< /Length 44 >>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n(Hello OpsMind) Tj\nET\nendstream\nendobj\n")
+	b.WriteString("4 0 obj\n<< /Length 44 >>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n(Hello Cognos) Tj\nET\nendstream\nendobj\n")
 
 	// Cross-reference table
 	xrefOffset := b.Len()

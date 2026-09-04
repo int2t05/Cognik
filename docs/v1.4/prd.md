@@ -94,7 +94,7 @@ flowchart LR
 | 项 | 设计 |
 |----|------|
 | frontmatter | `title` / `source_type: deep_research` / `sources`（URL 列表，含 title + accessed）/ `created` |
-| 存储路径 | `opsmind-documents/kb-{kbID}/draft/{filename}.md`（图片统一存 `opsmind-documents/image/`） |
+| 存储路径 | `cognos-documents/kb-{kbID}/draft/{filename}.md`（图片统一存 `cognos-documents/image/`） |
 | 引用标注 | 正文中行内编号 `[1]` `[2]`，frontmatter `sources` 维护编号→URL 映射（不用脚注，避免 chunker 切割引用） |
 | 状态管控 | 复用现有状态机：Draft(1) → Reviewing(2) → Published(4)；`generate_article` 调用 `CreateArticle` 传入 `SourceType=3`，默认 Draft |
 | RAG 衔接 | Published 后触发现有 chunker → embedder → pgvector + BM25；发布时文件从 `draft/` 迁移到 `published/`（复用 `moveArticleDir`） |

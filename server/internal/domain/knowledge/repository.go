@@ -6,8 +6,8 @@ package knowledge
 import (
 	"context"
 
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/dbutil"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )

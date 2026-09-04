@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/domain/system/message"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/message"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"gorm.io/gorm"
 )
@@ -22,8 +22,8 @@ var msgSvcDB *gorm.DB
 
 func init() {
 	cfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
-		DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
+		DBName: "cognos_test", SSLMode: "disable",
 	}
 	db, err := database.Init(cfg)
 	if err != nil {

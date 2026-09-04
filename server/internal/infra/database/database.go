@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"opsmind/internal/infra/config"
+	"cognos/internal/infra/config"
 )
 
 // Init 初始化数据库连接，DSN 使用 URL 格式以处理密码中特殊字符。

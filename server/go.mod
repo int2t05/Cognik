@@ -1,4 +1,4 @@
-module opsmind
+module cognos
 
 go 1.26.2
 

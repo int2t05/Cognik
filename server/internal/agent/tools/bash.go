@@ -2,7 +2,7 @@
 // bash.go：bash 命令执行工具。
 //
 // 高级特性：
-//   - 平台自适应 bash 二进制（Windows 默认 GitBash，OPSMIND_AGENT_BASH_BIN 可覆盖）
+//   - 平台自适应 bash 二进制（Windows 默认 GitBash，COGNOS_AGENT_BASH_BIN 可覆盖）
 //   - description 参数强制意图声明
 //   - timeout 参数可覆盖默认（上限 10min）
 //   - workDir sandbox、stdout+stderr 截断、exit_code 始终返回（不抛 error，agent 自判断）
@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"opsmind/internal/agent"
+	"cognos/internal/agent"
 
 	"github.com/cloudwego/eino/schema"
 )

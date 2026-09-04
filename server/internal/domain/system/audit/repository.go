@@ -7,7 +7,7 @@ import (
 	"context"
 	"strings"
 
-	"opsmind/internal/shared/pkg/dbutil"
+	"cognos/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/rag"
+	"cognos/internal/rag"
 )
 
 // =============================================================================

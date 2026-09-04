@@ -1,4 +1,4 @@
-# OpsMind — 技术架构文档
+# Cognos — 技术架构文档
 
 > 覆盖系统架构、前后端分层设计、数据库、可靠性、设计系统。关联文档：[PRD](PRD.md) · [TODO](TODO.md) · [API](API/README.md) · [FLOW](FLOW/README.md)
 
@@ -164,7 +164,7 @@ classDiagram
 
 - `LLMClient` / `EmbeddingClient`：OpenAI-compatible 实现，指数退避重试（maxRetries=3，429/503 可重试）
 - `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验
-- `StorageClient`：Local + MinIO 双实现（目录式），桶：`opsmind-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
+- `StorageClient`：Local + MinIO 双实现（目录式），桶：`cognos-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
 
 ## 3. 前端架构
 
@@ -393,7 +393,7 @@ flowchart TD
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `POSTGRES_PASSWORD` | 数据库密码 | opsmind_dev |
+| `POSTGRES_PASSWORD` | 数据库密码 | cognos_dev |
 | `JWT_SECRET` | JWT 签名密钥 | 需手动设置 |
 | `LLM_BASE_URL` | LLM API 地址 | http://llama-cpp:8080/v1 |
 | `LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
@@ -402,11 +402,11 @@ flowchart TD
 | `EMBEDDING_MODEL` | Embedding 模型 | bge-m3 |
 | `EMBEDDING_DIMENSION` | 向量维度 | 1024 |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
-| `OPSMIND_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
-| `OPSMIND_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录 | ./data/storage |
+| `COGNOS_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
+| `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录 | ./data/storage |
 | `AI_CONFIDENCE_THRESHOLD` | 置信度阈值 | 0.6 |
 | `AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
-| `OPSMIND_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
+| `COGNOS_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
 | `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
 
 > 完整 28 项环境变量见 `.env.example` 和 `docker-compose.yml`。

@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/infra/config"
-	respDto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/shared/pkg/hash"
-	"opsmind/internal/shared/pkg/jwt"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/infra/config"
+	respDto "cognos/internal/shared/dto/response"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
+	"cognos/internal/shared/pkg/hash"
+	"cognos/internal/shared/pkg/jwt"
 
 	"gorm.io/gorm"
 )

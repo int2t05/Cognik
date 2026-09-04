@@ -160,7 +160,7 @@ export default function TicketDetailPage() {
           {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
             <Card>
               <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
-              <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供运维人员需要的补充信息..." />
+              <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供团队成员需要的补充信息..." />
               <IconButton size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</IconButton>
             </Card>
           )}

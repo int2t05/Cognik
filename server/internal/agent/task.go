@@ -19,7 +19,7 @@ const (
 	TaskCancelled = "cancelled"
 )
 
-// 任务类型（OpsMind 仅用 subagent/bash）。
+// 任务类型（Cognos 仅用 subagent/bash）。
 const (
 	taskKindSubagent = "subagent"
 	taskKindBash     = "bash"

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"opsmind/internal/shared/model"
+	"cognos/internal/shared/model"
 
 	"gorm.io/gorm"
 )

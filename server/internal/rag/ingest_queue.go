@@ -226,7 +226,7 @@ func (c *IngestConsumer) submitToProcessor(ctx context.Context, item IngestItem)
 	task := ProcessTask{
 		ArticleID: item.ArticleID,
 		KBID:     item.KBID,
-		Bucket:   "opsmind-documents",
+		Bucket:   "cognos-documents",
 		Key:      item.FilePath,
 		FileType: "txt",
 	}

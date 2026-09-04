@@ -17,7 +17,7 @@ func CORS(allowOrigins []string, mode string) gin.HandlerFunc {
 
 	if isRelease {
 		if len(allowOrigins) == 0 {
-			slog.Error("生产模式必须配置 OPSMIND_CORS_ALLOW_ORIGINS，拒绝以空值启动")
+			slog.Error("生产模式必须配置 COGNOS_CORS_ALLOW_ORIGINS，拒绝以空值启动")
 			panic("CORS: release 模式不允许空 AllowOrigins")
 		}
 		for _, origin := range allowOrigins {

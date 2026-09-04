@@ -293,7 +293,7 @@ flowchart TD
     INPUT["输入<br/>title + content + sources + kb_id"] --> CHECK["checkTitleUnique<br/>（CreateArticle 内含）"]
     CHECK -->|"已存在"| ERR["返回错误<br/>Agent 决定更新或换标题"]
     CHECK -->|"新内容"| CREATE["KnowledgeService.CreateArticle<br/>SourceType=3, Status=Draft"]
-    CREATE --> STORE["StorageClient.UploadFile<br/>opsmind-documents/kb-{kbID}/draft/{filename}.md"]
+    CREATE --> STORE["StorageClient.UploadFile<br/>cognos-documents/kb-{kbID}/draft/{filename}.md"]
     STORE --> RETURN["返回 articleID + Draft 状态"]
 ```
 
@@ -331,7 +331,7 @@ created: 2026-09-04T10:00:00+08:00
 | Draft(1)     | `kb-{kbID}/draft/{filename}.md`     |   否   |
 | Published(4) | `kb-{kbID}/published/{filename}.md` |   是   |
 
-Published 时 `moveArticleDir` 将文件从 `draft/` 迁移到 `published/`，触发现有 `chunker → embedder → pgvector + BM25` 索引流程。图片统一存放在 `opsmind-documents/image/` 目录。
+Published 时 `moveArticleDir` 将文件从 `draft/` 迁移到 `published/`，触发现有 `chunker → embedder → pgvector + BM25` 索引流程。图片统一存放在 `cognos-documents/image/` 目录。
 
 ## 6. Docker 部署
 
@@ -364,11 +364,11 @@ type FirecrawlConfig struct {
 
 | 环境变量                             | 默认    | 用途                              |
 | ------------------------------------ | ------- | --------------------------------- |
-| `OPSMIND_SEARCH_EXA_API_KEY`       | （空）  | Exa API Key（主力搜索，效果最佳） |
-| `OPSMIND_SEARCH_TAVILY_API_KEY`    | （空）  | Tavily API Key（降级搜索）        |
-| `OPSMIND_SEARCH_FIRECRAWL_API_KEY` | （空）  | Firecrawl API Key（主力提取）     |
-| `OPSMIND_SEARCH_MAX_RESULTS`       | `5`   | 搜索结果上限                      |
-| `OPSMIND_SEARCH_TIMEOUT`           | `10s` | 搜索超时（Exa 15s）               |
+| `COGNOS_SEARCH_EXA_API_KEY`       | （空）  | Exa API Key（主力搜索，效果最佳） |
+| `COGNOS_SEARCH_TAVILY_API_KEY`    | （空）  | Tavily API Key（降级搜索）        |
+| `COGNOS_SEARCH_FIRECRAWL_API_KEY` | （空）  | Firecrawl API Key（主力提取）     |
+| `COGNOS_SEARCH_MAX_RESULTS`       | `5`   | 搜索结果上限                      |
+| `COGNOS_SEARCH_TIMEOUT`           | `10s` | 搜索超时（Exa 15s）               |
 
 > 无任何 API Key 时，web_search 降级到 DuckDuckGo（零配置），web_fetch 降级到本地 http.Get——Agent 仍可用，只是效果降低。
 

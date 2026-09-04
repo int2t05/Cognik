@@ -6,8 +6,8 @@ package audit
 import (
 	"context"
 
-	respDto "opsmind/internal/shared/dto/response"
-	"opsmind/internal/shared/model"
+	respDto "cognos/internal/shared/dto/response"
+	"cognos/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

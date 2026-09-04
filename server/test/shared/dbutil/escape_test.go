@@ -4,7 +4,7 @@ package dbutil_test
 import (
 	"testing"
 
-	"opsmind/internal/shared/pkg/dbutil"
+	"cognos/internal/shared/pkg/dbutil"
 )
 
 // TestEscapeLike 验证 LIKE/ILIKE 通配符转义：%、_、\ 均转义，普通文本不变。

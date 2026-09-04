@@ -1,7 +1,7 @@
-# OpsMind 后端配置文件
+# Cognos 后端配置文件
 #
 # 本地开发使用默认值，Docker 环境通过环境变量覆盖。
-# 环境变量前缀：OPSMIND_，例如 OPSMIND_DATABASE_HOST 覆盖 database.host。
+# 环境变量前缀：COGNOS_，例如 COGNOS_DATABASE_HOST 覆盖 database.host。
 
 server:
   port: 8080
@@ -13,16 +13,16 @@ server:
 database:
   host: localhost        # Docker 内: postgres
   port: 5432
-  user: opsmind
-  password: "opsmind_dev"  # 通过环境变量 OPSMIND_DATABASE_PASSWORD 覆盖
-  dbname: opsmind
+  user: cognos
+  password: "cognos_dev"  # 通过环境变量 COGNOS_DATABASE_PASSWORD 覆盖
+  dbname: cognos
   sslmode: disable
   max_open_conns: 0    # 0 = 不限，由 PostgreSQL max_connections 控制
   max_idle_conns: 0    # 0 = 不限
   conn_max_lifetime: 5m
 
 jwt:
-  secret: ""             # 通过环境变量 OPSMIND_JWT_SECRET 设置
+  secret: ""             # 通过环境变量 COGNOS_JWT_SECRET 设置
   access_expire: 2h
   refresh_expire: 168h   # 7 天
 
@@ -36,11 +36,11 @@ storage:
     secret_key: minioadmin
     use_ssl: false
   buckets:
-    documents: opsmind-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
+    documents: cognos-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
 
 llm:
   base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
-  api_key: ""                          # 通过环境变量 OPSMIND_LLM_API_KEY 设置
+  api_key: ""                          # 通过环境变量 COGNOS_LLM_API_KEY 设置
   model: qwen3-4b                      # LLM 模型名称
   max_tokens: 8192                     # 最大生成 Token 数
   timeout: 300s                        # LLM 调用超时

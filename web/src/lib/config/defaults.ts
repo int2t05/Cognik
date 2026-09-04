@@ -4,7 +4,7 @@
  */
 
 export const SYSTEM_CONFIG_DEFAULTS = {
-  app_name: 'OpsMind',
+  app_name: 'Cognos',
   'ai.rag_enabled': true,
   'ai.top_k': 5,
   'ai.confidence_threshold_low': 0.40,

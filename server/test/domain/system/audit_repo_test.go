@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -33,9 +33,9 @@ func getTestDB(t *testing.T) *gorm.DB {
 	cfg := config.DatabaseConfig{
 		Host:     envOrDefault("TEST_DB_HOST", "localhost"),
 		Port:     port,
-		User:     envOrDefault("TEST_DB_USER", "opsmind"),
-		Password: envOrDefault("TEST_DB_PASSWORD", "opsmind_dev"),
-		DBName:   envOrDefault("TEST_DB_NAME", "opsmind_test"),
+		User:     envOrDefault("TEST_DB_USER", "cognos"),
+		Password: envOrDefault("TEST_DB_PASSWORD", "cognos_dev"),
+		DBName:   envOrDefault("TEST_DB_NAME", "cognos_test"),
 		SSLMode:  envOrDefault("TEST_DB_SSLMODE", "disable"),
 	}
 	db, err := database.Init(cfg)

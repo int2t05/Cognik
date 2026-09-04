@@ -19,7 +19,7 @@ export function DynamicTitle() {
 
   useEffect(() => {
     const name = typeof data === 'string' ? data : getAppName();
-    document.title = `${name} — 运维数字员工`;
+    document.title = `${name} — 知识管理平台`;
   }, [data]);
 
   return null;

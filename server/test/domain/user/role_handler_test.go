@@ -11,11 +11,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
@@ -28,9 +28,9 @@ func init() {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(cfg)

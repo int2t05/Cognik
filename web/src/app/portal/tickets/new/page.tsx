@@ -72,7 +72,7 @@ export default function TicketSubmitPage() {
         </Card>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">联系信息</h2>
-          <Field label="联系电话" required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便运维人员联系您" /></Field>
+          <Field label="联系电话" required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便团队成员联系您" /></Field>
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">

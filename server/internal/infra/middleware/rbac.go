@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/shared/pkg/response"
+	"cognos/internal/shared/pkg/errcode"
+	"cognos/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

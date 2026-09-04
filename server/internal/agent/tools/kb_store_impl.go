@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/infra/adapter"
-	"opsmind/internal/rag"
-	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/knowledge"
+	"cognos/internal/infra/adapter"
+	"cognos/internal/rag"
+	"cognos/internal/shared/dto/request"
+	"cognos/internal/shared/model"
 )
 
 // kbStoreImpl KBStore 实现：检索复用 RAG 引擎，CRUD 委托 KnowledgeService。

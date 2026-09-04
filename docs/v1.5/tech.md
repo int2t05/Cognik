@@ -39,7 +39,7 @@ flowchart TB
 
 ### 1.2 OS 类比映射
 
-| OS 概念 | OpsMind 对应 | 物理实现 |
+| OS 概念 | Cognos 对应 | 物理实现 |
 |---------|-------------|---------|
 | L1 Cache | Agent 上下文窗口 | ReAct Loop 内存（`loop.go` messages） |
 | RAM | 会话记忆 | `memory/sessions/{id}/` |
@@ -576,12 +576,12 @@ type MemoryConfig struct {
 
 | 环境变量 | 默认 | 用途 |
 |----------|------|------|
-| `OPSMIND_MEMORY_STORAGE_ROOT` | `storage/` | 记忆+知识库存储根目录 |
-| `OPSMIND_MEMORY_MAX_LINES` | `200` | MEMORY.md 最大行数 |
-| `OPSMIND_MEMORY_COMPRESS_DEDUP` | `0.70` | 去重清理触发阈值 |
-| `OPSMIND_MEMORY_COMPRESS_COMPACT` | `0.85` | Autocompact 触发阈值 |
-| `OPSMIND_MEMORY_INGEST_POLL_INTERVAL` | `5s` | 异步队列轮询间隔 |
-| `OPSMIND_MEMORY_INGEST_LEASE_TTL` | `60s` | 消费 lease TTL |
+| `COGNOS_MEMORY_STORAGE_ROOT` | `storage/` | 记忆+知识库存储根目录 |
+| `COGNOS_MEMORY_MAX_LINES` | `200` | MEMORY.md 最大行数 |
+| `COGNOS_MEMORY_COMPRESS_DEDUP` | `0.70` | 去重清理触发阈值 |
+| `COGNOS_MEMORY_COMPRESS_COMPACT` | `0.85` | Autocompact 触发阈值 |
+| `COGNOS_MEMORY_INGEST_POLL_INTERVAL` | `5s` | 异步队列轮询间隔 |
+| `COGNOS_MEMORY_INGEST_LEASE_TTL` | `60s` | 消费 lease TTL |
 
 ## 11. main.go 接线
 

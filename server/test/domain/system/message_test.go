@@ -10,11 +10,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/domain/system/message"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/infra/middleware"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/message"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/infra/middleware"
+	"cognos/internal/shared/model"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -25,8 +25,8 @@ func setupMessageHandler(t *testing.T) (*gin.Engine, *gorm.DB) {
 	gin.SetMode(gin.TestMode)
 
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
-		DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
+		DBName: "cognos_test", SSLMode: "disable",
 	}
 	db, err := database.Init(dbCfg)
 	if err != nil {

@@ -1,4 +1,4 @@
-# OpsMind Server — Go 后端多阶段构建
+# Cognos Server — Go 后端多阶段构建
 #
 # 阶段 1: 编译 Go 二进制
 # 阶段 2: Python slim 运行时（Go 二进制 + 本地 cross-encoder 模型）
@@ -11,7 +11,7 @@
 #   # 1. 下载模型（仅需一次）
 #   cd server && python models/rerank/download.py
 #   # 2. 构建镜像
-#   docker build -f deploy/docker/server/Dockerfile -t opsmind-server server/
+#   docker build -f deploy/docker/server/Dockerfile -t cognos-server server/
 
 # ===== 阶段 1: 编译 Go =====
 FROM golang:1.26-alpine AS builder
@@ -26,7 +26,7 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -o /build/opsmind-server ./cmd/main.go
+    go build -ldflags="-w -s" -o /build/cognos-server ./cmd/main.go
 
 # ===== 阶段 2: Python slim + 本地 reranker =====
 FROM python:3.11-slim-bookworm
@@ -58,7 +58,7 @@ RUN if [ ! -f /app/models/rerank/config.json ]; then \
     echo "=============================================="; \
     echo "  错误: 重排序模型文件未下载"; \
     echo "  请先执行: cd server && python models/rerank/download.py"; \
-    echo "  或设 OPSMIND_RERANK_ENABLED=false 跳过重排序"; \
+    echo "  或设 COGNOS_RERANK_ENABLED=false 跳过重排序"; \
     echo "=============================================="; \
     echo ""; \
     exit 1; \
@@ -74,7 +74,7 @@ print('模型加载成功')"
 COPY --from=builder /go/pkg/mod/github.com/go-ego/gse@v1.0.2/data/ /go/pkg/mod/github.com/go-ego/gse@v1.0.2/data/
 
 # 复制 Go 二进制和推理脚本
-COPY --from=builder /build/opsmind-server .
+COPY --from=builder /build/cognos-server .
 COPY rerank_server.py .
 
 # 复制种子数据 SQL（AutoSeed 启动时自动检测并填充）
@@ -82,4 +82,4 @@ COPY migrations/ ./migrations/
 
 EXPOSE 8080
 
-ENTRYPOINT ["./opsmind-server"]
+ENTRYPOINT ["./cognos-server"]

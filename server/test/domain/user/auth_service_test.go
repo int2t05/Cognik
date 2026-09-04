@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"opsmind/internal/domain/user/account"
-	"opsmind/internal/domain/user/auth"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
-	"opsmind/internal/shared/pkg/hash"
+	"cognos/internal/domain/user/account"
+	"cognos/internal/domain/user/auth"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
+	"cognos/internal/shared/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,9 +43,9 @@ func setupAuthTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 

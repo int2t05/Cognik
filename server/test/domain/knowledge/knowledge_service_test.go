@@ -10,11 +10,11 @@ package knowledge_test
 import (
 	"testing"
 
-	"opsmind/internal/domain/knowledge"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/dto/request"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/knowledge"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/dto/request"
+	"cognos/internal/shared/model"
 
 	"gorm.io/gorm"
 )
@@ -29,9 +29,9 @@ func init() {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(cfg)

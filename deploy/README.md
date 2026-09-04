@@ -1,4 +1,4 @@
-# OpsMind 部署
+# Cognos 部署
 
 > 本地优先开发方案。Docker 仅用于基础设施（PostgreSQL + pgvector），后端和前端在宿主机直接运行。
 
@@ -72,8 +72,8 @@ make dev-web
 make dev-ai
 
 # .env 中配置
-# OPSMIND_LLM_BASE_URL=http://localhost:8081/v1
-# OPSMIND_EMBEDDING_BASE_URL=http://localhost:8082/v1
+# COGNOS_LLM_BASE_URL=http://localhost:8081/v1
+# COGNOS_EMBEDDING_BASE_URL=http://localhost:8082/v1
 ```
 
 ### MinIO 对象存储（可选）
@@ -83,7 +83,7 @@ make dev-ai
 make dev-storage
 
 # .env 中配置
-# OPSMIND_STORAGE_DRIVER=minio
+# COGNOS_STORAGE_DRIVER=minio
 ```
 
 ### 停止 / 清理
@@ -102,14 +102,14 @@ make dev-clean     # 停止并清除数据卷（谨慎）
 cd server && python models/rerank/download.py
 
 # 2. 构建镜像（从项目根目录）
-docker build -f deploy/allinone/Dockerfile -t opsmind-allinone .
+docker build -f deploy/allinone/Dockerfile -t cognos-allinone .
 
 # 3. 运行
-docker run -d --name opsmind \
+docker run -d --name cognos \
   -p 3000:3000 \
   -e JWT_SECRET=your_secret \
-  -v opsmind-data:/data \
-  opsmind-allinone
+  -v cognos-data:/data \
+  cognos-allinone
 ```
 
 All-in-One 镜像内含：
@@ -136,8 +136,8 @@ docker compose -f deploy/docker-compose.yml --profile storage --profile ai-local
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `OPSMIND_DATABASE_HOST` | localhost | PostgreSQL 地址 |
-| `OPSMIND_STORAGE_DRIVER` | local | 存储后端（local / minio） |
-| `OPSMIND_LLM_BASE_URL` | http://llama-cpp:8081/v1 | LLM API 地址 |
-| `OPSMIND_EMBEDDING_BASE_URL` | http://llama-cpp-emb:8082/v1 | Embedding API 地址 |
-| `OPSMIND_JWT_SECRET` | — | JWT 签名密钥（必须设置） |
+| `COGNOS_DATABASE_HOST` | localhost | PostgreSQL 地址 |
+| `COGNOS_STORAGE_DRIVER` | local | 存储后端（local / minio） |
+| `COGNOS_LLM_BASE_URL` | http://llama-cpp:8081/v1 | LLM API 地址 |
+| `COGNOS_EMBEDDING_BASE_URL` | http://llama-cpp-emb:8082/v1 | Embedding API 地址 |
+| `COGNOS_JWT_SECRET` | — | JWT 签名密钥（必须设置） |

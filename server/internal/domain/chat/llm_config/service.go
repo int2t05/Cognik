@@ -11,9 +11,9 @@ import (
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

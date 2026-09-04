@@ -7,8 +7,8 @@ package tools
 import (
 	"time"
 
-	"opsmind/internal/agent"
-	"opsmind/internal/infra/adapter"
+	"cognos/internal/agent"
+	"cognos/internal/infra/adapter"
 )
 
 // Deps 工具装配依赖（构造时注入，构造后不可变）。

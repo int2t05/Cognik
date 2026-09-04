@@ -11,12 +11,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opsmind/internal/domain/system/audit"
-	sysconfig "opsmind/internal/domain/system/config"
-	"opsmind/internal/domain/system/dashboard"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/infra/middleware"
+	"cognos/internal/domain/system/audit"
+	sysconfig "cognos/internal/domain/system/config"
+	"cognos/internal/domain/system/dashboard"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/infra/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,8 +27,8 @@ func setupAdminTestDB(t *testing.T) (*gin.Engine, *gorm.DB) {
 	gin.SetMode(gin.TestMode)
 
 	cfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
-		DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
+		DBName: "cognos_test", SSLMode: "disable",
 	}
 	db, err := database.Init(cfg)
 	if err != nil {
@@ -169,7 +169,7 @@ func TestConfigHandler_Get(t *testing.T) {
 	r, db := setupAdminTestDB(t)
 
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
+	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognos"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognos"', updated_at = NOW()`)
 
 	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
 	h := sysconfig.NewConfigHandler(configSvc)
@@ -189,14 +189,14 @@ func TestConfigHandler_Update(t *testing.T) {
 	r, db := setupAdminTestDB(t)
 
 	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"OpsMind"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"OpsMind"', updated_at = NOW()`)
+	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognos"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognos"', updated_at = NOW()`)
 
 	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
 	h := sysconfig.NewConfigHandler(configSvc)
 
 	r.PUT("/configs/:key", h.Update)
 
-	body, _ := json.Marshal(map[string]string{"value": "\"OpsMind v2\""})
+	body, _ := json.Marshal(map[string]string{"value": "\"Cognos v2\""})
 	req := httptest.NewRequest("PUT", "/configs/app_name", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

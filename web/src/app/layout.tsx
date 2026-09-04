@@ -10,8 +10,8 @@ import { getAppName } from '@/lib/config/defaults';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: `${getAppName()} — 运维数字员工`,
-  description: 'AI 驱动的企业运维智能助手',
+  title: `${getAppName()} — 知识管理平台`,
+  description: 'AI 驱动的企业智能知识助手',
   // favicon 恒定用暗版（浏览器 tab 浅色背景，深色 icon 识别度高，不随主题变）
   icons: { icon: '/icon-dark.svg', apple: '/icon-dark.svg' },
   other: { 'viewport': 'width=device-width, initial-scale=1, viewport-fit=cover' },

@@ -6,12 +6,12 @@ package user_test
 import (
 	"testing"
 
-	"opsmind/internal/domain/system/audit"
-	"opsmind/internal/domain/user/role"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
-	"opsmind/internal/shared/pkg/errcode"
+	"cognos/internal/domain/system/audit"
+	"cognos/internal/domain/user/role"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
+	"cognos/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -23,9 +23,9 @@ func init() {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "opsmind",
-		Password: "opsmind_dev",
-		DBName:   "opsmind_test",
+		User:     "cognos",
+		Password: "cognos_dev",
+		DBName:   "cognos_test",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(cfg)

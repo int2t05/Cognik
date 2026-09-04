@@ -77,7 +77,7 @@
   --color-ring: var(--ring);
 }
 
-/* ===== OpsMind Design Tokens — 专业工具风格 ===== */
+/* ===== Cognos Design Tokens — 专业工具风格 ===== */
 :root {
   /* 品牌强调色 — 克制靛蓝 */
   --color-accent: #5b5bd6;

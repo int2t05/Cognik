@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"opsmind/internal/infra/adapter"
-	"opsmind/internal/rag"
+	"cognos/internal/infra/adapter"
+	"cognos/internal/rag"
 )
 
 // =============================================================================

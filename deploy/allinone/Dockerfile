@@ -1,15 +1,15 @@
-# OpsMind All-in-One 镜像
+# Cognos All-in-One 镜像
 # 合并：PostgreSQL+pgvector、MinIO、Go 后端、Next.js 前端
 #
 # 构建（从项目根目录执行）：
 #   cd server && python models/rerank/download.py   # 下载重排序模型（仅需一次）
-#   docker build -f deploy/allinone/Dockerfile -t opsmind-allinone .
+#   docker build -f deploy/allinone/Dockerfile -t cognos-allinone .
 #
 # 运行：
-#   docker run -d --name opsmind \
+#   docker run -d --name cognos \
 #     -p 3000:3000 -e JWT_SECRET=xxx \
-#     -v opsmind-data:/data \
-#     opsmind-allinone
+#     -v cognos-data:/data \
+#     cognos-allinone
 #
 # 首次启动自动 initdb + 建库，种子数据由 Go AutoSeed 加载。
 
@@ -24,7 +24,7 @@ ENV GOPROXY=https://goproxy.cn,direct
 RUN go mod download
 COPY server/ .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -o /build/opsmind-server ./cmd/main.go
+    go build -ldflags="-w -s" -o /build/cognos-server ./cmd/main.go
 
 # ===================================================================
 # 阶段 2：构建 Next.js 前端
@@ -69,7 +69,7 @@ RUN mkdir -p /app/web /app/migrations /app/models/rerank \
 WORKDIR /app
 
 # ---- 复制产物 ----
-COPY --from=go-builder /build/opsmind-server .
+COPY --from=go-builder /build/cognos-server .
 COPY --from=go-builder /build/rerank_server.py .
 COPY --from=go-builder /build/migrations/ /app/migrations/
 COPY server/models/rerank/ /app/models/rerank/
@@ -96,12 +96,12 @@ RUN chmod +x /app/entrypoint.sh
 # ---- 运行时 ----
 ENV TZ=Asia/Shanghai
 ENV PGDATA=/data/postgresql/pgdata
-ENV OPSMIND_DATABASE_HOST=localhost
-ENV OPSMIND_DATABASE_PASSWORD=opsmind_dev
-ENV OPSMIND_MINIO_ENDPOINT=localhost:9000
-ENV OPSMIND_RERANK_PYTHON_PATH=python3
-ENV OPSMIND_RERANK_SCRIPT_PATH=/app/rerank_server.py
-ENV OPSMIND_RERANK_ENABLED=true
+ENV COGNOS_DATABASE_HOST=localhost
+ENV COGNOS_DATABASE_PASSWORD=cognos_dev
+ENV COGNOS_MINIO_ENDPOINT=localhost:9000
+ENV COGNOS_RERANK_PYTHON_PATH=python3
+ENV COGNOS_RERANK_SCRIPT_PATH=/app/rerank_server.py
+ENV COGNOS_RERANK_ENABLED=true
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NODE_ENV=production

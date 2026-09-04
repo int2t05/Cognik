@@ -2,7 +2,7 @@
 package router
 
 import (
-	"opsmind/internal/infra/middleware"
+	"cognos/internal/infra/middleware"
 
 	"github.com/gin-gonic/gin"
 )

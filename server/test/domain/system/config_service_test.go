@@ -11,11 +11,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"opsmind/internal/domain/system/audit"
-	sysconfig "opsmind/internal/domain/system/config"
-	"opsmind/internal/infra/config"
-	"opsmind/internal/infra/database"
-	"opsmind/internal/shared/model"
+	"cognos/internal/domain/system/audit"
+	sysconfig "cognos/internal/domain/system/config"
+	"cognos/internal/infra/config"
+	"cognos/internal/infra/database"
+	"cognos/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -41,8 +41,8 @@ func jsonEqual(t *testing.T, got datatypes.JSON, expected string) {
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "opsmind", Password: "opsmind_dev",
-		DBName: "opsmind_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
+		DBName: "cognos_test", SSLMode: "disable",
 	}
 	db, err := database.Init(dbCfg)
 	if err != nil {
@@ -202,7 +202,7 @@ func TestConfigService_UpdateConfig_Update(t *testing.T) {
 // TestConfigService_UpdateConfig_StringValue 验证字符串类型配置（使用白名单中的 app_name）。
 func TestConfigService_UpdateConfig_StringValue(t *testing.T) {
 	svc := setupConfigService(t)
-	err := svc.UpdateConfig(bgCtx, "app_name", "OpsMind", 1)
+	err := svc.UpdateConfig(bgCtx, "app_name", "Cognos", 1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -210,8 +210,8 @@ func TestConfigService_UpdateConfig_StringValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("验证失败: %v", err)
 	}
-	if val != "OpsMind" {
-		t.Errorf("期望 'OpsMind', got '%v'", val)
+	if val != "Cognos" {
+		t.Errorf("期望 'Cognos', got '%v'", val)
 	}
 }
 

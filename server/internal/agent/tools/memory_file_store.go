@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"opsmind/internal/agent"
+	"cognos/internal/agent"
 )
 
 // FileMemoryStore 记忆文件式存储。
