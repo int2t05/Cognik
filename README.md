@@ -1,10 +1,18 @@
 <p align="center">
-  <img src="docs\assets\icon.svg" width="80" height="80" alt="OpsMind">
+  <img src="docs/assets/icon.svg" width="80" height="80" alt="OpsMind">
 </p>
 
 <h1 align="center">OpsMind</h1>
 
 <p align="center"><strong>私有部署的 AI 运维数字员工</strong><br>让每家企业拥有自己的智能运维助手</p>
+
+<p align="center">
+  <a href="https://github.com/int2t05/OpsMind/releases"><img alt="version" src="https://img.shields.io/badge/version-v1.3-5b5bd6"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <img alt="go" src="https://img.shields.io/badge/Go-1.24+-00ADD8">
+  <img alt="next" src="https://img.shields.io/badge/Next.js-15-black">
+  <img alt="postgres" src="https://img.shields.io/badge/PostgreSQL-16-336791">
+</p>
 
 ---
 
@@ -12,73 +20,78 @@
 
 企业运维团队每天被重复性咨询淹没——密码重置、权限申请、系统报障。这些工作消耗运维人员 40% 以上的时间，却无法沉淀为可复用的知识。
 
-OpsMind 不是另一个 ChatGPT 套壳。它是一个**从检索管道到业务流程都自建**的运维数字员工系统：
+OpsMind 不是另一个 ChatGPT 套壳。它是一个**从 Agent 循环到业务流程都自建**的运维数字员工系统：
 
-- **自建 RAG 引擎** — BM25 + 向量混合检索 + RRF 融合 + 重排序，全程可控可审计
-- **知识资产化** — 每次问答、每条申告处理记录都可转化为知识库文章，审核后发布
-- **数据不出域** — 全部存储在自有 PostgreSQL + pgvector，支持本地 llama.cpp 推理
+- **Agent Loop** — 基于 Eino 的 ReAct 循环，自主调用工具、多步推理、委托子 Agent
+- **订阅渠道网关** — 生产者与交付渠道解耦，SSE 断线重连、多订阅者、慢消费者不阻塞
+- **数据不出域** — 业务库 PostgreSQL，Agent 数据 SQLite 隔离，支持本地 llama.cpp 推理
 
 ```mermaid
 graph LR
-    A["👤 用户提问"] --> B["🔍 RAG 检索"]
-    B --> C["📚 知识库"]
-    B --> D["🤖 LLM 生成"]
-    D --> E["📝 答案"]
-    E -->|"置信度低"| F["🎫 自动转申告"]
-    F --> G["👷 运维处理"]
-    G -->|"沉淀"| C
+    A["👤 用户提问"] --> GW["🛰 订阅渠道网关"]
+    GW --> AG["🤖 Agent ReAct 循环"]
+    AG -->|"工具调用"| T["🔧 9 内置工具"]
+    AG -->|"委托"| SA["🧑‍💻 SubAgent"]
+    AG -->|"回答"| GW
+    GW -->|"SSE 流式"| A
+    T --> RAG["📚 RAG 引擎<br>(V2.0 接入)"]
 ```
 
 ## 核心能力
 
 ```mermaid
 flowchart LR
-    Q["🧠 智能问答"] -->|"低置信度转申告"| T["🎫 申告管理"]
-    T -->|"沉淀经验"| K["📚 知识库"]
-    K -->|"向量检索"| Q
+    Q["🤖 Agent 对话"] -->|"复杂任务委托"| SA["🧑‍💻 SubAgent"]
+    SA -->|"沉淀经验"| K["📚 知识库"]
+    T["🎫 申告管理"] -->|"沉淀"| K
+    K -->|"V2.0 接入"| Q
 
     style Q fill:#e8f0fe,stroke:#1a56db,color:#1a56db
+    style SA fill:#f3e8ff,stroke:#7c3aed,color:#5b21b6
     style T fill:#fef3c7,stroke:#d97706,color:#92400e
     style K fill:#f0fdf4,stroke:#16a34a,color:#166534
 ```
 
-| 🧠 智能问答 | 📚 知识管理 | 🎫 申告管理 | 🔐 权限看板 |
+| 🤖 Agent 对话 | 🔧 内置工具 | 🎫 申告管理 | 🔐 权限看板 |
 |:---|:---|:---|:---|
-| 自建 7 步 RAG 管道 | 手动录入 / 文档上传 | 完整状态机流转 | JWT 双令牌 + RBAC |
-| SSE 流式逐 token 输出 | 草稿→审核→发布→停用 | 站内消息实时通知 | 4 个预设角色，菜单动态渲染 |
-| 失败自动降级，不中断 | 发布自动向量化到 pgvector | 7 天无操作自动关闭 | 实时统计卡片 + 趋势图 |
-| 多轮对话 + 会话管理 | 支持 PDF · DOCX · MD · TXT | 处理记录 → 知识候选 | 敏感操作全量审计日志 |
+| Eino ReAct 循环 + token 级 SSE 流式 | bash / async_bash / read_file / write_file / edit_file | 完整状态机流转 | JWT 双令牌 + RBAC |
+| reasoning + tool_call + tool_result 全事件渲染 | list_dir / glob / grep / mkdir | 站内消息实时通知 | 4 个预设角色，菜单动态渲染 |
+| SubAgent 委托（research 只读 + coder 读写） | workDir sandbox + timeout + 截断 | 7 天无操作自动关闭 | 实时统计卡片 + 趋势图 |
+| 异步任务后台执行 + SQLite 持久化 | GitBash 自适应（Windows） | 处理记录 → 知识候选 | 敏感操作全量审计日志 |
 
 ## 架构
 
 ```mermaid
 graph TB
     subgraph Frontend["web/ — Next.js"]
-        UI["App Router · Radix UI · SWR"]
+        UI["App Router · shadcn/ui · SWR<br>parts 数组模型 · 流式渲染"]
     end
     subgraph Backend["server/ — Go · Gin"]
-        H["Handler"] --> S["Service"]
-        S --> R["Repository"]
-        H --> RAG["RAG 引擎"]
-        H --> ADP["Adapter"]
+        H["Handler"] --> SVC["Service"]
+        SVC --> GW["Gateway 订阅渠道网关"]
+        SVC --> AG["agent/ Agent Runner"]
+        AG --> MODEL["Eino ChatModel → llama.cpp"]
+        AG --> TOOLS["9 内置工具 + SubAgent"]
+        SVC --> R["Repository → PostgreSQL"]
+        H --> RAG["RAG 引擎 (V2.0)"]
     end
     subgraph Infra["基础设施"]
         PG[("PostgreSQL<br>+ pgvector")]
-        MinIO[("MinIO")]
+        SQLite[("SQLite<br>Agent 数据")]
         LLM[("llama.cpp<br><small>可选</small>")]
     end
-    Frontend -->|"REST + SSE"| Backend
-    ADP --> PG
-    ADP --> MinIO
-    ADP --> LLM
-    RAG --> ADP
+    Frontend -->|"SSE 直连"| GW
+    GW --> AG
+    R --> PG
+    AG -.-> SQLite
+    MODEL --> LLM
 
     style Frontend fill:#f0f0f0,stroke:#333
     style Backend fill:#e8f0fe,stroke:#1a56db
     style Infra fill:#fef3c7,stroke:#d97706
 ```
 
-> RAG 引擎完全自建，不依赖 LangChain 或 LlamaIndex。BM25 算法纯 Go 实现，向量检索走 pgvector HNSW 索引 + halfvec 半精度。
+> 生产者（AgentRunner）与交付渠道（Gateway）解耦：runner 只产出事件，chat 层订阅并 Publish 到网关。对齐 LangGraph Server / Mastra Durable / OpenAI background 的订阅渠道制。
 
 ## 快速开始
 
@@ -126,7 +139,7 @@ docker compose exec -T postgres psql -U opsmind -d opsmind < server/migrations/s
 | 账号 | 密码 | 角色 |
 |------|------|------|
 | `admin` | `Admin@123` | 系统管理员 |
-| `operator1` | `OpsMind@123` | 运维人员 |
+| `operator1` | `Operator@123` | 运维人员 |
 | `knowledge` | `Knowledge@123` | 知识库管理员 |
 | `reporter1` | `Reporter@123` | 报障人 |
 
@@ -153,37 +166,29 @@ stateDiagram-v2
 
 ```
 OpsMind/
-├── server/                  # Go 后端（Gin + GORM）
+├── server/                      # Go 后端（Gin + GORM）
 │   ├── internal/
-│   │   ├── adapter/         # LLM / Embedding / VectorStore / StorageClient
-│   │   ├── cache/           # 内存缓存
-│   │   ├── config/          # Viper 配置
-│   │   ├── database/        # AutoMigrate + 连接管理
-│   │   ├── dto/             # 请求/响应传输对象
-│   │   ├── handler/         # HTTP Handler（11 个 API 域）
-│   │   ├── log/             # 结构化日志
-│   │   ├── middleware/      # JWT / RBAC / CORS / Logger
-│   │   ├── model/           # GORM 模型 + 枚举
-│   │   ├── rag/             # 自建 RAG 引擎
-│   │   ├── repository/      # 数据访问层（11 个 Repository）
-│   │   ├── router/          # 路由注册
-│   │   └── service/         # 业务逻辑 + 状态机
-│   ├── cmd/                 # 入口 main.go
-│   ├── migrations/          # DDL + 种子数据
-│   ├── models/              # rerank 模型文件
-│   ├── pkg/                 # jwt / hash / crypto / response / errcode
-│   ├── test/                # Go 集成测试（外部测试包）
-│   └── rerank_server.py     # Python 重排序服务
-├── web/                     # Next.js 前端
+│   │   ├── agent/               # Agent 基座（Eino ReactAgent + Runner + 工具 + SubAgent + SQLite store）
+│   │   ├── domain/              # 业务领域（chat / knowledge / ticket / user / system）
+│   │   ├── infra/               # 基础设施（adapter / config / database / runtime / storage）
+│   │   ├── rag/                 # 自建 RAG 引擎（V2.0 接入 Agent）
+│   │   ├── parser/              # 文档解析（MinerU / 本地降级）
+│   │   ├── router/              # 路由注册
+│   │   └── shared/              # 共享类型（dto / model / pkg）
+│   ├── cmd/main.go              # 入口
+│   ├── migrations/              # DDL + 种子数据
+│   ├── test/                    # 集成测试（外部包，-tags=integration）
+│   └── rerank_server.py         # Python cross-encoder 重排序
+├── web/                         # Next.js 前端
 │   └── src/
-│       ├── app/             # App Router + globals.css（Apple Design Tokens）
-│       ├── components/      # UI 组件 + 布局 + 复合组件
-│       ├── contexts/        # React Context（ChatStreamProvider）
-│       ├── hooks/           # 自定义 Hooks（11 个）
-│       └── lib/api/         # API 客户端（11 个模块）
-├── docs/                    # PRD / TECH / API / FLOW 文档
-├── test/                    # 验收测试文档与数据
-└── docker-compose.yml
+│       ├── app/                 # App Router + globals.css
+│       ├── components/          # shadcn/ui + chat parts 组件
+│       ├── contexts/            # ChatStreamProvider（SSE 流式）
+│       ├── hooks/               # 自定义 Hooks
+│       └── lib/                 # API client + reducer + types
+├── docs/                        # PRD / TECH / API / FLOW / ROADMAP
+├── deploy/                      # Docker 部署
+└── Makefile                     # 开发命令入口
 ```
 
 ## 文档
@@ -193,12 +198,22 @@ OpsMind/
 | [路线图](docs/ROADMAP.md) | 战略方向、里程碑、技术决策记录 |
 | [PRD](docs/PRD.md) | 产品需求 — 功能定义、业务规则 |
 | [TECH](docs/TECH.md) | 技术架构 — 分层设计、DDL、ADR |
-| [API](docs/API/README.md) | 9 份接口文档，覆盖全部端点 |
-| [测试流程](test/README.md) | 验收测试 — 9 大场景、完整步骤 |
+| [V1.3 PRD](docs/v1.3/PRD.md) | V1.3 版本级需求 — Agent 基座 |
+| [V1.3 TECH](docs/v1.3/tech.md) | V1.3 版本级架构 — 网关引擎、Eino 集成 |
+| [API](docs/API/README.md) | 接口文档，覆盖全部端点 |
+| [测试流程](test/README.md) | 验收测试场景与步骤 |
 
 ## 路线图
 
-产品路线图与技术债务清单见 [`docs/TODO.md`](docs/TODO.md)。
+| 版本 | 主题 | 状态 |
+|------|------|------|
+| V1.0 | 固定管道 RAG | ✅ 已交付 |
+| V1.2 | 业务完善 | ✅ 已交付 |
+| V1.3 | Agent 基座 | ✅ 已交付 |
+| V1.4 | 深度搜索工具 | 📋 规划中 |
+| V2.0 | Agentic RAG | 📋 规划中 |
+
+详见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。技术债务清单见 [`docs/TODO.md`](docs/TODO.md)。
 
 ## 贡献
 
