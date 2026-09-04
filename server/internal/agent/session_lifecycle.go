@@ -57,7 +57,7 @@ func (e *SessionExtractor) Extract(ctx context.Context, threadID int64) error {
 
 	// 2. 构造摘要请求消息
 	var sb strings.Builder
-	sb.WriteString("以下是一次 IT 运维会话中记录的记忆条目。提取有长期价值的内容（系统拓扑、排障经验、常见问题解法），")
+	sb.WriteString("以下是一次会话中记录的记忆条目。提取有长期价值的内容（关键决策、问题解法、经验总结），")
 	sb.WriteString("忽略仅与当前会话相关的临时信息。每条提取的记忆用一行描述。\n\n")
 	for _, e := range entries {
 		fmt.Fprintf(&sb, "## %s\n%s\n\n", e.Key, e.Content)
@@ -66,7 +66,7 @@ func (e *SessionExtractor) Extract(ctx context.Context, threadID int64) error {
 	// 3. LLM 提取
 	msgs := []*schema.Message{
 		schema.SystemMessage(sb.String()),
-		schema.UserMessage("提取有长期价值的运维记忆，每条一行。"),
+		schema.UserMessage("提取有长期价值的记忆，每条一行。"),
 	}
 	if e.summarize == nil {
 		return nil

@@ -21,7 +21,7 @@ func newCompressor(maxTokens int, summarize agent.SummarizeFunc) *agent.Compress
 
 // makeMessages 构造 N 条消息（1 条 system + N-1 条 user）。
 func makeMessages(n int) []*schema.Message {
-	msgs := []*schema.Message{schema.SystemMessage("你是运维助手")}
+	msgs := []*schema.Message{schema.SystemMessage("你是助手")}
 	for i := 1; i < n; i++ {
 		msgs = append(msgs, schema.UserMessage(strings.Repeat("内容", 10)))
 	}

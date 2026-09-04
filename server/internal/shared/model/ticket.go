@@ -6,7 +6,7 @@ import (
 	"gorm.io/datatypes"
 )
 
-// Ticket 申告工单表
+// Ticket 工单工单表
 type Ticket struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketNo        string         `gorm:"type:varchar(32);uniqueIndex;not null;column:ticket_no" json:"ticket_no"`
@@ -29,7 +29,7 @@ type Ticket struct {
 
 func (Ticket) TableName() string { return "tickets" }
 
-// TicketRecord 申告处理记录表
+// TicketRecord 工单处理记录表
 type TicketRecord struct {
 	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketID   int64          `gorm:"not null;column:ticket_id;index:idx_ticket_records_ticket_id" json:"ticket_id"`

@@ -202,7 +202,7 @@ func (s *DashboardService) GetTrends(ctx context.Context, req request.TrendReque
 
 	ticketCounts, err := s.repo.GetTicketTrends(ctx, req.StartDate, req.EndDate, granularity)
 	if err != nil {
-		return nil, fmt.Errorf("查询每日申告数失败: %w", err)
+		return nil, fmt.Errorf("查询每日工单数失败: %w", err)
 	}
 	ticketMap := make(map[string]int64, len(ticketCounts))
 	for _, tc := range ticketCounts {

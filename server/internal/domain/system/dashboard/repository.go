@@ -68,7 +68,7 @@ func (r *DashboardRepo) CountKnowledgeArticles(ctx context.Context) (int64, erro
 	return count, err
 }
 
-// GetTicketTrends 按天/周聚合申告创建趋势。
+// GetTicketTrends 按天/周聚合工单创建趋势。
 func (r *DashboardRepo) GetTicketTrends(ctx context.Context, startDate, endDate, granularity string) ([]TrendPoint, error) {
 	var points []TrendPoint
 	trunc := "day"

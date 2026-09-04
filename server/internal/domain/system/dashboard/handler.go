@@ -100,7 +100,7 @@ func (h *DashboardHandler) ExportTrends(c *gin.Context) {
 	var buf bytes.Buffer
 	buf.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM，防 Excel 乱码
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"日期", "申告数", "问答数"})
+	_ = w.Write([]string{"日期", "工单数", "问答数"})
 	for _, dp := range result.DataPoints {
 		_ = w.Write([]string{dp.Date, strconv.FormatInt(dp.TicketCount, 10), strconv.FormatInt(dp.ChatCount, 10)})
 	}

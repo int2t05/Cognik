@@ -1,4 +1,4 @@
-// Package ticket 实现申告领域业务逻辑：CRUD、状态机转换、处理记录管理。
+// Package ticket 实现工单领域业务逻辑：CRUD、状态机转换、处理记录管理。
 // 依赖通过消费者接口注入，避免跨领域循环依赖。
 package ticket
 
@@ -27,7 +27,7 @@ import (
 // AppError 是 errcode.AppError 的类型别名，供本包内使用。
 type AppError = errcode.AppError
 
-// MessageNotifier 申告通知接口（消费者接口）。
+// MessageNotifier 工单通知接口（消费者接口）。
 type MessageNotifier interface {
 	NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
 	NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error
@@ -40,12 +40,12 @@ type KnowledgeCandidateSaver interface {
 	CreateArticle(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error)
 }
 
-// FeedbackMarker 隐式反馈标记接口——申告创建后自动标记相关 AI 回答为"无帮助"。
+// FeedbackMarker 隐式反馈标记接口——工单创建后自动标记相关 AI 回答为"无帮助"。
 type FeedbackMarker interface {
 	MarkLastAssistantUnhelpful(ctx context.Context, sessionID int64) error
 }
 
-// TicketService 申告管理服务。
+// TicketService 工单管理服务。
 type TicketService struct {
 	repo               *TicketRepo
 	auditWriter        audit.AuditWriter
@@ -64,7 +64,7 @@ func NewTicketService(repo *TicketRepo, auditWriter audit.AuditWriter, txManager
 // CreateTicket
 // =============================================================================
 
-// CreateTicket 创建申告工单（status=Pending, source=Portal, ticket_no=TK-YYYYMMDD-NNNNNN）。
+// CreateTicket 创建工单工单（status=Pending, source=Portal, ticket_no=TK-YYYYMMDD-NNNNNN）。
 func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTicketRequest, userID int64) error {
 	// 参数校验
 	if strings.TrimSpace(req.Title) == "" {
@@ -120,7 +120,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 	// 隐式反馈：带 ChatContext 时标记最后一条 AI 回答为"无帮助"，失败仅记日志。
 	if req.ChatContext != nil && req.ChatContext.SessionID > 0 && s.feedbackMarker != nil {
 		if err := s.feedbackMarker.MarkLastAssistantUnhelpful(ctx, req.ChatContext.SessionID); err != nil {
-			slog.Warn("隐式反馈标记失败（申告已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
+			slog.Warn("隐式反馈标记失败（工单已创建）", "session_id", req.ChatContext.SessionID, "ticket_no", ticketNo, "error", err)
 		}
 	}
 
@@ -131,21 +131,21 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 // UpdateTicket / SupplementTicket
 // =============================================================================
 
-// UpdateTicket 编辑申告（仅申告人，仅 Pending/Processing 状态，仅更新非空字段）。
+// UpdateTicket 编辑工单（仅工单人，仅 Pending/Processing 状态，仅更新非空字段）。
 func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64, req request.UpdateTicketRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return err
 	}
 
 	if ticket.UserID != userID {
-		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可编辑"}
+		return AppError{Code: errcode.ErrForbidden, Message: "仅工单人可编辑"}
 	}
 	if ticket.Status != model.TicketStatusPending && ticket.Status != model.TicketStatusProcessing {
-		return AppError{Code: errcode.ErrParam, Message: "仅待处理或处理中的申告可编辑"}
+		return AppError{Code: errcode.ErrParam, Message: "仅待处理或处理中的工单可编辑"}
 	}
 
 	// 仅更新非空字段
@@ -172,18 +172,18 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int64, userID int64
 	return s.repo.Update(ctx, ticket)
 }
 
-// SupplementTicket 补充申告信息（仅申告人，仅 NeedSupplement 状态，CAS 转 Processing，事务原子）。
+// SupplementTicket 补充工单信息（仅工单人，仅 NeedSupplement 状态，CAS 转 Processing，事务原子）。
 func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID int64, req request.SupplementTicketRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return err
 	}
 
 	if ticket.UserID != userID {
-		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可补充信息"}
+		return AppError{Code: errcode.ErrForbidden, Message: "仅工单人可补充信息"}
 	}
 
 	if ticket.Status != model.TicketStatusNeedSupplement {
@@ -210,25 +210,25 @@ func (s *TicketService) SupplementTicket(ctx context.Context, id int64, userID i
 			return err
 		}
 		if rows == 0 {
-			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
+			return AppError{Code: errcode.ErrParam, Message: "工单状态已变更，请刷新后重试"}
 		}
 		return nil
 	})
 }
 
-// WithdrawTicket 用户撤回未处理申告（仅申告人、仅待处理态可撤回）。
+// WithdrawTicket 用户撤回未处理工单（仅工单人、仅待处理态可撤回）。
 // CAS: Pending→Withdrawn，创建撤回记录。
 func (s *TicketService) WithdrawTicket(ctx context.Context, id int64, userID int64) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return err
 	}
 
 	if ticket.UserID != userID {
-		return AppError{Code: errcode.ErrForbidden, Message: "仅申告人可撤回"}
+		return AppError{Code: errcode.ErrForbidden, Message: "仅工单人可撤回"}
 	}
 
 	if ticket.Status != model.TicketStatusPending {
@@ -242,7 +242,7 @@ func (s *TicketService) WithdrawTicket(ctx context.Context, id int64, userID int
 			TicketID:   id,
 			OperatorID: userID,
 			Action:     model.TicketActionWithdraw,
-			Content:    "用户撤回申告",
+			Content:    "用户撤回工单",
 		}
 		if err := txRepo.CreateRecord(ctx, record); err != nil {
 			return err
@@ -254,7 +254,7 @@ func (s *TicketService) WithdrawTicket(ctx context.Context, id int64, userID int
 			return err
 		}
 		if rows == 0 {
-			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
+			return AppError{Code: errcode.ErrParam, Message: "工单状态已变更，请刷新后重试"}
 		}
 		return nil
 	})
@@ -264,13 +264,13 @@ func (s *TicketService) WithdrawTicket(ctx context.Context, id int64, userID int
 // UpdateStatus
 // =============================================================================
 
-// UpdateStatus 执行申告状态转换（CAS 防并发，每次转换创建 TicketRecord）。
+// UpdateStatus 执行工单状态转换（CAS 防并发，每次转换创建 TicketRecord）。
 // Pending→Processing / Processing→NeedSupplement(count<3) / Processing→Resolved / 非Closed/Resolved→Closed
 func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID int64, req request.UpdateTicketStatusRequest) error {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return err
 	}
@@ -311,10 +311,10 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 	case model.TicketActionClose:
 		// 已关闭不允许重复关闭；已解决不允许回退为关闭
 		if ticket.Status == model.TicketStatusClosed {
-			return AppError{Code: errcode.ErrParam, Message: "申告已关闭，无需重复操作"}
+			return AppError{Code: errcode.ErrParam, Message: "工单已关闭，无需重复操作"}
 		}
 		if ticket.Status == model.TicketStatusResolved {
-			return AppError{Code: errcode.ErrParam, Message: "已解决的申告不允许关闭"}
+			return AppError{Code: errcode.ErrParam, Message: "已解决的工单不允许关闭"}
 		}
 		newStatus = model.TicketStatusClosed
 		recordAction = model.TicketActionClose
@@ -333,7 +333,7 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 			return err
 		}
 		if rows == 0 {
-			return AppError{Code: errcode.ErrParam, Message: "申告状态已变更，请刷新后重试"}
+			return AppError{Code: errcode.ErrParam, Message: "工单状态已变更，请刷新后重试"}
 		}
 
 		record := &model.TicketRecord{
@@ -355,7 +355,7 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 		return err
 	}
 
-	// request_info 成功后同步通知申告人
+	// request_info 成功后同步通知工单人
 	if s.msgSvc != nil {
 		switch recordAction {
 		case model.TicketActionRequestInfo:
@@ -373,7 +373,7 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int64, operatorID i
 		}
 	}
 
-	slog.Info("申告状态变更", "ticket_id", id, "action", recordAction,
+	slog.Info("工单状态变更", "ticket_id", id, "action", recordAction,
 		"from", ticket.Status, "to", newStatus, "operator", operatorID)
 	return nil
 }
@@ -391,7 +391,7 @@ func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int6
 	_, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return err
 	}
@@ -418,7 +418,7 @@ func (s *TicketService) AddRecord(ctx context.Context, id int64, operatorID int6
 // ListByUser / ListAll / GetDetail
 // =============================================================================
 
-// ListByUser 分页查询当前用户的申告列表（status=-1 不过滤）。
+// ListByUser 分页查询当前用户的工单列表（status=-1 不过滤）。
 func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, pageSize int, keyword string, status int) (*response.TicketListResponse, error) {
 	tickets, total, err := s.repo.ListByUser(ctx, userID, page, pageSize, keyword, status)
 	if err != nil {
@@ -436,7 +436,7 @@ func (s *TicketService) ListByUser(ctx context.Context, userID int64, page, page
 	}, nil
 }
 
-// ListAll 分页查询全部申告（status=-1 不过滤）。
+// ListAll 分页查询全部工单（status=-1 不过滤）。
 func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int, keyword string) (*response.TicketListResponse, error) {
 	tickets, total, err := s.repo.ListAll(ctx, status, page, pageSize, keyword)
 	if err != nil {
@@ -454,18 +454,18 @@ func (s *TicketService) ListAll(ctx context.Context, status, page, pageSize int,
 	}, nil
 }
 
-// GetDetail 获取申告详情（含处理记录时间线）。userID>0 做所有权检查，=0 跳过（后台）。
+// GetDetail 获取工单详情（含处理记录时间线）。userID>0 做所有权检查，=0 跳过（后台）。
 func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (*response.TicketDetailResponse, error) {
 	ticket, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, AppError{Code: errcode.ErrNotFound, Message: "申告不存在"}
+			return nil, AppError{Code: errcode.ErrNotFound, Message: "工单不存在"}
 		}
 		return nil, err
 	}
 
 	if userID > 0 && ticket.UserID != userID {
-		return nil, AppError{Code: errcode.ErrForbidden, Message: "无权查看此申告"}
+		return nil, AppError{Code: errcode.ErrForbidden, Message: "无权查看此工单"}
 	}
 
 	records := make([]response.TicketRecordItem, len(ticket.TicketRecords))
@@ -562,7 +562,7 @@ func unmarshalTicketTags(data datatypes.JSON) []string {
 // AutoClose（定时任务 — Scheduler 调用）
 // =============================================================================
 
-// AutoClose 自动关闭超期申告（Scheduler 调用，事务内 UPDATE + TicketRecord）。
+// AutoClose 自动关闭超期工单（Scheduler 调用，事务内 UPDATE + TicketRecord）。
 func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int64, error) {
 	var closedCount int64
 
@@ -581,7 +581,7 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 		for _, id := range ids {
 			if err := tx.Create(&model.TicketRecord{
 				TicketID: id, OperatorID: 0, Action: "auto_close",
-				Content: "系统自动关闭：申告超过 7 天未处理", CreatedAt: now,
+				Content: "系统自动关闭：工单超过 7 天未处理", CreatedAt: now,
 			}).Error; err != nil {
 				slog.Warn("auto_close 创建记录失败，跳过该工单", "ticket_id", id, "error", err)
 				continue
@@ -598,8 +598,8 @@ func (s *TicketService) AutoClose(ctx context.Context, olderThan time.Time) (int
 	return closedCount, err
 }
 
-// ScanOverdueTickets 扫描已超时未完结的申告并逐条发送超时通知（Scheduler 调用）。
-// 返回处理的超时申告条数。同一申告可能被重复扫描——由消息去重或人工处理后自愈，此处不持久化已通知标记。
+// ScanOverdueTickets 扫描已超时未完结的工单并逐条发送超时通知（Scheduler 调用）。
+// 返回处理的超时工单条数。同一工单可能被重复扫描——由消息去重或人工处理后自愈，此处不持久化已通知标记。
 func (s *TicketService) ScanOverdueTickets(ctx context.Context, now time.Time) (int64, error) {
 	tickets, err := s.repo.ListOverdue(ctx, now)
 	if err != nil {
@@ -620,19 +620,19 @@ func (s *TicketService) ScanOverdueTickets(ctx context.Context, now time.Time) (
 // CreateKnowledgeCandidate
 // =============================================================================
 
-// CreateKnowledgeCandidate 从申告内容生成知识库候选文章。
+// CreateKnowledgeCandidate 从工单内容生成知识库候选文章。
 func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, kbID int64, userID int64) error {
 	detail, err := s.GetDetail(ctx, id, 0)
 	if err != nil {
 		return err
 	}
 
-	// 结构化知识候选：标题 / 详细描述 / 解决方案（待人工补充），标签与申告互通
+	// 结构化知识候选：标题 / 详细描述 / 解决方案（待人工补充），标签与工单互通
 	content := fmt.Sprintf("## 标题\n%s\n\n## 详细描述\n%s\n\n## 解决方案\n> 请根据实际情况补充解决方案",
 		detail.Title, detail.Description)
 	articleReq := request.CreateArticleRequest{
 		KBID:    kbID,
-		Title:   "申告经验 - " + detail.Title,
+		Title:   "工单经验 - " + detail.Title,
 		Content: content,
 		Tags:    detail.Tags,
 	}
@@ -644,7 +644,7 @@ func (s *TicketService) CreateKnowledgeCandidate(ctx context.Context, id int64, 
 		return err
 	}
 
-	slog.Info("从申告创建知识候选", "ticket_id", id, "kb_id", kbID, "operator", userID)
+	slog.Info("从工单创建知识候选", "ticket_id", id, "kb_id", kbID, "operator", userID)
 	return nil
 }
 
@@ -678,7 +678,7 @@ func isValidRecordAction(action string) bool {
 	return validRecordActions[action]
 }
 
-// BatchDelete 批量删除申告（含关联处理记录）。
+// BatchDelete 批量删除工单（含关联处理记录）。
 func (s *TicketService) BatchDelete(ctx context.Context, ids []int64) (int64, error) {
 	return s.repo.BatchDelete(ctx, ids)
 }
@@ -690,7 +690,7 @@ type BatchCloseResult struct {
 	ErrorMsg string `json:"error_msg"`
 }
 
-// BatchClose 批量关闭申告，逐条复用单条 close 逻辑（CAS+Record+审计+消息），部分失败不影响其他。
+// BatchClose 批量关闭工单，逐条复用单条 close 逻辑（CAS+Record+审计+消息），部分失败不影响其他。
 func (s *TicketService) BatchClose(ctx context.Context, ids []int64, operatorID int64) []BatchCloseResult {
 	results := make([]BatchCloseResult, len(ids))
 	for i, id := range ids {
@@ -705,7 +705,7 @@ func (s *TicketService) BatchClose(ctx context.Context, ids []int64, operatorID 
 	return results
 }
 
-// NotifyTicketOverdue 通知申告处理超时（调度器调用，通知申告创建人）。
+// NotifyTicketOverdue 通知工单处理超时（调度器调用，通知工单创建人）。
 func (s *TicketService) NotifyTicketOverdue(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
 	if s.msgSvc != nil {
 		return s.msgSvc.NotifyTicketOverdue(ctx, ticketID, userID, ticketTitle)

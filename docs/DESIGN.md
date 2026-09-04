@@ -346,7 +346,7 @@ token 计数用 rune 近似（CJK 1 rune ≈ 1 token，ASCII 4 char ≈ 1 token�
 flowchart TB
     subgraph 每轮["每轮结束（fire-and-forget）"]
         STOP["对话轮结束"] --> EM["ExtractMemories<br/>forked agent"]
-        EM -->|"提取运维经验"| SES["memory/sessions/{id}/"]
+        EM -->|"提取经验"| SES["memory/sessions/{id}/"]
     end
     subgraph 会话结束["会话结束"]
         END["会话删除"] --> SE["SessionExtractor<br/>（已有）"]
@@ -362,7 +362,7 @@ flowchart TB
 
 | 后台 agent | 触发 | 做什么 | 参考 |
 |-----------|------|--------|------|
-| ExtractMemories | 每轮结束（fire-and-forget） | forked agent 从对话记录提取运维经验，4 类型分类，游标追踪只处理新消息 | Claude Code `extractMemories.ts` |
+| ExtractMemories | 每轮结束（fire-and-forget） | forked agent 从对话记录提取经验，4 类型分类，游标追踪只处理新消息 | Claude Code `extractMemories.ts` |
 | SessionExtractor | 会话结束（已有） | session 记忆 → LLM 提取 → 写入 global | Claude Code SessionMemory |
 | AutoDream | 双门（24h + 5 会话 + 锁） | forked agent 跨会话合并去重、删除矛盾、更新 MEMORY.md 索引 | Claude Code `autoDream.ts` |
 
@@ -410,7 +410,7 @@ flowchart TB
 
 ```
 原始 chunk: "检查 pg_stat_activity 中的慢查询"
-contextualized: "<context>PostgreSQL 高 CPU 排障手册，第二章排查步骤</context>
+contextualized: "<context>项目部署与排障手册，第二章排查步骤</context>
                   检查 pg_stat_activity 中的慢查询"
 ```
 
@@ -436,14 +436,14 @@ flowchart LR
 
 ## 9. GraphRAG 延迟决策
 
-当前不需要。运维查询多为单跳事实查找，BM25 + 向量混合已足够。
+当前不需要。知识库查询多为单跳事实查找，BM25 + 向量混合已足够。
 
 | 查询类型 | 向量 RAG | GraphRAG |
 |---------|:---------:|:--------:|
 | 简单事实查找 | 72% | 62% |
 | 多跳关系查询 | 43-51% | 80-91% |
 
-触发条件：>15% 查询需关联 2+ 篇文章才能回答时，评估 HippoRAG（PageRank 适合运维关联推理）或 LightRAG。`reference/` 已克隆 5 个 GraphRAG 仓库备用。
+触发条件：>15% 查询需关联 2+ 篇文章才能回答时，评估 HippoRAG（PageRank 适合关联推理）或 LightRAG。`reference/` 已克隆 5 个 GraphRAG 仓库备用。
 
 ---
 
@@ -462,7 +462,7 @@ flowchart LR
 | INDEX.md 重建 | 页目录自动重建 | 已有 |
 | Markdown-aware chunker | 结构正确性分块 | 已有 |
 | VectorRetriever + BM25 + RRF + rerank | 纯检索原语 | 已有 |
-| ExtractMemories（每轮 forked agent） | 运维经验提取 | 待实现 |
+| ExtractMemories（每轮 forked agent） | 经验提取 | 待实现 |
 | AutoDream（跨会话复盘 forked agent） | 记忆合并去重 | 待实现 |
 | Sandwich Reorder + BM25 Enriched + RRF k | P0 检索优化 | 待实现 |
 | Contextual Retrieval + Token Chunking + Metadata + Packing | P1 检索优化 | 待实现 |

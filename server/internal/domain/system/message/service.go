@@ -59,31 +59,31 @@ func (s *MessageService) notify(ctx context.Context, userID int64, title, conten
 	return nil
 }
 
-// NotifySupplement 通知申告人补充信息（TicketService.request_info 调用）。
+// NotifySupplement 通知工单人补充信息（TicketService.request_info 调用）。
 func (s *MessageService) NotifySupplement(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
-	content := "您的申告需要补充更多信息，请尽快登录系统查看并补充相关材料。"
+	content := "您的工单需要补充更多信息，请尽快登录系统查看并补充相关材料。"
 	if ticketTitle != "" {
-		content = fmt.Sprintf("您的申告「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
+		content = fmt.Sprintf("您的工单「%s」需要补充更多信息，请尽快登录系统查看并补充相关材料。", ticketTitle)
 	}
-	return s.notify(ctx, userID, "申告需补充信息", content, model.MessageTypeTicketSupplement, "ticket", ticketID)
+	return s.notify(ctx, userID, "工单需补充信息", content, model.MessageTypeTicketSupplement, "ticket", ticketID)
 }
 
-// NotifyTicketResolved 通知申告人申告已解决。
+// NotifyTicketResolved 通知工单人工单已解决。
 func (s *MessageService) NotifyTicketResolved(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
-	content := fmt.Sprintf("您的申告「%s」已被标记为已解决，如有疑问请联系运维人员。", ticketTitle)
-	return s.notify(ctx, userID, "申告已解决", content, model.MessageTypeTicketResolved, "ticket", ticketID)
+	content := fmt.Sprintf("您的工单「%s」已被标记为已解决，如有疑问请联系团队成员。", ticketTitle)
+	return s.notify(ctx, userID, "工单已解决", content, model.MessageTypeTicketResolved, "ticket", ticketID)
 }
 
-// NotifyTicketClosed 通知申告人申告已关闭。
+// NotifyTicketClosed 通知工单人工单已关闭。
 func (s *MessageService) NotifyTicketClosed(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
-	content := fmt.Sprintf("您的申告「%s」已被关闭，如有需要请重新提交申告。", ticketTitle)
-	return s.notify(ctx, userID, "申告已关闭", content, model.MessageTypeTicketClosed, "ticket", ticketID)
+	content := fmt.Sprintf("您的工单「%s」已被关闭，如有需要请重新提交工单。", ticketTitle)
+	return s.notify(ctx, userID, "工单已关闭", content, model.MessageTypeTicketClosed, "ticket", ticketID)
 }
 
-// NotifyTicketOverdue 通知申告人处理超时（调度器扫描 deadline_at 超时触发）。
+// NotifyTicketOverdue 通知工单人处理超时（调度器扫描 deadline_at 超时触发）。
 func (s *MessageService) NotifyTicketOverdue(ctx context.Context, ticketID int64, userID int64, ticketTitle string) error {
-	content := fmt.Sprintf("您的申告「%s」已超过处理时限，请尽快处理或重新提交。", ticketTitle)
-	return s.notify(ctx, userID, "申告处理超时", content, model.MessageTypeTicketOverdue, "ticket", ticketID)
+	content := fmt.Sprintf("您的工单「%s」已超过处理时限，请尽快处理或重新提交。", ticketTitle)
+	return s.notify(ctx, userID, "工单处理超时", content, model.MessageTypeTicketOverdue, "ticket", ticketID)
 }
 
 // NotifyKnowledgeReviewed 通知文章作者审核结果。

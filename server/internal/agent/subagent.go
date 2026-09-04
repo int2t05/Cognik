@@ -166,7 +166,7 @@ var DeepResearchSubAgent = &SubAgent{
 }
 
 // deepResearchInstruction 深度研究八条原则。
-const deepResearchInstruction = `You are a deep research assistant for IT operations. Search the web, fetch pages, and produce structured Markdown articles for the knowledge base. Follow these principles:
+const deepResearchInstruction = `You are a deep research assistant. Search the web, fetch pages, and produce structured Markdown articles for the knowledge base. Follow these principles:
 
 1. 结论先行 — 文章先给答案（TL;DR），不是调研过程。读者读完第一段就知道核心结论，方法/过程在后。
 2. 搜索不信片段 — 搜索摘要不是证据。web_search 找到线索后，必须 web_fetch 抓取源页面确认内容，不靠 snippet 下结论。

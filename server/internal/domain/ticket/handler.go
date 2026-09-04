@@ -1,4 +1,4 @@
-// handler.go 申告管理 HTTP 接口（参数校验、调用 Service、格式化响应）。
+// handler.go 工单管理 HTTP 接口（参数校验、调用 Service、格式化响应）。
 package ticket
 
 import (
@@ -57,7 +57,7 @@ func handleServiceError(c *gin.Context, err error) {
 // TicketHandler
 // =============================================================================
 
-// TicketHandler 申告管理接口。
+// TicketHandler 工单管理接口。
 type TicketHandler struct {
 	svc *TicketService
 }
@@ -71,7 +71,7 @@ func NewTicketHandler(svc *TicketService) *TicketHandler {
 // 门户端
 // =============================================================================
 
-// CreateTicket 创建申告。
+// CreateTicket 创建工单。
 //
 // POST /api/v1/portal/tickets
 func (h *TicketHandler) CreateTicket(c *gin.Context) {
@@ -90,7 +90,7 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ListByUser 查询当前用户的申告列表。
+// ListByUser 查询当前用户的工单列表。
 //
 // GET /api/v1/portal/tickets
 func (h *TicketHandler) ListByUser(c *gin.Context) {
@@ -108,13 +108,13 @@ func (h *TicketHandler) ListByUser(c *gin.Context) {
 	response.SuccessWithPage(c, result.Tickets, result.Total, page, pageSize)
 }
 
-// SupplementTicket 补充申告信息。
+// SupplementTicket 补充工单信息。
 //
 // PATCH /api/v1/portal/tickets/:id/supplement
 func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -133,13 +133,13 @@ func (h *TicketHandler) SupplementTicket(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// WithdrawTicket 用户撤回未处理申告（仅申告人、仅待处理态）。
+// WithdrawTicket 用户撤回未处理工单（仅工单人、仅待处理态）。
 //
 // POST /api/v1/portal/tickets/:id/withdraw
 func (h *TicketHandler) WithdrawTicket(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -152,13 +152,13 @@ func (h *TicketHandler) WithdrawTicket(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// UpdateTicket 编辑申告（仅申告人可操作）。
+// UpdateTicket 编辑工单（仅工单人可操作）。
 //
 // PATCH /api/v1/portal/tickets/:id
 func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 // 后台管理
 // =============================================================================
 
-// ListAll 分页查询全部申告（支持按状态筛选）。
+// ListAll 分页查询全部工单（支持按状态筛选）。
 //
 // GET /api/v1/admin/tickets
 func (h *TicketHandler) ListAll(c *gin.Context) {
@@ -198,11 +198,11 @@ func (h *TicketHandler) ListAll(c *gin.Context) {
 	response.SuccessWithPage(c, result.Tickets, result.Total, page, pageSize)
 }
 
-// GetDetailAdmin 获取申告详情（后台，不限所有权）。
+// GetDetailAdmin 获取工单详情（后台，不限所有权）。
 func (h *TicketHandler) GetDetailAdmin(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -215,13 +215,13 @@ func (h *TicketHandler) GetDetailAdmin(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// GetDetailPortal 获取申告详情（门户——仅限自己的申告）。
+// GetDetailPortal 获取工单详情（门户——仅限自己的工单）。
 //
 // GET /api/v1/portal/tickets/:id
 func (h *TicketHandler) GetDetailPortal(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -235,13 +235,13 @@ func (h *TicketHandler) GetDetailPortal(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// UpdateStatus 更新申告状态（状态机转换）。
+// UpdateStatus 更新工单状态（状态机转换）。
 //
 // PATCH /api/v1/admin/tickets/:id/status
 func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 func (h *TicketHandler) AddRecord(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -289,13 +289,13 @@ func (h *TicketHandler) AddRecord(c *gin.Context) {
 // 知识库候选
 // =============================================================================
 
-// CreateKnowledgeCandidate 从申告内容生成知识库候选条目。
+// CreateKnowledgeCandidate 从工单内容生成知识库候选条目。
 //
 // POST /api/v1/admin/tickets/:id/knowledge-candidate
 func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(c, errcode.ErrParam, "无效的申告 ID")
+		response.Error(c, errcode.ErrParam, "无效的工单 ID")
 		return
 	}
 
@@ -316,7 +316,7 @@ func (h *TicketHandler) CreateKnowledgeCandidate(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// BatchDelete 批量删除申告。
+// BatchDelete 批量删除工单。
 //
 // POST /api/v1/admin/tickets/batch-delete
 func (h *TicketHandler) BatchDelete(c *gin.Context) {
@@ -333,7 +333,7 @@ func (h *TicketHandler) BatchDelete(c *gin.Context) {
 	response.Success(c, map[string]int64{"deleted": deleted})
 }
 
-// BatchClose 批量关闭申告，逐条复用单条 close 状态机，部分失败不影响其他。
+// BatchClose 批量关闭工单，逐条复用单条 close 状态机，部分失败不影响其他。
 //
 // POST /api/v1/admin/tickets/batch-close
 func (h *TicketHandler) BatchClose(c *gin.Context) {
