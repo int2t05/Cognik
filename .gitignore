@@ -90,3 +90,5 @@ __pycache__/
 
 # === 旧目录（已清理） ===
 defense
+server/storage/
+server/data/
