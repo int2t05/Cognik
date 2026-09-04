@@ -159,7 +159,7 @@ export default function LLMConfigPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="mb-5 flex items-center justify-between">
         <PageTitle className="mb-0">LLM 配置</PageTitle>
         <IconButton label="新建 LLM 配置" onClick={openCreate}><Cpu /></IconButton>

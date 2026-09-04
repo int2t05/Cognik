@@ -46,7 +46,7 @@ export default function AuditLogPage() {
   const clearFilters = () => { setTargetType(''); setKeyword(''); setPage(1); };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 mb-5">
         <PageTitle className="mb-0">审计日志</PageTitle>
         <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索操作/对象…" />

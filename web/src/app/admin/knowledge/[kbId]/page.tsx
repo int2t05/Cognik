@@ -52,7 +52,7 @@ export default function ArticleListPage() {
   const clearFilters = () => { setStatus('-1'); setSourceType(0); setProcessStatus(''); setKeyword(''); setPage(1); };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">
           <IconButton label="返回" onClick={() => router.push('/admin/knowledge')}><ChevronLeft /></IconButton>

@@ -69,7 +69,7 @@ export default function AdminTicketListPage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <PageTitle>申告管理</PageTitle>
       </div>
