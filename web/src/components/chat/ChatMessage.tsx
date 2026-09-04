@@ -1,5 +1,5 @@
 'use client';
-// ChatMessage — 消息渲染（对标 shadcn-ui/chatbot-template chat-message.tsx）。
+// ChatMessage — 消息渲染。
 // switch(part.type) 分发到对应 part 组件。
 
 import { memo } from 'react';
@@ -45,8 +45,8 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
             case 'reasoning':
               return <ReasoningPart key={key} part={part} streaming={isStreaming} />;
             case 'tool_call':
-              // 子 Agent 工具（research/coder）用 SubAgentPart 渲染
-              if (part.label === 'research' || part.label === 'coder') {
+              // 子 Agent 委托（dispatch_subagent + research/coder）用 SubAgentPart 渲染
+              if (part.label === 'dispatch_subagent' || part.label === 'research' || part.label === 'coder') {
                 return <SubAgentPart key={key} part={part as any} isStreaming={isStreaming} />;
               }
               return <ToolCallPart key={key} part={part} />;

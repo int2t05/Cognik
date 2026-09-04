@@ -1,10 +1,10 @@
 'use client';
 // ChatStreamProvider —— Agent 对话流式状态管理。
 //
-// 核心模式（对标 assistant-ui useSmooth + Vercel consumeStream）：
+// 核心模式：
 //   - SSE 事件累积到 ref buffer（不触发 React）
 //   - rAF 帧回调 + minCommitMs 节流批量 flush（50ms 一次，非每 token）
-//   - parts 数组模型（对标 AI SDK UIMessage.parts）
+//   - parts 数组模型
 //   - 断线重连：GET ?since=N 续传
 import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from 'react';
 import { streamUrl, resumeUrl, cancelGeneration } from '@/lib/api/chat';

@@ -18,8 +18,9 @@ flowchart LR
     V11 --> V12["V1.2<br/>业务完善"]
     V12 --> V13["V1.3<br/>Agent 基座"]
     V13 --> V14["V1.4<br/>深度搜索"]
-    V14 --> V15["V1.5<br/>知识库组织"]
-    V15 --> V2["V2.0<br/>Agentic RAG"]
+    V14 --> V15["V1.5<br/>记忆系统框架"]
+    V15 --> V16["V1.6<br/>检索优化"]
+    V16 --> V2["V2.0<br/>Agentic RAG"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
@@ -30,6 +31,7 @@ flowchart LR
 | V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；上下文压缩；异步处理管道 | 📋 规划中 |
+| V1.6 | 检索优化 | Contextual Retrieval（67% 失败率降低）；Sandwich Reorder；BM25 Enriched Texts；RRF 调参；Token-based Chunking；Metadata 预过滤；Context Packing | 📋 规划中 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -355,8 +357,46 @@ BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文�
 - **会话结束**：扫描 `sessions/{id}/` → LLM 提取 → 写入 `global/` → 更新 `MEMORY.md`
 - **暂停/恢复**：Thread 可序列化，pause = 持久化，resume = 加载
 
+---
 
-## 9. V2.0 — Agentic RAG（终点）
+## 9. V1.6 — 检索优化
+
+**目标**：在大量文档中精确找到对应的那份上下文。基于 V1.5 记忆框架，深挖检索质量优化。
+
+**调研依据**：[`docs/research/unified-memory/06-retrieval-optimization.md`](research/unified-memory/06-retrieval-optimization.md)　**设计文档**：[`docs/DESIGN.md`](DESIGN.md) §9
+
+### 9.1 Contextual Retrieval（最大优化机会）
+
+对每个 chunk，索引时 LLM 生成 1-2 句上下文摘要 prepend 到 chunk 前，然后同时做 embedding 和 BM25 索引。
+
+Anthropic 实证：基线失败率 5.7% → +Contextual 2.9% → +Rerank **1.9%**（降低 67%）。
+
+### 9.2 Sandwich Reorder（Lost in the Middle 缓解）
+
+rerank 后 topK 截断前，高分 chunk 放首尾，低分放中间。LLM 对上下文窗口首尾信息处理能力优于中间。
+
+### 9.3 BM25 Enriched Texts
+
+将文章标题（重复两次增加权重）、来源、分类注入 BM25 索引文本，提升关键词检索召回率。
+
+### 9.4 RRF k 值调优
+
+RRF k 值从 60 调低到 30（可配置）。k 值越小排名靠前结果得分优势越大，rerank 效果更好。
+
+### 9.5 Token-based Chunking
+
+将 chunker 从 rune-count 改为 token-count（tiktoken-go），中英混排文档 chunk 大小更一致。
+
+### 9.6 Metadata 预过滤
+
+检索时支持按 frontmatter 字段（type/tags/system/severity）预过滤，缩小搜索空间。
+
+### 9.7 Context Packing
+
+token 预算内贪心填充——从高分到低分依次放入，剩余 token 用截断的下一个 chunk 填充。
+
+
+## 10. V2.0 — Agentic RAG（终点）
 
 **目标**：Agent ReAct 循环替代固定 7 步管道，实现自主检索决策、网络搜索、多步推理。
 

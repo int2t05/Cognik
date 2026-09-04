@@ -1,5 +1,5 @@
 'use client';
-// ToolCallPart — 工具调用展示（对标 Vercel ai-elements/tool.tsx）。
+// ToolCallPart — 工具调用展示。
 // Collapsible 卡片 + 状态图标（Clock=运行中 → CheckCircle=完成 → XCircle=错误）。
 // 展示：工具名 + 参数 + 结果（配对后合并到 content）。
 
