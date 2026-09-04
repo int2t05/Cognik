@@ -73,17 +73,24 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_call':
-      // 合并 args 到同 ID 的 tool_call part（Eino 拆分 args 为多个 chunk，仅首 chunk 有 id/label）
       return updateLastAssistant(s, (msg) => {
-        const parts = [...msg.parts]
-        // 优先按 ID 匹配（首 chunk 有 id）
-        let existing = evt.id ? parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id) : -1
-        // ID 匹配不到 → 合并到最后一个 running 的 tool_call（后续 chunk 无 id）
-        if (existing < 0) {
-          existing = parts.findIndex(p => p.type === 'tool_call' && p.status === 'running')
+        const parts = [...msg.parts] as any[]
+        let existing = -1
+        if (evt.id) {
+          existing = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
+        } else {
+          for (let i = parts.length - 1; i >= 0; i--) {
+            const p = parts[i]
+            if (p.type === 'tool_call' && p.status === 'running' && p.label) {
+              if (!p.content?.trimEnd().endsWith('}')) {
+                existing = i
+              }
+              break
+            }
+          }
         }
         if (existing >= 0) {
-          parts[existing] = { ...parts[existing], content: parts[existing].content + (evt.content ?? '') }
+          parts[existing] = { ...parts[existing], content: (parts[existing].content || '') + (evt.content ?? '') }
         } else {
           parts.push({
             type: 'tool_call', id: evt.id ?? '', label: evt.label ?? '',
@@ -94,12 +101,12 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'tool_result':
-      // 配对到同 ID 的 tool_call part，更新 status=done + result（而非新建 part）
+      // 配对到同 ID 的 tool_call part，更新 status=done + result
+      // 并行工具：每个 tool_result 按 ID 匹配到对应的 tool_call
       return updateLastAssistant(s, (msg) => {
         const parts = [...msg.parts]
         const existing = parts.findIndex(p => p.type === 'tool_call' && p.id === evt.id)
         if (existing >= 0) {
-          // 已有 tool_call → 更新 status + result
           const toolPart = parts[existing] as Extract<MessagePart, { type: 'tool_call' }>
           parts[existing] = {
             ...toolPart,
