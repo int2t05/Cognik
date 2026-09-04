@@ -437,6 +437,13 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 		return errcode.AppError{Code: errcode.ErrParam, Message: "仅草稿、驳回和停用状态可编辑"}
 	}
 
+	// 标题变更时检查唯一性（防止 slug 冲突）
+	if req.Title != article.Title {
+		if err := s.checkTitleUnique(ctx, article.KBID, req.Title, id); err != nil {
+			return err
+		}
+	}
+
 	newStatus := article.Status
 	if article.Status == model.ArticleStatusDisabled {
 		newStatus = model.ArticleStatusDraft

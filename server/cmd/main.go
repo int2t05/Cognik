@@ -447,6 +447,12 @@ func wireApp() (*app, error) {
 		slog.Warn("清理残留 generating 消息失败", "error", err)
 	}
 
+	// 孤儿图片定时清理（每 24h 扫描 image/ 目录，删除未被引用的图片）
+	imageDir := filepath.Join(cfg.Storage.Local.BaseDir, bucket, "image")
+	imageCleaner := knowledge.NewImageCleaner(knowledgeService, imageDir, bucket)
+	go imageCleaner.StartPeriodicCleanup(context.Background(), 24*time.Hour)
+	slog.Info("孤儿图片清理已启动", "interval", "24h", "dir", imageDir)
+
 	// 6. Handler 层
 	handlers := &router.Handlers{
 		Auth:      auth.NewAuthHandler(a.authService),
