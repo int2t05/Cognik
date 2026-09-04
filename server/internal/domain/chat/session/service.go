@@ -287,9 +287,12 @@ func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, use
 			case agent.EventToolCall:
 				parts[idx].Content += "\n[tool_call] " + evt.Label + ": " + evt.Content
 			case agent.EventToolResult:
-				// ack tool_result（"task xxx 已派发"）不重复追加；子 Agent 完成的 task_completion 在底层 evt 处理
-				if evt.ID != "" && evt.ID != evt.TaskID {
-					// 主 Agent 的 ack tool_result → 记录但不标记 done（子 Agent 仍在跑）
+				// ack tool_result（id=tool_use_id ≠ task_id）：追加内容，保持 running。
+				// task_completion tool_result（id=task_id）：追加最终结果 + 标记 done。
+				if evt.ID == evt.TaskID {
+					parts[idx].Status = "done"
+					parts[idx].Content += "\n--- result ---\n" + evt.Content
+				} else if evt.ID != "" {
 					parts[idx].Content += "\n" + evt.Content
 				}
 			}

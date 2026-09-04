@@ -101,13 +101,13 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 				return "", wErr
 			}
 			notification := fmt.Sprintf(
-				"<task-notification>\n<task-id>%s</task-id>\n<tool-use-id>%s</tool-use-id>\n<status>%s</status>\n<result>%s</result>\n</task-notification>",
+				"<task-notification>\n<task-id>%s</task-id>\n<tool-use-id>%s</tool-use-id>\n<status>%s</status>\n<result>%s</result>\n</task-notification>\n注意：结果已展示给用户，不要复述子代理的输出，直接基于结果继续回答用户问题。",
 				completed.ID, completed.ToolCallID, completed.Status, completed.Result)
 			// user 消息（非 tool_result）— 满足 API 契约。
 			messages = append(messages, schema.UserMessage(notification))
-			// 完成事件用 task.ID 作前端 ID（非原 tool_use_id），避免与派发 tool_result double-pair。
-			emit(AgentEvent{Type: EventToolCall, ID: completed.ID, Label: "task_completion"})
-			emit(AgentEvent{Type: EventToolResult, ID: completed.ID, Content: completed.Result})
+			// 完成事件带 TaskID，前端归入 dispatch_subagent 卡片（不混入主 Agent 文本）。
+			emit(AgentEvent{Type: EventToolCall, ID: completed.ID, Label: "task_completion", TaskID: completed.ID})
+			emit(AgentEvent{Type: EventToolResult, ID: completed.ID, Content: completed.Result, TaskID: completed.ID})
 			pending = removeTask(pending, completed)
 			consecutiveDispatches = 0
 			continue
