@@ -8,18 +8,30 @@ package agent
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/cloudwego/eino/schema"
 )
 
+// PostRunHook Loop.Run 完成后的回调（fire-and-forget，如 ExtractMemories）。
+// 传入 sessionID + 消息历史，异步执行，不阻塞主流程。
+type PostRunHook func(ctx context.Context, sessionID string, messages []*schema.Message)
+
 // AgentRunner 跑 ReAct 循环并产出事件流（生产者）。
 type AgentRunner struct {
-	loop *Loop
+	loop        *Loop
+	postRunHook PostRunHook // 可选：Run 完成后 fire-and-forget（如记忆提取）
 }
 
 // NewAgentRunner 创建 runner。
 func NewAgentRunner(loop *Loop) *AgentRunner {
 	return &AgentRunner{loop: loop}
+}
+
+// WithPostRunHook 设置 Run 完成后的回调（fire-and-forget 记忆提取）。
+func (r *AgentRunner) WithPostRunHook(hook PostRunHook) *AgentRunner {
+	r.postRunHook = hook
+	return r
 }
 
 // Stream 跑 ReAct 循环，返回事件 channel。
@@ -46,6 +58,20 @@ func (r *AgentRunner) Stream(ctx context.Context, input []*schema.Message) (<-ch
 		// 最终回答已通过 emit(EventToken) 流式推送；done 事件触发 chat 层落库。
 		_ = result
 		emit(AgentEvent{Type: EventDone})
+
+		// fire-and-forget：Run 完成后触发记忆提取（不阻塞，不传播错误）
+		if r.postRunHook != nil {
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Warn("post-run hook panic", "error", r)
+					}
+				}()
+				sessionID := SessionIDFromCtx(ctx)
+				bgCtx := context.Background()
+				r.postRunHook(bgCtx, sessionID, input)
+			}()
+		}
 	}()
 
 	return out, nil
