@@ -1,34 +1,27 @@
-import { apiFetch, apiFetchPage } from './client';
-import { PAGE_SIZE } from './constants';
+import { apiFetch } from './client';
+import type { Thread, ThreadDetail } from '@/lib/types';
 
-export interface ChatSession { id: number; kb_id: number; question: string; last_answer: string; message_count: number; created_at: string; updated_at: string; }
-export interface ChatDetail { session_id: number; kb_id?: number; question: string; answer: string; sources: unknown[]; confidence: number; can_submit_ticket: boolean; duration_ms: number; feedback: number; messages: unknown[]; pipeline: unknown[]; created_at: string; }
-
-export function createSession(kb_id: number, title?: string) {
-  return apiFetch<{ session_id: number }>('/api/v1/portal/chat-sessions', { method: 'POST', body: JSON.stringify({ kb_id, title }) });
+// Thread 增删改查
+export function createThread(title?: string) {
+  return apiFetch<Thread>('/api/v1/portal/threads', { method: 'POST', body: JSON.stringify({ title }) });
 }
-export function getSessionList(page: number) { return apiFetchPage<ChatSession>(`/api/v1/portal/chat-sessions?page=${page}&page_size=${PAGE_SIZE}`); }
-export function getChatDetail(id: number) { return apiFetch<ChatDetail>(`/api/v1/portal/chat-sessions/${id}`); }
-export function deleteSession(id: number) { return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}`, { method: 'DELETE' }); }
-export function submitMessageFeedback(sessionId: number, messageId: string, feedback: number) { return apiFetch<null>(`/api/v1/portal/chat-sessions/${sessionId}/messages/${messageId}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }); }
-
-export interface FeedbackAnalysis {
-  strong_areas: string[];
-  weak_areas: string[];
-  suggestions: string[];
-  summary: string;
+export function listThreads() {
+  return apiFetch<Thread[]>('/api/v1/portal/threads');
 }
-export function analyzeFeedback(days: number) {
-  return apiFetch<{ analysis: string }>('/api/v1/admin/feedback/analyze', { method: 'POST', body: JSON.stringify({ days }) });
+export function getThreadDetail(id: number) {
+  return apiFetch<ThreadDetail>(`/api/v1/portal/threads/${id}`);
+}
+export function deleteThread(id: number) {
+  return apiFetch<null>(`/api/v1/portal/threads/${id}`, { method: 'DELETE' });
+}
+export function updateThread(id: number, title: string) {
+  return apiFetch<null>(`/api/v1/portal/threads/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
 }
 
-// SSE 流式端点：生产环境通过 Next.js rewrite 代理
-const API = process.env.NEXT_PUBLIC_API_URL || '';
-export const streamUrl = (id: number) => `${API}/api/v1/portal/chat-sessions/${id}/stream`;
+// SSE 流式端点：直连后端（不走 Next.js proxy，避免 SSE 缓冲）
+const SSE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+export const streamUrl = (id: number) => `${SSE_API}/api/v1/portal/threads/${id}/stream`;
 export const resumeUrl = (id: number, since: number) => `${streamUrl(id)}?since=${since}`;
 export function cancelGeneration(id: number) {
-  return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}/cancel`, { method: 'POST' });
-}
-export function updateSession(id: number, data: { title?: string; kb_id?: number }) {
-  return apiFetch<null>(`/api/v1/portal/chat-sessions/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  return apiFetch<null>(`/api/v1/portal/threads/${id}/cancel`, { method: 'POST' });
 }

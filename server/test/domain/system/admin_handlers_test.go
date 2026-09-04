@@ -42,8 +42,8 @@ func setupAdminTestDB(t *testing.T) (*gin.Engine, *gorm.DB) {
 	// 确保必要的表存在
 	db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32), user_id BIGINT,
-		title VARCHAR(255), description TEXT, urgency SMALLINT,
-		status SMALLINT DEFAULT 1, source SMALLINT DEFAULT 1,
+		title VARCHAR(255), description TEXT, tags JSONB,
+		status SMALLINT DEFAULT 1, source SMALLINT DEFAULT 1, deadline_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS chat_sessions (

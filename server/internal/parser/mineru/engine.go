@@ -292,7 +292,6 @@ func (e *Engine) downloadAndExtract(zipURL string) (*local.ParseResult, error) {
 
 	var markdown string
 	images := make(map[string][]byte)
-	imgNum := 0
 
 	for _, f := range zipReader.File {
 		if f.FileInfo().IsDir() {
@@ -325,8 +324,8 @@ func (e *Engine) downloadAndExtract(zipURL string) (*local.ParseResult, error) {
 			if err != nil || len(data) == 0 {
 				continue
 			}
-			imgNum++
-			name := fmt.Sprintf("img%d%s", imgNum, ext)
+			// 保持原始文件名，不重命名（markdown 引用已是正确的原始路径）
+			name := filepath.Base(f.Name)
 			images[name] = data
 		}
 	}

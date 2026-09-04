@@ -1,44 +1,20 @@
-// Package session 问答会话 HTTP 请求处理。
+// Package session Agent 对话 HTTP 请求处理。
 package session
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
-	"opsmind/internal/shared/dto/request"
+	"opsmind/internal/agent/task"
 	"opsmind/internal/shared/pkg/errcode"
 	resp "opsmind/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
-
-// parsePagination 解析分页参数。
-func parsePagination(c *gin.Context) (int, int) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
-	}
-	return page, pageSize
-}
-
-// parseID 从路径参数解析 int64 ID，失败时返回错误响应。
-func parseID(c *gin.Context, key string) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param(key), 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的 "+key)
-		return 0, false
-	}
-	return id, true
-}
 
 // getCurrentUserID 从 Gin context 获取当前用户 ID。
 func getCurrentUserID(c *gin.Context) (int64, bool) {
@@ -50,6 +26,16 @@ func getCurrentUserID(c *gin.Context) (int64, bool) {
 	return 0, false
 }
 
+// parseID 从路径参数解析 int64 ID。
+func parseID(c *gin.Context, key string) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param(key), 10, 64)
+	if err != nil {
+		resp.Error(c, errcode.ErrParam, "无效的 "+key)
+		return 0, false
+	}
+	return id, true
+}
+
 // handleServiceError 统一处理 Service 错误。
 func handleServiceError(c *gin.Context, err error) {
 	var appErr errcode.AppError
@@ -57,246 +43,130 @@ func handleServiceError(c *gin.Context, err error) {
 		resp.Error(c, appErr.Code, appErr.Message)
 		return
 	}
-	slog.Error("未预期的服务错误", "path", c.Request.URL.Path, "error", err)
 	resp.Error(c, errcode.ErrUnknown, "服务器内部错误")
 }
 
-// ChatHandler 智能问答接口。
+// ChatHandler Agent 对话接口。
 type ChatHandler struct {
-	svc *ChatService
+	svc        *ChatService
+	taskMgr    *task.TaskManager
 }
 
-// NewChatHandler 创建 ChatHandler 实例。
-func NewChatHandler(svc *ChatService) *ChatHandler {
-	return &ChatHandler{svc: svc}
+// NewChatHandler 创建 ChatHandler。
+func NewChatHandler(svc *ChatService, taskMgr *task.TaskManager) *ChatHandler {
+	return &ChatHandler{svc: svc, taskMgr: taskMgr}
 }
 
-// CreateChatSession 创建问答会话（仅创建容器，不含 LLM 调用）。
-//
-// POST /api/v1/portal/chat-sessions
-func (h *ChatHandler) CreateChatSession(c *gin.Context) {
-	var req request.CreateSessionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
-		return
+// CreateThread 创建对话线程。
+// POST /api/v1/portal/threads
+func (h *ChatHandler) CreateThread(c *gin.Context) {
+	var req struct {
+		Title string `json:"title"`
 	}
+	_ = c.ShouldBindJSON(&req)
 
 	userID, _ := getCurrentUserID(c)
-	session, err := h.svc.CreateSession(c.Request.Context(), req, userID)
+	thread, err := h.svc.CreateThread(c.Request.Context(), userID, req.Title)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
-
-	resp.Success(c, gin.H{
-		"session_id": session.ID,
-		"kb_id":      session.KBID,
-		"question":   session.Question,
-		"created_at": session.CreatedAt.Format("2006-01-02 15:04:05"),
-	})
+	resp.Success(c, thread)
 }
 
-// ListSessions 查询当前用户的问答会话列表。
-//
-// GET /api/v1/portal/chat-sessions
-func (h *ChatHandler) ListSessions(c *gin.Context) {
+// ListThreads 列出用户的对话线程。
+// GET /api/v1/portal/threads
+func (h *ChatHandler) ListThreads(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
-	page, pageSize := parsePagination(c)
-
-	items, total, err := h.svc.ListSessions(c.Request.Context(), userID, page, pageSize)
+	threads, err := h.svc.ListThreads(c.Request.Context(), userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
-
-	resp.SuccessWithPage(c, items, total, page, pageSize)
+	resp.Success(c, threads)
 }
 
-// DeleteSession 删除会话及其全部消息。
-//
-// DELETE /api/v1/portal/chat-sessions/:id
-func (h *ChatHandler) DeleteSession(c *gin.Context) {
+// GetThreadDetail 获取线程详情（含消息）。
+// GET /api/v1/portal/threads/:id
+func (h *ChatHandler) GetThreadDetail(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-
-	if err := h.svc.DeleteSession(c.Request.Context(), id, userID); err != nil {
+	detail, err := h.svc.GetThreadDetail(c.Request.Context(), id, userID)
+	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
+	resp.Success(c, detail)
+}
 
+// DeleteThread 删除对话线程。
+// DELETE /api/v1/portal/threads/:id
+func (h *ChatHandler) DeleteThread(c *gin.Context) {
+	userID, _ := getCurrentUserID(c)
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.svc.DeleteThread(c.Request.Context(), id, userID); err != nil {
+		handleServiceError(c, err)
+		return
+	}
 	resp.Success(c, nil)
 }
 
-// UpdateSessionMeta 更新会话标题和/或知识库。
-//
-// PATCH /api/v1/portal/chat-sessions/:id
-func (h *ChatHandler) UpdateSessionMeta(c *gin.Context) {
+// UpdateThread 更新线程标题。
+// PATCH /api/v1/portal/threads/:id
+func (h *ChatHandler) UpdateThread(c *gin.Context) {
 	userID, _ := getCurrentUserID(c)
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-
 	var req struct {
-		Question string `json:"title"`
-		KBID     int64  `json:"kb_id"`
+		Title string `json:"title"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.Error(c, errcode.ErrParam, "参数校验失败")
 		return
 	}
-
-	if err := h.svc.UpdateSessionMeta(c.Request.Context(), id, userID, req.Question, req.KBID); err != nil {
+	if err := h.svc.UpdateThread(c.Request.Context(), id, userID, req.Title); err != nil {
 		handleServiceError(c, err)
 		return
 	}
 	resp.Success(c, nil)
 }
 
-// SubmitFeedback 提交问答反馈。
-//
-// POST /api/v1/portal/chat-sessions/:id/feedback
-func (h *ChatHandler) SubmitFeedback(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
-		return
-	}
-
-	var req request.SubmitFeedbackRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
-		return
-	}
-
-	userID, _ := getCurrentUserID(c)
-	if err := h.svc.SubmitFeedback(c.Request.Context(), id, userID, req.Feedback); err != nil {
-		handleServiceError(c, err)
-		return
-	}
-
-	resp.Success(c, nil)
-}
-
-// SubmitMessageFeedback 提交单条消息的反馈（点赞/倒赞）。
-//
-// POST /api/v1/portal/chat-sessions/:id/messages/:msgId/feedback
-func (h *ChatHandler) SubmitMessageFeedback(c *gin.Context) {
-	idStr := c.Param("id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
-		return
-	}
-
-	msgIDStr := c.Param("msgId")
-	messageID, err := strconv.ParseInt(msgIDStr, 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的消息 ID")
-		return
-	}
-
-	var req request.SubmitFeedbackRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
-		return
-	}
-
-	userID, _ := getCurrentUserID(c)
-	if err := h.svc.SubmitMessageFeedback(c.Request.Context(), messageID, sessionID, userID, req.Feedback); err != nil {
-		handleServiceError(c, err)
-		return
-	}
-
-	resp.Success(c, nil)
-}
-
-// AnalyzeFeedback 触发 LLM 分析反馈数据，输出知识盲区报告。
-//
-// POST /api/v1/admin/feedback/analyze
-func (h *ChatHandler) AnalyzeFeedback(c *gin.Context) {
-	var req struct {
-		Days int `json:"days"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		req.Days = 30
-	}
-	if req.Days <= 0 {
-		req.Days = 30
-	}
-	if req.Days > 365 {
-		resp.Error(c, errcode.ErrParam, "天数不能超过365")
-		return
-	}
-
-	result, err := h.svc.AnalyzeFeedback(c.Request.Context(), req.Days)
-	if err != nil {
-		handleServiceError(c, err)
-		return
-	}
-
-	resp.Success(c, gin.H{"analysis": result})
-}
-
-// GetChatDetail 查询问答会话详情（含归属校验）。
-//
-// GET /api/v1/portal/chat-sessions/:id
-func (h *ChatHandler) GetChatDetail(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
-		return
-	}
-
-	userID, _ := getCurrentUserID(c)
-	detail, err := h.svc.GetChatDetail(c.Request.Context(), id, userID)
-	if err != nil {
-		handleServiceError(c, err)
-		return
-	}
-
-	resp.Success(c, detail)
-}
-
-// =============================================================================
-// SSE 流式对话
-// =============================================================================
-
-// writeSSEEvent 将事件序列化为 SSE data 帧写入。
-func writeSSEEvent(w gin.ResponseWriter, evt any) error {
+// writeSSEEvent 将事件序列化为 SSE 帧：id: {seq}\ndata: {json}\n\n
+// id 字段供 SSE 标准 Last-Event-ID 重连。
+func writeSSEEvent(w gin.ResponseWriter, evt StreamEvent) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(w, "data: %s\n\n", string(data))
+	_, err = fmt.Fprintf(w, "id: %d\ndata: %s\n\n", evt.Seq, string(data))
 	return err
 }
 
-// StreamChatMessage 在已有会话中发送消息并以 SSE 流式返回 AI 答案。
-//
-// POST /api/v1/portal/chat-sessions/:id/stream
-func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
-	idStr := c.Param("id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
+// StreamChat 发送消息并以 SSE 流式返回 Agent 回答。
+// POST /api/v1/portal/threads/:id/stream
+func (h *ChatHandler) StreamChat(c *gin.Context) {
+	threadID, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
-
-	var req request.SendMessageRequest
+	var req struct {
+		Question string `json:"question" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
 		return
 	}
-
 	userID, _ := getCurrentUserID(c)
 
-	replay, ch, unsub, err := h.svc.StreamChat(c.Request.Context(), sessionID, req.Question, userID, req.RouteCount, req.RerankCount)
+	replay, ch, unsub, err := h.svc.StreamChat(c.Request.Context(), threadID, req.Question, userID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -305,18 +175,16 @@ func (h *ChatHandler) StreamChatMessage(c *gin.Context) {
 }
 
 // ResumeStream 续传进行中的生成（GET ?since=N）。
-//
-// GET /api/v1/portal/chat-sessions/:id/stream?since=N
+// GET /api/v1/portal/threads/:id/stream?since=N
 func (h *ChatHandler) ResumeStream(c *gin.Context) {
-	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
+	threadID, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 	userID, _ := getCurrentUserID(c)
 	since, _ := strconv.Atoi(c.DefaultQuery("since", "0"))
 
-	replay, ch, unsub, err := h.svc.ResumeStream(c.Request.Context(), sessionID, userID, since)
+	replay, ch, unsub, err := h.svc.ResumeStream(c.Request.Context(), threadID, userID, since)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -324,18 +192,15 @@ func (h *ChatHandler) ResumeStream(c *gin.Context) {
 	writeStream(c, replay, ch, unsub)
 }
 
-// CancelGeneration 停止后端生成（POST）。
-//
-// POST /api/v1/portal/chat-sessions/:id/cancel
+// CancelGeneration 取消生成。
+// POST /api/v1/portal/threads/:id/cancel
 func (h *ChatHandler) CancelGeneration(c *gin.Context) {
-	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		resp.Error(c, errcode.ErrParam, "无效的会话 ID")
+	threadID, ok := parseID(c, "id")
+	if !ok {
 		return
 	}
 	userID, _ := getCurrentUserID(c)
-
-	if err := h.svc.CancelGeneration(c.Request.Context(), sessionID, userID); err != nil {
+	if err := h.svc.CancelGeneration(c.Request.Context(), threadID, userID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -383,4 +248,79 @@ func writeStream(c *gin.Context, replay []StreamEvent, ch <-chan StreamEvent, un
 			rc.SetWriteDeadline(time.Now().Add(30 * time.Second))
 		}
 	}
+}
+
+// CreateTask 创建异步任务。
+// POST /api/v1/portal/threads/:id/tasks
+func (h *ChatHandler) CreateTask(c *gin.Context) {
+	threadID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	var req struct {
+		Question string `json:"question" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+
+	input, _ := json.Marshal(task.TaskInput{Question: req.Question})
+	t, err := h.taskMgr.CreateTask(c.Request.Context(), threadID, userID, task.TypeAgentRun, string(input))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	// 后台执行
+	go h.taskMgr.ExecuteTask(t.ID, req.Question)
+
+	resp.Success(c, t)
+}
+
+// ListTasks 列出线程的异步任务。
+// GET /api/v1/portal/threads/:id/tasks
+func (h *ChatHandler) ListTasks(c *gin.Context) {
+	threadID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	tasks, err := h.taskMgr.ListTasks(c.Request.Context(), threadID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, tasks)
+}
+
+// GetTask 查询任务状态。
+// GET /api/v1/portal/tasks/:id
+func (h *ChatHandler) GetTask(c *gin.Context) {
+	taskID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	t, err := h.taskMgr.GetTask(c.Request.Context(), taskID, userID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, t)
+}
+
+// CancelTask 取消任务。
+// POST /api/v1/portal/tasks/:id/cancel
+func (h *ChatHandler) CancelTask(c *gin.Context) {
+	taskID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, _ := getCurrentUserID(c)
+	if err := h.taskMgr.CancelTask(c.Request.Context(), taskID, userID); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	resp.Success(c, nil)
 }

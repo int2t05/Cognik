@@ -36,8 +36,7 @@ storage:
     secret_key: minioadmin
     use_ssl: false
   buckets:
-    documents: opsmind-documents   # 草稿/审核/处理中
-    published: opsmind-published   # 已发布
+    documents: opsmind-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
 
 llm:
   base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
@@ -54,15 +53,8 @@ embedding:
   timeout: 300s                             # Embedding 调用超时
 
 ai:
-  default_top_k: 5
-  confidence_threshold: 0.6  # 低于此阈值引导用户提交申告
-  max_history_messages: 10     # 多轮对话历史消息数上限（滑动窗口，0=不限制）
   chunk_size: 500             # 文档分块大小
   chunk_overlap: 100           # 分块重叠
-  rag_query_rewrite: true     # 查询改写开关
-  rag_multi_route: true       # 多路检索开关
-  rag_hybrid: true            # BM25 混合检索开关
-  rag_rerank: true            # 重排序开关
 
 rerank:
   enabled: true              # 是否启用 cross-encoder 重排序子进程

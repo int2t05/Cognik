@@ -46,10 +46,9 @@ func setupTicketServiceDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32) NOT NULL UNIQUE,
 		user_id BIGINT NOT NULL, title VARCHAR(255) NOT NULL, description TEXT NOT NULL,
-		urgency SMALLINT NOT NULL, impact_scope SMALLINT DEFAULT 1,
-		affected_systems JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
+		tags JSONB, contact_phone VARCHAR(11) NOT NULL, contact_email VARCHAR(128),
 		status SMALLINT NOT NULL DEFAULT 1, supplement_count SMALLINT NOT NULL DEFAULT 0,
-		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1,
+		chat_context JSONB, source SMALLINT NOT NULL DEFAULT 1, deadline_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS ticket_records (
@@ -118,7 +117,7 @@ func TestTicketService_CreateTicket(t *testing.T) {
 	}
 
 	// 验证申告已创建
-	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "")
+	tickets, total, err := repo.ListByUser(bgCtx, user.ID, 1, 10, "", -1)
 	if err != nil {
 		t.Fatalf("查询申告失败: %v", err)
 	}
@@ -562,7 +561,7 @@ func TestTicketService_ListByUser(t *testing.T) {
 		requireNoErr(t, db.Create(ticket).Error)
 	}
 
-	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "")
+	result, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "", -1)
 	if err != nil {
 		t.Fatalf("期望无错误, got %v", err)
 	}
@@ -572,6 +571,40 @@ func TestTicketService_ListByUser(t *testing.T) {
 	if len(result.Tickets) != 3 {
 		t.Errorf("期望 3 条, got %d", len(result.Tickets))
 	}
+}
+
+// TestTicketService_ListByUser_StatusFilter 验证门户端申告按 status 筛选。
+func TestTicketService_ListByUser_StatusFilter(t *testing.T) {
+	db := setupTicketServiceDB(t)
+	cleanTicketServiceTables(t, db)
+	repo := ticket.NewTicketRepo(db)
+	svc := ticket.NewTicketService(repo, nil, runtime.NewGormTxManager(db), nil, nil, nil)
+	user := createTestUserForService(t, db, "tsvc_listbyuser_status")
+
+	// 创建 3 条不同状态：1=待处理、2=处理中、5=已关闭
+	statuses := []int16{1, 2, 5}
+	for i, s := range statuses {
+		tk := &model.Ticket{
+			TicketNo: fmt.Sprintf("TK-20260609-S%03d", i), UserID: user.ID,
+			Title: "申告", Description: "描述", ContactPhone: "x", Status: s, Source: 1,
+		}
+		requireNoErr(t, db.Create(tk).Error)
+	}
+
+	// status=1 仅返回待处理
+	r1, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "", 1)
+	if err != nil { t.Fatalf("期望无错误, got %v", err) }
+	if r1.Total != 1 { t.Errorf("status=1 期望 1 条, got %d", r1.Total) }
+
+	// status=5 仅返回已关闭
+	r5, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "", 5)
+	if err != nil { t.Fatalf("期望无错误, got %v", err) }
+	if r5.Total != 1 { t.Errorf("status=5 期望 1 条, got %d", r5.Total) }
+
+	// status=-1 返回全部
+	rAll, err := svc.ListByUser(bgCtx, user.ID, 1, 10, "", -1)
+	if err != nil { t.Fatalf("期望无错误, got %v", err) }
+	if rAll.Total != 3 { t.Errorf("status=-1 期望 3 条, got %d", rAll.Total) }
 }
 
 func TestTicketService_ListAll(t *testing.T) {
@@ -597,15 +630,6 @@ func TestTicketService_ListAll(t *testing.T) {
 	}
 	if result.Total != 2 {
 		t.Errorf("期望 total=2 (status=1), got %d", result.Total)
-	}
-
-	// 按 urgency=3 筛选
-	result, err = svc.ListAll(bgCtx, -1, 1, 10, "")
-	if err != nil {
-		t.Fatalf("期望无错误, got %v", err)
-	}
-	if result.Total != 1 {
-		t.Errorf("期望 total=1 (urgency=3), got %d", result.Total)
 	}
 
 	// 全部

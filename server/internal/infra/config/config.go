@@ -79,10 +79,9 @@ type LocalStorageConfig struct {
 	BaseDir string `mapstructure:"base_dir"`
 }
 
-// BucketConfig 是存储桶/目录名配置。
+// BucketConfig 是存储桶配置（单桶；草稿/已发布由二级目录区分，不再按桶分状态）。
 type BucketConfig struct {
 	Documents string `mapstructure:"documents"`
-	Published string `mapstructure:"published"`
 }
 
 // LLMConfig 大语言模型配置（支持任意 OpenAI-compatible API）。
@@ -112,17 +111,10 @@ type EmbeddingConfig struct {
 	Timeout   time.Duration `mapstructure:"timeout"` // Embedding 调用超时，默认 30s
 }
 
-// AIConfig AI 问答配置，RAG 管道步骤可单独控制，ConfidenceThreshold 低于阈值引导提交工单。
+// AIConfig AI 问答配置（ChunkSize/ChunkOverlap 供文档处理管道使用）。
 type AIConfig struct {
-	DefaultTopK         int     `mapstructure:"default_top_k"`
-	ConfidenceThreshold float64 `mapstructure:"confidence_threshold"`
-	MaxHistoryMessages  int     `mapstructure:"max_history_messages"`
-	ChunkSize           int     `mapstructure:"chunk_size"`    // 文本分块大小（字符数），默认 500
-	ChunkOverlap        int     `mapstructure:"chunk_overlap"` // 分块重叠大小（字符数），默认 100
-	RAGQueryRewrite     bool    `mapstructure:"rag_query_rewrite"`
-	RAGMultiRoute       bool    `mapstructure:"rag_multi_route"`
-	RAGHybrid           bool    `mapstructure:"rag_hybrid"`
-	RAGRerank           bool    `mapstructure:"rag_rerank"`
+	ChunkSize    int `mapstructure:"chunk_size"`    // 文本分块大小（字符数），默认 500
+	ChunkOverlap int `mapstructure:"chunk_overlap"` // 分块重叠大小（字符数），默认 100
 }
 
 // ParserConfig 文档解析引擎配置（mineru 云端高精度 / local 本地库），mineru 不可用时自动降级。
@@ -236,13 +228,6 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("embedding.timeout", "OPSMIND_EMBEDDING_TIMEOUT")
 
 	// AI
-	v.BindEnv("ai.default_top_k", "OPSMIND_AI_DEFAULT_TOP_K")
-	v.BindEnv("ai.confidence_threshold", "OPSMIND_AI_CONFIDENCE_THRESHOLD")
-	v.BindEnv("ai.max_history_messages", "OPSMIND_AI_MAX_HISTORY_MESSAGES")
-	v.BindEnv("ai.rag_query_rewrite", "OPSMIND_AI_RAG_QUERY_REWRITE")
-	v.BindEnv("ai.rag_multi_route", "OPSMIND_AI_RAG_MULTI_ROUTE")
-	v.BindEnv("ai.rag_hybrid", "OPSMIND_AI_RAG_HYBRID")
-	v.BindEnv("ai.rag_rerank", "OPSMIND_AI_RAG_RERANK")
 	v.BindEnv("ai.chunk_size", "OPSMIND_AI_CHUNK_SIZE")
 	v.BindEnv("ai.chunk_overlap", "OPSMIND_AI_CHUNK_OVERLAP")
 
@@ -276,13 +261,6 @@ func (c *AppConfig) Validate() error {
 
 	if c.Server.Mode == "release" && c.JWT.Secret == "" {
 		return fmt.Errorf("release 模式下 jwt.secret 不能为空")
-	}
-
-	if c.AI.DefaultTopK < 1 || c.AI.DefaultTopK > 100 {
-		return fmt.Errorf("ai.default_top_k 必须在 1-100 范围内，当前值: %d", c.AI.DefaultTopK)
-	}
-	if c.AI.ConfidenceThreshold < 0 || c.AI.ConfidenceThreshold > 1 {
-		return fmt.Errorf("ai.confidence_threshold 必须在 0-1 范围内，当前值: %f", c.AI.ConfidenceThreshold)
 	}
 
 	// duration 零值可能由 env 裸数字格式导致（需 "2h" 而非 3600）
@@ -333,7 +311,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
 	v.SetDefault("storage.minio.use_ssl", false)
 	v.SetDefault("storage.buckets.documents", "opsmind-documents")
-	v.SetDefault("storage.buckets.published", "opsmind-published")
 
 	// LLM
 	v.SetDefault("llm.base_url", "http://llama-cpp:8080/v1")

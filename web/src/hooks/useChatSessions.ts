@@ -1,19 +1,16 @@
 /**
- * useChatSessions — 会话列表 CRUD + URL 同步。
- * 封装会话的创建、选择、删除、编辑，
- * 以及 sessionId ↔ ?sid=X URL 参数双向同步。
+ * useChatSessions — Agent 对话线程列表 CRUD + URL 同步。
+ * 适配新 threads API（SQLite store）+ parts 模型。
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { getSessionList, getChatDetail, deleteSession, createSession, updateSession } from '@/lib/api/chat';
-import { useChatStreamStore, type ChatMessage } from '@/contexts/ChatStreamProvider';
+import { listThreads, getThreadDetail, deleteThread, createThread } from '@/lib/api/chat';
+import { useChatStreamStore } from '@/contexts/ChatStreamProvider';
+import { parseThreadMessage } from '@/lib/reducer';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
-import type { ApiChatMessage, ChatSession } from './useChatSessions.types';
-
-export type { ApiChatMessage, ChatSession };
 
 interface UseChatSessionsOptions {
   token: string | null;
@@ -24,171 +21,112 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
   const searchParams = useSearchParams();
   const store = useChatStreamStore();
 
-  // 会话列表
-  const { data: sessionsPage, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR(
-    'chat-sessions',
-    () => getSessionList(1),
+  // 线程列表
+  const { data: threads, isLoading: threadsLoading, mutate: mutateThreads } = useSWR(
+    'threads',
+    () => listThreads(),
+    { revalidateOnFocus: false },
   );
-  const sessions = (sessionsPage?.items ?? []) as ChatSession[];
 
-  // 当前会话 ID + URL 同步
-  const [sessionId, setSessionIdState] = useState<number | null>(() => {
-    const s = searchParams.get('sid');
-    return s ? Number(s) : null;
+  const [sessionId, setSessionId] = useState<number | null>(() => {
+    const sid = searchParams.get('sid');
+    return sid ? Number(sid) : null;
   });
+  const [loadingSession, setLoadingSession] = useState(false);
+  const sessionIdRef = useRef<number | null>(sessionId);
 
-  const setSessionId = useCallback((sid: number | null) => {
-    setSessionIdState(sid);
-    const params = new URLSearchParams(searchParams.toString());
-    if (sid) params.set('sid', String(sid));
-    else params.delete('sid');
-    if (typeof window !== 'undefined') router.replace(`?${params.toString()}`, { scroll: false });
-  }, [router, searchParams]);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
 
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
-
-  // 切换会话
-  const selectSession = useCallback(async (id: number) => {
-    if (id === sessionId) return;
-    const prevId = sessionId;
+  const selectSession = useCallback((id: number | null) => {
+    sessionIdRef.current = id;
     setSessionId(id);
-    setFeedbackMap({});
-    try {
-      const detail = await getChatDetail(id);
-      const msgs: ChatMessage[] = ((detail.messages ?? []) as ApiChatMessage[]).map((m) => ({
-        id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence_raw,
-        confidence_raw: m.confidence_raw, status: m.status, createdAt: m.created_at, dbId: m.id,
-      }));
-      store.setMessages(id, msgs);
-      const fbMap: Record<string, number> = {};
-      ((detail.messages ?? []) as ApiChatMessage[]).forEach((m) => {
-        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
-      });
-      setFeedbackMap(fbMap);
-      const last = msgs[msgs.length - 1];
-      if (last?.role === 'assistant' && last.status === 'generating' && token) {
-        store.resume(id, 0, token);
+    if (id) {
+      router.push(`/portal/chat?sid=${id}`);
+    } else {
+      router.push('/portal/chat');
+    }
+  }, [router]);
+
+  // URL 参数同步
+  useEffect(() => {
+    const sid = searchParams.get('sid');
+    if (sid) {
+      const id = Number(sid);
+      if (id !== sessionIdRef.current) {
+        sessionIdRef.current = id;
+        setSessionId(id);
       }
-    } catch {
-      toast.error('加载会话失败');
-      setSessionId(prevId);
+    } else {
+      // URL 无 sid → 回到新对话状态
+      if (sessionIdRef.current !== null) {
+        sessionIdRef.current = null;
+        setSessionId(null);
+      }
     }
-  }, [sessionId, token, store, toast, setSessionId]);
+  }, [searchParams]);
 
-  // 创建会话
-  const createNewSession = useCallback(async (kbId: number, question: string) => {
-    if (!kbId) { toast.info('请先创建知识库'); return null; }
-    try {
-      const r = await createSession(kbId, question);
-      setSessionId(r.session_id);
-      setFeedbackMap({});
-      const now = new Date().toISOString();
-      mutateSessions((d) => d ? {
-        ...d,
-        items: [{ id: r.session_id, kb_id: kbId, question, last_answer: '', message_count: 0, created_at: now, updated_at: now }, ...(d.items || [])],
-      } : d, false);
-      return r.session_id as number;
-    } catch {
-      toast.error('创建会话失败');
-      return null;
-    }
-  }, [setSessionId, mutateSessions, toast]);
-
-  // 删除会话 — 失败时 re-throw 让调用方保持对话框打开
-  const removeSession = useCallback(async (id: number) => {
-    try {
-      await deleteSession(id);
-      if (sessionId === id) { setSessionId(null); setFeedbackMap({}); }
-      mutateSessions();
-      toast.success('会话已删除');
-    } catch (err: unknown) {
-      toast.error(errorMessage(err, '删除失败'));
-      throw err;
-    }
-  }, [sessionId, setSessionId, mutateSessions, toast]);
-
-  // 编辑会话 — 失败时 re-throw 让调用方保持对话框打开
-  const editSession = useCallback(async (id: number, title: string, kbId: number) => {
-    try {
-      await updateSession(id, { title, kb_id: kbId });
-      toast.success('会话已更新');
-      mutateSessions();
-    } catch (err: unknown) {
-      toast.error(errorMessage(err, '更新失败'));
-      throw err;
-    }
-  }, [mutateSessions, toast]);
-
-  // URL 恢复：页面加载时从 ?sid=X 加载消息。
-  // 使用 ref 追踪当前 sessionId，避免快速切换时 stale .catch() 覆盖当前会话。
-  const sessionIdRef = useRef(sessionId);
-
-  const urlRestoredRef = useRef(false);
-
-  // 同步 ref 到当前 sessionId（effect 内更新，不在 render 中写 ref）
+  // token 同步到 store
   useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
+    store.setToken(token);
+  }, [token, store]);
 
+  // 加载线程详情（进入会话时）
   useEffect(() => {
-    if (!sessionId || sessionsLoading) return;
-    if (urlRestoredRef.current) return;
-    if (store.getStream(sessionId)?.messages.length) { urlRestoredRef.current = true; return; }
-    if (!sessions.some(s => s.id === sessionId)) { queueMicrotask(() => setSessionId(null)); return; }
+    if (!sessionId || threadsLoading) return;
+    // 如果 stream 已有消息，不重复加载
+    if (store.getStream(sessionId)?.messages.length) return;
 
-    urlRestoredRef.current = true;
-    getChatDetail(sessionId).then(detail => {
-      // 如果 fetch 期间 sessionId 已切换，丢弃旧结果
+    setLoadingSession(true);
+    getThreadDetail(sessionId).then((detail) => {
       if (sessionIdRef.current !== sessionId) return;
-      const msgs: ChatMessage[] = ((detail.messages ?? []) as ApiChatMessage[]).map(m => ({
-        id: String(m.id), role: m.role, content: m.content,
-        sources: m.sources, confidence: m.confidence_raw, confidence_raw: m.confidence_raw,
-        confidence_level: m.confidence_level, status: m.status, createdAt: m.created_at, dbId: m.id,
-      }));
+      const msgs = detail.messages.map(parseThreadMessage);
       store.setMessages(sessionId, msgs);
-      const fbMap: Record<string, number> = {};
-      ((detail.messages ?? []) as ApiChatMessage[]).forEach(m => {
-        if (m.feedback && m.feedback > 0) fbMap[String(m.id)] = m.feedback;
-      });
-      setFeedbackMap(fbMap);
+      // 检查是否有进行中的生成
       const last = msgs[msgs.length - 1];
-      // 使用 ref 而非闭包中的 token，确保 resume 时拿到最新 token
-      if (last?.role === 'assistant' && last.status === 'generating') {
+      if (last?.role === 'assistant' && last.status === 'streaming') {
         store.resume(sessionId, 0, token || '');
       }
     }).catch(() => {
-      // 仅当 fetch 失败时 sessionId 仍未变化才清除
       if (sessionIdRef.current === sessionId) setSessionId(null);
+    }).finally(() => {
+      if (sessionIdRef.current === sessionId) setLoadingSession(false);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, sessionsLoading]);
+  }, [sessionId, threadsLoading, store, token]);
 
-  // token 就绪后，检查是否有生成中的会话需要续传
-  const prevTokenRef = useRef(token);
-  useEffect(() => {
-    // 仅在 token 从 null → string 时触发
-    if (!token || prevTokenRef.current) return;
-    prevTokenRef.current = token;
-    if (!sessionId) return;
-    const stream = store.getStream(sessionId);
-    if (!stream?.messages.length) return;
-    const last = stream.messages[stream.messages.length - 1];
-    if (last?.role === 'assistant' && last.status === 'generating') {
-      store.resume(sessionId, 0, token);
+  const createNewSession = useCallback(async (title?: string) => {
+    try {
+      const thread = await createThread(title);
+      if (!thread) return null;
+      mutateThreads();
+      selectSession(thread.id);
+      return thread.id;
+    } catch (err) {
+      toast.error(errorMessage(err, '创建会话失败'));
+      return null;
     }
-  }, [token, sessionId, store]);
+  }, [mutateThreads, selectSession]);
 
-  // 会话 ID 复位时重置恢复标记
-  useEffect(() => {
-    if (!sessionId) urlRestoredRef.current = false;
-    prevTokenRef.current = token;
-  }, [sessionId]);
+  const removeSession = useCallback(async (id: number) => {
+    try {
+      await deleteThread(id);
+      mutateThreads();
+      if (sessionIdRef.current === id) {
+        setSessionId(null);
+        router.push('/portal/chat');
+      }
+    } catch (err) {
+      toast.error(errorMessage(err, '删除会话失败'));
+    }
+  }, [mutateThreads, router]);
 
   return {
-    sessions, sessionsLoading, mutateSessions,
-    sessionId, setSessionId,
-    feedbackMap, setFeedbackMap,
-    selectSession, createNewSession, removeSession, editSession,
+    threads: threads ?? [],
+    threadsLoading,
+    sessionId,
+    selectSession,
+    createNewSession,
+    removeSession,
+    loadingSession,
+    mutateThreads,
   };
 }

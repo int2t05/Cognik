@@ -7,9 +7,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
+	"opsmind/internal/infra/config"
+	"opsmind/internal/infra/database"
 	"opsmind/internal/shared/model"
 
 	"gorm.io/gorm"
@@ -17,6 +20,25 @@ import (
 
 // bgCtx 测试用根上下文，供包内所有测试复用。
 var bgCtx = context.Background()
+
+// chatSvcDB 共享测试数据库连接（LLM 配置 handler/service 测试用）。
+var chatSvcDB *gorm.DB
+
+func init() {
+	port, _ := strconv.Atoi(getEnv("TEST_DB_PORT", "5432"))
+	db, err := database.Init(config.DatabaseConfig{
+		Host: getEnv("TEST_DB_HOST", "localhost"), Port: port,
+		User: getEnv("TEST_DB_USER", "opsmind"), Password: getEnv("TEST_DB_PASSWORD", "opsmind_dev"),
+		DBName: getEnv("TEST_DB_NAME", "opsmind_test"), SSLMode: getEnv("TEST_DB_SSLMODE", "disable"),
+	})
+	if err != nil {
+		panic("chat 测试 DB 初始化失败: " + err.Error())
+	}
+	if err := database.AutoMigrate(db); err != nil {
+		panic("chat 测试 AutoMigrate 失败: " + err.Error())
+	}
+	chatSvcDB = db
+}
 
 // getEnv 读环境变量，缺省返回默认值，适配不同开发环境。
 func getEnv(key, def string) string {

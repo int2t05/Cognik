@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"opsmind/internal/infra/adapter"
 )
 
 // stripThinkingPrefix 移除模型思考/推理前缀，提取实际改写结果。
@@ -46,7 +45,7 @@ func stripThinkingPrefix(s string) string {
 
 // QueryRewrite 使用 LLM 改写查询为更适合检索的形式。history 为最近 N 轮对话用于消歧。
 // LLM 失败或 llm 为 nil 时降级返回原始 query。
-func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query string, history []map[string]string) (string, error) {
+func QueryRewrite(ctx context.Context, llm LLMClient, model, query string, history []map[string]string) (string, error) {
 	if llm == nil {
 		return query, nil
 	}
@@ -55,7 +54,7 @@ func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query strin
 	systemMsg := "你是运维场景的查询改写助手。将用户口语化问题改写为正式、精确的检索查询。\n\n规则：\n1. 将口语转为书面用语（如「怎么搞」→「如何配置」）\n2. 补充运维术语（如「连不上」→「网络连接失败」）\n3. 若对话历史中有指代（「那个」「它」），替换为具体名词\n4. 只输出改写后的一句话，不要解释"
 	userMsg := fmt.Sprintf("原始查询：%s\n\n请直接输出改写后的查询语句，不要输出任何解释、分析或思考过程。", query)
 
-	messages := []adapter.ChatMessage{
+	messages := []ChatMessage{
 		{Role: "system", Content: systemMsg},
 	}
 
@@ -64,13 +63,13 @@ func QueryRewrite(ctx context.Context, llm adapter.LLMClient, model, query strin
 		role := h["role"]
 		content := h["content"]
 		if role == "user" || role == "assistant" {
-			messages = append(messages, adapter.ChatMessage{Role: role, Content: content})
+			messages = append(messages, ChatMessage{Role: role, Content: content})
 		}
 	}
 
-	messages = append(messages, adapter.ChatMessage{Role: "user", Content: userMsg})
+	messages = append(messages, ChatMessage{Role: "user", Content: userMsg})
 
-	resp, err := llm.ChatCompletion(ctx, adapter.ChatRequest{
+	resp, err := llm.ChatCompletion(ctx, ChatRequest{
 		Model:       model,
 		Messages:    messages,
 		MaxTokens:   128, // 改写结果通常 20-50 字，128 token 足够且限制思考输出
