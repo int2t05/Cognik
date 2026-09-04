@@ -11,9 +11,6 @@ import { streamUrl, resumeUrl, cancelGeneration } from '@/lib/api/chat';
 import { reduceStreamEvent, createSessionStream, parseThreadMessage } from '@/lib/reducer';
 import type { SessionStream, SSEEvent, ChatMessage } from '@/lib/types';
 
-// rAF 提交节流间隔（ms）。50 token/秒 → ~20 次 setState/秒。
-const MIN_COMMIT_MS = 50;
-
 interface QueuedMessage {
   id: string;
   content: string;
@@ -89,7 +86,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
 
   const setToken = useCallback((t: string | null) => { tokenRef.current = t; }, []);
 
-  // rAF flush：批量处理缓冲事件，节流到 MIN_COMMIT_MS
+  // rAF flush：批量处理缓冲的文本事件（reasoning/token），一帧 ~16ms 节流平滑流式。
   const flushBuffer = useCallback((id: number) => {
     const buf = buffersRef.current[id];
     if (!buf || buf.length === 0) return;
@@ -99,17 +96,11 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
 
   const scheduleFlush = useCallback((id: number) => {
     if (rafRefs.current[id] != null) return;
+    // rAF 一帧后 flush（~16ms 节流，平滑流式，不攒批）。
     rafRefs.current[id] = requestAnimationFrame(() => {
       rafRefs.current[id] = null;
-      const now = Date.now();
-      const last = lastFlushRef.current[id] ?? 0;
-      if (now - last >= MIN_COMMIT_MS) {
-        lastFlushRef.current[id] = now;
-        flushBuffer(id);
-      } else {
-        // 未到节流间隔，下一帧再试
-        scheduleFlush(id);
-      }
+      lastFlushRef.current[id] = Date.now();
+      flushBuffer(id);
     });
   }, [flushBuffer]);
 
@@ -145,10 +136,19 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
         if (!clean.startsWith('data: ')) continue;
         let evt: SSEEvent;
         try { evt = JSON.parse(clean.slice(6)); } catch { continue; }
-        // 累积到缓冲，rAF 节流 flush
-        if (!buffersRef.current[id]) buffersRef.current[id] = [];
-        buffersRef.current[id].push(evt);
-        scheduleFlush(id);
+        // 结构性事件（工具调用/结果/完成/错误）立即 flush，不节流——卡片即时出现，避免攒批后突然冒出。
+        // 文本事件（reasoning/token）走 rAF 节流 buffer，平滑流式。
+        const isStructural = evt.type === 'tool_call' || evt.type === 'tool_result' || evt.type === 'done' || evt.type === 'error';
+        if (isStructural) {
+          // 先 flush 已缓冲的文本事件，保证顺序（文本在卡片前渲染）
+          flushBuffer(id);
+          // 立即处理结构事件
+          patch(id, (s) => reduceStreamEvent(s, evt));
+        } else {
+          if (!buffersRef.current[id]) buffersRef.current[id] = [];
+          buffersRef.current[id].push(evt);
+          scheduleFlush(id);
+        }
         if (evt.type === 'error') onError?.(evt.error || '生成失败');
       }
     }
