@@ -292,8 +292,10 @@ func wireApp() (*app, error) {
 		knowledge.WithAuditWriter(auditService),
 		knowledge.WithDefaultEmbeddingModel(cfg.Embedding.Model),
 		knowledge.WithOnKBChanged(func(kbID int64) {
-			// publish/disable 后异步重建该 KB 的 BM25 索引（含标签关键词）
+			// publish/disable 后异步重建 BM25 索引 + INDEX.md 页目录
 			go knowledge.RebuildBM25ForKB(knowledgeRepo, a.vectorStore, bm25Retriever, kbID)
+			// INDEX.md 重建（从已发布文章生成页目录）
+			go knowledge.RebuildKBIndex(knowledgeRepo, kbID, filepath.Join(cfg.Storage.Local.BaseDir, bucket, fmt.Sprintf("kb-%d", kbID)))
 		}),
 		knowledge.WithMessageNotifier(messageService),
 		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),

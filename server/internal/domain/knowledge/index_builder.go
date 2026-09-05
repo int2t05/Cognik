@@ -6,7 +6,9 @@ package knowledge
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,6 +28,51 @@ func NewIndexBuilder(svc *KnowledgeService) *IndexBuilder {
 	return &IndexBuilder{svc: svc}
 }
 
+// RebuildKBIndex 包级函数——直接用 repo 查询已发布文章，重建 INDEX.md。
+// 用于 onKBChanged 回调（避免循环引用 KnowledgeService）。
+func RebuildKBIndex(repo knowledgeRepo, kbID int64, outputDir string) {
+	ctx := context.Background()
+	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
+	if err != nil {
+		slog.Warn("INDEX.md 重建：查询文章失败", "kb_id", kbID, "error", err)
+		return
+	}
+
+	groups := make(map[string][]indexEntry)
+	for _, a := range articles {
+		var tagList []string
+		if len(a.Tags) > 0 {
+			_ = json.Unmarshal(a.Tags, &tagList)
+		}
+		entryType := a.ArticleType
+		if entryType == "" {
+			entryType = "guide"
+		}
+		groups[entryType] = append(groups[entryType], indexEntry{
+			title: a.Title,
+			tags:  tagList,
+			slug:  slugify(a.Title),
+		})
+	}
+
+	content := renderIndexMarkdown(groups)
+	outputPath := filepath.Join(outputDir, "INDEX.md")
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		slog.Warn("INDEX.md 重建：创建目录失败", "kb_id", kbID, "error", err)
+		return
+	}
+	tmpPath := outputPath + ".tmp"
+	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
+		slog.Warn("INDEX.md 重建：写入失败", "kb_id", kbID, "error", err)
+		return
+	}
+	if err := os.Rename(tmpPath, outputPath); err != nil {
+		slog.Warn("INDEX.md 重建：重命名失败", "kb_id", kbID, "error", err)
+		return
+	}
+	slog.Info("INDEX.md 重建完成", "kb_id", kbID, "articles", len(articles))
+}
+
 // RebuildIndex 重建指定 KB 的 INDEX.md 页目录。
 // 扫描已发布文章，按 frontmatter type 分组，按 title 排序，原子写入。
 func (b *IndexBuilder) RebuildIndex(ctx context.Context, kbID int64, outputPath string) error {
@@ -35,16 +82,19 @@ func (b *IndexBuilder) RebuildIndex(ctx context.Context, kbID int64, outputPath 
 		return fmt.Errorf("读取文章列表失败: %w", err)
 	}
 
-	// 按 type 分组（type 暂未持久化到 DB，归入"未分类"，待 frontmatter type 持久化后按类型分组）
+	// 按 article_type 分组
 		groups := make(map[string][]indexEntry)
 		for _, a := range resp.Articles {
-			entryType := "未分类"
-		groups[entryType] = append(groups[entryType], indexEntry{
-			title: a.Title,
-			tags:  a.Tags,
-			slug:  slugify(a.Title),
-		})
-	}
+			entryType := a.ArticleType
+			if entryType == "" {
+				entryType = "guide"
+			}
+			groups[entryType] = append(groups[entryType], indexEntry{
+				title: a.Title,
+				tags:  a.Tags, // ListArticles 返回的 ArticleResponse.Tags 是 []string
+				slug:  slugify(a.Title),
+			})
+		}
 
 	// 渲染 INDEX.md
 	content := renderIndexMarkdown(groups)
@@ -73,15 +123,12 @@ func renderIndexMarkdown(groups map[string][]indexEntry) string {
 	sb.WriteString("<!-- 自动生成，禁止手编 -->\n")
 	sb.WriteString("# 知识库目录\n\n")
 
-	// type 分组顺序：未分类放最后
+	// 按 type 名称排序（字母序）
 	typeNames := make([]string, 0, len(groups))
 	for name := range groups {
-		if name != "未分类" {
-			typeNames = append(typeNames, name)
-		}
+		typeNames = append(typeNames, name)
 	}
 	sort.Strings(typeNames)
-	typeNames = append(typeNames, "未分类")
 
 	for _, typeName := range typeNames {
 		entries, ok := groups[typeName]

@@ -40,6 +40,7 @@ type ArticleResponse struct {
 	StatusText      string    `json:"status_text"`
 	SourceType      int16     `json:"source_type"`
 	SourceTypeText  string    `json:"source_type_text"`
+	ArticleType     string    `json:"article_type"`
 	FileType        string    `json:"file_type"`
 	MinioPath       string    `json:"minio_path"`
 	WordCount       int       `json:"word_count"`

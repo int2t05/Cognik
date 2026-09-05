@@ -402,13 +402,14 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 	}
 	article := &model.KnowledgeArticle{
 		KBID:       req.KBID,
-		Title:      req.Title,
-		Content:    req.Content,
-		SourceType: sourceType,
-		Tags:       marshalTags(req.Tags),
-		Status:     1,
-		CreatedBy:  userID,
-		WordCount:  len([]rune(req.Content)),
+		Title:       req.Title,
+		Content:     req.Content,
+		SourceType:  sourceType,
+		ArticleType: "guide",
+		Tags:        marshalTags(req.Tags),
+		Status:      1,
+		CreatedBy:   userID,
+		WordCount:   len([]rune(req.Content)),
 	}
 	if err := s.repo.CreateArticle(ctx, article); err != nil {
 		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "创建文章失败: " + err.Error()}
@@ -684,6 +685,7 @@ func toArticleResponse(a model.KnowledgeArticle, userNames map[int64]string) res
 		Title: a.Title, Content: a.Content, Tags: unmarshalTags(a.Tags),
 		Status: a.Status, StatusText: model.ArticleStatusText(a.Status),
 		SourceType: a.SourceType, SourceTypeText: model.ArticleSourceTypeText(a.SourceType),
+		ArticleType: a.ArticleType,
 		FileType: a.FileType, MinioPath: a.MinioPath,
 		WordCount: a.WordCount, ChunkCount: a.ChunkCount,
 		ProcessStatus: a.ProcessStatus, ProcessError: a.ProcessError,
