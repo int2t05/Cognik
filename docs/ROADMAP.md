@@ -20,7 +20,8 @@ flowchart LR
     V13 --> V14["V1.4<br/>深度搜索"]
     V14 --> V15["V1.5<br/>记忆系统框架"]
     V15 --> V16["V1.6<br/>检索优化 + 自迭代闭环"]
-    V16 --> V2["V2.0<br/>智能化增强"]
+    V16 --> V17["V1.7<br/>i18n + 文档审计"]
+    V17 --> V2["V2.0<br/>智能化增强"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
@@ -32,7 +33,8 @@ flowchart LR
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；六级上下文压缩；ExtractMemories + AutoDream 复盘；异步处理管道 | ✅ 已交付 |
 | V1.6 | 检索优化 + 自迭代闭环 | Agent 写回即发布（CreateAndPublish/UpdateAndRepublish）；语义去重（>0.92 拒绝）；frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
-| V2.0 | 智能化增强 | 多模态文档解析 / 知识图谱 / Agent 能力增强 / 企业特性 / 性能可观测 | 📋 规划中 |
+| V1.7 | i18n + 文档审计 | 前端中英文切换（next-intl cookie 策略）；GitHub 展示面英文优先（README/CONTRIBUTING/Issue 模板双语）；孤儿清理；FLOW/API 按业务域分块；文档纯净审计 | ✅ 已交付 |
+| V2.0 | 智能化增强 | 多模态文档解析 / 知识图谱 / Agent 能力增强 / 企业特性 / 性能可观测 / 知识写入治理 | 📋 规划中 |
 
 ---
 
@@ -435,7 +437,19 @@ V1.6 已交付 Agentic RAG 自迭代闭环（Agent ReAct 循环 + 自建 ChatMod
 - BM25 增量更新——当前全量重建，大 KB 下性能瓶颈
 - 检索缓存——query embedding LRU 缓存（已实现单文本缓存，扩展到 batch）
 - Prometheus 指标——RAG 管道 + Agent 循环 + embedding 延迟监控
+- 告警规则——检索失败率、embedding 超时、Agent 循环异常阈值告警（接 Alertmanager / Webhook）
+- 成本预算控制——单会话 token 上限 + rerank 按置信度阈值触发而非每轮强制；budget gate 在 ReAct 循环内截断
+- 容量基线——k6 压测标定并发上限、RAG p95 延迟、单节点承载 KB 规模，产出 `docs/CAPACITY.md`
 - 分布式部署——Processor 跨节点水平扩展（当前单节点 goroutine pool）
+
+### 10.6 知识写入治理
+
+> 回应 v1.7 评价短板：Agent 自动写入知识库默认无审核，AI 幻觉可直接污染 KB。
+
+- 写入审核门控——`auto_publish` 配置开关；关闭时 `CreateAndPublish` 落 `draft/` 走人工审核（复用现有 draft→published 状态机），不直发进 RAG
+- 写入前质量门——置信度阈值 + 引用完整性校验（无 sources/citation 的产出拒绝直发），低质量内容降级为草稿
+- Agent 决策轨迹审计——记录每轮 ReAct 的 tool_call/tool_result/检索召回，支持按 thread 回放，异常决策聚合
+- 速率限制——单会话/单时间窗 create 上限，防灌入低质量文章（TODO 已标 🟢，治理章节统一收口）
 
 ---
 
@@ -467,6 +481,9 @@ gantt
 
     section V1.6 已交付
     检索优化+自迭代闭环   :done, v16, 2026-08-29, 7d
+
+    section V1.7 已交付
+    i18n+文档审计        :done, v17, 2026-09-05, 1d
 
     section V2.0 规划中
     多模态文档解析       :v20a, 2026-10-01, 30d
