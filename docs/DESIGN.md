@@ -451,24 +451,24 @@ flowchart LR
 
 ## 10. 与现有架构映射
 
-| 组件                                                       | 角色                     | 状态   |
-| ---------------------------------------------------------- | ------------------------ | ------ |
-| Agent ReAct Loop（`loop.go`）                            | 核心决策循环             | 已有   |
-| kb 工具（6 action）                                        | 知识库 CRUD + 检索       | 已有   |
-| memory 工具（5 action）                                    | 记忆 CRUD + 检索         | 已有   |
-| web_search / web_fetch                                     | 网络搜索 + 页面提取      | 已有   |
-| deep_research SubAgent                                     | 深度调研委托             | 已有   |
-| Compressor（六级）                                         | 上下文压缩               | 已有   |
-| IngestQueue + Processor                                    | 异步索引管道（非 Agent） | 已有   |
-| SessionExtractor                                           | 会话结束提取             | 已有   |
-| INDEX.md 重建                                              | 页目录自动重建           | 已有   |
-| Markdown-aware chunker                                     | 结构正确性分块           | 已有   |
-| VectorRetriever + BM25 + RRF + rerank                      | 纯检索原语               | 已有   |
-| ExtractMemories（每轮 forked agent）                       | 经验提取                 | 已有   |
-| AutoDream（跨会话复盘 forked agent）                       | 记忆合并去重             | 已有   |
-| Sandwich Reorder + BM25 Enriched + RRF k                   | P0 检索优化              | 已有   |
-| Contextual Retrieval + Token Chunking + Metadata + Packing | P1 检索优化              | 已有   |
-| content-hash 去重 + 压缩节点                               | 搜索闭环去重             | 已有   |
+| 组件                                                       | 角色                     | 状态 |
+| ---------------------------------------------------------- | ------------------------ | ---- |
+| Agent ReAct Loop（`loop.go`）                            | 核心决策循环             | 已有 |
+| kb 工具（6 action）                                        | 知识库 CRUD + 检索       | 已有 |
+| memory 工具（5 action）                                    | 记忆 CRUD + 检索         | 已有 |
+| web_search / web_fetch                                     | 网络搜索 + 页面提取      | 已有 |
+| deep_research SubAgent                                     | 深度调研委托             | 已有 |
+| Compressor（六级）                                         | 上下文压缩               | 已有 |
+| IngestQueue + Processor                                    | 异步索引管道（非 Agent） | 已有 |
+| SessionExtractor                                           | 会话结束提取             | 已有 |
+| INDEX.md 重建                                              | 页目录自动重建           | 已有 |
+| Markdown-aware chunker                                     | 结构正确性分块           | 已有 |
+| VectorRetriever + BM25 + RRF + rerank                      | 纯检索原语               | 已有 |
+| ExtractMemories（每轮 forked agent）                       | 经验提取                 | 已有 |
+| AutoDream（跨会话复盘 forked agent）                       | 记忆合并去重             | 已有 |
+| Sandwich Reorder + BM25 Enriched + RRF k                   | P0 检索优化              | 已有 |
+| Contextual Retrieval + Token Chunking + Metadata + Packing | P1 检索优化              | 已有 |
+| content-hash 去重 + 压缩节点                               | 搜索闭环去重             | 已有 |
 
 ---
 

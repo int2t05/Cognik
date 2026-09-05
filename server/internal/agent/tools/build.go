@@ -5,6 +5,8 @@
 package tools
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"cognos/internal/agent"
@@ -24,7 +26,11 @@ type Deps struct {
 
 // Build 装配所有工具，返回 []agent.Tool。
 // web/kb/memory 工具条件注册（依赖注入时才加入），OS 工具始终注册。
-func Build(deps Deps) []agent.Tool {
+// 装配前确保沙箱工作目录存在（不存在则递归创建），避免首次 bash/list_dir 因目录缺失而失败。
+func Build(deps Deps) ([]agent.Tool, error) {
+	if err := os.MkdirAll(deps.WorkDir, 0755); err != nil {
+		return nil, fmt.Errorf("创建 Agent 沙箱工作目录失败 %q: %w", deps.WorkDir, err)
+	}
 	tools := []agent.Tool{
 		NewBashTool(deps.WorkDir, deps.Timeout, deps.MaxBytes),
 		NewReadFileTool(deps.WorkDir, deps.MaxBytes),
@@ -47,5 +53,5 @@ func Build(deps Deps) []agent.Tool {
 	if deps.MemoryStore != nil {
 		tools = append(tools, NewMemoryTool(deps.MemoryStore))
 	}
-	return tools
+	return tools, nil
 }

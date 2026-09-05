@@ -350,7 +350,11 @@ func wireApp() (*app, error) {
 		MemoryStore: memoryStore,
 	}
 	registry := agent.NewToolRegistry()
-	for _, t := range agenttools.Build(toolDeps) {
+	builtTools, err := agenttools.Build(toolDeps)
+	if err != nil {
+		return nil, fmt.Errorf("Agent 工具装配失败: %w", err)
+	}
+	for _, t := range builtTools {
 		registry.Register(t)
 	}
 	// SubAgent 注册（research 只读 / coder 读写 / deep_research 网络调研）。
@@ -361,13 +365,30 @@ func wireApp() (*app, error) {
 	}
 	registry.Register(agent.NewDispatchSubagentTool(subAgents, agentModelFactory, registry, 3))
 
-	// 系统提示词：静态原则 + 动态 KB 索引 + 全局记忆。
+	// 系统提示词：静态原则 + 动态 KB 摘要 + 全局记忆。
 	kbs, _ := knowledgeService.ListKBs(context.Background(), "")
-	var kbContexts []agent.KBContext
+	var kbSummaries []agent.KBSummary
 	for _, kb := range kbs {
-		kbContexts = append(kbContexts, agent.LoadKBContext(kb.ID, kb.Name, cfg.Storage.Local.BaseDir, bucket))
+		// 查文章数 + 类型分布
+		resp, _ := knowledgeService.ListArticles(context.Background(), kb.ID, 4, 0, "", "", 1, 10000)
+		typeCounts := make(map[string]int)
+		if resp != nil {
+			for _, a := range resp.Articles {
+				t := a.ArticleType
+				if t == "" {
+					t = "guide"
+				}
+				typeCounts[t]++
+			}
+		}
+		kbSummaries = append(kbSummaries, agent.KBSummary{
+			ID:           kb.ID,
+			Name:         kb.Name,
+			ArticleCount: resp.Total,
+			TypeCounts:   typeCounts,
+		})
 	}
-	systemPrompt := agent.BuildSystemPrompt(kbContexts, cfg.Memory.StorageRoot)
+	systemPrompt := agent.BuildSystemPrompt(kbSummaries, cfg.Memory.StorageRoot)
 	taskRegistry := agent.NewTaskRegistry()
 
 	// 上下文压缩器：五级管线（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。

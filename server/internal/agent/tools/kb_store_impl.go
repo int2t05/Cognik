@@ -6,8 +6,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -92,27 +90,10 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 	return entries, nil
 }
 
-// Get 读完整文章。优先按 slug 从文件读取（文件即真相），slug 为空则按 article_id 从 DB 读。
-func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, slug string, articleID int64) (*KBArticle, error) {
-	// slug 优先：直接读 published/{slug}.md 文件
-	if slug != "" {
-		filePath := filepath.Join(s.storageRoot, s.bucket, fmt.Sprintf("kb-%d/published/%s.md", kbID, slug))
-		data, err := os.ReadFile(filePath)
-		if err == nil {
-			content := string(data)
-			// 解析 frontmatter
-			fm, body := parseFrontmatterSimple(content)
-			return &KBArticle{
-				Frontmatter: fm,
-				Content:    body,
-				FilePath:   filePath,
-			}, nil
-		}
-		// 文件读失败，降级到 DB
-	}
-	// article_id fallback：从 DB 读
+// Get 按 article_id 读完整文章 + frontmatter。
+func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, articleID int64) (*KBArticle, error) {
 	if articleID <= 0 {
-		return nil, fmt.Errorf("slug or article_id is required for action=get")
+		return nil, fmt.Errorf("article_id is required")
 	}
 	detail, err := s.articleSvc.GetArticleDetail(ctx, articleID)
 	if err != nil {
@@ -128,6 +109,29 @@ func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, slug string, articleI
 		Content:  detail.Content,
 		FilePath: detail.MinioPath,
 	}, nil
+}
+
+// GetBatch 批量读文章摘要（每篇截断到 maxChars）。
+func (s *kbStoreImpl) GetBatch(ctx context.Context, kbID int64, articleIDs []int64, maxChars int) ([]KBArticle, error) {
+	if len(articleIDs) == 0 {
+		return nil, fmt.Errorf("article_ids is required")
+	}
+	if maxChars <= 0 {
+		maxChars = 500
+	}
+	articles := make([]KBArticle, 0, len(articleIDs))
+	for _, aid := range articleIDs {
+		a, err := s.Get(ctx, kbID, aid)
+		if err != nil {
+			continue // 单篇失败跳过
+		}
+		content := []rune(a.Content)
+		if len(content) > maxChars {
+			a.Content = string(content[:maxChars]) + "\n..."
+		}
+		articles = append(articles, *a)
+	}
+	return articles, nil
 }
 
 // parseFrontmatterSimple 解析 frontmatter（map[string]string + 正文）。
@@ -150,14 +154,18 @@ func parseFrontmatterSimple(content string) (map[string]any, string) {
 	return fm, strings.TrimSpace(parts[1])
 }
 
-// List 列出文章标题列表（按 type/tags 过滤）。
-func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter) ([]KBListItem, error) {
-	// status=4 (Published)，sourceType=0 (全部)，processStatus="" (全部)
-	resp, err := s.articleSvc.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 1000)
-	if err != nil {
-		return nil, err
+// List 分页列出文章标题（按 type/tags 过滤，返回列表 + 总数）。
+func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter, limit, offset int) (items []KBListItem, total int, err error) {
+	if limit <= 0 {
+		limit = 20
 	}
-	items := make([]KBListItem, 0, len(resp.Articles))
+	// 先查总数（status=4 Published）
+	resp, err := s.articleSvc.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
+	if err != nil {
+		return nil, 0, err
+	}
+	// 过滤后取分页
+	filtered := make([]KBListItem, 0)
 	for _, a := range resp.Articles {
 		articleType := a.ArticleType
 		if articleType == "" {
@@ -169,14 +177,25 @@ func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter) ([]
 		if len(filter.Tags) > 0 && !hasAnyTag(a.Tags, filter.Tags) {
 			continue
 		}
-		items = append(items, KBListItem{
-			Slug:  slugify(a.Title),
-			Title: a.Title,
-			Type:  articleType,
-			Tags:  a.Tags,
+		filtered = append(filtered, KBListItem{
+			ArticleID: a.ID,
+			Slug:      slugify(a.Title),
+			Title:     a.Title,
+			Type:      articleType,
+			Tags:      a.Tags,
 		})
 	}
-	return items, nil
+	total = len(filtered)
+	// 分页截取
+	if offset >= total {
+		return []KBListItem{}, total, nil
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	items = filtered[offset:end]
+	return items, total, nil
 }
 
 // Create 新建 Draft 文章（委托 KnowledgeService.CreateArticle，生成完整 frontmatter）。
