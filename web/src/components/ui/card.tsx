@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// Card — 10px radius + hairline border + canvas bg
+// Card — 10px 圆角 + 细边框 + 画布背景
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

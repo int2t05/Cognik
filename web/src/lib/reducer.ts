@@ -12,18 +12,6 @@ export function createSessionStream(): SessionStream {
     messages: [],
     status: 'idle',
     lastSeq: -1,
-    thinking: false,
-  }
-}
-
-/** 创建 assistant 占位消息（streaming 中）。 */
-function createAssistantPlaceholder(): ChatMessage {
-  return {
-    id: `a-${Date.now()}`,
-    role: 'assistant',
-    parts: [],
-    status: 'streaming',
-    createdAt: new Date().toISOString(),
   }
 }
 
@@ -83,7 +71,6 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
 
   switch (evt.type) {
     case 'reasoning':
-      s.thinking = true
       return updateLastAssistant(s, (msg) => {
         // 合并到最后一个 reasoning part（若最后是 reasoning 则追加，否则新建）
         const parts = [...msg.parts]
@@ -162,14 +149,11 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       })
 
     case 'done': {
-      s.thinking = false
       s.status = 'idle'
       const answer = evt.metadata?.answer
       return updateLastAssistant(s, (msg) => ({
         ...msg,
         status: 'done',
-        dbId: evt.metadata?.assistant_message_id,
-        // 若 metadata 有 answer 且 parts 无 text，用 answer 填充
         parts: answer && !msg.parts.some((p) => p.type === 'text')
           ? [...msg.parts, { type: 'text', content: answer }]
           : msg.parts,
@@ -177,7 +161,6 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
     }
 
     case 'error':
-      s.thinking = false
       s.status = 'error'
       return updateLastAssistant(s, (msg) => ({
         ...msg,
@@ -197,7 +180,6 @@ export function parseThreadMessage(tm: {
   parts: string
   status: string
   error: string
-  created_at: string
 }): ChatMessage {
   let parts: MessagePart[] = []
   try {
@@ -219,7 +201,5 @@ export function parseThreadMessage(tm: {
     parts,
     status: statusMap[tm.status] ?? (tm.status as ChatMessage['status']),
     error: tm.error || undefined,
-    createdAt: tm.created_at,
-    dbId: tm.id,
   }
 }

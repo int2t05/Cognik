@@ -23,7 +23,7 @@ function daysAgoStr(days: number): string { return new Date(Date.now() - days * 
 
 /** 7 张统计卡片 + 2 张反馈卡片 = 9 张 */
 const STAT_CARDS = [
-  { key: 'today_tickets', label: '今日申告', icon: <Ticket size={16} />, trendKey: 'ticket' as const },
+  { key: 'today_tickets', label: '今日工单', icon: <Ticket size={16} />, trendKey: 'ticket' as const },
   { key: 'pending_tickets', label: '待处理', icon: <AlertTriangle size={16} /> },
   { key: 'processing_tickets', label: '处理中', icon: <Clock size={16} /> },
   { key: 'resolved_tickets', label: '已解决', icon: <CheckCircle size={16} /> },
@@ -52,33 +52,9 @@ export default function DashboardPage() {
     () => getTrends(dateRange.start, dateRange.end),
   );
 
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   const handleRefresh = () => { refreshStats(); refreshTrends(); toast.info('已刷新'); };
-
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    setAnalysisError(null);
-    try {
-      const res = await (async () => { throw new Error("已移除"); })();
-      // LLM 返回的 analysis 字段是 JSON 字符串，需要解析
-      const raw = (res as unknown as Record<string, string>).analysis;
-      if (!raw) throw new Error('分析结果为空');
-      // LLM 可能返回带 markdown code block 的 JSON，清理后解析
-      const jsonStr = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(jsonStr) as any;
-      setAnalysis(parsed);
-      toast.success('分析完成');
-    } catch (err: unknown) {
-      setAnalysisError(errorMessage(err, '分析失败'));
-      toast.error(errorMessage(err, '分析失败，请重试'));
-    } finally {
-      setAnalyzing(false);
-    }
-  };
 
   const points = trends?.data_points;
 
@@ -90,7 +66,7 @@ export default function DashboardPage() {
   const cardValue = (key: string): string | number => {
     if (!stats) return '—';
     if (key === 'avg_confidence') return formatPercent(stats.avg_confidence ?? null);
-    const v = (stats as unknown as Record<string, number>)[key];
+    const v = stats[key as keyof typeof stats];
     return v ?? '—';
   };
 
@@ -148,84 +124,6 @@ export default function DashboardPage() {
         >
           {exporting ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}导出 CSV
         </IconButton>
-      </div>
-
-      {/* 知识健康度分析 */}
-      <div className="mt-6 bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-title font-semibold text-[var(--color-ink)]">知识健康度分析</h2>
-          <IconButton
-            size="sm"
-            onClick={handleAnalyze}
-            disabled={analyzing}
-            aria-label="分析反馈数据"
-          >
-            {analyzing ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />分析中...</span> : 'AI 分析反馈'}
-          </IconButton>
-        </div>
-        <p className="text-caption text-[var(--color-text-muted-48)] mb-4">
-          基于近 30 天的用户反馈，由 LLM 自动分析知识库的优势与待补充领域。
-          需要先有用户反馈数据才能分析。
-        </p>
-
-        {analysisError && (
-          <div className="flex items-center gap-2 text-caption text-[var(--color-error)] bg-[var(--color-error)]/5 rounded-[var(--radius-md)] p-3">
-            <AlertTriangle size={14} />
-            {analysisError}
-          </div>
-        )}
-
-        {analysis && (
-          <div className="space-y-4">
-            {/* 总结 */}
-            <div className="bg-[var(--color-accent)]/5 rounded-[var(--radius-md)] p-4">
-              <p className="text-body text-[var(--color-ink)]">{analysis.summary}</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* 优势领域 */}
-              <div className="bg-[var(--color-success)]/5 rounded-[var(--radius-md)] p-4">
-                <span className="text-caption font-semibold text-[var(--color-ink)]">回答较好的领域</span>
-                <ul className="space-y-1 mt-2">
-                  {analysis.strong_areas?.map((area: string, i: number) => (
-                    <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" />
-                      {area}
-                    </li>
-                  )) || <li className="text-caption text-[var(--color-text-muted-48)]">暂无数据</li>}
-                </ul>
-              </div>
-
-              {/* 待补充领域 */}
-              <div className="bg-[var(--color-error)]/5 rounded-[var(--radius-md)] p-4">
-                <span className="text-caption font-semibold text-[var(--color-ink)]">需要补充的领域</span>
-                <ul className="space-y-1 mt-2">
-                  {analysis.weak_areas?.map((area: string, i: number) => (
-                    <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-error)] shrink-0" />
-                      {area}
-                    </li>
-                  )) || <li className="text-caption text-[var(--color-text-muted-48)]">暂无数据</li>}
-                </ul>
-              </div>
-            </div>
-
-            {/* 改进建议 */}
-            {analysis.suggestions && analysis.suggestions.length > 0 && (
-              <div className="bg-[var(--color-parchment)] rounded-[var(--radius-md)] p-4">
-                <span className="text-caption font-semibold text-[var(--color-ink)]">改进建议</span>
-                <ul className="space-y-1.5 mt-2">
-                  {analysis.suggestions.map((s: string, i: number) => (
-                    <li key={i} className="text-caption text-[var(--color-text-muted-80)] flex items-start gap-2">
-                      <span className="text-[var(--color-accent)] font-semibold shrink-0">{i + 1}.</span>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

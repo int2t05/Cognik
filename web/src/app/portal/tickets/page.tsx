@@ -9,22 +9,13 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
-import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
+import { TableFilterHeader } from '@/components/shared/TableFilterHeader';
+import { TICKET_STATUS_OPTIONS } from '@/lib/ticket-options';
 import { formatDate } from '@/lib/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { TicketPlus, FileText } from 'lucide-react';
-
-const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
-  { value: -1, label: '全部' },
-  { value: 1, label: '待处理' },
-  { value: 2, label: '处理中' },
-  { value: 3, label: '需补充' },
-  { value: 4, label: '已解决' },
-  { value: 5, label: '已关闭' },
-  { value: 6, label: '已撤回' },
-];
 
 export default function TicketQueryPage() {
   const [page, setPage] = useState(1);
@@ -41,8 +32,8 @@ export default function TicketQueryPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
-        <PageTitle className="mb-0">我的申告</PageTitle>
-        <IconButton label="提交申告" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></IconButton>
+        <PageTitle className="mb-0">我的工单</PageTitle>
+        <IconButton label="提交工单" onClick={() => router.push('/portal/tickets/new')}><TicketPlus /></IconButton>
       </div>
 
       <div className="mb-4">
@@ -54,9 +45,9 @@ export default function TicketQueryPage() {
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title={hasFilters ? '未找到匹配的申告' : '暂无申告记录'}
-          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '提交您的第一个运维申告'}
-          action={hasFilters ? undefined : { label: '提交申告', icon: <TicketPlus size={16} />, onClick: () => router.push('/portal/tickets/new') }}
+          title={hasFilters ? '未找到匹配的工单' : '暂无工单记录'}
+          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '提交您的第一个工单'}
+          action={hasFilters ? undefined : { label: '提交工单', icon: <TicketPlus size={16} />, onClick: () => router.push('/portal/tickets/new') }}
           onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (

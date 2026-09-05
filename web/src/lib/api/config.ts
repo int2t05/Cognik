@@ -13,8 +13,7 @@ export async function getAllConfigs(keys: string[]): Promise<{ key: string; valu
 }
 
 export interface ComputeThresholdsResult {
-  p30: number; p70: number; sample_count: number;
-  date_from?: string; date_to?: string; warning?: string;
+  p30: number; p70: number; sample_count: number; warning?: string;
 }
 
 /** 从历史数据计算置信度分位数阈值。 */

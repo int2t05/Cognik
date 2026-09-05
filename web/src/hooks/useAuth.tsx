@@ -19,17 +19,15 @@ interface User {
   real_name: string;
   phone: string;
   email: string;
-  first_login: boolean;
 }
 
-interface Menu {
+export interface Menu {
   id: number;
   name: string;
   path: string;
   icon: string;
   parent_id: number;
   sort_order: number;
-  type: string;
   children?: Menu[];
 }
 

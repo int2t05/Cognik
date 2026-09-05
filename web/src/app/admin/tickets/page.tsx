@@ -14,20 +14,11 @@ import { FileText, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
-import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
+import { TableFilterHeader } from '@/components/shared/TableFilterHeader';
+import { TICKET_STATUS_OPTIONS } from '@/lib/ticket-options';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { IconButton } from '@/components/ui/icon-button';
-
-const TICKET_STATUS_OPTIONS: TableFilterOption<number>[] = [
-  { value: -1, label: '全部' },
-  { value: 1, label: '待处理' },
-  { value: 2, label: '处理中' },
-  { value: 3, label: '需补充' },
-  { value: 4, label: '已解决' },
-  { value: 5, label: '已关闭' },
-  { value: 6, label: '已撤回' },
-];
 
 export default function AdminTicketListPage() {
   const [page, setPage] = useState(1);
@@ -72,7 +63,7 @@ export default function AdminTicketListPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>申告管理</PageTitle>
+        <PageTitle>工单管理</PageTitle>
       </div>
       {error && <InlineError />}
       <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
@@ -83,8 +74,8 @@ export default function AdminTicketListPage() {
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title={hasFilters ? '未找到匹配的申告' : '暂无申告'}
-          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '系统中暂无申告记录'}
+          title={hasFilters ? '未找到匹配的工单' : '暂无工单'}
+          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '系统中暂无工单记录'}
           onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (
@@ -105,12 +96,12 @@ export default function AdminTicketListPage() {
         </>
       )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
-        title="批量删除申告"
-        message={`确定要删除 ${batch.selectedIds.size} 条申告吗？此操作不可撤销。`}
+        title="批量删除工单"
+        message={`确定要删除 ${batch.selectedIds.size} 条工单吗？此操作不可撤销。`}
         onConfirm={async () => { await batch.handleBatchDelete(); toast.success('已删除'); }} loading={batch.deleting} danger confirmLabel="删除" />
       <ConfirmDialog open={batchCloseConfirm} onOpenChange={setBatchCloseConfirm}
-        title="批量关闭申告"
-        message={`确定要关闭 ${batch.selectedIds.size} 条申告吗？已解决/已关闭的申告将被跳过。`}
+        title="批量关闭工单"
+        message={`确定要关闭 ${batch.selectedIds.size} 条工单吗？已解决/已关闭的工单将被跳过。`}
         onConfirm={handleBatchClose} loading={batchClosing} confirmLabel="关闭" />
     </div>
   );

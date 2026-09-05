@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, type Menu } from '@/hooks/useAuth';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { hasAdminAccess } from '@/lib/roles';
 import { AppShell, type NavSection, type NavItem } from '@/components/layout/AppShell';
@@ -28,8 +28,6 @@ const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/system-config': '/admin/config/system',
 };
 
-interface MenuItem { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; }
-
 function unreadBadge(count: number) {
   return count > 0 ? (
     <span className="bg-[var(--color-error)] text-[var(--color-canvas)] min-w-[16px] h-4 px-1 text-fine leading-none rounded-full flex items-center justify-center">
@@ -46,19 +44,19 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   // 后端菜单 → 管理分区 NavItem（去重 + 路由别名 + 子菜单）
   const adminItems: NavItem[] = useMemo(() => {
     if (!isAdmin || !menus.length) return [];
-    const top = menus.filter((m: MenuItem) => !m.parent_id);
-    const childMenus = menus.filter((m: MenuItem) => m.parent_id);
+    const top = menus.filter((m: Menu) => !m.parent_id);
+    const childMenus = menus.filter((m: Menu) => m.parent_id);
     const seen = new Set<string>();
-    return top.filter((m: MenuItem) => {
+    return top.filter((m: Menu) => {
       const r = FRONTEND_ROUTES[m.path] || m.path;
       if (seen.has(r)) return false;
       seen.add(r);
       return true;
-    }).map((m: MenuItem) => ({
+    }).map((m: Menu) => ({
       label: m.name,
       path: FRONTEND_ROUTES[m.path] || m.path,
       icon: ICON_MAP[m.icon] || <Settings size={18} />,
-      children: childMenus.filter((c: MenuItem) => c.parent_id === m.id).map((c: MenuItem) => ({
+      children: childMenus.filter((c: Menu) => c.parent_id === m.id).map((c: Menu) => ({
         label: c.name,
         path: FRONTEND_ROUTES[c.path] || c.path,
         icon: ICON_MAP[c.icon] || <Settings size={18} />,
@@ -70,8 +68,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     {
       items: [
         { path: '/portal/chat', label: '智能问答', icon: <Bot size={18} /> },
-        { path: '/portal/tickets/new', label: '提交申告', icon: <TicketPlus size={18} /> },
-        { path: '/portal/tickets', label: '我的申告', icon: <ListTodo size={18} /> },
+        { path: '/portal/tickets/new', label: '提交工单', icon: <TicketPlus size={18} /> },
+        { path: '/portal/tickets', label: '我的工单', icon: <ListTodo size={18} /> },
         { path: '/portal/messages', label: '消息', icon: <MessageSquare size={18} />, badge: unreadBadge(unreadCount) },
       ],
     },

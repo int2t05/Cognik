@@ -21,7 +21,6 @@ export function Mermaid({ chart }: { chart: string }) {
     return () => { obs.disconnect(); window.removeEventListener('theme-change', bump); };
   }, []);
 
-  // 渲染：chart 或主题变化时执行
   useEffect(() => {
     let cancelled = false;
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';

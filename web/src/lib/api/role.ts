@@ -1,8 +1,8 @@
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 
-export interface Role { id: number; name: string; description: string; permissions: string[]; menu_ids?: number[]; created_at: string; updated_at: string; }
-export interface Menu { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; type: string; }
+export interface Role { id: number; name: string; description: string; permissions: string[]; menu_ids?: number[]; }
+export interface Menu { id: number; name: string; path: string; icon: string; parent_id: number; sort_order: number; }
 
 export function getRoleList(page: number) { return apiFetchPage<Role>(`/api/v1/admin/roles?page=${page}&page_size=${PAGE_SIZE}`); }
 export function createRole(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/admin/roles', { method: 'POST', body: JSON.stringify(data) }); }

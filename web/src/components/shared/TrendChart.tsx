@@ -1,4 +1,4 @@
-/** TrendChart — 申告/问答趋势柱状图，支持日期范围选择。自定义范围上限 30 天。 */
+/** TrendChart — 工单/问答趋势柱状图，支持日期范围选择。自定义范围上限 30 天。 */
 'use client';
 
 import { useState } from 'react';
@@ -126,12 +126,12 @@ function Chart({ data }: { data: TrendPoint[] }) {
 
   return (
     <>
-      <div role="img" aria-label="申告和问答趋势图" className="flex items-end gap-1 h-[200px] pb-1 min-w-0 overflow-hidden">
+      <div role="img" aria-label="工单和问答趋势图" className="flex items-end gap-1 h-[200px] pb-1 min-w-0 overflow-hidden">
         {data.map((d) => (
           <div key={d.date} className="flex-1 flex flex-col items-center justify-end min-w-0">
             <div className="flex gap-0.5 items-end h-[160px] w-full justify-center">
               <div
-                title={`${d.date} 申告: ${d.ticket_count}`}
+                title={`${d.date} 工单: ${d.ticket_count}`}
                 className="flex-1 max-w-3 rounded-t-sm bg-[var(--color-accent)] min-h-0 transition-[height] duration-300"
                 style={{ height: `${(d.ticket_count / maxVal) * 160}px`, minHeight: d.ticket_count > 0 ? 4 : 0 }}
               />
@@ -156,7 +156,7 @@ function Chart({ data }: { data: TrendPoint[] }) {
       </div>
       <div className="flex gap-[var(--spacing-md-plus)] justify-center mt-3 text-fine text-[var(--color-text-muted-48)]">
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-[var(--color-accent)]" /> 申告
+          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-[var(--color-accent)]" /> 工单
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm inline-block bg-[var(--color-success)] opacity-70" /> 问答

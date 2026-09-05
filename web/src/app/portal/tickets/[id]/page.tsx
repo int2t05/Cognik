@@ -19,7 +19,7 @@ import { errorMessage } from '@/lib/api/error';
 import { useState } from 'react';
 import { ChevronLeft, Send, Pencil, Save, Loader2, Ban } from 'lucide-react';
 
-/** 申告状态：需补充信息 */
+/** 工单状态：需补充信息 */
 const TICKET_STATUS_NEED_SUPPLEMENT = 3;
 
 /** 可编辑的状态：待处理(1)、处理中(2) */
@@ -74,7 +74,7 @@ export default function TicketDetailPage() {
         contact_phone: editPhone,
         contact_email: editEmail,
       });
-      toast.success('申告已更新');
+      toast.success('工单已更新');
       setEditing(false);
       mutate();
     } catch (err: unknown) {
@@ -89,7 +89,7 @@ export default function TicketDetailPage() {
     setSending(true);
     try {
       await withdrawTicket(Number(id));
-      toast.success('已撤回申告');
+      toast.success('已撤回工单');
       setWithdrawConfirm(false);
       mutate();
     } catch (err: unknown) {
@@ -114,8 +114,8 @@ export default function TicketDetailPage() {
 
       {editing ? (
         <Card className="mb-5">
-          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">编辑申告</h2>
-          <Field label="标题"><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="申告标题" /></Field>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">编辑工单</h2>
+          <Field label="标题"><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="工单标题" /></Field>
           <Field label="详细描述"><Textarea rows={5} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="详细描述" /></Field>
           <Field label="标签（逗号分隔）"><Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="如：网络,邮箱,VPN" /></Field>
           <Field label="联系电话"><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" /></Field>
@@ -169,8 +169,8 @@ export default function TicketDetailPage() {
       <ConfirmDialog
         open={withdrawConfirm}
         onOpenChange={setWithdrawConfirm}
-        title="撤回申告"
-        message="撤回后申告将不再处理，此操作不可撤销。确定要撤回吗？"
+        title="撤回工单"
+        message="撤回后工单将不再处理，此操作不可撤销。确定要撤回吗？"
         confirmLabel="撤回"
         onConfirm={handleWithdraw}
         loading={sending}

@@ -1,7 +1,7 @@
 import { apiFetch } from './client';
 import { getAuthToken, getBaseUrl } from './client';
 
-export interface Stats { today_tickets: number; pending_tickets: number; processing_tickets: number; resolved_tickets: number; today_chats: number; avg_confidence: number | null; knowledge_count: number; }
+export interface Stats { today_tickets: number; pending_tickets: number; processing_tickets: number; resolved_tickets: number; today_chats: number; avg_confidence: number | null; knowledge_count: number; helpful_feedback: number; unhelpful_feedback: number; }
 export interface TrendPoint { date: string; ticket_count: number; chat_count: number; }
 export interface Trends { data_points: TrendPoint[]; }
 

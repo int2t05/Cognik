@@ -9,13 +9,9 @@ export interface UploadProgress {
   percent: number; // 0-100
 }
 
-/** 单个文档上传响应项（与后端 DocumentUploadItem 对齐）。 */
+/** 单个文档上传响应项。 */
 export interface DocumentUploadItem {
   article_id: number;
-  file_name: string;
-  file_size: number;
-  file_type: string;
-  process_status: string;
   success: boolean;
   error_msg: string;
 }
@@ -28,7 +24,6 @@ export interface DocumentUploadResult {
 /** 通用文件上传响应（文章内嵌图片/附件）。 */
 export interface AssetUploadResult {
   url: string;
-  filename: string;
 }
 
 interface XHRUploadOptions {

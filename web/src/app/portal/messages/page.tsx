@@ -27,12 +27,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 const MESSAGE_TYPE_OPTIONS: TableFilterOption<string>[] = [
   { value: '', label: '全部' },
-  { value: 'ticket_supplement', label: '补充信息' },
-  { value: 'ticket_resolved', label: '已解决' },
-  { value: 'ticket_closed', label: '已关闭' },
-  { value: 'ticket_overdue', label: '处理超时' },
-  { value: 'knowledge_approved', label: '审核通过' },
-  { value: 'knowledge_rejected', label: '审核驳回' },
+  ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
 ];
 
 /** 有有效跳转目标的消息类型 */

@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { UploadCloud, X, FileText, CheckCircle, XCircle, Loader2, Pencil, RotateCw, Trash2 } from 'lucide-react';
 
-/** 扩展名 → 类型归一化（与后端 detectFileType 对齐，jpeg 归一为 jpg）。 */
+/** 扩展名 → 类型归一化（jpeg 归一为 jpg）。 */
 const EXT_TO_TYPE: Record<string, string> = {
   '.pdf': 'pdf', '.docx': 'docx', '.xlsx': 'xlsx', '.pptx': 'pptx',
   '.md': 'md', '.markdown': 'md', '.txt': 'txt',

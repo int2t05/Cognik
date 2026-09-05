@@ -1,6 +1,6 @@
 import { apiFetch, apiFetchPage } from './client';
 
-export interface AuditLogItem { id: number; operator_id: number; operator_name: string; action: string; target_type: string; target_id: number; detail: string; ip_address: string; created_at: string; }
+export interface AuditLogItem { id: number; operator_name: string; action: string; target_type: string; ip_address: string; created_at: string; }
 
 export function getAuditLogs(params: Record<string, string | number>) {
   const qs = new URLSearchParams();

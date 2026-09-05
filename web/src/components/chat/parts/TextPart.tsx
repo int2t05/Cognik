@@ -16,7 +16,6 @@ function TextPartBase({ part, streaming }: Props) {
   if (!part.content) {
     return streaming ? <span className="animate-pulse">▋</span> : null;
   }
-  // 流式中纯文本（避免每 token 重解析 markdown），完成后 markdown 渲染
   if (streaming) return <span className="whitespace-pre-wrap">{part.content}</span>;
   return (
     <Suspense fallback={<span className="whitespace-pre-wrap">{part.content}</span>}>

@@ -29,12 +29,13 @@ type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
 function actionLabel(action: string) {
   const labels: Record<string, string> = {
-    create: '创建申告',
+    create: '创建工单',
     start: '开始处理',
     request_info: '要求补充',
     supplement: '补充信息',
     resolve: '标记解决',
-    close: '关闭申告',
+    close: '关闭工单',
+    withdraw: '撤回工单',
   };
   return labels[action] || action;
 }
@@ -120,7 +121,7 @@ export default function AdminTicketDetailPage() {
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
-          <IconButton variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭申告</IconButton>
+          <IconButton variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭工单</IconButton>
         )}
       </div>
 

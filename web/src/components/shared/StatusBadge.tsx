@@ -51,14 +51,9 @@ const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> =
 interface StatusBadgeProps {
   type: 'ticket' | 'user' | 'article' | 'process';
   status: number | string;
-  /** 后端返回的 status_text，优先使用 */
-  statusText?: string;
 }
 
-export function StatusBadge({ type, status, statusText }: StatusBadgeProps) {
-  // 后端返回 status_text 时优先使用
-  if (statusText) return <Badge variant="neutral">{statusText}</Badge>;
-
+export function StatusBadge({ type, status }: StatusBadgeProps) {
   let entry: { label: string; variant: BadgeVariant } | undefined;
   switch (type) {
     case 'ticket': entry = TICKET_STATUS[status as number]; break;
