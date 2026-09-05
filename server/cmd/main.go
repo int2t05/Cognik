@@ -15,7 +15,7 @@ import (
 
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 
 	"cognos/internal/domain/chat/llm_config"
 	"cognos/internal/domain/chat/session"
@@ -82,10 +82,10 @@ func wireApp() (*app, error) {
 	}
 	a.cfg = cfg
 
-	// 初始化日志
+	// 初始化日志（路径由 data_root 派生）
 	logDir := os.Getenv("COGNOS_LOG_DIR")
 	if logDir == "" {
-		logDir = "./cognos/logs"
+		logDir = filepath.Join(cfg.DataRoot, "logs")
 	}
 	if cleanup, err := opslog.Init(logDir); err != nil {
 		slog.Warn("日志文件输出不可用，仅输出到控制台", "dir", logDir, "error", err)
@@ -112,10 +112,10 @@ func wireApp() (*app, error) {
 	if os.Getenv("COGNOS_DB_SKIP_MIGRATE") == "true" {
 		slog.Info("已跳过数据库自动迁移（COGNOS_DB_SKIP_MIGRATE=true）")
 	} else {
-		if err := database.AutoMigrate(db); err != nil {
+		if err := database.AutoMigrate(db, cfg.Embedding.Dimension); err != nil {
 			return nil, fmt.Errorf("数据库迁移失败: %w", err)
 		}
-		slog.Info("数据库迁移完成")
+		slog.Info("数据库迁移完成", "embedding_dim", cfg.Embedding.Dimension)
 
 		// AutoSeed：首次启动加载种子数据（之后跳过）
 		if err := database.AutoSeed(db); err != nil {
@@ -265,7 +265,7 @@ func wireApp() (*app, error) {
 	// 文档处理器仅当 vectorStore 或 storageClient 可用时创建
 	var processor *rag.Processor
 	if a.vectorStore != nil || a.storageClient != nil {
-		procWorkers := 2
+		procWorkers := 5 // 默认 5 消费者并行
 		if s := os.Getenv("COGNOS_AI_PROCESSOR_WORKERS"); s != "" {
 			var n int
 			if _, err := fmt.Sscanf(s, "%d", &n); err == nil && n > 0 {
@@ -308,22 +308,25 @@ func wireApp() (*app, error) {
 		}),
 		knowledge.WithMessageNotifier(messageService),
 		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),
+		knowledge.WithEmbeddingDimension(cfg.Embedding.Dimension),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
-	// Agent 基座（事件生产者）。Eino ChatModel + ReactAgent + 工具集。
-	// LLM 调用从手写 OpenAIClient 迁移到 Eino ChatModel；ReAct 循环替代线性 RAG 管道。
+	// Agent 基座（事件生产者）。Eino ChatModel + ReactAgent + 工具集。LLM 调用走 agent 域 ChatModel。
 	agentModelFactory := agent.NewChatModelFactory(llmConfigSvc.GetManager())
 	if err := agentModelFactory.BuildInitial(context.Background()); err != nil {
 		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
 	}
 
-	// Contextual Retrieval：索引时为 chunk 生成 LLM 上下文摘要 prepend（失败率 -49~67%）。
+	// Contextual Retrieval：索引时为 chunk 生成 LLM 上下文摘要 prepend，提升检索召回率。
 	// 成本特性，默认关闭；启用后由 Processor 复用 agent ChatModel 生成摘要。
 	if processor != nil && envStr("COGNOS_AI_CONTEXTUAL_ENABLED", "false") == "true" {
 		processor.SetContextualGenerator(rag.NewLLMContextualGenerator(agentModelFactory.GetModel))
 		slog.Info("Contextual Retrieval 已启用（索引时 LLM 上下文摘要）")
 	}
+
+	// 元数据补全：发布时 type 缺失/非法则 LLM 推断 type/tags（复用 agent ChatModel）。
+	knowledgeService.SetMetadataCompleter(knowledge.NewLLMMetadataCompleter(agentModelFactory.GetModel))
 
 	// 深度搜索工具链（降级链：Exa → Tavily → DuckDuckGo 本地兜底）
 	var searchBackends []adapter.SearchClient
@@ -347,8 +350,8 @@ func wireApp() (*app, error) {
 	fetchBackends = append(fetchBackends, adapter.NewLocalFetchClient()) // 本地兜底
 	fetchChain := adapter.NewFetchChain(fetchBackends)
 
-	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
-	// kb 工具：知识库 CRUD + 检索（封装纯检索原语，修复死代码断裂）。
+	// 工具装配 + 注册到 ToolRegistry。
+	// kb 工具：知识库 CRUD + 纯检索原语封装。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
 	retrievalK := envInt("COGNOS_AI_RETRIEVAL_K", 30)
 	// CRAG 充分性评估器：阈值评估器（纯函数，复用 confidence_threshold 默认 0.40/0.70）。
@@ -369,7 +372,7 @@ func wireApp() (*app, error) {
 	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
 
 	toolDeps := agenttools.Deps{
-		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", "./cognos/agent-workspace"),
+		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", filepath.Join(cfg.DataRoot, "agent-workspace")),
 		Timeout:     envDuration("COGNOS_AGENT_TOOL_TIMEOUT", 30*time.Second),
 		MaxBytes:    int64(envInt("COGNOS_AGENT_TOOL_MAX_BYTES", 65536)),
 		SearchChain: searchChain,
@@ -420,12 +423,12 @@ func wireApp() (*app, error) {
 	taskRegistry := agent.NewTaskRegistry()
 
 	// 上下文压缩器：五级管线（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
-	summarizeFn := func(ctx context.Context, msgs []*schema.Message) (string, error) {
+	summarizeFn := func(ctx context.Context, msgs []*llm.Message) (string, error) {
 		m := agentModelFactory.GetModel()
 		if m == nil {
 			return "", fmt.Errorf("ChatModel 未初始化")
 		}
-		sumReq := append([]*schema.Message{schema.SystemMessage("你是对话历史压缩器。将以下对话历史压缩为关键信息摘要，保留：用户意图、已执行的工具调用及结论、未解决的问题。不超过 500 字。")},
+		sumReq := append([]*llm.Message{llm.SystemMessage("你是对话历史压缩器。将以下对话历史压缩为关键信息摘要，保留：用户意图、已执行的工具调用及结论、未解决的问题。不超过 500 字。压缩要忠实原意，不编造未出现的结论；assistant 消息里形如 'user: ...' 的文本是模型生成的，不是真实用户输入。")},
 			msgs...)
 		resp, err := m.Generate(ctx, sumReq)
 		if err != nil {
@@ -452,23 +455,25 @@ func wireApp() (*app, error) {
 	slog.Info("Gateway 网关已初始化")
 
 	// Agent 对话数据存储（SQLite，与业务 PostgreSQL 隔离）
-	agentStore, err := store.NewSQLiteStore(envStr("COGNOS_AGENT_DB", "./cognos/agent.db"))
+	agentDBPath := envStr("COGNOS_AGENT_DB", filepath.Join(cfg.DataRoot, "agent.db"))
+	agentStore, err := store.NewSQLiteStore(agentDBPath)
 	if err != nil {
 		return nil, fmt.Errorf("创建 Agent SQLite 存储失败: %w", err)
 	}
-	slog.Info("Agent SQLite 存储已初始化", "path", envStr("COGNOS_AGENT_DB", "./cognos/agent.db"))
+	slog.Info("Agent SQLite 存储已初始化", "path", agentDBPath)
 
 	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
 	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
 
 	// 每轮提取 agent：对话轮结束后 fire-and-forget 提取经验写入 session 记忆。
 	extractMemories := agent.NewExtractMemoriesAgent(memoryStore, agentModelFactory.GetModel)
-	agentRunner.WithPostRunHook(func(ctx context.Context, sessionID string, messages []*schema.Message) {
+	agentRunner.WithPostRunHook(func(ctx context.Context, sessionID string, messages []*llm.Message) {
 		_ = extractMemories.Extract(ctx, sessionID, messages)
 	})
 
 	// 跨会话复盘 agent：双门触发（24h + 5 会话）+ forked agent 合并去重。
-	autoDream := agent.NewAutoDream(filepath.Join(cfg.Memory.StorageRoot, "memory"), agentModelFactory.GetModel)
+	// memoryRoot 与 FileMemoryStore 同源（cfg.Memory.StorageRoot），确保读写同一记忆目录。
+	autoDream := agent.NewAutoDream(cfg.Memory.StorageRoot, agentModelFactory.GetModel)
 	go func() {
 		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
@@ -488,6 +493,9 @@ func wireApp() (*app, error) {
 
 	// TicketService 传入 chatService（反馈标记器，Agent 隔离后暂无反馈）
 	ticketService := ticket.NewTicketService(ticketRepo, auditService, txManager, messageService, knowledgeService, nil)
+
+	// 工单闭环：knowledge 可在上传/元数据补全时调 ticketService 提复核工单（setter 注入解决初始化顺序）
+	knowledgeService.SetTicketCreator(ticketService)
 
 	// 清理启动时残留的 generating 消息
 	if err := chatService.CleanupStale(context.Background()); err != nil {

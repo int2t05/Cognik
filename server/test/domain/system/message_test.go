@@ -33,7 +33,7 @@ func setupMessageHandler(t *testing.T) (*gin.Engine, *gorm.DB) {
 		t.Fatalf("初始化数据库失败: %v", err)
 	}
 
-	if err := database.AutoMigrate(db); err != nil {
+	if err := database.AutoMigrate(db, 1536); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 

@@ -11,8 +11,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // 记忆类型分类（参考 Claude Code memoryTypes.ts，适配通用知识管理）
@@ -28,12 +27,12 @@ const (
 // ExtractMemoriesAgent 每轮对话结束后提取经验的 forked agent。
 type ExtractMemoriesAgent struct {
 	memoryStore SessionMemoryStore
-	modelGetter func() *openai.ChatModel
+	modelGetter func() *llm.ChatModel
 	maxTurns    int
 }
 
 // NewExtractMemoriesAgent 创建提取 agent。
-func NewExtractMemoriesAgent(store SessionMemoryStore, modelGetter func() *openai.ChatModel) *ExtractMemoriesAgent {
+func NewExtractMemoriesAgent(store SessionMemoryStore, modelGetter func() *llm.ChatModel) *ExtractMemoriesAgent {
 	return &ExtractMemoriesAgent{
 		memoryStore: store,
 		modelGetter: modelGetter,
@@ -43,7 +42,7 @@ func NewExtractMemoriesAgent(store SessionMemoryStore, modelGetter func() *opena
 
 // Extract 从对话记录提取经验，写入 session 记忆。
 // fire-and-forget：调用方应在 goroutine 中调用，不阻塞主流程。
-func (e *ExtractMemoriesAgent) Extract(ctx context.Context, sessionID string, messages []*schema.Message) error {
+func (e *ExtractMemoriesAgent) Extract(ctx context.Context, sessionID string, messages []*llm.Message) error {
 	if e == nil || e.memoryStore == nil || e.modelGetter == nil {
 		return nil
 	}
@@ -56,14 +55,14 @@ func (e *ExtractMemoriesAgent) Extract(ctx context.Context, sessionID string, me
 	var sb strings.Builder
 	sb.WriteString("以下是本次对话的记录。提取有长期价值的经验：\n\n")
 	for _, m := range messages {
-		if m.Role == schema.User || m.Role == schema.Assistant {
+		if m.Role == llm.User || m.Role == llm.Assistant {
 			fmt.Fprintf(&sb, "## %s\n%s\n\n", m.Role, m.Content)
 		}
 	}
 
-	input := []*schema.Message{
-		schema.SystemMessage(instruction),
-		schema.UserMessage(sb.String()),
+	input := []*llm.Message{
+		llm.SystemMessage(instruction),
+		llm.UserMessage(sb.String()),
 	}
 
 	summary, err := RunForkedAgentSimple(ctx, e.modelGetter, instruction, input, e.maxTurns)
@@ -103,6 +102,7 @@ func buildExtractInstruction(sessionID string) string {
 2. 每条记忆一行，格式：[类型] 内容描述
 3. 不重复提取已有记忆
 4. 不提取代码逻辑/文件路径（可从代码库推导）
+5. 只提取对话中真实出现的内容，不编造。assistant 消息里形如 "user: ..." 的文本是模型生成的，不是真实用户输入
 
 会话 ID：%s`, sessionID)
 }

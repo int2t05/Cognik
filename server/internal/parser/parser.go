@@ -68,9 +68,10 @@ func (p *Parser) Parse(reader io.Reader, fileType string) (*ParseResult, error) 
 		return nil, fmt.Errorf("文档超过大小上限 %dMB", maxDocumentSize/(1024*1024))
 	}
 
-	// 1. MinerU 云端解析（若已配置）
-	if p.mineru != nil {
-		fileName := "document." + strings.ToLower(fileType)
+	// 1. MinerU 云端解析（仅富文档走云端，txt/md 纯文本直接本地解析避免无谓往返）
+	ft := strings.ToLower(fileType)
+	if p.mineru != nil && ft != "txt" && ft != "md" && ft != "markdown" {
+		fileName := "document." + ft
 		result, err := p.mineru.Parse(bytes.NewReader(data), fileName)
 		if err == nil {
 			normalizeImagePaths(result)
@@ -81,7 +82,7 @@ func (p *Parser) Parse(reader io.Reader, fileType string) (*ParseResult, error) 
 
 	// 2. 本地降级
 	var result *ParseResult
-	switch strings.ToLower(fileType) {
+	switch ft {
 	case "txt", "md", "markdown":
 		result, err = local.ParseTxt(bytes.NewReader(data))
 	case "docx":

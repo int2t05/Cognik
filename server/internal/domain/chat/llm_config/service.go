@@ -9,8 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 	"cognos/internal/domain/system/audit"
 	"cognos/internal/shared/model"
 	"cognos/internal/shared/pkg/errcode"
@@ -122,7 +121,7 @@ func (s *LLMConfigService) CreateConfig(ctx context.Context, name, llmBaseURL, l
 		maxTokens = 8192
 	}
 	if vectorDimension <= 0 {
-		vectorDimension = 1024
+		vectorDimension = 1536
 	}
 
 	cfg := &model.LlmConfig{
@@ -273,19 +272,16 @@ func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[st
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	// 临时构造 Eino ChatModel 测试连接
-	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+	// 临时构造 ChatModel 测试连接
+	chatModel := llm.NewChatModel(llm.ChatModelConfig{
 		APIKey:  cfg.LLMAPIKey,
 		Model:   cfg.LLMModel,
 		BaseURL: cfg.LLMBaseURL,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("配置的 BaseURL 无效: %w", err)
-	}
 
 	start := time.Now()
-	resp, err := chatModel.Generate(ctx, []*schema.Message{
-		schema.UserMessage("ping"),
+	resp, err := chatModel.Generate(ctx, []*llm.Message{
+		llm.UserMessage("ping"),
 	})
 	latency := time.Since(start).Milliseconds()
 	if err != nil {

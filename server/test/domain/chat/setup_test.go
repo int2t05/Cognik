@@ -34,7 +34,7 @@ func init() {
 	if err != nil {
 		panic("chat 测试 DB 初始化失败: " + err.Error())
 	}
-	if err := database.AutoMigrate(db); err != nil {
+	if err := database.AutoMigrate(db, 1536); err != nil {
 		panic("chat 测试 AutoMigrate 失败: " + err.Error())
 	}
 	chatSvcDB = db

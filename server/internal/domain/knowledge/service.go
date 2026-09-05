@@ -113,6 +113,12 @@ type knowledgeMsgNotifier interface {
 	NotifyKnowledgeReviewed(ctx context.Context, articleID int64, articleTitle string, userID int64, approved bool, comment string) error
 }
 
+// ticketCreator 工单创建接口（TicketService 的子集）。
+// 用于上传文件 / LLM 元数据补全时自动提工单标记人工复核。nil-safe。
+type ticketCreator interface {
+	CreateSystemTicket(ctx context.Context, req request.SystemTicketRequest) error
+}
+
 // KnowledgeService 知识库管理服务。
 //
 // 所有依赖使用接口类型，消费者接口模式，依赖最小化。
@@ -130,6 +136,9 @@ type KnowledgeService struct {
 	defaultEmbeddingModel string           // 当前默认嵌入模型名
 	msgSvc                knowledgeMsgNotifier
 	maxUploadSize         int64            // 上传大小上限(字节)，由 config 注入
+	metaCompleter         MetadataCompleter // 发布时 LLM 补全 type/tags（nil 时降级 guide）
+	embeddingDimension    int              // 向量维度，创建 KB 时写入（由 config 注入）
+	ticketCreator         ticketCreator    // 上传/补全时提工单（nil-safe，setter 注入）
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -195,6 +204,21 @@ func WithMaxUploadSize(bytes int64) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.maxUploadSize = bytes }
 }
 
+// SetMetadataCompleter 注入元数据补全器（setter 注入，晚于构造，复用 agent ChatModel）。
+func (s *KnowledgeService) SetMetadataCompleter(mc MetadataCompleter) {
+	s.metaCompleter = mc
+}
+
+// WithEmbeddingDimension 注入向量维度（创建 KB 时写入）。
+func WithEmbeddingDimension(dim int) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.embeddingDimension = dim }
+}
+
+// SetTicketCreator 注入工单创建器（setter 注入，解决初始化顺序：ticketService 晚于 knowledgeService 创建）。
+func (s *KnowledgeService) SetTicketCreator(tc ticketCreator) {
+	s.ticketCreator = tc
+}
+
 // SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
 func (s *KnowledgeService) SetDefaultEmbeddingConfig(model string) {
 	s.defaultEmbeddingModel = model
@@ -202,7 +226,7 @@ func (s *KnowledgeService) SetDefaultEmbeddingConfig(model string) {
 
 // validateKBEmbeddingConfig 校验当前默认嵌入模型与 KB 绑定的模型是否一致。
 //
-// 维度固定 1024——所有 embedding 模型必须输出 1024 维向量。
+// 维度由 embeddingDimension 决定——所有 embedding 模型必须输出同维度向量。
 // 不一致则拒绝操作，提示用户切换回原模型或更新 KB 配置。
 func (s *KnowledgeService) validateKBEmbeddingConfig(kb *model.KnowledgeBase) error {
 	if kb.EmbeddingModel != "" && kb.EmbeddingModel != s.defaultEmbeddingModel {
@@ -246,7 +270,7 @@ func (s *KnowledgeService) CreateKB(ctx context.Context, req request.CreateKBReq
 	if slug == "" {
 		slug = fmt.Sprintf("kb-%d", time.Now().UnixNano())
 	}
-	// 绑定当前默认嵌入模型名。向量维度固定 1024。
+	// 绑定当前默认嵌入模型名。向量维度由 embeddingDimension 决定。
 	embModel := req.EmbeddingModel
 	if embModel == "" {
 		embModel = s.defaultEmbeddingModel
@@ -256,7 +280,7 @@ func (s *KnowledgeService) CreateKB(ctx context.Context, req request.CreateKBReq
 		Description:      req.Description,
 		RAGWorkspaceSlug: slug,
 		EmbeddingModel:   embModel,
-		VectorDimension:  1024,
+		VectorDimension:  s.embeddingDimension,
 		LlmConfigID:      req.LlmConfigID,
 		CreatedBy:        userID,
 	}
@@ -405,7 +429,7 @@ func (s *KnowledgeService) CreateArticle(ctx context.Context, req request.Create
 		Title:       req.Title,
 		Content:     req.Content,
 		SourceType:  sourceType,
-		ArticleType: "guide",
+		ArticleType: req.ArticleType, // 留空则发布时 LLM 补全
 		Tags:        marshalTags(req.Tags),
 		Status:      1,
 		CreatedBy:   userID,
@@ -453,6 +477,9 @@ func (s *KnowledgeService) UpdateArticle(ctx context.Context, id int64, req requ
 	article.Content = req.Content
 	article.WordCount = len([]rune(req.Content))
 	article.Tags = marshalTags(req.Tags)
+	if req.ArticleType != "" {
+		article.ArticleType = req.ArticleType
+	}
 	article.Status = newStatus
 	if err := s.repo.UpdateArticle(ctx, article); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
@@ -558,9 +585,53 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return errcode.AppError{Code: errcode.ErrParam, Message: "文章内容为空，无法发布"}
 	}
 
+	// 元数据补全：解析 frontmatter → 若 type 缺失/非法则 LLM 推断 → 提工单标记人工复核
+	meta, body := ParseArticleMeta(content)
+	effectiveType := meta.Type
+	if effectiveType == "" {
+		effectiveType = article.ArticleType // DB 列
+	}
+	needsCompletion := !IsAllowedType(effectiveType) // type 缺失/非法 → 需 LLM 补全 + 提工单
+	if needsCompletion && s.metaCompleter != nil {
+		completed, err := s.metaCompleter.Complete(ctx, article.Title, body, meta)
+		if err == nil {
+			meta = completed
+			effectiveType = completed.Type
+		}
+	}
+	// 最终兜底：LLM 失败或未注入 → 降级 guide
+	if !IsAllowedType(effectiveType) {
+		effectiveType = "guide"
+	}
+	meta.Type = effectiveType
+	if article.ArticleType != effectiveType {
+		article.ArticleType = effectiveType
+	}
+	if len(meta.Tags) > 0 && len(article.Tags) == 0 {
+		// LLM 补全的 tags 回写 DB（仅当 DB 无 tags 时）
+		article.Tags = marshalTags(meta.Tags)
+	}
+
+	// LLM 补全触发时 → 提工单标记人工复核（nil-safe，失败仅记日志）
+	if needsCompletion && s.ticketCreator != nil {
+		articleID := article.ID
+		kbID := article.KBID
+		resolvedType := effectiveType
+		if err := s.ticketCreator.CreateSystemTicket(ctx, request.SystemTicketRequest{
+			Title:            fmt.Sprintf("【元数据复核】%s", article.Title),
+			Description:      fmt.Sprintf("文章 (ID=%d) 发布时 type 缺失，LLM 推断为 %s。请人工复核分类准确性。", articleID, resolvedType),
+			Tags:             []string{"元数据复核", "auto"},
+			RelatedArticleID: &articleID,
+			RelatedKBID:      &kbID,
+			Reason:           "metadata_auto_completed",
+		}); err != nil {
+			slog.Warn("元数据复核工单创建失败", "article_id", articleID, "error", err)
+		}
+	}
+
 	// 发布前文件位于 draft 目录；嵌入成功后由处理器回调移到 published 目录。
 	draftFile := articleFile(article.KBID, slugify(article.Title), false)
-	formatted := formatArticleText(article.Title, content)
+	formatted := RenderArticleFile(meta, article.Title, body)
 
 	// 同步上传正文到存储（扁平 .md 文件），确保处理器取任务时文件已就位
 	if s.storage != nil {
@@ -816,6 +887,21 @@ func (s *KnowledgeService) UploadDocuments(ctx context.Context, kbID int64, user
 	}
 	s.uploadArticleFilesAsync(minioBucket, fileKey, formatArticleText(title, text), result.Images)
 
+	// 文件上传后提工单标记人工复核（解析内容可能残缺，需人工确认）
+	if s.ticketCreator != nil {
+		articleID := article.ID
+		if err := s.ticketCreator.CreateSystemTicket(ctx, request.SystemTicketRequest{
+			Title:            fmt.Sprintf("【文档复核】%s", title),
+			Description:      fmt.Sprintf("上传文件 %s 已解析为草稿文章 (ID=%d)，请人工复核内容完整性。", filename, articleID),
+			Tags:             []string{"文档复核", "auto"},
+			RelatedArticleID: &articleID,
+			RelatedKBID:      &kbID,
+			Reason:           "uploaded_document",
+		}); err != nil {
+			slog.Warn("文档复核工单创建失败", "article_id", articleID, "error", err)
+		}
+	}
+
 	return article, nil
 }
 
@@ -1065,7 +1151,7 @@ func (s *KnowledgeService) uploadArticleFilesAsync(bucket, fileKey, content stri
 	}
 	go func() {
 		bg := context.Background()
-		// fileKey 形如 kb-{kbID}/{draft|published}/article-{id}.md，拆出 dir 与 filename
+		// fileKey 形如 kb-{kbID}/{draft|published}/{slug}.md，拆出 dir 与 filename
 		dir, filename := pathutil.SplitFileKey(fileKey)
 		if err := s.storage.UploadFile(bg, bucket, dir, filename, strings.NewReader(content), int64(len(content)), "text/markdown"); err != nil {
 			slog.Warn("异步上传文章失败", "bucket", bucket, "fileKey", fileKey, "error", err)

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // SessionExtractor 会话结束提取器——从会话记忆提取长期价值内容到全局记忆。
@@ -58,15 +58,15 @@ func (e *SessionExtractor) Extract(ctx context.Context, threadID int64) error {
 	// 2. 构造摘要请求消息
 	var sb strings.Builder
 	sb.WriteString("以下是一次会话中记录的记忆条目。提取有长期价值的内容（关键决策、问题解法、经验总结），")
-	sb.WriteString("忽略仅与当前会话相关的临时信息。每条提取的记忆用一行描述。\n\n")
+	sb.WriteString("忽略仅与当前会话相关的临时信息。只基于下方条目提取，不编造未记录的内容。每条提取的记忆用一行描述。\n\n")
 	for _, e := range entries {
 		fmt.Fprintf(&sb, "## %s\n%s\n\n", e.Key, e.Content)
 	}
 
 	// 3. LLM 提取
-	msgs := []*schema.Message{
-		schema.SystemMessage(sb.String()),
-		schema.UserMessage("提取有长期价值的记忆，每条一行。"),
+	msgs := []*llm.Message{
+		llm.SystemMessage(sb.String()),
+		llm.UserMessage("提取有长期价值的记忆，每条一行。"),
 	}
 	if e.summarize == nil {
 		return nil

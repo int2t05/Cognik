@@ -16,7 +16,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // WriteFileTool 文件写入工具（实现 agent.SyncTool 接口）。
@@ -31,23 +31,25 @@ func NewWriteFileTool(workDir string, maxBytes int64) *WriteFileTool {
 }
 
 // Info 返回工具元信息。
-func (w *WriteFileTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (w *WriteFileTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "write_file",
-		Desc: "Write content to a file in the working directory sandbox. mode=overwrite (default) replaces the file; mode=append adds to the end (creates if missing).",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Write content to a file in the working directory sandbox.
+- mode=overwrite (default) replaces the file; mode=append adds to the end (creates if missing).
+- Do NOT use for targeted edits — use edit_file (cheaper, safer for small changes).`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Relative path to the file within the working directory",
 				Required: true,
 			},
 			"content": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Content to write to the file",
 				Required: true,
 			},
 			"mode": {
-				Type: schema.String,
+				Type: llm.String,
 				Desc: "Write mode: overwrite (default) or append",
 				Enum: []string{"overwrite", "append"},
 			},

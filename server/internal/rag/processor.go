@@ -54,7 +54,6 @@ type Processor struct {
 	contextualGen ContextualGenerator // Contextual Retrieval（nil 时跳过）
 
 	taskCh   chan ProcessTask
-	poolSize int
 	wg       sync.WaitGroup
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -71,7 +70,7 @@ func (p *Processor) SetContextualGenerator(gen ContextualGenerator) {
 // NewProcessor 创建文档处理器实例。storage 为 nil 时降级到 Content 模式。
 func NewProcessor(parser *parser.Parser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
-		poolSize = 2
+		poolSize = 5 // 默认 5 消费者并行，COGNOS_AI_PROCESSOR_WORKERS 可覆盖
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &Processor{
@@ -81,7 +80,6 @@ func NewProcessor(parser *parser.Parser, chunker TextChunker, embedder TextEmbed
 		store:    store,
 		storage:  storage,
 		taskCh:   make(chan ProcessTask, 100),
-		poolSize: poolSize,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -238,26 +236,33 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 		return
 	}
 
+	// 1.5 剥离 frontmatter：仅对正文（# 标题 + body）分块，frontmatter 元数据不参与向量
+	chunkContent := StripFrontmatter(content)
+	if strings.TrimSpace(chunkContent) == "" {
+		// frontmatter 后无正文（异常情况），回退到原 content
+		chunkContent = content
+	}
+
 	// 2. 分块
 	if ctx.Err() != nil {
 		p.updateStatus(task, "failed", "任务已取消: "+ctx.Err().Error())
 		return
 	}
 	p.updateStatus(task, "chunking", "")
-	chunks := p.chunker.Split(content)
+	chunks := p.chunker.Split(chunkContent)
 	if len(chunks) == 0 {
 		p.updateStatus(task, "failed", "分块结果为空")
 		return
 	}
 
-	// Contextual Retrieval：为每个 chunk 生成 LLM 上下文摘要 prepend（失败率 -49~67%）
+	// Contextual Retrieval：为每个 chunk 生成 LLM 上下文摘要 prepend，提升检索召回率
 	if p.contextualGen != nil {
 		p.updateStatus(task, "contextual", "")
-		chunks = GenerateContextualPrefixes(ctx, p.contextualGen, content, chunks)
+		chunks = GenerateContextualPrefixes(ctx, p.contextualGen, chunkContent, chunks)
 	}
 
 	if task.OnMetrics != nil {
-		task.OnMetrics(articleID, len([]rune(content)), len(chunks))
+		task.OnMetrics(articleID, len([]rune(chunkContent)), len(chunks))
 	}
 
 	// 3. 增量比对：计算 hash → 分离需 embedding 的变更分块

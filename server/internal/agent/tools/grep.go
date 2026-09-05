@@ -19,7 +19,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // GrepTool 内容搜索工具。
@@ -34,26 +34,28 @@ func NewGrepTool(workDir string, maxBytes int64) *GrepTool {
 }
 
 // Info 返回工具元信息。
-func (g *GrepTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (g *GrepTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "grep",
-		Desc: "Search file contents recursively in the working directory sandbox. Returns matching lines with file path and line number. Supports regex.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Search file contents recursively in the working directory sandbox.
+- Returns matching lines with file path and line number. Supports regex.
+- Use to find content by text/pattern. Do NOT use to find files by name — use glob.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"pattern": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Search pattern (regex). Example: 'func \\w+\\(' or 'TODO'",
 				Required: true,
 			},
 			"path": {
-				Type: schema.String,
+				Type: llm.String,
 				Desc: "Relative directory to search in (default: working directory root).",
 			},
 			"include": {
-				Type: schema.String,
+				Type: llm.String,
 				Desc: "File glob to include, e.g. '*.go'. Default: all files.",
 			},
 			"ignore_case": {
-				Type: schema.Boolean,
+				Type: llm.Boolean,
 				Desc: "Case-insensitive match (default false).",
 			},
 		}),

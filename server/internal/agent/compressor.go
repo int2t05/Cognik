@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // 可压缩工具白名单——低价值工具结果可被 Microcompact 清理。
@@ -29,7 +29,7 @@ var compactableTools = map[string]bool{
 }
 
 // SummarizeFunc 摘要函数——将早期消息批量摘要为单段文本（autocompact 用）。
-type SummarizeFunc func(ctx context.Context, messages []*schema.Message) (string, error)
+type SummarizeFunc func(ctx context.Context, messages []*llm.Message) (string, error)
 
 // Compressor 五级上下文压缩器。
 type Compressor struct {
@@ -74,7 +74,7 @@ func NewCompressor(maxTokens int, opts ...CompressorOption) *Compressor {
 
 // Compress 对消息历史执行五级压缩，返回压缩后的消息。
 // 在 Loop 的 drainModelStream 调用前执行。
-func (c *Compressor) Compress(ctx context.Context, messages []*schema.Message) []*schema.Message {
+func (c *Compressor) Compress(ctx context.Context, messages []*llm.Message) []*llm.Message {
 	if len(messages) == 0 {
 		return messages
 	}
@@ -110,10 +110,10 @@ func (c *Compressor) Compress(ctx context.Context, messages []*schema.Message) [
 
 // toolResultBudget 单条 tool_result 内容超限时截断为占位（级别 1）。
 // 保留 ToolCallID 维持 API 契约，只替换内容。
-func (c *Compressor) toolResultBudget(messages []*schema.Message) []*schema.Message {
-	result := make([]*schema.Message, len(messages))
+func (c *Compressor) toolResultBudget(messages []*llm.Message) []*llm.Message {
+	result := make([]*llm.Message, len(messages))
 	for i, m := range messages {
-		if m.Role == schema.Tool && len(m.Content) > c.toolResultLimit {
+		if m.Role == llm.Tool && len(m.Content) > c.toolResultLimit {
 			truncated := *m
 			truncated.Content = m.Content[:c.toolResultLimit] + "\n...[tool result budget 截断]"
 			result[i] = &truncated
@@ -126,7 +126,7 @@ func (c *Compressor) toolResultBudget(messages []*schema.Message) []*schema.Mess
 
 // snip 消息级裁剪（级别 2）——token 超 50% 时丢弃最旧非系统消息。
 // 保留系统消息 + 最近窗口，中间最旧的消息直接移除（比 HeadAndTail 截断更激进）。
-func (c *Compressor) snip(messages []*schema.Message) []*schema.Message {
+func (c *Compressor) snip(messages []*llm.Message) []*llm.Message {
 	if len(messages) <= c.recentKeep+1 {
 		return messages
 	}
@@ -138,7 +138,7 @@ func (c *Compressor) snip(messages []*schema.Message) []*schema.Message {
 	// 系统消息边界
 	sysEnd := 0
 	for i, m := range messages {
-		if m.Role != schema.System {
+		if m.Role != llm.System {
 			break
 		}
 		sysEnd = i + 1
@@ -156,7 +156,7 @@ func (c *Compressor) snip(messages []*schema.Message) []*schema.Message {
 		return messages
 	}
 
-	result := make([]*schema.Message, 0, len(messages)-dropCount)
+	result := make([]*llm.Message, 0, len(messages)-dropCount)
 	result = append(result, messages[:sysEnd]...)
 	result = append(result, middle[dropCount:]...) // 丢弃最旧的 dropCount 条
 	result = append(result, messages[recentStart:]...)
@@ -166,7 +166,7 @@ func (c *Compressor) snip(messages []*schema.Message) []*schema.Message {
 // microcompact 按 tool_use ID 清理旧 tool_result（级别 3）。
 // 保留最近 recentKeep 条消息中的 tool_result 完整，更早的 tool_result 清空内容但保留 tool_use 记录。
 // 模型仍知道调过什么工具，只是看不到旧结果——参考 Claude Code microCompact 思想。
-func (c *Compressor) microcompact(messages []*schema.Message) []*schema.Message {
+func (c *Compressor) microcompact(messages []*llm.Message) []*llm.Message {
 	if len(messages) <= c.recentKeep+1 {
 		return messages
 	}
@@ -174,7 +174,7 @@ func (c *Compressor) microcompact(messages []*schema.Message) []*schema.Message 
 	// 系统消息边界
 	sysEnd := 0
 	for i, m := range messages {
-		if m.Role != schema.System {
+		if m.Role != llm.System {
 			break
 		}
 		sysEnd = i + 1
@@ -185,13 +185,13 @@ func (c *Compressor) microcompact(messages []*schema.Message) []*schema.Message 
 		return messages
 	}
 
-	result := make([]*schema.Message, len(messages))
+	result := make([]*llm.Message, len(messages))
 	copy(result, messages)
 
 	// 中间区段的 tool_result 清空内容（仅可压缩工具）
 	for i := sysEnd; i < recentStart; i++ {
 		m := result[i]
-		if m.Role == schema.Tool && isCompactableTool(m.ToolName) && len(m.Content) > 200 {
+		if m.Role == llm.Tool && isCompactableTool(m.ToolName) && len(m.Content) > 200 {
 			cleared := *m
 			cleared.Content = "[旧工具结果已清理]"
 			result[i] = &cleared
@@ -206,14 +206,14 @@ func isCompactableTool(toolName string) bool {
 }
 
 // headAndTail 保留系统消息 + 最近 recentKeep 条消息完整，中间 tool_result 截断（级别 3）。
-func (c *Compressor) headAndTail(messages []*schema.Message) []*schema.Message {
+func (c *Compressor) headAndTail(messages []*llm.Message) []*llm.Message {
 	if len(messages) <= c.recentKeep+1 {
 		return messages
 	}
 
 	sysEnd := 0
 	for i, m := range messages {
-		if m.Role != schema.System {
+		if m.Role != llm.System {
 			break
 		}
 		sysEnd = i + 1
@@ -224,10 +224,10 @@ func (c *Compressor) headAndTail(messages []*schema.Message) []*schema.Message {
 		return messages
 	}
 
-	result := make([]*schema.Message, 0, len(messages))
+	result := make([]*llm.Message, 0, len(messages))
 	result = append(result, messages[:sysEnd]...)
 	for _, m := range messages[sysEnd:recentStart] {
-		if m.Role == schema.Tool {
+		if m.Role == llm.Tool {
 			truncated := *m
 			if len(truncated.Content) > 200 {
 				truncated.Content = truncated.Content[:200] + "\n...[已压缩]"
@@ -242,11 +242,11 @@ func (c *Compressor) headAndTail(messages []*schema.Message) []*schema.Message {
 }
 
 // dedupToolResults 丢弃重复的 tool_result 内容（级别 4，content hash 比对，保留首次出现）。
-func (c *Compressor) dedupToolResults(messages []*schema.Message) []*schema.Message {
+func (c *Compressor) dedupToolResults(messages []*llm.Message) []*llm.Message {
 	seen := make(map[string]bool)
-	result := make([]*schema.Message, 0, len(messages))
+	result := make([]*llm.Message, 0, len(messages))
 	for _, m := range messages {
-		if m.Role != schema.Tool {
+		if m.Role != llm.Tool {
 			result = append(result, m)
 			continue
 		}
@@ -265,14 +265,14 @@ func (c *Compressor) dedupToolResults(messages []*schema.Message) []*schema.Mess
 
 // autocompact 将早期消息批量摘要为单条 system 消息（级别 5，有损）。
 // 熔断器：失败时递增计数，达到上限停止后续重试。
-func (c *Compressor) autocompact(ctx context.Context, messages []*schema.Message) []*schema.Message {
+func (c *Compressor) autocompact(ctx context.Context, messages []*llm.Message) []*llm.Message {
 	if c.summarize == nil || len(messages) <= c.recentKeep+2 {
 		return messages
 	}
 
 	sysEnd := 0
 	for i, m := range messages {
-		if m.Role != schema.System {
+		if m.Role != llm.System {
 			break
 		}
 		sysEnd = i + 1
@@ -293,20 +293,20 @@ func (c *Compressor) autocompact(ctx context.Context, messages []*schema.Message
 	// 成功则重置熔断器
 	c.compactFailCount = 0
 
-	result := make([]*schema.Message, 0, sysEnd+1+c.recentKeep)
+	result := make([]*llm.Message, 0, sysEnd+1+c.recentKeep)
 	result = append(result, messages[:sysEnd]...)
-	result = append(result, schema.SystemMessage(fmt.Sprintf("[对话历史摘要]\n%s", summary)))
+	result = append(result, llm.SystemMessage(fmt.Sprintf("[对话历史摘要]\n%s", summary)))
 	result = append(result, messages[recentStart:]...)
 	return result
 }
 
 // TokenRatio 估算当前 token 占用比例。导出供测试与监控用。
-func (c *Compressor) TokenRatio(messages []*schema.Message) float64 {
+func (c *Compressor) TokenRatio(messages []*llm.Message) float64 {
 	return c.tokenRatio(messages)
 }
 
 // tokenRatio 估算 token 占用比例（rune 近似）。
-func (c *Compressor) tokenRatio(messages []*schema.Message) float64 {
+func (c *Compressor) tokenRatio(messages []*llm.Message) float64 {
 	if c.maxTokens <= 0 {
 		return 0
 	}
@@ -318,7 +318,7 @@ func (c *Compressor) tokenRatio(messages []*schema.Message) float64 {
 }
 
 // estimateTokens 估算单条消息的 token 数（rune 近似：CJK 1 rune≈1 token，ASCII 4 char≈1 token）。
-func estimateTokens(m *schema.Message) int {
+func estimateTokens(m *llm.Message) int {
 	if m == nil {
 		return 0
 	}

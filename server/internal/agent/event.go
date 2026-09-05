@@ -1,6 +1,6 @@
 // Package agent 提供 Agent Loop 基座（事件生产者）。
 //
-// 自建 ReAct 循环：openai.ChatModel + 统一工具接口 + SSE 事件桥接。
+// 自建 ReAct 循环：llm.ChatModel + 统一工具接口 + SSE 事件桥接。
 // Agent 领域不直接写 SSE——它只产生 AgentEvent，由 chat/session 层适配为 StreamEvent
 // 并发布到 runtime.Gateway 网关（订阅渠道制，对齐 LangGraph Server / Mastra Durable）。
 //

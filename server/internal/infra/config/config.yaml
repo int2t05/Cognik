@@ -3,6 +3,10 @@
 # 本地开发使用默认值，Docker 环境通过环境变量覆盖。
 # 环境变量前缀：COGNOS_，例如 COGNOS_DATABASE_HOST 覆盖 database.host。
 
+# 数据根目录：storage/memory/logs/agent.db 均在此目录下。
+# server/ 运行时 .cognos = 项目根目录 .cognos/；COGNOS_DATA_ROOT 环境变量可覆盖。
+data_root: ".cognos"
+
 server:
   port: 8080
   mode: debug  # debug / release
@@ -29,7 +33,7 @@ jwt:
 storage:
   driver: local              # local | minio
   local:
-    base_dir: ./cognos/storage  # 数据根目录（所有文件存储在此）
+    base_dir: ""  # 空 → 由 data_root 派生（{data_root}/storage）
   minio:
     endpoint: localhost:9000  # Docker 内: minio:9000
     access_key: minioadmin
@@ -49,7 +53,7 @@ embedding:
   base_url: ""                             # 空则回退到 llm.base_url
   api_key: ""                               # 空则回退到 llm.api_key
   model: ""                                 # 必须通过环境变量或 LLM 配置指定
-  dimension: 1024                           # 向量维度
+  dimension: 1536                          # 向量维度（DashScope text-embedding-v2）
   timeout: 300s                             # Embedding 调用超时
 
 ai:
@@ -89,7 +93,7 @@ kb:
 
 # 记忆系统（文件式存储 + 上下文压缩）
 memory:
-  storage_root: "./cognos/memory"     # 记忆存储根目录
+  storage_root: ""  # 空 → 由 data_root 派生（{data_root}/memory）
   memory_max_lines: 200             # MEMORY.md 最大行数，超出合并旧条目
   compress_dedup: 0.70              # 去重清理触发阈值（token 占比）
   compress_compact: 0.85            # Autocompact 触发阈值（token 占比）

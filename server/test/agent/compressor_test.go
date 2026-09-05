@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 	"cognos/internal/agent"
 )
 
@@ -20,10 +20,10 @@ func newCompressor(maxTokens int, summarize agent.SummarizeFunc) *agent.Compress
 }
 
 // makeMessages 构造 N 条消息（1 条 system + N-1 条 user）。
-func makeMessages(n int) []*schema.Message {
-	msgs := []*schema.Message{schema.SystemMessage("你是助手")}
+func makeMessages(n int) []*llm.Message {
+	msgs := []*llm.Message{llm.SystemMessage("你是助手")}
 	for i := 1; i < n; i++ {
-		msgs = append(msgs, schema.UserMessage(strings.Repeat("内容", 10)))
+		msgs = append(msgs, llm.UserMessage(strings.Repeat("内容", 10)))
 	}
 	return msgs
 }
@@ -45,7 +45,7 @@ func TestCompressor_HeadAndTailLongMessages(t *testing.T) {
 	result := c.Compress(context.Background(), msgs)
 
 	// 系统消息应保留
-	if result[0].Role != schema.System {
+	if result[0].Role != llm.System {
 		t.Error("系统消息应保留在开头")
 	}
 	// 消息数不变（HeadAndTail 无损，只截断 tool_result 内容）
@@ -57,29 +57,29 @@ func TestCompressor_HeadAndTailLongMessages(t *testing.T) {
 func TestCompressor_HeadAndTailTruncatesToolResults(t *testing.T) {
 	c := newCompressor(100000, nil)
 	// 构造 15 条消息，中间含 tool_result
-	msgs := []*schema.Message{
-		schema.SystemMessage("系统提示"),
-		schema.UserMessage("用户问题1"),
-		schema.AssistantMessage("助手回答1", nil),
-		schema.ToolMessage("很长的工具结果"+strings.Repeat("x", 300), "tc-1"),
-		schema.UserMessage("用户问题2"),
-		schema.AssistantMessage("助手回答2", nil),
-		schema.ToolMessage("另一个长结果"+strings.Repeat("y", 300), "tc-2"),
-		schema.UserMessage("用户问题3"),
-		schema.AssistantMessage("助手回答3", nil),
-		schema.ToolMessage("第三个工具结果"+strings.Repeat("z", 300), "tc-3"),
-		schema.UserMessage("用户问题4"),
-		schema.AssistantMessage("助手回答4", nil),
-		schema.UserMessage("用户问题5"),
-		schema.AssistantMessage("助手回答5", nil),
-		schema.UserMessage("用户问题6"),
+	msgs := []*llm.Message{
+		llm.SystemMessage("系统提示"),
+		llm.UserMessage("用户问题1"),
+		llm.AssistantMessage("助手回答1", nil),
+		llm.ToolMessage("很长的工具结果"+strings.Repeat("x", 300), "tc-1"),
+		llm.UserMessage("用户问题2"),
+		llm.AssistantMessage("助手回答2", nil),
+		llm.ToolMessage("另一个长结果"+strings.Repeat("y", 300), "tc-2"),
+		llm.UserMessage("用户问题3"),
+		llm.AssistantMessage("助手回答3", nil),
+		llm.ToolMessage("第三个工具结果"+strings.Repeat("z", 300), "tc-3"),
+		llm.UserMessage("用户问题4"),
+		llm.AssistantMessage("助手回答4", nil),
+		llm.UserMessage("用户问题5"),
+		llm.AssistantMessage("助手回答5", nil),
+		llm.UserMessage("用户问题6"),
 	}
 	result := c.Compress(context.Background(), msgs)
 
 	// 验证中间 tool_result 被截断
 	truncatedFound := false
 	for _, m := range result {
-		if m.Role == schema.Tool && strings.Contains(m.Content, "已压缩") {
+		if m.Role == llm.Tool && strings.Contains(m.Content, "已压缩") {
 			truncatedFound = true
 			break
 		}
@@ -91,7 +91,7 @@ func TestCompressor_HeadAndTailTruncatesToolResults(t *testing.T) {
 	// 最近窗口的 tool_result 不应被截断
 	lastTool := result[len(result)-1]
 	for i := len(result) - 1; i >= 0; i-- {
-		if result[i].Role == schema.Tool {
+		if result[i].Role == llm.Tool {
 			lastTool = result[i]
 			break
 		}
@@ -107,20 +107,20 @@ func TestCompressor_DedupToolResults(t *testing.T) {
 	c := newCompressor(30, nil) // 极小 maxTokens 触发 >70%
 
 	dupContent := "重复的工具结果内容"
-	msgs := []*schema.Message{
-		schema.SystemMessage("系统"),
-		schema.AssistantMessage("回答", nil),
-		schema.ToolMessage(dupContent, "tc-1"),
-		schema.UserMessage("问题2"),
-		schema.AssistantMessage("回答2", nil),
-		schema.ToolMessage(dupContent, "tc-2"), // 重复
+	msgs := []*llm.Message{
+		llm.SystemMessage("系统"),
+		llm.AssistantMessage("回答", nil),
+		llm.ToolMessage(dupContent, "tc-1"),
+		llm.UserMessage("问题2"),
+		llm.AssistantMessage("回答2", nil),
+		llm.ToolMessage(dupContent, "tc-2"), // 重复
 	}
 	result := c.Compress(context.Background(), msgs)
 
 	// 第二个重复 tool_result 应被替换为 "[重复内容已省略]"
 	dupFound := false
 	for _, m := range result {
-		if m.Role == schema.Tool && m.Content == "[重复内容已省略]" {
+		if m.Role == llm.Tool && m.Content == "[重复内容已省略]" {
 			dupFound = true
 		}
 	}
@@ -133,7 +133,7 @@ func TestCompressor_DedupToolResults(t *testing.T) {
 
 func TestCompressor_Autocompact(t *testing.T) {
 	summarizeCalled := false
-	summarize := func(ctx context.Context, msgs []*schema.Message) (string, error) {
+	summarize := func(ctx context.Context, msgs []*llm.Message) (string, error) {
 		summarizeCalled = true
 		return "对话历史摘要：用户询问了 PG CPU 排障", nil
 	}
@@ -148,7 +148,7 @@ func TestCompressor_Autocompact(t *testing.T) {
 	// 应含摘要 system 消息
 	hasSummary := false
 	for _, m := range result {
-		if m.Role == schema.System && strings.Contains(m.Content, "对话历史摘要") {
+		if m.Role == llm.System && strings.Contains(m.Content, "对话历史摘要") {
 			hasSummary = true
 		}
 	}
@@ -175,9 +175,9 @@ func TestCompressor_AutocompactNoSummarize(t *testing.T) {
 
 func TestCompressor_TokenRatio(t *testing.T) {
 	c := newCompressor(1000, nil)
-	msgs := []*schema.Message{
-		schema.SystemMessage(strings.Repeat("a", 500)), // ~125 tokens
-		schema.UserMessage(strings.Repeat("中", 300)),  // ~300 tokens
+	msgs := []*llm.Message{
+		llm.SystemMessage(strings.Repeat("a", 500)), // ~125 tokens
+		llm.UserMessage(strings.Repeat("中", 300)),  // ~300 tokens
 	}
 	// 总 token 约 425，maxTokens=1000，ratio ≈ 0.425
 	ratio := c.TokenRatio(msgs)

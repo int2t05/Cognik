@@ -18,7 +18,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // EditFileTool 文件精确编辑工具（实现 agent.SyncTool 接口）。
@@ -33,28 +33,30 @@ func NewEditFileTool(workDir string, maxBytes int64) *EditFileTool {
 }
 
 // Info 返回工具元信息。
-func (e *EditFileTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (e *EditFileTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "edit_file",
-		Desc: "Edit a file by replacing an exact string (old_string) with new_string. Stricter and cheaper than rewriting: only the matched fragment changes. old_string must be unique unless replace_all=true. Delete by setting new_string empty.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Edit a file by replacing an exact string (old_string) with new_string.
+- Stricter and cheaper than rewriting: only the matched fragment changes. old_string must be unique unless replace_all=true. Delete by setting new_string empty.
+- Prefer this over write_file for targeted changes. Do NOT use for whole-file rewrites — use write_file.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Relative path to the file within the working directory",
 				Required: true,
 			},
 			"old_string": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Exact text to find (including whitespace/indentation). Must be unique unless replace_all=true.",
 				Required: true,
 			},
 			"new_string": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Replacement text. Set empty to delete old_string. Must differ from old_string.",
 				Required: true,
 			},
 			"replace_all": {
-				Type: schema.Boolean,
+				Type: llm.Boolean,
 				Desc: "If true, replace all occurrences of old_string. Default false (requires uniqueness).",
 			},
 		}),

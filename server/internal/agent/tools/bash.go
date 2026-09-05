@@ -21,7 +21,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // bashMaxTimeout 单次命令超时上限。
@@ -46,22 +46,26 @@ func NewBashTool(workDir string, timeout time.Duration, maxBytes int64) *BashToo
 }
 
 // Info 返回工具元信息。
-func (b *BashTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (b *BashTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "bash",
-		Desc: "Execute a shell command and return stdout+stderr. Use for system checks, diagnostics, text processing. Always state the purpose in description. The working directory is the agent sandbox.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Execute a shell command and return stdout+stderr.
+- Always state the purpose in the description field.
+- The working directory is the agent sandbox.
+- Before destructive commands (rm -rf, drop table, force-push): confirm the target; prefer reversible operations over deletion.
+- Do NOT use as a shortcut to bypass safety checks or make errors go away.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"command": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "The shell command to execute",
 				Required: true,
 			},
 			"description": {
-				Type: schema.String,
+				Type: llm.String,
 				Desc: "Short description of why this command is run (5-10 words). Forces intent clarity before execution.",
 			},
 			"timeout": {
-				Type: schema.Integer,
+				Type: llm.Integer,
 				Desc: fmt.Sprintf("Timeout in milliseconds (default %d, max %d). Override for long-running commands.", int(b.timeout.Milliseconds()), int(bashMaxTimeout.Milliseconds())),
 			},
 		}),

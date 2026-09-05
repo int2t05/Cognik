@@ -10,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // TestLLMClient_ChatCompletion 验证 Eino ChatModel 可正常调用 llama.cpp。
@@ -22,18 +21,14 @@ func TestLLMClient_ChatCompletion(t *testing.T) {
 	ctx, cancel := context.WithTimeout(bgCtx, 5*time.Second)
 	defer cancel()
 
-	// 临时构造 Eino ChatModel 探活
-	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+	// 临时构造 ChatModel 探活
+	chatModel := llm.NewChatModel(llm.ChatModelConfig{
 		APIKey:  "",
 		Model:   "qwen3-4b",
 		BaseURL: "http://localhost:8081/v1",
 	})
-	if err != nil {
-		t.Skipf("LLM 服务不可用（%v），跳过集成测试", err)
-		return
-	}
 
-	resp, err := chatModel.Generate(ctx, []*schema.Message{
+	resp, err := chatModel.Generate(ctx, []*llm.Message{
 		{Role: "user", Content: "你好"},
 	})
 	if err != nil {
