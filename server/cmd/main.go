@@ -422,7 +422,7 @@ func wireApp() (*app, error) {
 	systemPrompt := agent.BuildSystemPrompt(kbSummaries, cfg.Memory.StorageRoot)
 	taskRegistry := agent.NewTaskRegistry()
 
-	// 上下文压缩器：五级管线（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
+	// 上下文压缩器：六级管线（Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
 	summarizeFn := func(ctx context.Context, msgs []*llm.Message) (string, error) {
 		m := agentModelFactory.GetModel()
 		if m == nil {
@@ -443,7 +443,7 @@ func wireApp() (*app, error) {
 
 	loop := agent.NewLoop(agentModelFactory.GetModel, registry, taskRegistry, 20, 3, systemPrompt, agent.WithCompressor(compressor))
 	agentRunner := agent.NewAgentRunner(loop)
-	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 五级上下文压缩 + 记忆提取）")
+	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 六级上下文压缩 + 记忆提取）")
 
 	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
 	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)

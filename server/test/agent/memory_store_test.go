@@ -13,10 +13,12 @@ import (
 )
 
 // newMemoryStore 创建临时存储目录的 FileMemoryStore。
+// root 含 "memory" 后缀（与生产 cfg.Memory.StorageRoot = {data_root}/memory 一致），
+// memoryDir 在其下挂 global/sessions 子目录。
 func newMemoryStore(t *testing.T) (*tools.FileMemoryStore, string) {
 	t.Helper()
 	dir := t.TempDir()
-	return tools.NewFileMemoryStore(dir, 200), dir
+	return tools.NewFileMemoryStore(filepath.Join(dir, "memory"), 200), dir
 }
 
 // --- Remember ---
