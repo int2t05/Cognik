@@ -49,7 +49,7 @@ Cognos 是一个私有部署的知识管理平台，帮助团队和个人沉淀�
 - **数据库**：PostgreSQL + pgvector（halfvec + HNSW，维度可配）
 - **RAG**：自建 Go 引擎——BM25（gse 分词）/ 向量（pgvector）/ RRF 融合 / cross-encoder rerank
 - **LLM**：自建 `agent/llm.ChatModel`（net/http 直连 OpenAI 兼容 API，工具描述透明传入）
-- **Embedding**：DashScope text-embedding-v2 @ 1536 维（或任意 OpenAI 兼容 embedding 端点）
+- **Embedding**：Qwen3-Embedding-0.6B @ 1024 维 或 DashScope text-embedding-v2 @ 1536 维（可配置；任意 OpenAI 兼容端点）
 - **前端**：Next.js + React + TypeScript + shadcn/ui
 - **部署**：Docker Compose + All-in-One 镜像
 
@@ -94,7 +94,6 @@ deploy/                      # Docker 部署
 
 | 文档 | 用途 |
 |------|------|
-| [DESIGN.md](docs/design/DESIGN.md) | Agentic RAG 架构设计 |
 | [ROADMAP.md](docs/ROADMAP.md) | 产品技术路线图 |
 | [PRD.md](docs/PRD.md) | 产品需求 |
 | [TECH.md](docs/TECH.md) | 技术架构 |

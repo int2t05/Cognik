@@ -49,7 +49,7 @@ At its core is an Agent that autonomously calls tools and reasons in multiple st
 - **Database**: PostgreSQL + pgvector (halfvec + HNSW, configurable dimension)
 - **RAG**: self-built Go engine — BM25 (gse tokenizer) / vector (pgvector) / RRF fusion / cross-encoder rerank
 - **LLM**: self-built `agent/llm.ChatModel` (net/http direct to OpenAI-compatible API, tool descriptions passed through transparently)
-- **Embedding**: DashScope text-embedding-v2 @ 1536 dims (or any OpenAI-compatible embedding endpoint)
+- **Embedding**: Qwen3-Embedding-0.6B @ 1024 dims or DashScope text-embedding-v2 @ 1536 dims (configurable; any OpenAI-compatible endpoint)
 - **Frontend**: Next.js + React + TypeScript + shadcn/ui
 - **Deployment**: Docker Compose + All-in-One image
 
@@ -94,7 +94,6 @@ deploy/                     # Docker deployment
 
 | Doc | Purpose |
 |------|------|
-| [DESIGN.md](docs/design/DESIGN.md) | Agentic RAG architecture design |
 | [ROADMAP.md](docs/ROADMAP.md) | Product & tech roadmap |
 | [PRD.md](docs/PRD.md) | Product requirements |
 | [TECH.md](docs/TECH.md) | Technical architecture |

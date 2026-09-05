@@ -100,7 +100,7 @@ stateDiagram-v2
 - 防滥用：标题精确去重 + 语义去重（CosineSearch > 0.92 拒绝）+ SourceTypeDeepResearch 系统标记
 - 文章元数据 schema：frontmatter（type/tags/status/source_type/created/updated），type 留空则发布时 LLM 补全
 - 文档上传支持 PDF/DOCX/MD/TXT（上限 50MB），异步解析入库；上传后自动创建【文档复核】工单
-- 发布管道：解析 frontmatter → LLM 补全 type/tags（缺失时）→ StripFrontmatter → Chunker(500/100) → Embedder(1024) → pgvector halfvec → BM25+INDEX.md 重建
+- 发布管道：解析 frontmatter → LLM 补全 type/tags（缺失时）→ StripFrontmatter → Chunker(500/100) → Embedder（维度可配置）→ pgvector halfvec → BM25+INDEX.md 重建
 - 元数据补全触发时自动创建【元数据复核】工单（source=3）
 - 删除知识库级联清理文章和向量
 
@@ -172,7 +172,7 @@ flowchart TD
 | 前端 | Next.js + React + TypeScript + Tailwind CSS |
 | UI | Radix UI + Lucide Icons + SWR |
 | LLM | 自建 agent/llm.ChatModel（net/http 直连 OpenAI 兼容 API） |
-| Embedding | Qwen3-Embedding-0.6B @ 1024 维（或任意 OpenAI 兼容端点） |
+| Embedding | Qwen3-Embedding-0.6B @ 1024 维（本地）或 DashScope text-embedding-v2 @ 1536 维（云端）；维度可配置 |
 | 中文分词 | gse（纯 Go，无 CGO） |
 | 部署 | Docker Compose（4 必须服务 + 2 可选 ai-local profile） |
 
