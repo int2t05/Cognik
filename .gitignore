@@ -87,3 +87,8 @@ scratch/
 
 # === Python ===
 __pycache__/
+server/models/rerank/model.safetensors
+server/models/rerank/config.json
+server/models/rerank/special_tokens_map.json
+server/models/rerank/tokenizer_config.json
+server/models/rerank/vocab.txt

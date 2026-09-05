@@ -45,7 +45,7 @@ func setupKnowledgeService(t *testing.T) *knowledge.KnowledgeService {
 	t.Helper()
 
 	// 确保测试表存在（init 只连接，不建表）
-	if err := database.AutoMigrate(knowledgeSvcDB); err != nil {
+	if err := database.AutoMigrate(knowledgeSvcDB, 1536); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 
