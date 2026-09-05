@@ -32,6 +32,7 @@ type KnowledgeArticle struct {
 	Tags          datatypes.JSON `gorm:"type:jsonb" json:"tags"`
 	Status        int16          `gorm:"not null;default:1;index:idx_articles_status" json:"status"`
 	SourceType    int16          `gorm:"not null;default:1;column:source_type" json:"source_type"`
+	ArticleType   string         `gorm:"type:varchar(32);default:guide;column:article_type" json:"article_type"`
 	WordCount     int            `gorm:"not null;default:0;column:word_count" json:"word_count"`
 	ChunkCount    int            `gorm:"not null;default:0;column:chunk_count" json:"chunk_count"`
 	FileType      string         `gorm:"type:varchar(16);column:file_type" json:"file_type"`

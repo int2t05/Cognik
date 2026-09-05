@@ -89,7 +89,7 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 // Get 按 article_id 读完整文章（slug 暂映射为 title 查找）。
 func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, slug string, articleID int64) (*KBArticle, error) {
 	if articleID <= 0 {
-		return nil, fmt.Errorf("article_id is required (slug 查找暂未实现，需 article_id)")
+		return nil, fmt.Errorf("article_id is required for action=get")
 	}
 	detail, err := s.articleSvc.GetArticleDetail(ctx, articleID)
 	if err != nil {
@@ -116,18 +116,20 @@ func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter) ([]
 	}
 	items := make([]KBListItem, 0, len(resp.Articles))
 	for _, a := range resp.Articles {
-		// type 过滤（frontmatter type 暂未持久化到 DB，过滤待 type 字段持久化后启用）
-		if filter.Type != "" {
-			_ = filter.Type // 占位：type 过滤待 frontmatter type 持久化后启用
+		articleType := a.ArticleType
+		if articleType == "" {
+			articleType = "guide"
 		}
-		// tags 过滤
+		if filter.Type != "" && filter.Type != articleType {
+			continue
+		}
 		if len(filter.Tags) > 0 && !hasAnyTag(a.Tags, filter.Tags) {
 			continue
 		}
 		items = append(items, KBListItem{
 			Slug:  slugify(a.Title),
 			Title: a.Title,
-			Type:  filter.Type,
+			Type:  articleType,
 			Tags:  a.Tags,
 		})
 	}
