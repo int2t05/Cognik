@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatStreamStore, type ChatMessage } from '@/contexts/ChatStreamProvider';
 import { useChatSessions } from '@/hooks/useChatSessions';
@@ -11,11 +12,12 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { IconButton } from '@/components/ui/icon-button';
 import { Plus, MessageSquare, Trash2, Loader2, Clock, CornerUpLeft, Pencil, PanelLeftClose, PanelLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { updateThread } from '@/lib/api/chat';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function ChatPage() {
+  const t = useTranslations();
   const { token } = useAuth();
   const router = useRouter();
   const store = useChatStreamStore();
@@ -65,7 +67,7 @@ export default function ChatPage() {
       sid = await createNewSession(question.slice(0, 50));
       if (!sid) return;
     }
-    store.send(sid, question, token || '', (err) => toast.error(err));
+    store.send(sid, question, token || '', (err) => toast.error(err || t('chat.generationFailed')));
   }, [input, sessionId, createNewSession, store, token]);
 
   const handleStop = useCallback(() => {
@@ -88,11 +90,13 @@ export default function ChatPage() {
         await updateThread(id, title);
         mutateThreads();
       } catch (err) {
-        toast.error(errorMessage(err, '重命名失败'));
+        toast.error(translateError(err, t, t('chat.renameFailed')));
       }
     }
     setEditingId(null);
   };
+
+  const suggestions = [t('chat.suggestion1'), t('chat.suggestion2'), t('chat.suggestion3')];
 
   return (
     <div className="flex h-[calc(100vh-56px)]">
@@ -105,9 +109,9 @@ export default function ChatPage() {
               className="flex-1 justify-start gap-2"
               onClick={handleNewChat}
             >
-              <Plus size={16} /> 新对话
+              <Plus size={16} /> {t('chat.newChat')}
             </IconButton>
-            <IconButton label="收起侧边栏" onClick={() => setSidebarOpen(false)}>
+            <IconButton label={t('chat.collapseSidebar')} onClick={() => setSidebarOpen(false)}>
               <PanelLeftClose size={16} />
             </IconButton>
           </div>
@@ -117,35 +121,35 @@ export default function ChatPage() {
                 <Loader2 size={20} className="animate-spin text-[var(--color-text-muted-48)]" />
               </div>
             )}
-            {threads.map((t) => (
+            {threads.map((th) => (
               <div
-                key={t.id}
+                key={th.id}
                 className={`group flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer text-[13px] mb-0.5 ${
-                  sessionId === t.id ? 'bg-[var(--color-accent)]/10 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-canvas)]'
+                  sessionId === th.id ? 'bg-[var(--color-accent)]/10 text-[var(--color-ink)]' : 'text-[var(--color-text-muted-48)] hover:bg-[var(--color-canvas)]'
                 }`}
-                onClick={() => selectSession(t.id)}
+                onClick={() => selectSession(th.id)}
               >
                 <MessageSquare size={14} className="shrink-0" />
-                {editingId === t.id ? (
+                {editingId === th.id ? (
                   <input
                     className="flex-1 bg-transparent border-b border-[var(--color-accent)] text-[13px] outline-none text-[var(--color-ink)]"
                     value={editTitle}
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    onBlur={() => handleSaveEdit(t.id)}
+                    onBlur={() => handleSaveEdit(th.id)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(t.id);
+                      if (e.key === 'Enter') handleSaveEdit(th.id);
                       if (e.key === 'Escape') setEditingId(null);
                     }}
                   />
                 ) : (
-                  <span className="truncate flex-1">{t.title}</span>
+                  <span className="truncate flex-1">{th.title}</span>
                 )}
-                {editingId !== t.id && (
+                {editingId !== th.id && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <IconButton label="重命名" size="icon-sm" onClick={(e) => { e.stopPropagation(); handleStartEdit(t.id, t.title); }}><Pencil size={12} /></IconButton>
-                    <IconButton label="删除" danger size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteId(t.id); }}><Trash2 size={12} /></IconButton>
+                    <IconButton label={t('chat.rename')} size="icon-sm" onClick={(e) => { e.stopPropagation(); handleStartEdit(th.id, th.title); }}><Pencil size={12} /></IconButton>
+                    <IconButton label={t('common.delete')} danger size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteId(th.id); }}><Trash2 size={12} /></IconButton>
                   </div>
                 )}
               </div>
@@ -159,12 +163,12 @@ export default function ChatPage() {
         {/* 顶栏：收起时显示展开按钮 + 当前会话名 */}
         {!sidebarOpen && (
           <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-hairline)]">
-            <IconButton label="展开侧边栏" onClick={() => setSidebarOpen(true)}>
+            <IconButton label={t('chat.expandSidebar')} onClick={() => setSidebarOpen(true)}>
               <PanelLeft size={16} />
             </IconButton>
             {sessionId && (
               <span className="text-[13px] text-[var(--color-text-muted-48)] truncate">
-                {threads.find(t => t.id === sessionId)?.title || '对话'}
+                {threads.find((th) => th.id === sessionId)?.title || t('chat.conversation')}
               </span>
             )}
           </div>
@@ -179,9 +183,9 @@ export default function ChatPage() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="text-[var(--color-text-muted-48)] text-[15px] mb-4">有什么可以帮助你？</div>
+                <div className="text-[var(--color-text-muted-48)] text-[15px] mb-4">{t('chat.welcome')}</div>
                 <div className="flex flex-col gap-2">
-                  {['列出当前目录文件', '1+1等于几？', '帮我读一下 readme.txt'].map((s) => (
+                  {suggestions.map((s) => (
                     <button
                       key={s}
                       className="px-4 py-2 rounded-[var(--radius-lg)] border border-[var(--color-hairline)] text-[13px] text-[var(--color-text-muted-48)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
@@ -198,6 +202,7 @@ export default function ChatPage() {
                   key={msg.id}
                   message={msg}
                   isStreaming={isStreaming && i === messages.length - 1}
+                  t={t}
                 />
               ))
             )}
@@ -208,7 +213,7 @@ export default function ChatPage() {
                   <div key={qmsg.id} className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-[var(--radius-lg)] px-4 py-2 opacity-70">
                     <Clock size={13} className="shrink-0 animate-pulse text-[var(--color-text-muted-48)]" />
                     <span className="flex-1 text-[13px] text-[var(--color-ink)] truncate">{qmsg.content}</span>
-                    <IconButton label="取消排队" size="icon-sm" onClick={() => {
+                    <IconButton label={t('chat.cancelQueue')} size="icon-sm" onClick={() => {
                         const text = store.removeQueueItem(sessionId!, i);
                         if (text) setInput(text);
                       }}><CornerUpLeft size={14} /></IconButton>
@@ -231,7 +236,7 @@ export default function ChatPage() {
               loading={false}
               streaming={isStreaming}
               queueCount={queueCount}
-              placeholder="输入你的问题…"
+              placeholder={t('chat.inputPlaceholder')}
             />
           </div>
         </div>
@@ -243,17 +248,17 @@ export default function ChatPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[15px]">
               <AlertTriangle size={18} className="text-amber-500" />
-              确认删除
+              {t('chat.confirmDeleteTitle')}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-[var(--color-text-muted-48)]">删除后无法恢复，该会话的所有消息将被清除。</p>
+          <p className="text-[13px] text-[var(--color-text-muted-48)]">{t('chat.deleteMessage')}</p>
           <DialogFooter className="flex-row justify-end gap-2">
-            
+
             <IconButton variant="destructive" size="sm" onClick={async () => {
               if (deleteId !== null) await removeSession(deleteId);
               setDeleteId(null);
             }}>
-              <Trash2 size={14} className="mr-1" /> 删除
+              <Trash2 size={14} className="mr-1" /> {t('common.delete')}
             </IconButton>
           </DialogFooter>
         </DialogContent>

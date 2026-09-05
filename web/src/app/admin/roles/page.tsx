@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getRoleList, createRole, updateRole, deleteRole, getRoleDetail, getMenus, updateRoleMenus, type Menu } from '@/lib/api/role';
 import { DataTable } from '@/components/ui/data-table';
@@ -15,7 +16,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { ShieldPlus, Pencil, Trash2, Loader2, Shield, Save } from 'lucide-react';
 
 /** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示。 */
@@ -26,6 +27,7 @@ const KNOWN_PERMISSIONS = [
 ];
 
 export default function RoleManagePage() {
+  const t = useTranslations();
   const [page, setPage] = useState(1);
   const { data, error, mutate } = useSWR(`roles-${page}`, () => getRoleList(page), { keepPreviousData: true });
   const { data: menus } = useSWR('admin-menus', getMenus);
@@ -53,7 +55,7 @@ export default function RoleManagePage() {
   const isEmpty = !error && data && (data.items || []).length === 0;
 
   const handleSave = async () => {
-    if (!name.trim()) { toast.error('请输入角色名'); return; }
+    if (!name.trim()) { toast.error(t('role.fillName')); return; }
     setSaving(true);
     try {
       if (editId) {
@@ -62,14 +64,14 @@ export default function RoleManagePage() {
       } else {
         await createRole({ name, description: desc, permissions: perms });
       }
-      toast.success(editId ? '已更新' : '已创建'); setShowDialog(false); mutate();
-    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
+      toast.success(editId ? t('common.updated') : t('common.created')); setShowDialog(false); mutate();
+    } catch (err: unknown) { toast.error(translateError(err, t, t('common.saveFailed'))); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
-    try { await deleteRole(deleteId!); toast.success('已删除'); mutate(); }
-    catch (err: unknown) { toast.error(errorMessage(err, '删除失败')); }
+    try { await deleteRole(deleteId!); toast.success(t('common.deleted')); mutate(); }
+    catch (err: unknown) { toast.error(translateError(err, t, t('common.deleteFailed'))); }
     finally { setDeleteId(null); }
   };
 
@@ -102,30 +104,30 @@ export default function RoleManagePage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
-        <PageTitle className="mb-0">角色管理</PageTitle>
-        <IconButton label="新建角色" onClick={openCreate}><ShieldPlus /></IconButton>
+        <PageTitle className="mb-0">{t('role.title')}</PageTitle>
+        <IconButton label={t('role.newRole')} onClick={openCreate}><ShieldPlus /></IconButton>
       </div>
       {error && <InlineError />}
       {isEmpty ? (
         <EmptyState
           icon={<Shield size={40} />}
-          title="暂无角色"
-          description="点击右上角新建角色"
+          title={t('role.empty')}
+          description={t('role.emptyDesc')}
         />
       ) : (
         <>
           <DataTable
             columns={[
-              { accessorKey: 'name', header: '角色名' }, { accessorKey: 'description', header: '描述' },
-              { accessorKey: 'permissions', meta: { width: '96px' }, header: '权限', cell: ({ row }) => {
+              { accessorKey: 'name', header: t('role.colName') }, { accessorKey: 'description', header: t('role.colDesc') },
+              { accessorKey: 'permissions', meta: { width: '96px' }, header: t('role.colPerms'), cell: ({ row }) => {
                 const perms = row.original.permissions as string[];
                 return perms.length
-                  ? <Badge variant="neutral" className="cursor-default" title={perms.join(', ')}>{perms.length} 项权限</Badge>
+                  ? <Badge variant="neutral" className="cursor-default" title={perms.join(', ')}>{t('role.permCount', { count: perms.length })}</Badge>
                   : <span className="text-fine text-[var(--color-text-muted-48)]">—</span>;
               } },
-              { id: 'actions', header: '操作', cell: ({ row }) => <div className="flex gap-2">
-                <IconButton label="编辑" onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></IconButton>
-                <IconButton label="删除" onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></IconButton>
+              { id: 'actions', header: t('common.actions'), cell: ({ row }) => <div className="flex gap-2">
+                <IconButton label={t('common.edit')} onClick={() => openEdit({ id: row.original.id as number, name: row.original.name as string, description: row.original.description as string, permissions: row.original.permissions as string[] })}><Pencil /></IconButton>
+                <IconButton label={t('common.delete')} onClick={() => setDeleteId(row.original.id as number)}><Trash2 /></IconButton>
               </div> },
             ]}
             data={data?.items || []} loading={!data && !error}
@@ -137,11 +139,11 @@ export default function RoleManagePage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editId ? '编辑角色' : '新建角色'}</DialogTitle>
+            <DialogTitle>{editId ? t('role.editTitle') : t('role.newRole')}</DialogTitle>
           </DialogHeader>
-          <Field label="角色名"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="描述"><Input value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
-          <Field label="权限">
+          <Field label={t('role.fieldName')}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label={t('role.fieldDesc')}><Input value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
+          <Field label={t('role.fieldPerms')}>
             <div className="flex flex-wrap gap-1.5">
               {knownPermissions.map((p) => (
                 <IconButton
@@ -157,7 +159,7 @@ export default function RoleManagePage() {
             </div>
           </Field>
           {menus && menus.length > 0 && (
-            <Field label="菜单权限">
+            <Field label={t('role.fieldMenuPerms')}>
               <div className="border border-[var(--color-hairline)] rounded-[var(--radius-lg)] p-3 space-y-1 max-h-[240px] overflow-y-auto">
                 {topMenus.map((parent) => (
                   <div key={parent.id}>
@@ -176,11 +178,11 @@ export default function RoleManagePage() {
               </div>
             </Field>
           )}
-          <DialogFooter><IconButton size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}{t('common.save')}</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="删除角色" message="确定要删除此角色吗？" onConfirm={handleDelete} confirmLabel="删除" danger />
+      <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title={t('role.deleteTitle')} message={t('role.deleteMessage')} onConfirm={handleDelete} confirmLabel={t('common.delete')} danger />
     </div>
   );
 }

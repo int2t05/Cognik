@@ -4,15 +4,17 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import useSWR from 'swr';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
+import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher';
 import { useAuth, type Menu } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { getAppName } from '@/lib/config/defaults';
 import { getPublicConfig } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
@@ -30,6 +32,7 @@ interface LoginResponse {
 }
 
 export default function LoginPage() {
+  const t = useTranslations();
   const { data: appName } = useSWR('public-app-name', () => getPublicConfig('app_name'), {
     revalidateOnFocus: true,
     refreshInterval: 900_000, // 15 分钟轮询
@@ -47,7 +50,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password) {
-      toast.error('请输入用户名和密码');
+      toast.error(t('auth.fillUsernamePassword'));
       return;
     }
 
@@ -75,14 +78,15 @@ export default function LoginPage() {
       const isAdmin = hasAdminAccess(data.permissions);
       router.push(isAdmin ? '/admin/dashboard' : '/portal/chat');
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '登录失败，请重试'));
+      toast.error(translateError(err, t, t('auth.loginFailed')));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
+    <div className="relative flex items-center justify-center min-h-screen bg-[var(--color-parchment)] p-4">
+      <div className="absolute top-4 right-4"><LocaleSwitcher /></div>
       <div className="w-full max-w-[420px] p-6 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] card-entrance">
         <div className="text-center mb-6">
           <div className="mb-4">
@@ -92,15 +96,15 @@ export default function LoginPage() {
             {displayName}
           </h1>
           <p className="text-callout text-[var(--color-text-muted-48)]">
-            知识管理平台系统
+            {t('auth.systemTitle')}
           </p>
           <p className="text-caption text-[var(--color-text-muted-48)] mt-1">
-            智能问答 · 工单管理 · 知识库
+            {t('auth.systemFeatures')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <Field label="用户名">
+          <Field label={t('auth.username')}>
             <Input
               type="text"
               value={username}
@@ -110,7 +114,7 @@ export default function LoginPage() {
               autoFocus
             />
           </Field>
-          <Field label="密码">
+          <Field label={t('auth.password')}>
             <Input
               type="password"
               value={password}
@@ -120,7 +124,7 @@ export default function LoginPage() {
             />
           </Field>
           <div className="mt-8">
-            <IconButton size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}登录</IconButton>
+            <IconButton size="lg" type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}{t('auth.login')}</IconButton>
           </div>
         </form>
       </div>

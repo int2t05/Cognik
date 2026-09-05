@@ -1,74 +1,76 @@
 # Contributing to Cognos
 
-感谢你对 Cognos 的关注！无论是 Bug 报告、功能建议还是代码贡献，都非常欢迎。
+Thanks for your interest in Cognos! Bug reports, feature suggestions, and code contributions are all welcome.
 
-## 开发环境设置
+[简体中文](CONTRIBUTING.zh-CN.md)
+
+## Development setup
 
 ```bash
 git clone https://github.com/int2t05/Cognos.git
 cd Cognos
 
-# 启动依赖服务
+# Start dependency services
 docker compose up -d postgres minio
 
-# 后端
+# Backend
 cd server
 go mod tidy
 go run ./cmd/main.go
 
-# 前端（新终端）
+# Frontend (new terminal)
 cd web
 npm install
 npm run dev
 ```
 
-默认账号：`admin` / `Admin@123`
+Default account: `admin` / `Admin@123`
 
-## 代码规范
+## Code conventions
 
-- **Go**：遵循标准 Go 风格（`go vet`、`golangci-lint`）
-- **TypeScript**：遵循项目 ESLint 配置（`npm run lint`）
-- **注释**：中文注释，解释"为什么这样做"而非重复代码逻辑
-- **架构**：Handler → Service → Repository 三层分离，不允许跨层调用
-- **API**：变更接口时同步更新 `docs/API/` 文档
-- **文档**：代码变更后同步更新对应 `docs/` 文档，保持 doc/impl 一致
+- **Go**: follow standard Go style (`go vet`, `golangci-lint`)
+- **TypeScript**: follow the project ESLint config (`npm run lint`)
+- **Comments**: comments in Chinese, explaining *why*, not restating code logic
+- **Architecture**: Handler → Service → Repository three-layer separation; no cross-layer calls
+- **API**: when changing an interface, keep `docs/API/` in sync
+- **Docs**: after code changes, update the corresponding `docs/` to keep doc/impl consistent
 
-## 提交规范
+## Commit conventions
 
-使用中文 commit message，格式：`类型: 简短描述`
+Commit messages may be written in **Chinese or English**, in the format: `type: short description`
 
 ```
-feat: 实现 BM25 混合检索
-fix: 修复 pgvector 批量写入事务
-docs: 更新 API 文档
-test: 添加申告状态机测试
+feat: implement BM25 hybrid retrieval
+fix: fix pgvector batch write transaction
+docs: update API docs
+test: add ticket state machine tests
 ```
 
-## 测试
+## Tests
 
 ```bash
-# Go 集成测试（需 PostgreSQL + pgvector）
+# Go integration tests (requires PostgreSQL + pgvector)
 cd server
 go test ./test/... -v -tags=integration -p 1
 
-# 前端 E2E 测试（Playwright）
+# Frontend E2E tests (Playwright)
 cd web
 npx playwright test
 ```
 
-提交 PR 前请确保所有测试通过。
+Make sure all tests pass before submitting a PR.
 
-## Pull Request 流程
+## Pull request flow
 
-1. Fork 本仓库
-2. 创建功能分支（`feat/xxx` 或 `fix/xxx`）
-3. 编写代码 + 测试
-4. 确保 CI 通过
-5. 提交 PR 到 `main` 分支
-6. 等待 Code Review
+1. Fork this repository
+2. Create a feature branch (`feat/xxx` or `fix/xxx`)
+3. Write code + tests
+4. Ensure CI passes
+5. Submit a PR to `main`
+6. Wait for code review
 
-## 问题反馈
+## Feedback
 
-- Bug 报告：使用 Bug Report Issue 模板
-- 功能建议：使用 Feature Request Issue 模板
-- 安全问题：请勿公开 Issue，直接联系维护者
+- Bug reports: use the Bug Report issue template
+- Feature suggestions: use the Feature Request issue template
+- Security issues: do **not** open a public issue; contact the maintainers directly

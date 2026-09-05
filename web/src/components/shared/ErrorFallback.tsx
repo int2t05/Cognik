@@ -6,27 +6,29 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 
 interface ErrorFallbackProps {
   error: Error & { digest?: string };
   reset?: () => void;
-  /** 错误标题 */
+  /** 错误标题；不传则按 locale 翻译。 */
   title?: string;
-  /** 错误描述 */
+  /** 错误描述；不传则按 locale 翻译。 */
   message?: string;
-  /** 重置按钮文案 */
+  /** 重置按钮文案；不传则按 locale 翻译。 */
   resetLabel?: string;
 }
 
 export function ErrorFallback({
   error,
   reset,
-  title = '页面加载失败',
-  message = '请刷新页面重试',
-  resetLabel = '刷新页面',
+  title,
+  message,
+  resetLabel,
 }: ErrorFallbackProps) {
+  const t = useTranslations();
   useEffect(() => {
     console.error('ErrorBoundary caught:', error);
   }, [error]);
@@ -34,11 +36,11 @@ export function ErrorFallback({
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <AlertTriangle size={40} className="text-[var(--color-text-muted-48)]" />
-      <h2 className="text-title font-semibold text-[var(--color-ink)]">{title}</h2>
-      <p className="text-caption text-[var(--color-text-muted-48)]">{message}</p>
+      <h2 className="text-title font-semibold text-[var(--color-ink)]">{title ?? t('error.pageLoadFailed')}</h2>
+      <p className="text-caption text-[var(--color-text-muted-48)]">{message ?? t('error.refreshHint')}</p>
       {reset && (
         <IconButton variant="outline" size="lg" onClick={reset}>
-          {resetLabel}
+          {resetLabel ?? t('error.refreshPage')}
         </IconButton>
       )}
     </div>

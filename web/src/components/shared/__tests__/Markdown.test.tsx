@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
 import { Markdown } from '../Markdown';
+import zhMessages from '../../../../messages/zh.json';
+
+// next-intl 测试上下文：提供真实 zh 消息（frontmatter 标签等需翻译）
+function IntlWrapper({ children }: { children: React.ReactNode }) {
+  return <NextIntlClientProvider locale="zh" messages={zhMessages}>{children}</NextIntlClientProvider>;
+}
 
 // Markdown 渲染器：未知 raw HTML 标签 / XSS 清洗 / KaTeX 公式 / 相对图片重写
 
@@ -63,7 +70,7 @@ describe('Markdown', () => {
       '',
       '正文内容',
     ].join('\n');
-    const { container } = render(<Markdown content={content} />);
+    const { container } = render(<IntlWrapper><Markdown content={content} /></IntlWrapper>);
 
     // 卡片存在
     const card = container.querySelector('.md-frontmatter');

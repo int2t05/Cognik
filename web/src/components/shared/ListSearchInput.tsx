@@ -4,6 +4,7 @@
  *  仅在事件处理器中 setState；防抖回调在 setTimeout 内（异步，不触发级联渲染）。 */
 import { IconButton } from '@/components/ui/icon-button';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -13,13 +14,16 @@ interface ListSearchInputProps {
   value: string;
   /** debounce 后回调，页面据此更新 SWR key */
   onDebouncedChange: (v: string) => void;
+  /** 占位符；不传则用 common.search */
   placeholder?: string;
   className?: string;
   /** 防抖延迟，默认 300ms */
   delay?: number;
 }
 
-export function ListSearchInput({ value, onDebouncedChange, placeholder = '搜索…', className, delay = 300 }: ListSearchInputProps) {
+export function ListSearchInput({ value, onDebouncedChange, placeholder, className, delay = 300 }: ListSearchInputProps) {
+  const t = useTranslations();
+  const ph = placeholder ?? t('common.search');
   const [text, setText] = useState(value);
   // ref 稳定回调引用，避免调用方传未记忆化内联函数导致防抖计时器在父组件重渲染时重置
   const cbRef = useRef(onDebouncedChange);
@@ -37,8 +41,8 @@ export function ListSearchInput({ value, onDebouncedChange, placeholder = '搜�
     prevValue.current = value;
     // 用户输入：text 变化后延迟回传；与外部 value 已一致时跳过（避免回环）
     if (text === value) return;
-    const t = setTimeout(() => cbRef.current(text), delay);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => cbRef.current(text), delay);
+    return () => clearTimeout(timer);
   }, [text, value, delay]);
 
   return (
@@ -47,13 +51,13 @@ export function ListSearchInput({ value, onDebouncedChange, placeholder = '搜�
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
+        placeholder={ph}
         className="h-8 text-fine pl-9 pr-8 rounded-[var(--radius-md)] bg-[var(--color-tile-1)] border-[var(--color-hairline)]"
-        aria-label={placeholder}
+        aria-label={ph}
       />
       {text && (
         <span className="absolute right-0.5 top-1/2 -translate-y-1/2">
-          <IconButton label="清除搜索" size="icon-sm" onClick={() => { setText(''); onDebouncedChange(''); }}>
+          <IconButton label={t('common.clearSearch')} size="icon-sm" onClick={() => { setText(''); onDebouncedChange(''); }}>
             <X size={14} />
           </IconButton>
         </span>

@@ -13,6 +13,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/date';
 
@@ -65,15 +66,15 @@ const sanitizeSchema = {
 /** frontmatter 匹配：开头的 ---\n...\n--- 块（捕获组 1 = YAML 正文） */
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-/** 已知 frontmatter 字段的中文标签；未知键原样显示 */
+/** 已知 frontmatter 字段 → i18n 键；未知键原样显示 */
 const FRONTMATTER_LABELS: Record<string, string> = {
-  title: '标题',
-  type: '类型',
-  status: '状态',
-  source_type: '来源',
-  created: '创建',
-  updated: '更新',
-  tags: '标签',
+  title: 'article.frontmatter.title',
+  type: 'article.frontmatter.type',
+  status: 'article.frontmatter.status',
+  source_type: 'article.frontmatter.source_type',
+  created: 'article.frontmatter.created',
+  updated: 'article.frontmatter.updated',
+  tags: 'article.frontmatter.tags',
 };
 
 /** 日期型字段：值用 formatDate 格式化（RFC3339 → 本地可读） */
@@ -100,18 +101,20 @@ function parseFrontmatter(text: string): Record<string, string | string[]> {
 /** FrontmatterCard 把 YAML frontmatter 渲染为元数据卡片（dl 语义），替代丑陋的 ---+文本。
  *  tags → 徽标；日期字段 → 本地化；其余键值原样展示。 */
 function FrontmatterCard({ meta }: { meta: Record<string, string | string[]> }) {
+  const t = useTranslations();
+  const locale = useLocale();
   const entries = Object.entries(meta).filter(([, v]) => (Array.isArray(v) ? v.length : v));
   if (!entries.length) return null;
   return (
     <dl className="md-frontmatter">
       {entries.map(([key, value]) => (
         <div className="md-fm-row" key={key}>
-          <dt className="md-fm-key">{FRONTMATTER_LABELS[key] ?? key}</dt>
+          <dt className="md-fm-key">{FRONTMATTER_LABELS[key] ? t(FRONTMATTER_LABELS[key]) : key}</dt>
           <dd className="md-fm-val">
             {key === 'tags' && Array.isArray(value)
-              ? value.map((t) => <span className="md-fm-tag" key={t}>{t}</span>)
+              ? value.map((tag) => <span className="md-fm-tag" key={tag}>{tag}</span>)
               : DATE_KEYS.has(key) && typeof value === 'string'
-                ? formatDate(value)
+                ? formatDate(value, locale)
                 : String(value)}
           </dd>
         </div>

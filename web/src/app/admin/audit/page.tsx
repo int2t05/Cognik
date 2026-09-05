@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { getAuditLogs, batchDeleteAuditLogs } from '@/lib/api/audit';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
 import { PageTitle } from '@/components/shared/PageTitle';
@@ -16,18 +17,20 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { ScrollText } from 'lucide-react';
 
-const AUDIT_TARGET_TYPE_OPTIONS: TableFilterOption<string>[] = [
-  { value: '', label: '全部' },
-  { value: 'user', label: '用户' },
-  { value: 'role', label: '角色' },
-  { value: 'knowledge_article', label: '知识文章' },
-  { value: 'knowledge_base', label: '知识库' },
-  { value: 'ticket', label: '工单' },
-  { value: 'config', label: '系统配置' },
-  { value: 'llm_config', label: 'LLM 配置' },
-];
+/** 审计对象类型 → i18n 键；未知类型原样显示 */
+const AUDIT_TYPE_KEYS: Record<string, string> = {
+  user: 'audit.typeUser',
+  role: 'audit.typeRole',
+  knowledge_article: 'audit.typeArticle',
+  knowledge_base: 'audit.typeKb',
+  ticket: 'audit.typeTicket',
+  config: 'audit.typeConfig',
+  llm_config: 'audit.typeLlm',
+};
 
 export default function AuditLogPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
   const [targetType, setTargetType] = useState('');
@@ -41,6 +44,12 @@ export default function AuditLogPage() {
     onError: (msg) => toast.error(msg),
   });
 
+  const typeLabel = (key: string) => AUDIT_TYPE_KEYS[key] ? t(AUDIT_TYPE_KEYS[key]) : key;
+  const typeOptions: TableFilterOption<string>[] = [
+    { value: '', label: t('common.all') },
+    ...Object.keys(AUDIT_TYPE_KEYS).map((value) => ({ value, label: typeLabel(value) })),
+  ];
+
   const isEmpty = !error && data?.items?.length === 0;
   const hasFilters = targetType !== '' || keyword !== '';
   const clearFilters = () => { setTargetType(''); setKeyword(''); setPage(1); };
@@ -48,23 +57,23 @@ export default function AuditLogPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 mb-5">
-        <PageTitle className="mb-0">审计日志</PageTitle>
-        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索操作/对象…" />
+        <PageTitle className="mb-0">{t('audit.title')}</PageTitle>
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder={t('audit.searchPlaceholder')} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
       </div>
       {error && <InlineError />}
       {!error && data?.items?.length === 0 ? (
-        <EmptyState icon={<ScrollText size={40} />} title={hasFilters ? '未找到匹配的审计日志' : '暂无审计日志'} description={hasFilters ? '尝试调整筛选条件或清除筛选' : '系统操作记录将显示在这里'} onClearFilters={hasFilters ? clearFilters : undefined} />
+        <EmptyState icon={<ScrollText size={40} />} title={hasFilters ? t('audit.noMatch') : t('audit.empty')} description={hasFilters ? t('ticket.adjustFilters') : t('audit.emptyDesc')} onClearFilters={hasFilters ? clearFilters : undefined} />
       ) : (
         <>
           <DataTable
             columns={[
               { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-              { accessorKey: 'operator_name', meta: { width: '88px' }, header: '操作人' },
-              { accessorKey: 'action', meta: { width: '100px' }, header: '操作', cell: ({ row }) => <span className="text-caption">{row.original.action}</span> },
-              { accessorKey: 'target_type', meta: { width: '96px' }, header: () => <TableFilterHeader label="对象类型" value={targetType} options={AUDIT_TARGET_TYPE_OPTIONS} onChange={(v) => { setTargetType(v); setPage(1); }} /> },
-              { accessorKey: 'ip_address', meta: { width: '120px' }, header: 'IP' },
-              { accessorKey: 'created_at', meta: { width: '120px' }, header: '时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { accessorKey: 'operator_name', meta: { width: '88px' }, header: t('audit.colOperator') },
+              { accessorKey: 'action', meta: { width: '100px' }, header: t('common.actions'), cell: ({ row }) => <span className="text-caption">{row.original.action}</span> },
+              { accessorKey: 'target_type', meta: { width: '96px' }, header: () => <TableFilterHeader label={t('audit.colTargetType')} value={targetType} options={typeOptions} onChange={(v) => { setTargetType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-caption">{typeLabel(row.original.target_type)}</span> },
+              { accessorKey: 'ip_address', meta: { width: '120px' }, header: t('audit.colIp') },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: t('audit.colTime'), cell: ({ row }) => formatDate(row.original.created_at, locale) },
             ]}
             data={items} loading={!data && !error}
           />
@@ -72,9 +81,9 @@ export default function AuditLogPage() {
         </>
       )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
-        title="批量删除审计日志"
-        message={`确定要删除 ${batch.selectedIds.size} 条审计日志吗？此操作不可撤销。`}
-        onConfirm={async () => { await batch.handleBatchDelete(); toast.success('已删除'); }} loading={batch.deleting} danger confirmLabel="删除" />
+        title={t('audit.batchDeleteTitle')}
+        message={t('audit.batchDeleteMessage', { count: batch.selectedIds.size })}
+        onConfirm={async () => { await batch.handleBatchDelete(); toast.success(t('common.deleted')); }} loading={batch.deleting} danger confirmLabel={t('common.delete')} />
     </div>
   );
 }

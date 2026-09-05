@@ -1,26 +1,26 @@
 ---
 name: Bug Report
-about: 报告 Bug 以帮助我们改进
+about: Report a bug to help us improve / 报告 Bug 以帮助我们改进
 title: '[Bug] '
 labels: bug
 assignees: ''
 ---
 
-**描述问题**
-简洁清晰地描述 Bug。
+**Describe the bug / 描述问题**
+A clear and concise description of the bug. / 简洁清晰地描述 Bug。
 
-**复现步骤**
-1. 访问 '...'
-2. 点击 '...'
-3. 观察到 '...'
+**Steps to reproduce / 复现步骤**
+1. Go to '...'
+2. Click on '...'
+3. See '...'
 
-**预期行为**
-描述你预期发生什么。
+**Expected behavior / 预期行为**
+Describe what you expected to happen. / 描述你预期发生什么。
 
-**截图**
-如有，添加截图。
+**Screenshots / 截图**
+If applicable, add screenshots. / 如有，添加截图。
 
-**环境**
-- 部署方式: [Docker Compose / 本地开发]
-- 浏览器: [Chrome / Firefox / Edge]
+**Environment / 环境**
+- Deployment: [Docker Compose / local dev / 部署方式]
+- Browser: [Chrome / Firefox / Edge]
 - OS: [Windows / macOS / Linux]

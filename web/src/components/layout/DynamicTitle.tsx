@@ -6,11 +6,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 import { getPublicConfig } from '@/lib/api/config';
 import { getAppName } from '@/lib/config/defaults';
 
 export function DynamicTitle() {
+  const t = useTranslations();
   const { data } = useSWR('public-app-name-title', () => getPublicConfig('app_name'), {
     revalidateOnFocus: true,
     refreshInterval: 900_000, // 15 分钟轮询
@@ -19,8 +21,8 @@ export function DynamicTitle() {
 
   useEffect(() => {
     const name = typeof data === 'string' ? data : getAppName();
-    document.title = `${name} — 知识管理平台`;
-  }, [data]);
+    document.title = `${name} — ${t('metadata.titleSuffix')}`;
+  }, [data, t]);
 
   return null;
 }

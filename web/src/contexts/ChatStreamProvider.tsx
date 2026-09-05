@@ -146,7 +146,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
           buffersRef.current[id].push(evt);
           scheduleFlush(id);
         }
-        if (evt.type === 'error') onError?.(evt.error || '生成失败');
+        if (evt.type === 'error') onError?.(evt.error || '');
       }
     }
     // 最后 flush 残余

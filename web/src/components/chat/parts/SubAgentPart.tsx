@@ -3,6 +3,7 @@
 // 折叠卡片：状态图标 + 名称 + 展开内容（活动日志 + 最终结果分离）。
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Bot, ChevronDown, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
 
@@ -11,17 +12,19 @@ interface Props {
   isStreaming?: boolean;
 }
 
-const SUBAGENT_LABELS: Record<string, string> = {
-  dispatch_subagent: '子代理',
-  research: '探查助手',
-  coder: '编码助手',
+/** 子 Agent 名 → i18n 键（chat.subagent.*） */
+const SUBAGENT_KEYS: Record<string, string> = {
+  dispatch_subagent: 'chat.subagent.dispatch',
+  research: 'chat.subagent.research',
+  coder: 'chat.subagent.coder',
 };
 
 export function SubAgentPart({ part, isStreaming }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const isRunning = part.status === 'running' && isStreaming;
   const isError = part.status === 'error';
-  const label = SUBAGENT_LABELS[part.label] || part.label || '子代理';
+  const label = SUBAGENT_KEYS[part.label] ? t(SUBAGENT_KEYS[part.label]) : (part.label || t('chat.subagent.dispatch'));
 
   // 分离活动日志和最终结果（content 格式：活动\n--- result ---\n最终结果）
   const content = part.content || '';
@@ -48,18 +51,18 @@ export function SubAgentPart({ part, isStreaming }: Props) {
         <div className="border-t border-[var(--color-accent)]/20 px-3 py-2 space-y-2">
           {activity && (
             <div>
-              <div className="text-[11px] text-[var(--color-text-muted-48)] mb-1">活动日志</div>
+              <div className="text-[11px] text-[var(--color-text-muted-48)] mb-1">{t('chat.activityLog')}</div>
               <pre className="text-[12px] font-mono whitespace-pre-wrap break-all text-[var(--color-text-muted-48)] bg-[var(--color-canvas)] p-2 rounded text-left max-h-40 overflow-y-auto">{activity}</pre>
             </div>
           )}
           {result && (
             <div>
-              <div className="text-[11px] text-[var(--color-text-muted-48)] mb-1">最终结果</div>
+              <div className="text-[11px] text-[var(--color-text-muted-48)] mb-1">{t('chat.finalResult')}</div>
               <pre className="text-[12px] font-mono whitespace-pre-wrap break-all text-[var(--color-ink)] bg-[var(--color-canvas)] p-2 rounded text-left max-h-60 overflow-y-auto">{result}</pre>
             </div>
           )}
           {!activity && !result && (
-            <div className="text-[12px] text-[var(--color-text-muted-48)] italic">{isRunning ? '执行中…' : '无内容'}</div>
+            <div className="text-[12px] text-[var(--color-text-muted-48)] italic">{isRunning ? t('chat.tool.running') : t('chat.tool.empty')}</div>
           )}
         </div>
       )}
