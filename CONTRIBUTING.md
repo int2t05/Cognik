@@ -1,12 +1,12 @@
-# Contributing to OpsMind
+# Contributing to Cognos
 
-感谢你对 OpsMind 的关注！无论是 Bug 报告、功能建议还是代码贡献，都非常欢迎。
+感谢你对 Cognos 的关注！无论是 Bug 报告、功能建议还是代码贡献，都非常欢迎。
 
 ## 开发环境设置
 
 ```bash
-git clone https://github.com/int2t05/OpsMind.git
-cd OpsMind
+git clone https://github.com/int2t05/Cognos.git
+cd Cognos
 
 # 启动依赖服务
 docker compose up -d postgres minio
@@ -22,6 +22,8 @@ npm install
 npm run dev
 ```
 
+默认账号：`admin` / `Admin@123`
+
 ## 代码规范
 
 - **Go**：遵循标准 Go 风格（`go vet`、`golangci-lint`）
@@ -29,6 +31,7 @@ npm run dev
 - **注释**：中文注释，解释"为什么这样做"而非重复代码逻辑
 - **架构**：Handler → Service → Repository 三层分离，不允许跨层调用
 - **API**：变更接口时同步更新 `docs/API/` 文档
+- **文档**：代码变更后同步更新对应 `docs/` 文档，保持 doc/impl 一致
 
 ## 提交规范
 

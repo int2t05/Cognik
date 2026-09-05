@@ -74,7 +74,7 @@ ConfigHandler.Get (domain/system/config/handler.go:29)
 
 ### PUT /api/v1/admin/configs/:key &emsp; 更新配置 &emsp; [PermSystemConfig]
 
-**输入** `{"value":"Cognos 知识管理系统 v2"}`
+**输入** `{"value":"Cognos 知识管理系统"}`
 
 ```
 ConfigHandler.Update (domain/system/config/handler.go:51)

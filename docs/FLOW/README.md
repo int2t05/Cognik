@@ -46,25 +46,40 @@ flowchart TD
     style Admin fill:#ef444415,stroke:#ef4444
 ```
 
-## 文档索引
+## 文档索引（按业务域）
 
-### 引擎与架构设计
+### 用户与权限（user/）
 
-| 文档 | 主题 | 核心内容 |
-|------|------|---------|
-| [retrieval-crag-flow.md](retrieval-crag-flow.md) | 检索管道 + CRAG | 并行检索 → RRF → rerank → CRAG 评估 → 充分性 verdict |
-| [indexing-pipeline-flow.md](indexing-pipeline-flow.md) | 索引管道 | IngestQueue 异步消费 → chunk → embed → pgvector + BM25 |
-| [memory-compression-flow.md](memory-compression-flow.md) | 记忆 + 压缩 | 两层记忆 + 六级上下文压缩 + 后台经验提取 |
-| [search-kb-loop-flow.md](search-kb-loop-flow.md) | 搜索闭环 | KB-miss → web_search → kb(create) → 异步索引 → 下次命中 |
+| 文档 | 核心调用链 |
+|------|-----------|
+| [auth-flow.md](user/auth-flow.md) | Login → JWT 双令牌 → Refresh → RBAC 中间件链 |
+| [user-rbac-flow.md](user/user-rbac-flow.md) | 用户 CRUD → 角色管理 → 菜单树 → 权限校验 |
 
-### API 端点流程
+### 知识库（knowledge/）
 
-| 文档 | 业务模块 | 核心调用链 |
-|------|---------|-----------|
-| [auth-flow.md](auth-flow.md) | 认证与中间件 | Login → JWT 双令牌 → Refresh → RBAC 中间件链 |
-| [chat-rag-sse-flow.md](chat-rag-sse-flow.md) | 智能问答 | StreamChat → Agent ReAct + 工具调用 → SSE 流式 → 持久化 |
-| [knowledge-publish-flow.md](knowledge-publish-flow.md) | 知识管理 | KB CRUD → 文章状态机 → 文档上传 → 异步处理 → 发布管道 |
-| [ticket-lifecycle-flow.md](ticket-lifecycle-flow.md) | 申告管理 | CreateTicket → UpdateStatus 状态机 → Supplement → AutoClose |
-| [user-rbac-flow.md](user-rbac-flow.md) | 用户与权限 | 用户 CRUD → 角色管理 → 菜单树 → 权限校验 |
-| [llm-config-hot-reload-flow.md](llm-config-hot-reload-flow.md) | LLM 配置 | CRUD → atomic.Value 热替换 → 连接测试 |
-| [admin-ops-flow.md](admin-ops-flow.md) | 看板与审计 | Dashboard 统计 → 趋势分析 → 审计日志 → 系统配置 |
+| 文档 | 核心调用链 |
+|------|-----------|
+| [knowledge-publish-flow.md](knowledge/knowledge-publish-flow.md) | KB CRUD → 文章状态机 → 文档上传 → 异步处理 → 发布管道 → Agent 自迭代闭环 |
+| [indexing-pipeline-flow.md](knowledge/indexing-pipeline-flow.md) | IngestQueue 异步消费 → chunk → embed → pgvector + BM25 |
+| [search-kb-loop-flow.md](knowledge/search-kb-loop-flow.md) | KB-miss → web_search → kb(create) → 自动发布 → 下次命中 |
+
+### 对话与检索（chat/）
+
+| 文档 | 核心调用链 |
+|------|-----------|
+| [chat-rag-sse-flow.md](chat/chat-rag-sse-flow.md) | StreamChat → Agent ReAct + 工具调用 → SSE 流式 → 持久化 |
+| [retrieval-crag-flow.md](chat/retrieval-crag-flow.md) | 并行检索 → RRF → rerank → CRAG 评估 → 充分性 verdict |
+| [memory-compression-flow.md](chat/memory-compression-flow.md) | 两层记忆 + 六级上下文压缩 + 后台经验提取 |
+
+### 工单（ticket/）
+
+| 文档 | 核心调用链 |
+|------|-----------|
+| [ticket-lifecycle-flow.md](ticket/ticket-lifecycle-flow.md) | CreateTicket → 系统工单(source=3) → UpdateStatus 状态机 → Supplement → AutoClose |
+
+### 系统管理（system/）
+
+| 文档 | 核心调用链 |
+|------|-----------|
+| [admin-ops-flow.md](system/admin-ops-flow.md) | Dashboard 统计 → 趋势分析 → 审计日志 → 系统配置 |
+| [llm-config-hot-reload-flow.md](system/llm-config-hot-reload-flow.md) | CRUD → atomic.Value 热替换 → 连接测试 |

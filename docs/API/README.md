@@ -94,16 +94,38 @@ Authorization: Bearer <access_token>
 | `page` | int | 1 | 页码（从 1 开始） |
 | `page_size` | int | 10 | 每页条数（最大 100） |
 
-## API Reference
+## API Reference（按业务域）
+
+### 用户与权限（user/）
 
 | 文档 | 说明 |
 |------|------|
-| [auth.md](auth.md) | 认证接口（登录/刷新/登出/修改密码） |
-| [chat.md](chat.md) | 智能问答接口（SSE 流式 + RAG 管道） |
-| [tickets.md](tickets.md) | 申告管理接口（门户提交 + 后台处理） |
-| [knowledge.md](knowledge.md) | 知识库管理接口（KB/文章/审核/发布/文档上传） |
-| [llm-config.md](llm-config.md) | LLM 配置接口（llama.cpp / OpenAI-compatible） |
-| [users.md](users.md) | 用户管理接口（CRUD + 冻结/恢复） |
-| [roles.md](roles.md) | 角色与菜单管理接口 |
-| [dashboard.md](dashboard.md) | 数据看板接口（统计 + 趋势） |
-| [audit-log.md](audit-log.md) | 审计日志 + 系统配置 + 站内消息 |
+| [auth.md](user/auth.md) | 认证接口（登录/刷新/登出/修改密码） |
+| [users.md](user/users.md) | 用户管理接口（CRUD + 冻结/恢复） |
+| [roles.md](user/roles.md) | 角色与菜单管理接口 |
+
+### 知识库（knowledge/）
+
+| 文档 | 说明 |
+|------|------|
+| [knowledge.md](knowledge/knowledge.md) | 知识库管理接口（KB/文章/审核/发布/文档上传/Agent 自迭代闭环） |
+
+### 对话（chat/）
+
+| 文档 | 说明 |
+|------|------|
+| [chat.md](chat/chat.md) | 智能问答接口（SSE 流式 + Agent ReAct 循环） |
+
+### 工单（ticket/）
+
+| 文档 | 说明 |
+|------|------|
+| [tickets.md](ticket/tickets.md) | 申告管理接口（门户提交 + 后台处理 + 系统复核工单） |
+
+### 系统管理（system/）
+
+| 文档 | 说明 |
+|------|------|
+| [llm-config.md](system/llm-config.md) | LLM 配置接口（热替换 + 连接测试） |
+| [dashboard.md](system/dashboard.md) | 数据看板接口（统计 + 趋势） |
+| [audit-log.md](system/audit-log.md) | 审计日志 + 系统配置 + 站内消息 |
