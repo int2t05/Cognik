@@ -89,7 +89,7 @@ type ParameterInfo struct {
 }
 
 // ParamsOneOf 工具参数 schema——params 表示法（map[string]*ParameterInfo）。
-// Cognos 工具均用此表示，不使用外部 JSONSchema 包。
+// Cognik 工具均用此表示，不使用外部 JSONSchema 包。
 type ParamsOneOf struct {
 	params map[string]*ParameterInfo
 }

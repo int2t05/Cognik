@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/parser"
-	"cognos/internal/parser/local"
+	"cognik/internal/parser"
+	"cognik/internal/parser/local"
 )
 
 // TestParsePPTX 验证 PPTX 解析基本功能（直接调用 local.ParsePPTX）。

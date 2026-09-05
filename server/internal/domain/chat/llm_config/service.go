@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cognos/internal/agent/llm"
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/agent/llm"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

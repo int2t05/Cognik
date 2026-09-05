@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="Cognos">
+  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="Cognik">
 </p>
 
-<h1 align="center">Cognos</h1>
+<h1 align="center">Cognik</h1>
 
 <p align="center">A private-deploy knowledge management platform — AI-driven knowledge capture and retrieval for teams and individuals</p>
 
@@ -10,14 +10,14 @@
   <a href="README.zh-CN.md">简体中文</a>
   &nbsp;·&nbsp;
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
-  <a href="https://github.com/int2t05/Cognos"><img alt="platform" src="https://img.shields.io/badge/platform-Go%20%2B%20Next.js-5b5bd6"></a>
+  <a href="https://github.com/int2t05/Cognik"><img alt="platform" src="https://img.shields.io/badge/platform-Go%20%2B%20Next.js-5b5bd6"></a>
 </p>
 
 ---
 
 ## What is this
 
-Cognos is a privately-deployed knowledge management platform that helps teams and individuals capture knowledge, retrieve experience, and solve problems.
+Cognik is a privately-deployed knowledge management platform that helps teams and individuals capture knowledge, retrieve experience, and solve problems.
 
 At its core is an Agent that autonomously calls tools and reasons in multiple steps — it decides when to retrieve the knowledge base, when to search the web, and when to write new knowledge. Writes are published straight into the RAG pipeline and become retrievable in the next round, forming a **self-iterating knowledge loop**. The entire chain, from the Agent loop to the retrieval pipeline, is built in-house; data never leaves your domain.
 

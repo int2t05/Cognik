@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"cognos/internal/infra/config"
-	"cognos/internal/parser/mineru"
+	"cognik/internal/infra/config"
+	"cognik/internal/parser/mineru"
 )
 
 // TestMinerU_NewEngine_NoKey 验证 API Key 为空时返回 nil（触发本地降级）。

@@ -14,16 +14,16 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/infra/adapter"
-	"cognos/internal/infra/storage"
-	"cognos/internal/parser"
-	"cognos/internal/rag"
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/dto/response"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/pathutil"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/infra/storage"
+	"cognik/internal/parser"
+	"cognik/internal/rag"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/dto/response"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/pathutil"
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
@@ -38,13 +38,13 @@ var allowedDocumentTypes = map[string]bool{
 
 // 存储布局（单桶，扁平 md 文件 + 统一图片目录）：
 //
-//	cognos-documents/kb-{kbID}/{draft|published}/{slug}.md   正文（扁平文件，非目录）
-//	cognos-documents/image/{hash}.{ext}                      图片（全局统一目录，内容寻址去重）
+//	cognik-documents/kb-{kbID}/{draft|published}/{slug}.md   正文（扁平文件，非目录）
+//	cognik-documents/image/{hash}.{ext}                      图片（全局统一目录，内容寻址去重）
 //
 // 草稿与已发布由目录区分；文件名用 slug（kebab-case 标题），articleID 移入 frontmatter。
 // 图片与文章解耦：任何文章/上下文都可通过 /api/v1/public/images/{name} 解析，无需 articleId。
 const (
-	minioBucket = "cognos-documents"
+	minioBucket = "cognik-documents"
 	// imageDir 图片全局统一目录名（桶下）。
 	imageDir = "image"
 	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。

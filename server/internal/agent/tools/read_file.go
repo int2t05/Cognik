@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"os"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // ReadFileTool 文件读取工具（实现 agent.SyncTool 接口）。

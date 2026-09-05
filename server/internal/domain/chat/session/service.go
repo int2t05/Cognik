@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/agent/llm"
-	"cognos/internal/agent"
-	"cognos/internal/agent/store"
-	"cognos/internal/infra/runtime"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/agent/llm"
+	"cognik/internal/agent"
+	"cognik/internal/agent/store"
+	"cognik/internal/infra/runtime"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

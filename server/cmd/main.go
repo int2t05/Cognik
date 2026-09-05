@@ -1,4 +1,4 @@
-// Package main 是 Cognos 后端服务入口。
+// Package main 是 Cognik 后端服务入口。
 package main
 
 import (
@@ -15,33 +15,33 @@ import (
 
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 
-	"cognos/internal/domain/chat/llm_config"
-	"cognos/internal/domain/chat/session"
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/domain/system/audit"
-	sysconfig "cognos/internal/domain/system/config"
-	"cognos/internal/domain/system/dashboard"
-	"cognos/internal/domain/system/message"
-	"cognos/internal/domain/ticket"
-	"cognos/internal/domain/user/account"
-	"cognos/internal/domain/user/auth"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/agent"
-	agenttools "cognos/internal/agent/tools"
-	"cognos/internal/agent/store"
-	"cognos/internal/infra/adapter"
-	"cognos/internal/infra/cache"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	opslog "cognos/internal/infra/log"
-	"cognos/internal/infra/runtime"
-	"cognos/internal/infra/storage"
-	"cognos/internal/parser"
-	"cognos/internal/parser/mineru"
-	"cognos/internal/rag"
-	"cognos/internal/router"
+	"cognik/internal/domain/chat/llm_config"
+	"cognik/internal/domain/chat/session"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/domain/system/audit"
+	sysconfig "cognik/internal/domain/system/config"
+	"cognik/internal/domain/system/dashboard"
+	"cognik/internal/domain/system/message"
+	"cognik/internal/domain/ticket"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/domain/user/auth"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/agent"
+	agenttools "cognik/internal/agent/tools"
+	"cognik/internal/agent/store"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/infra/cache"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	opslog "cognik/internal/infra/log"
+	"cognik/internal/infra/runtime"
+	"cognik/internal/infra/storage"
+	"cognik/internal/parser"
+	"cognik/internal/parser/mineru"
+	"cognik/internal/rag"
+	"cognik/internal/router"
 )
 
 // app 持有所有已初始化的组件。
@@ -57,7 +57,7 @@ type app struct {
 }
 
 func main() {
-	slog.Info("Cognos 服务启动中...")
+	slog.Info("Cognik 服务启动中...")
 
 	app, err := wireApp()
 	if err != nil {
@@ -83,7 +83,7 @@ func wireApp() (*app, error) {
 	a.cfg = cfg
 
 	// 初始化日志（路径由 data_root 派生）
-	logDir := os.Getenv("COGNOS_LOG_DIR")
+	logDir := os.Getenv("COGNIK_LOG_DIR")
 	if logDir == "" {
 		logDir = filepath.Join(cfg.DataRoot, "logs")
 	}
@@ -96,7 +96,7 @@ func wireApp() (*app, error) {
 	// 生产模式 JWT 密钥非空校验
 	if cfg.JWT.Secret == "" {
 		if cfg.Server.Mode == "release" {
-			return nil, fmt.Errorf("JWT 密钥为空，生产模式不允许启动，请设置 COGNOS_JWT_SECRET")
+			return nil, fmt.Errorf("JWT 密钥为空，生产模式不允许启动，请设置 COGNIK_JWT_SECRET")
 		}
 		slog.Warn("JWT 密钥为空，JWT 认证功能不可用（仅调试模式允许）")
 	}
@@ -108,9 +108,9 @@ func wireApp() (*app, error) {
 	}
 	slog.Info("数据库连接成功")
 
-	// AutoMigrate（开发环境自动迁移，生产环境通过 COGNOS_DB_SKIP_MIGRATE 跳过）
-	if os.Getenv("COGNOS_DB_SKIP_MIGRATE") == "true" {
-		slog.Info("已跳过数据库自动迁移（COGNOS_DB_SKIP_MIGRATE=true）")
+	// AutoMigrate（开发环境自动迁移，生产环境通过 COGNIK_DB_SKIP_MIGRATE 跳过）
+	if os.Getenv("COGNIK_DB_SKIP_MIGRATE") == "true" {
+		slog.Info("已跳过数据库自动迁移（COGNIK_DB_SKIP_MIGRATE=true）")
 	} else {
 		if err := database.AutoMigrate(db, cfg.Embedding.Dimension); err != nil {
 			return nil, fmt.Errorf("数据库迁移失败: %w", err)
@@ -160,7 +160,7 @@ func wireApp() (*app, error) {
 	} else {
 		a.vectorStore = vectorStore
 		// HNSW 查询时 ef_search（必须 ≥ topK，越大召回越高、延迟越大；默认 100 达 95%+ recall）。
-		efSearch := envInt("COGNOS_AI_EF_SEARCH", 100)
+		efSearch := envInt("COGNIK_AI_EF_SEARCH", 100)
 		vectorStore.SetEfSearch(efSearch)
 		slog.Info("pgvector VectorStore 已连接", "ef_search", efSearch)
 	}
@@ -227,11 +227,11 @@ func wireApp() (*app, error) {
 
 	// RAG 引擎组件
 	// batchSize 仅影响索引侧吞吐（单 query 文本与 batch 无关）；查询侧走单文本缓存路径。
-	embedder := rag.NewEmbedder(embeddingClient, envInt("COGNOS_AI_EMBED_BATCH", 20))
+	embedder := rag.NewEmbedder(embeddingClient, envInt("COGNIK_AI_EMBED_BATCH", 20))
 	// 查询侧 embedding 缓存（LRU + TTL）；仅单文本命中，索引批旁路。
 	embedder.SetQueryCache(
-		envDuration("COGNOS_AI_QUERY_EMBED_CACHE_TTL", 10*time.Minute),
-		envInt("COGNOS_AI_QUERY_EMBED_CACHE_MAX", 1000),
+		envDuration("COGNIK_AI_QUERY_EMBED_CACHE_TTL", 10*time.Minute),
+		envInt("COGNIK_AI_QUERY_EMBED_CACHE_MAX", 1000),
 	)
 
 	// 文档解析器：MinerU 云端高精度优先，本地纯 Go 库兜底
@@ -253,7 +253,7 @@ func wireApp() (*app, error) {
 
 
 	bm25TTL := 30 * time.Minute
-	if s := os.Getenv("COGNOS_AI_BM25_REBUILD_MINUTES"); s != "" {
+	if s := os.Getenv("COGNIK_AI_BM25_REBUILD_MINUTES"); s != "" {
 		var minutes int
 		if _, err := fmt.Sscanf(s, "%d", &minutes); err == nil && minutes > 0 {
 			bm25TTL = time.Duration(minutes) * time.Minute
@@ -266,7 +266,7 @@ func wireApp() (*app, error) {
 	var processor *rag.Processor
 	if a.vectorStore != nil || a.storageClient != nil {
 		procWorkers := 5 // 默认 5 消费者并行
-		if s := os.Getenv("COGNOS_AI_PROCESSOR_WORKERS"); s != "" {
+		if s := os.Getenv("COGNIK_AI_PROCESSOR_WORKERS"); s != "" {
 			var n int
 			if _, err := fmt.Sscanf(s, "%d", &n); err == nil && n > 0 {
 				procWorkers = n
@@ -320,7 +320,7 @@ func wireApp() (*app, error) {
 
 	// Contextual Retrieval：索引时为 chunk 生成 LLM 上下文摘要 prepend，提升检索召回率。
 	// 成本特性，默认关闭；启用后由 Processor 复用 agent ChatModel 生成摘要。
-	if processor != nil && envStr("COGNOS_AI_CONTEXTUAL_ENABLED", "false") == "true" {
+	if processor != nil && envStr("COGNIK_AI_CONTEXTUAL_ENABLED", "false") == "true" {
 		processor.SetContextualGenerator(rag.NewLLMContextualGenerator(agentModelFactory.GetModel))
 		slog.Info("Contextual Retrieval 已启用（索引时 LLM 上下文摘要）")
 	}
@@ -353,28 +353,28 @@ func wireApp() (*app, error) {
 	// 工具装配 + 注册到 ToolRegistry。
 	// kb 工具：知识库 CRUD + 纯检索原语封装。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
-	retrievalK := envInt("COGNOS_AI_RETRIEVAL_K", 30)
+	retrievalK := envInt("COGNIK_AI_RETRIEVAL_K", 30)
 	// CRAG 充分性评估器：阈值评估器（纯函数，复用 confidence_threshold 默认 0.40/0.70）。
 	// 阈值经 ComputeThresholds 从历史 confidence_raw 算 P30/P70 动态更新（管理端触发）。
-	confLow := envFloat("COGNOS_AI_CONFIDENCE_THRESHOLD_LOW", 0.40)
-	confHigh := envFloat("COGNOS_AI_CONFIDENCE_THRESHOLD_HIGH", 0.70)
+	confLow := envFloat("COGNIK_AI_CONFIDENCE_THRESHOLD_LOW", 0.40)
+	confHigh := envFloat("COGNIK_AI_CONFIDENCE_THRESHOLD_HIGH", 0.70)
 	thresholdEval := rag.NewThresholdEvaluator(confLow, confHigh)
 	// CRAG 评估器：默认纯阈值（零成本）；LLM 评估启用时仅对 Ambiguous 带二次判定（失败降级阈值）。
 	var evaluator rag.SufficiencyEvaluator = thresholdEval
-	if envStr("COGNOS_AI_CRAG_LLM_EVAL", "false") == "true" {
+	if envStr("COGNIK_AI_CRAG_LLM_EVAL", "false") == "true" {
 		evaluator = rag.NewChainEvaluator(thresholdEval, rag.NewLLMCRAGEvaluator(agentModelFactory.GetModel))
 		slog.Info("CRAG LLM 评估器已启用（仅 Ambiguous 带）")
 	}
 	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue, cfg.Storage.Local.BaseDir, bucket, retrievalK, evaluator)
 
 	// RRF 融合常数 k（可配；k 越小头部得分优势越大，需 eval 验证后再调，默认 30）
-	rag.SetRRFK(envInt("COGNOS_AI_RRF_K", 30))
+	rag.SetRRFK(envInt("COGNIK_AI_RRF_K", 30))
 	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
 
 	toolDeps := agenttools.Deps{
-		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", filepath.Join(cfg.DataRoot, "agent-workspace")),
-		Timeout:     envDuration("COGNOS_AGENT_TOOL_TIMEOUT", 30*time.Second),
-		MaxBytes:    int64(envInt("COGNOS_AGENT_TOOL_MAX_BYTES", 65536)),
+		WorkDir:     envStr("COGNIK_AGENT_WORK_DIR", filepath.Join(cfg.DataRoot, "agent-workspace")),
+		Timeout:     envDuration("COGNIK_AGENT_TOOL_TIMEOUT", 30*time.Second),
+		MaxBytes:    int64(envInt("COGNIK_AGENT_TOOL_MAX_BYTES", 65536)),
 		SearchChain: searchChain,
 		FetchChain:  fetchChain,
 		KBStore:     kbStore,
@@ -455,7 +455,7 @@ func wireApp() (*app, error) {
 	slog.Info("Gateway 网关已初始化")
 
 	// Agent 对话数据存储（SQLite，与业务 PostgreSQL 隔离）
-	agentDBPath := envStr("COGNOS_AGENT_DB", filepath.Join(cfg.DataRoot, "agent.db"))
+	agentDBPath := envStr("COGNIK_AGENT_DB", filepath.Join(cfg.DataRoot, "agent.db"))
 	agentStore, err := store.NewSQLiteStore(agentDBPath)
 	if err != nil {
 		return nil, fmt.Errorf("创建 Agent SQLite 存储失败: %w", err)
@@ -612,7 +612,7 @@ func (a *app) run() error {
 		a.logCleanup()
 	}
 
-	slog.Info("Cognos 服务已停止")
+	slog.Info("Cognik 服务已停止")
 	return nil
 }
 

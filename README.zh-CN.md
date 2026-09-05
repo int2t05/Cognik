@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="Cognos">
+  <img src="docs/assets/icon-dark.svg" width="80" height="80" alt="Cognik">
 </p>
 
-<h1 align="center">Cognos</h1>
+<h1 align="center">Cognik</h1>
 
 <p align="center">团队/个人知识库管理平台——AI 驱动的知识沉淀与检索</p>
 
@@ -10,14 +10,14 @@
   <a href="README.md">English</a>
   &nbsp;·&nbsp;
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
-  <a href="https://github.com/int2t05/Cognos"><img alt="platform" src="https://img.shields.io/badge/platform-Go%20%2B%20Next.js-5b5bd6"></a>
+  <a href="https://github.com/int2t05/Cognik"><img alt="platform" src="https://img.shields.io/badge/platform-Go%20%2B%20Next.js-5b5bd6"></a>
 </p>
 
 ---
 
 ## 这是什么
 
-Cognos 是一个私有部署的知识管理平台，帮助团队和个人沉淀知识、检索经验、解决问题。
+Cognik 是一个私有部署的知识管理平台，帮助团队和个人沉淀知识、检索经验、解决问题。
 
 核心是一个能自主调用工具、多步推理的 Agent——它决定何时检索知识库、何时搜索网络、何时写入新知识。写回即发布进 RAG，下一轮检索可召回，形成**自迭代知识闭环**。从 Agent 循环到检索管道全部自建，数据不出域。
 

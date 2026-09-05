@@ -1,11 +1,11 @@
--- Cognos 必要种子数据集（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
+-- Cognik 必要种子数据集（角色 + 用户 + 菜单 + LLM 配置 + 系统配置）
 --
 -- 仅加载系统运行所需的最少静态数据。动态数据（知识库、知识文章、
 -- 工单工单、处理记录、站内消息）在运行时通过 API/UI 人工创建。
 -- 可重复执行：先 DELETE 再 INSERT。
 --
 -- 手动加载方式：
---   docker compose exec -T postgres psql -U cognos -d cognos < server/migrations/seed_essential.sql
+--   docker compose exec -T postgres psql -U cognik -d cognik < server/migrations/seed_essential.sql
 
 BEGIN;
 
@@ -64,12 +64,12 @@ SELECT r.id, m.id FROM roles r, menus m;
 -- =============================================================================
 
 INSERT INTO users (id, username, password_hash, real_name, phone, email, status, first_login, created_at, updated_at) VALUES
-(1, 'admin',     '$2a$10$G5FBz7I3ne4Avj7j.kyhz.uo9TCY7/OADw3RLL/15AKl97kl7AS2.', '系统管理员', '13800000001', 'admin@cognos.local',      1, true,  NOW(), NOW()),
-(2, 'operator1', '$2a$10$BuBFnBkWINTypuEztzlYi.AazINGfwz9HQuzcV/yXsZAgw5B5OW.C', '张工',     '13800000002', 'zhangyunwei@cognos.local', 1, true,  NOW(), NOW()),
-(3, 'operator2', '$2a$10$BuBFnBkWINTypuEztzlYi.AazINGfwz9HQuzcV/yXsZAgw5B5OW.C', '李工',     '13800000003', 'liyunwei@cognos.local',    1, true,  NOW(), NOW()),
-(4, 'knowledge', '$2a$10$IUGaQylkRdufn3de7SlpkOZZNR6nCYzA.AWkKuU/amj3FWky3C6xm', '王知识',     '13800000004', 'wangzhishi@cognos.local',  1, true,  NOW(), NOW()),
-(5, 'reporter1', '$2a$10$/qkn/UAKYhUmRtmefmfG1uy2UJLVMizGozRvicRJNbJzv3yiWUKby', '赵用户',     '13800000005', 'zhaoyonghu@cognos.local',  1, true,  NOW(), NOW()),
-(6, 'reporter2', '$2a$10$/qkn/UAKYhUmRtmefmfG1uy2UJLVMizGozRvicRJNbJzv3yiWUKby', '钱用户',     '13800000006', 'qianyonghu@cognos.local',  1, false, NOW(), NOW());
+(1, 'admin',     '$2a$10$G5FBz7I3ne4Avj7j.kyhz.uo9TCY7/OADw3RLL/15AKl97kl7AS2.', '系统管理员', '13800000001', 'admin@cognik.local',      1, true,  NOW(), NOW()),
+(2, 'operator1', '$2a$10$BuBFnBkWINTypuEztzlYi.AazINGfwz9HQuzcV/yXsZAgw5B5OW.C', '张工',     '13800000002', 'zhangyunwei@cognik.local', 1, true,  NOW(), NOW()),
+(3, 'operator2', '$2a$10$BuBFnBkWINTypuEztzlYi.AazINGfwz9HQuzcV/yXsZAgw5B5OW.C', '李工',     '13800000003', 'liyunwei@cognik.local',    1, true,  NOW(), NOW()),
+(4, 'knowledge', '$2a$10$IUGaQylkRdufn3de7SlpkOZZNR6nCYzA.AWkKuU/amj3FWky3C6xm', '王知识',     '13800000004', 'wangzhishi@cognik.local',  1, true,  NOW(), NOW()),
+(5, 'reporter1', '$2a$10$/qkn/UAKYhUmRtmefmfG1uy2UJLVMizGozRvicRJNbJzv3yiWUKby', '赵用户',     '13800000005', 'zhaoyonghu@cognik.local',  1, true,  NOW(), NOW()),
+(6, 'reporter2', '$2a$10$/qkn/UAKYhUmRtmefmfG1uy2UJLVMizGozRvicRJNbJzv3yiWUKby', '钱用户',     '13800000006', 'qianyonghu@cognik.local',  1, false, NOW(), NOW());
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
@@ -82,7 +82,7 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 -- =============================================================================
 
 INSERT INTO system_configs (key, value, description, updated_by, updated_at) VALUES
-('app_name',                '"Cognos"', '应用名称，显示在页面标题和系统通知中', 1, NOW()),
+('app_name',                '"Cognik"', '应用名称，显示在页面标题和系统通知中', 1, NOW()),
 ('ai.rag_enabled',          'true',      '全局 RAG 检索开关',                  1, NOW()),
 ('ai.top_k',                '5',         'RAG 默认检索 Top K',                 1, NOW()),
 ('ai.confidence_threshold_low',  '0.40', '低置信阈值——Conf_raw 低于此值为低置信', 1, NOW()),

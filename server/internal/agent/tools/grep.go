@@ -17,9 +17,9 @@ import (
 	"regexp"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // GrepTool 内容搜索工具。

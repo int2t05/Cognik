@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/agent"
-	agenttools "cognos/internal/agent/tools"
+	"cognik/internal/agent"
+	agenttools "cognik/internal/agent/tools"
 )
 
 // newWorkDir 创建临时 workDir（替代废弃的 ToolFactory）。

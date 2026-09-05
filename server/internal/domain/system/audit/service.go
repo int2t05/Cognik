@@ -6,8 +6,8 @@ package audit
 import (
 	"context"
 
-	respDto "cognos/internal/shared/dto/response"
-	"cognos/internal/shared/model"
+	respDto "cognik/internal/shared/dto/response"
+	"cognik/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

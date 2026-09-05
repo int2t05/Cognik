@@ -1,10 +1,10 @@
-# Cognos API 文档
+# Cognik API 文档
 
 > **Base URL:** `/api/v1`
 
 ## 概览
 
-Cognos 后端提供 RESTful JSON API，分为三组路由：
+Cognik 后端提供 RESTful JSON API，分为三组路由：
 
 | Route Group | Prefix | Auth | Description |
 |--------|------|----------|------|

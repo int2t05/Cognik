@@ -11,11 +11,11 @@ import (
 	"strings"
 	"sync"
 
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/infra/adapter"
-	"cognos/internal/rag"
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/rag"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/model"
 )
 
 // kbStoreImpl KBStore 实现：检索复用 RAG 引擎，CRUD 委托 KnowledgeService。

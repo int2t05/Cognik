@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 )
 
 // FileMemoryStore 记忆文件式存储。

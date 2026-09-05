@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"strconv"
 
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/pkg/errcode"
-	resp "cognos/internal/shared/pkg/response"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/pkg/errcode"
+	resp "cognik/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

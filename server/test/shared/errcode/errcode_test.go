@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/errcode"
 )
 
 // TestExtractErrMsg 验证从 error 提取用户可读消息：AppError 取 Message，其余取 Error()。

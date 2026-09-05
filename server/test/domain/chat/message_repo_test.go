@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
-	"cognos/internal/domain/system/message"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/system/message"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
 
 	"gorm.io/gorm"
 )
@@ -21,8 +21,8 @@ func setupMessageTestDB(t *testing.T) *gorm.DB {
 	port, _ := strconv.Atoi(getEnv("TEST_DB_PORT", "5432"))
 	db, err := database.Init(config.DatabaseConfig{
 		Host: getEnv("TEST_DB_HOST", "localhost"), Port: port,
-		User: getEnv("TEST_DB_USER", "cognos"), Password: getEnv("TEST_DB_PASSWORD", "cognos_dev"),
-		DBName: getEnv("TEST_DB_NAME", "cognos_test"), SSLMode: getEnv("TEST_DB_SSLMODE", "disable"),
+		User: getEnv("TEST_DB_USER", "cognik"), Password: getEnv("TEST_DB_PASSWORD", "cognik_dev"),
+		DBName: getEnv("TEST_DB_NAME", "cognik_test"), SSLMode: getEnv("TEST_DB_SSLMODE", "disable"),
 	})
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)

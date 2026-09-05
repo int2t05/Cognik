@@ -16,9 +16,9 @@ import (
 	"os"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // EditFileTool 文件精确编辑工具（实现 agent.SyncTool 接口）。

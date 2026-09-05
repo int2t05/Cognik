@@ -4,7 +4,7 @@ package model
 import (
 	"time"
 
-	"cognos/internal/shared/pkg/crypto"
+	"cognik/internal/shared/pkg/crypto"
 
 	"gorm.io/gorm"
 )

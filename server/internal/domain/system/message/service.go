@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/gorm"
 )

@@ -169,7 +169,7 @@ flowchart LR
 | 项 | 值 |
 |----|-----|
 | 模型 | agent ChatModel（同 LLM） |
-| 触发 | `COGNOS_AI_CONTEXTUAL_ENABLED=true` |
+| 触发 | `COGNIK_AI_CONTEXTUAL_ENABLED=true` |
 | 成本 | LLM 调用（每块一次），默认关闭 |
 | 效果 | 检索失败率 -49~67%（Anthropic 实证） |
 | 失败 | 单块失败跳过，不影响其他块 |
@@ -178,10 +178,10 @@ flowchart LR
 
 | 环境变量 | 默认 | 作用 |
 |---------|------|------|
-| `COGNOS_AI_PROCESSOR_WORKERS` | 5 | goroutine pool 大小 |
-| `COGNOS_AI_EMBED_BATCH` | 20 | embedding 批大小 |
-| `COGNOS_AI_CONTEXTUAL_ENABLED` | false | Contextual Retrieval |
-| `COGNOS_AI_BM25_REBUILD_MINUTES` | 30 | BM25 索引 TTL |
+| `COGNIK_AI_PROCESSOR_WORKERS` | 5 | goroutine pool 大小 |
+| `COGNIK_AI_EMBED_BATCH` | 20 | embedding 批大小 |
+| `COGNIK_AI_CONTEXTUAL_ENABLED` | false | Contextual Retrieval |
+| `COGNIK_AI_BM25_REBUILD_MINUTES` | 30 | BM25 索引 TTL |
 
 ---
 

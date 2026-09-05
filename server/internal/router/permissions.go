@@ -1,7 +1,7 @@
 // Package router 负责注册 Gin 路由。
 package router
 
-import "cognos/internal/domain/user/role"
+import "cognik/internal/domain/user/role"
 
 const (
 	PermUserManage      = role.PermUserManage

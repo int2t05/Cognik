@@ -1,4 +1,4 @@
-module cognos
+module cognik
 
 go 1.26.2
 

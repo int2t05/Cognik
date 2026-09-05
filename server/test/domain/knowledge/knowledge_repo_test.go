@@ -4,7 +4,7 @@
 //
 // 测试覆盖 KnowledgeBase、KnowledgeArticle、KnowledgeChunk 的全部数据访问方法。
 // EmbeddingConfig 见 llm_configs 表（chat/llm_config 领域）。
-// 使用独立的 cognos_test 数据库，每个测试用例通过清理保证隔离性。
+// 使用独立的 cognik_test 数据库，每个测试用例通过清理保证隔离性。
 package knowledge_test
 
 import (
@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,9 +30,9 @@ func setupKnowledgeTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos_test",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik_test",
 		SSLMode:  "disable",
 	}
 

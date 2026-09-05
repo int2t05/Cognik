@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/infra/adapter"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/parser"
-	"cognos/internal/rag"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/parser"
+	"cognik/internal/rag"
 
 	"gorm.io/gorm"
 )
@@ -31,9 +31,9 @@ import (
 // ragVectorStoreDSN 返回 pgvector 测试数据库连接字符串。
 func ragVectorStoreDSN() string {
 	host := "localhost"
-	user := "cognos"
-	password := "cognos_dev"
-	dbname := "cognos_test"
+	user := "cognik"
+	password := "cognik_dev"
+	dbname := "cognik_test"
 	if env := os.Getenv("DB_HOST"); env != "" {
 		host = env
 	}
@@ -50,9 +50,9 @@ func ragVectorStoreDSN() string {
 func ragMustGormDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	host := "localhost"
-	user := "cognos"
-	password := "cognos_dev"
-	dbname := "cognos_test"
+	user := "cognik"
+	password := "cognik_dev"
+	dbname := "cognik_test"
 	if env := os.Getenv("DB_HOST"); env != "" {
 		host = env
 	}

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/rag"
+	"cognik/internal/rag"
 )
 
 // =============================================================================

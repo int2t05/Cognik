@@ -1,10 +1,10 @@
-# Cognos 产品技术路线图
+# Cognik 产品技术路线图
 
 > 从 V1.0 到 V2.0 的版本规划。代码级改进清单见 [`TODO.md`](TODO.md)，技术架构详见 [`TECH.md`](TECH.md)。
 
 ## 1. 项目愿景
 
-Cognos 是面向团队的**私有部署 AI 知识管理平台**。核心目标：让知识沉淀为可复用资产，让 AI 自主检索与写入知识，让团队从重复性咨询中解放。
+Cognik 是面向团队的**私有部署 AI 知识管理平台**。核心目标：让知识沉淀为可复用资产，让 AI 自主检索与写入知识，让团队从重复性咨询中解放。
 
 **设计原则**：私有部署优先（数据不出域）、自建 RAG 引擎（全链路可控可审计）、单体分层架构（简洁可维护）。
 
@@ -44,7 +44,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((Cognos V1.0))
+  root((Cognik V1.0))
     智能问答
       自建 7 步 RAG 管道
       BM25 + 向量混合 + RRF
@@ -457,7 +457,7 @@ Agent 自动写入知识库默认无审核，AI 幻觉可直接污染知识库�
 
 ```mermaid
 gantt
-    title Cognos V1.0 → V2.0 里程碑
+    title Cognik V1.0 → V2.0 里程碑
     dateFormat YYYY-MM-DD
     axisFormat %Y-%m
 

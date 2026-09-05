@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"cognos/internal/infra/adapter"
+	"cognik/internal/infra/adapter"
 )
 
 // VectorRetriever 向量检索器，将查询向量化后调用 pgvector cosine 检索。

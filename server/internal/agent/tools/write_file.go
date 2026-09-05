@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // WriteFileTool 文件写入工具（实现 agent.SyncTool 接口）。

@@ -12,9 +12,9 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"cognos/internal/agent/llm"
-	llmconfig "cognos/internal/domain/chat/llm_config"
-	"cognos/internal/shared/model"
+	"cognik/internal/agent/llm"
+	llmconfig "cognik/internal/domain/chat/llm_config"
+	"cognik/internal/shared/model"
 )
 
 // ChatModelFactory 构造并热切换 ChatModel。

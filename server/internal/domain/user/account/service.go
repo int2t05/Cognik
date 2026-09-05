@@ -7,13 +7,13 @@ import (
 	"regexp"
 	"strings"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/infra/cache"
-	"cognos/internal/shared/dto/request"
-	respDto "cognos/internal/shared/dto/response"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/hash"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/infra/cache"
+	"cognik/internal/shared/dto/request"
+	respDto "cognik/internal/shared/dto/response"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/hash"
 
 	"gorm.io/gorm"
 )

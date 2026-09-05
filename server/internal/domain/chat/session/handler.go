@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"cognos/internal/shared/pkg/errcode"
-	resp "cognos/internal/shared/pkg/response"
+	"cognik/internal/shared/pkg/errcode"
+	resp "cognik/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

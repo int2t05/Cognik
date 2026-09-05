@@ -1,4 +1,4 @@
-# Cognos — 技术架构文档
+# Cognik — 技术架构文档
 
 > 覆盖系统架构、前后端分层设计、数据库、可靠性、设计系统。关联文档：[PRD](PRD.md) · [TODO](TODO.md) · [API](API/README.md) · [FLOW](FLOW/README.md)
 
@@ -131,7 +131,7 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 | `embedder.go` | 批量 Embedding（batch=20）+ 查询侧 LRU 缓存 |
 | `packing.go` | Context Packing——token 预算内贪心填充（2000 token） |
 | `sandwich.go` | Sandwich Reorder——高分放首尾，缓解 Lost in the Middle |
-| `processor.go` | goroutine pool 异步文档处理（parse→chunk→embed→pgvector，poolSize=5，`COGNOS_AI_PROCESSOR_WORKERS` 覆盖） |
+| `processor.go` | goroutine pool 异步文档处理（parse→chunk→embed→pgvector，poolSize=5，`COGNIK_AI_PROCESSOR_WORKERS` 覆盖） |
 | `ingest_queue.go` | 异步索引队列（append-only JSONL，<5ms 入队） |
 | `index_builder.go` | INDEX.md 页目录重建（per-kbID 锁 + dirty-flag 循环 + 原子写） |
 | `types.go` | 共享类型定义 |
@@ -201,7 +201,7 @@ classDiagram
 - `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验；`SetEfSearch` 设查询时 `hnsw.ef_search`（只读事务内 `SET LOCAL`，连接池安全）
 - `Reranker`：cross-encoder 子进程实现（ms-marco-MiniLM-L-4-v2），崩溃自动重启
 - `SufficiencyEvaluator`：CRAG 充分性评估；`ThresholdEvaluator`（纯函数，复用 `ai.confidence_threshold_low/high`）+ 可选 `LLMCRAGEvaluator`（仅 Ambiguous 带，失败降级阈值）
-- `StorageClient`：Local + MinIO 双实现（目录式），桶：`cognos-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
+- `StorageClient`：Local + MinIO 双实现（目录式），桶：`cognik-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
 
 ## 3. 前端架构
 
@@ -317,9 +317,9 @@ erDiagram
 | 向量类型 | `halfvec(dim)` | 半精度；dim 由 config `embedding.dimension` 注入（代码默认 1536；本地 Qwen3-Embedding-0.6B 用 1024） |
 | 索引 | HNSW | `halfvec_cosine_ops`，m=16，ef_construction=200 |
 | 距离算子 | `<=>` | 余弦距离；score = `1 - 距离` |
-| ef_search | 100（`COGNOS_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
-| retrievalK | 30（`COGNOS_AI_RETRIEVAL_K` / `ai.retrieval_k`） | 两阶段候选池；rerank 全池后截到 limit |
-| RRF k | 30（`COGNOS_AI_RRF_K` / `ai.rrf_k`） | 融合常数，可调 |
+| ef_search | 100（`COGNIK_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
+| retrievalK | 30（`COGNIK_AI_RETRIEVAL_K` / `ai.retrieval_k`） | 两阶段候选池；rerank 全池后截到 limit |
+| RRF k | 30（`COGNIK_AI_RRF_K` / `ai.rrf_k`） | 融合常数，可调 |
 | 分块大小 | 500 字符 | 重叠 100 字符 |
 
 ### 4.3 关键索引
@@ -424,7 +424,7 @@ flowchart TD
 | LLM API | 3 次 | 指数退避，仅 429/503 | 超时 120s |
 | Embedding API | 3 次 | 指数退避，连接/超时始终重试 | batch=20 分批；查询侧 LRU 缓存（10min/1000） |
 | Reranker 子进程 | 自动重启 | 崩溃后 3s 重连 | 内部 30s 超时；失败降级原序并日志化 |
-| CRAG LLM 评估器 | 无 | Ambiguous 带触发；失败降级阈值 | 仅 `COGNOS_AI_CRAG_LLM_EVAL=true` 启用 |
+| CRAG LLM 评估器 | 无 | Ambiguous 带触发；失败降级阈值 | 仅 `COGNIK_AI_CRAG_LLM_EVAL=true` 启用 |
 | pgvector | 无 | 瞬时故障返回 20002 | HNSW 索引；`ef_search=100` |
 | MinIO | 无 | 惰性检查 | io.LimitReader(100MB) |
 | Local | 无 | 直接文件系统操作 | filepath.Join 防路径穿越 |
@@ -442,29 +442,29 @@ flowchart TD
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `COGNOS_DATABASE_PASSWORD` | 数据库密码 | cognos_dev |
-| `COGNOS_JWT_SECRET` | JWT 签名密钥 | 需手动设置 |
-| `COGNOS_LLM_BASE_URL` | LLM API 地址 | http://llama-cpp:8080/v1 |
-| `COGNOS_LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
-| `COGNOS_LLM_MODEL` | LLM 模型名称 | qwen3-4b |
-| `COGNOS_LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
-| `COGNOS_EMBEDDING_MODEL` | Embedding 模型 | 由环境变量指定 |
-| `COGNOS_EMBEDDING_DIMENSION` | 向量维度（须与 embedding 模型一致） | 1536 |
-| `COGNOS_DATA_ROOT` | 数据根目录（storage/memory/logs/agent.db 派生自此） | ../.cognos |
-| `COGNOS_AI_PROCESSOR_WORKERS` | Processor 消费者并行度 | 5 |
-| `COGNOS_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
-| `COGNOS_AI_RETRIEVAL_K` | 两阶段候选池大小 | 30 |
-| `COGNOS_AI_RRF_K` | RRF 融合常数 | 30 |
-| `COGNOS_AI_EMBED_BATCH` | 索引侧 embedding batch | 20 |
-| `COGNOS_AI_QUERY_EMBED_CACHE_TTL` | 查询 embedding 缓存 TTL | 10m |
-| `COGNOS_AI_CONTEXTUAL_ENABLED` | Contextual Retrieval（索引时 LLM 前缀） | false |
-| `COGNOS_AI_CRAG_LLM_EVAL` | CRAG LLM 评估器（仅 Ambiguous 带） | false |
+| `COGNIK_DATABASE_PASSWORD` | 数据库密码 | cognik_dev |
+| `COGNIK_JWT_SECRET` | JWT 签名密钥 | 需手动设置 |
+| `COGNIK_LLM_BASE_URL` | LLM API 地址 | http://llama-cpp:8080/v1 |
+| `COGNIK_LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
+| `COGNIK_LLM_MODEL` | LLM 模型名称 | qwen3-4b |
+| `COGNIK_LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
+| `COGNIK_EMBEDDING_MODEL` | Embedding 模型 | 由环境变量指定 |
+| `COGNIK_EMBEDDING_DIMENSION` | 向量维度（须与 embedding 模型一致） | 1536 |
+| `COGNIK_DATA_ROOT` | 数据根目录（storage/memory/logs/agent.db 派生自此） | ../.cognik |
+| `COGNIK_AI_PROCESSOR_WORKERS` | Processor 消费者并行度 | 5 |
+| `COGNIK_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
+| `COGNIK_AI_RETRIEVAL_K` | 两阶段候选池大小 | 30 |
+| `COGNIK_AI_RRF_K` | RRF 融合常数 | 30 |
+| `COGNIK_AI_EMBED_BATCH` | 索引侧 embedding batch | 20 |
+| `COGNIK_AI_QUERY_EMBED_CACHE_TTL` | 查询 embedding 缓存 TTL | 10m |
+| `COGNIK_AI_CONTEXTUAL_ENABLED` | Contextual Retrieval（索引时 LLM 前缀） | false |
+| `COGNIK_AI_CRAG_LLM_EVAL` | CRAG LLM 评估器（仅 Ambiguous 带） | false |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
-| `COGNOS_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
-| `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录（空 → 由 `COGNOS_DATA_ROOT` 派生） | 空 |
-| `COGNOS_AI_CONFIDENCE_THRESHOLD_LOW` / `_HIGH` | CRAG 充分性评估低/高阈值 | 0.40 / 0.70 |
-| `COGNOS_AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
-| `COGNOS_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
+| `COGNIK_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
+| `COGNIK_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录（空 → 由 `COGNIK_DATA_ROOT` 派生） | 空 |
+| `COGNIK_AI_CONFIDENCE_THRESHOLD_LOW` / `_HIGH` | CRAG 充分性评估低/高阈值 | 0.40 / 0.70 |
+| `COGNIK_AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
+| `COGNIK_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
 | `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
 
 > 完整环境变量见 `.env.example` 和 `docker-compose.yml`。

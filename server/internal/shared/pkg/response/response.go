@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/errcode"
 )
 
 // Response 统一响应结构

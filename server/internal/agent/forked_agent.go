@@ -9,7 +9,7 @@ import (
 	"context"
 	"log/slog"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // RunForkedAgent 执行一个隔离的 forked agent——独立 context + 独立 ToolRegistry + maxTurns 硬上限。

@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // MemoryEntry 记忆检索结果。

@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // GlobTool 文件名模式搜索工具。

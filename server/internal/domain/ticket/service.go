@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/infra/runtime"
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/dto/response"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/infra/runtime"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/dto/response"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

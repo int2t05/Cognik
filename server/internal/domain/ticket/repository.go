@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/dbutil"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/dbutil"
 
 	"gorm.io/gorm"
 )

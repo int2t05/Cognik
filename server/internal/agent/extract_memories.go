@@ -11,7 +11,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // 记忆类型分类（参考 Claude Code memoryTypes.ts，适配通用知识管理）

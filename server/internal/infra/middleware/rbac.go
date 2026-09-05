@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/response"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

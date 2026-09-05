@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/domain/ticket"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/infra/runtime"
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/ticket"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/infra/runtime"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/model"
 
 	"gorm.io/gorm"
 )
@@ -25,8 +25,8 @@ import (
 func setupTicketServiceDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "cognos", Password: "cognos_dev",
-		DBName: "cognos_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognik", Password: "cognik_dev",
+		DBName: "cognik_test", SSLMode: "disable",
 	}
 	db, err := database.Init(dbCfg)
 	if err != nil {

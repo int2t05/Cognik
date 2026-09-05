@@ -80,7 +80,7 @@
    ├─ hash.ValidatePassword (shared/pkg/hash/hash.go:56)
    │   → 正则 ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,32}$
    ├─ hash.HashPassword (shared/pkg/hash/hash.go:40)
-   │   → bcrypt, cost=COGNOS_BCRYPT_COST(默认10)
+   │   → bcrypt, cost=COGNIK_BCRYPT_COST(默认10)
    └─ db.Model(&User{}).Updates({password_hash, first_login:false})
 ```
 

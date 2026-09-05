@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // SubAgent 内置子 Agent 定义。

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"cognos/internal/infra/adapter"
-	"cognos/internal/rag"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/rag"
 )
 
 // =============================================================================

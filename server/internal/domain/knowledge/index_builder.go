@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"cognos/internal/shared/model"
+	"cognik/internal/shared/model"
 )
 
 // 索引重建并发控制：per-kbID 互斥 + dirty-flag 循环。

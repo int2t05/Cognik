@@ -11,7 +11,7 @@ tests/
 .gitignore
 
 # Binary
-cognos-server*
+cognik-server*
 *.exe
 
 # Misc

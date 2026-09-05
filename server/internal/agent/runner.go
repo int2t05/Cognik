@@ -10,7 +10,7 @@ import (
 	"context"
 	"log/slog"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // PostRunHook Loop.Run 完成后的回调（fire-and-forget，如 ExtractMemories）。

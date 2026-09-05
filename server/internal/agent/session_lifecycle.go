@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // SessionExtractor 会话结束提取器——从会话记忆提取长期价值内容到全局记忆。

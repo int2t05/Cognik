@@ -14,7 +14,7 @@ import (
 
 // staticPrompt 静态行为规范——通用原则，不随运行时变化。
 // 工具描述通过 llm.ToOpenAITools 透明转成 tools 字段传入请求，系统提示词只含行为引导。
-const staticPrompt = `You are Cognos, a knowledge management assistant for teams and individuals.
+const staticPrompt = `You are Cognik, a knowledge management assistant for teams and individuals.
 
 ## Honesty Contract
 

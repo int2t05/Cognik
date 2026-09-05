@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/parser"
+	"cognik/internal/parser"
 )
 
 // =============================================================================
@@ -59,14 +59,14 @@ func TestParser_MD(t *testing.T) {
 func TestParser_TXT_UTF8(t *testing.T) {
 	p := parser.NewParser()
 
-	text := "运维 Cognos 系统 - 账号 Account 管理"
+	text := "运维 Cognik 系统 - 账号 Account 管理"
 	reader := strings.NewReader(text)
 
 	result, err := p.Parse(reader, "txt")
 	if err != nil {
 		t.Fatalf("UTF-8 文本解析失败: %v", err)
 	}
-	if !strings.Contains(result.Markdown, "Cognos") {
+	if !strings.Contains(result.Markdown, "Cognik") {
 		t.Error("UTF-8 英文内容应保留")
 	}
 	if !strings.Contains(result.Markdown, "账号") {
@@ -221,7 +221,7 @@ func createMinimalPDF(t *testing.T) []byte {
 
 	// Object 4 (Content stream)
 	obj4Offset := b.Len()
-	b.WriteString("4 0 obj\n<< /Length 44 >>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n(Hello Cognos) Tj\nET\nendstream\nendobj\n")
+	b.WriteString("4 0 obj\n<< /Length 44 >>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n(Hello Cognik) Tj\nET\nendstream\nendobj\n")
 
 	// Cross-reference table
 	xrefOffset := b.Len()

@@ -31,8 +31,9 @@ web/*.tsbuildinfo
 postgres_data/
 minio_data/
 data/
+.cognik/
 .cognos/
-cognos
+cognik
 
 # === IDE / 编辑器 ===
 .idea/

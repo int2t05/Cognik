@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/infra/runtime"
+	"cognik/internal/infra/runtime"
 )
 
 // evt 测试用事件类型（仅 Seq 字段参与网关游标对齐）。

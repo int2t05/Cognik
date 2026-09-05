@@ -6,7 +6,7 @@ package llmconfig
 import (
 	"context"
 
-	"cognos/internal/shared/model"
+	"cognik/internal/shared/model"
 
 	"gorm.io/gorm"
 )

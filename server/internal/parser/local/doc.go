@@ -44,7 +44,7 @@ func ParseLegacy(reader io.Reader, fileType string) (*ParseResult, error) {
 
 	// 3. 写临时文件（旧格式需文件路径，不支持 stdin 管道）
 	ext := strings.ToLower(strings.TrimSpace(fileType))
-	tmpFile, err := os.CreateTemp("", "cognos_legacy_*."+ext)
+	tmpFile, err := os.CreateTemp("", "cognik_legacy_*."+ext)
 	if err != nil {
 		return nil, fmt.Errorf("创建临时文件失败: %w", err)
 	}
