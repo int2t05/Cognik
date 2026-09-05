@@ -203,14 +203,9 @@ Formal docs and communication in Chinese; prefer mermaid diagrams. (Project-spec
 | ------------ | --------------------------------------------------- | ---------------------------------------------------------------- |
 | Research     | Interview / market / competitor / strategy          | `docs/research/{interview,market,competitor,strategy}.md`      |
 | Planning     | Global view (authoritative)                         | `docs/ROADMAP.md`                                              |
-| Planning     | Project icon                                        | `docs/assets/icon.svg`, `icon-mono.svg`                      |
-| Requirements | User-visible features (e2e baseline)                | `docs/FEATURES.md`                                             |
+| Planning     | Project icon                                        | `docs/assets/icon-dark.svg`                                    |
 | Requirements | Project-level PRD (concise)                         | `docs/PRD.md`                                                  |
-| Requirements | Version-level PRD (detailed)                        | `docs/vX.Y/PRD.md`                                             |
-| Design       | Design system / frontend audit / prototype findings | `docs/design/{DESIGN,frontend-audit,prototype-findings}.md`    |
-| Design       | Domain / schema / prompt / ADR                      | `docs/design/{CONTEXT,SCHEMA,PROMPT}.md`, `docs/design/adr/` |
 | Architecture | Project-level TECH (concise)                        | `docs/TECH.md`                                                 |
-| Architecture | Version-level tech (detailed)                       | `docs/vX.Y/tech.md`                                            |
 | API          | API contracts                                       | `docs/API/*.md`                                                |
 | Plan         | Project-level plan (concise)                        | `docs/PLAN.md`                                                 |
 | Plan         | Version-level plan (ticket breakdown)               | `docs/vX.Y/plan.md`                                            |

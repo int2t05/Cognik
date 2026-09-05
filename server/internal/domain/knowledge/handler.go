@@ -334,7 +334,7 @@ func (h *KnowledgeHandler) Enable(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// DeleteArticle 删除文章（仅草稿/驳回状态可删除）。
+// DeleteArticle 删除文章（任意状态均可删除，存储清理异步执行）。
 //
 // DELETE /api/v1/admin/articles/:id
 func (h *KnowledgeHandler) DeleteArticle(c *gin.Context) {

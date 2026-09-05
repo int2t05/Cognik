@@ -262,7 +262,6 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 }
 
 // TestConnection 测试指定 LLM 配置的连接是否可用。
-// ChatModel.Generate。
 func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[string]any, error) {
 	cfg, err := s.GetConfig(ctx, id)
 	if err != nil {
@@ -272,7 +271,7 @@ func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[st
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	// 临时构造 ChatModel 测试连接
+	// 构造独立 ChatModel 测试连接（不复用生产 ChatModel，避免热切换副作用）
 	chatModel := llm.NewChatModel(llm.ChatModelConfig{
 		APIKey:  cfg.LLMAPIKey,
 		Model:   cfg.LLMModel,

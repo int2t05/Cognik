@@ -1,7 +1,7 @@
 // agent/tool.go：统一工具接口（SyncTool/AsyncTool）。
 //
 // 两种执行语义，由接口类型区分（Go 惯用，同 io.Reader/io.Writer）：
-//   - SyncTool  同步阻塞，Call 返回结果（read_file/grep/bash/web_search/web_fetch/generate_article）
+//   - SyncTool  同步阻塞，Call 返回结果（read_file/grep/bash/web_search/web_fetch/kb）
 //   - AsyncTool 异步派发，Dispatch 立即返回 Task，后台跑，事件经 emit 流式推送（dispatch_subagent）
 //
 // Loop 用 type assertion 选择 Call 或 Dispatch，无需 Kind() 元方法（类型即语义）。

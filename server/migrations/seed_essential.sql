@@ -87,12 +87,7 @@ INSERT INTO system_configs (key, value, description, updated_by, updated_at) VAL
 ('ai.top_k',                '5',         'RAG 默认检索 Top K',                 1, NOW()),
 ('ai.confidence_threshold_low',  '0.40', '低置信阈值——Conf_raw 低于此值为低置信', 1, NOW()),
 ('ai.confidence_threshold_high', '0.70', '高置信阈值——Conf_raw 达到此值为高置信', 1, NOW()),
-('ai.max_history_messages', '10',        '多轮对话历史消息数上限',               1, NOW()),
-('ai.rag_query_rewrite',    'true',      'RAG 查询改写开关',                    1, NOW()),
-('ai.rag_multi_route',      'true',      'RAG 多路检索开关',                    1, NOW()),
-('ai.rag_hybrid',           'true',      'RAG BM25 混合检索开关',               1, NOW()),
-('ai.rag_rerank',           'true',      'RAG 重排序开关',                      1, NOW()),
-('ai.enable_thinking',      'false',     '流式回答启用思考模式（推理链提升质量但延迟 5-10x）', 1, NOW());
+('ai.max_history_messages', '10',        '多轮对话历史消息数上限',               1, NOW());
 
 -- =============================================================================
 -- LLM 配置

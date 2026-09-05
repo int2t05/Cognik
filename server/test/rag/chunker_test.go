@@ -1,5 +1,5 @@
 // Package rag_test 验证 RAG 分块器的核心行为。
-// 重点验证 V1.5 Markdown-aware 改进：标题边界切分、代码块保留、父标题上下文 prepend。
+// 验证 RAG 分块器核心行为：Markdown 标题边界切分、代码块保留、父标题上下文 prepend。
 package rag_test
 
 import (
@@ -42,7 +42,7 @@ func TestChunker_LongTextMultipleChunks(t *testing.T) {
 	}
 }
 
-// --- Markdown 标题边界（V1.5 核心改进）---
+// --- Markdown 标题边界 ---
 
 func TestChunker_SplitsByHeadings(t *testing.T) {
 	c := rag.NewChunker(100, 10)
@@ -117,7 +117,7 @@ func TestChunker_HeadingLevelHierarchy(t *testing.T) {
 	}
 }
 
-// --- 代码块保留（V1.5 核心改进：normalizeText 不再破坏缩进）---
+// --- 代码块保留 ---
 
 func TestChunker_PreservesCodeBlockIndentation(t *testing.T) {
 	c := rag.NewChunker(1000, 0)
