@@ -462,7 +462,7 @@ flowchart TD
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
 | `COGNOS_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
 | `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录（空 → 由 `COGNOS_DATA_ROOT` 派生） | 空 |
-| `COGNOS_AI_CONFIDENCE_THRESHOLD` | 置信度阈值 | 0.6 |
+| `COGNOS_AI_CONFIDENCE_THRESHOLD_LOW` / `_HIGH` | CRAG 充分性评估低/高阈值 | 0.40 / 0.70 |
 | `COGNOS_AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
 | `COGNOS_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
 | `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
@@ -566,7 +566,7 @@ web/src/
 ├── lib/api/                 # 11 API client modules
 └── __tests__/               # frontend unit tests
 
-docs/                        # formal docs — see §8
+docs/                        # 正式文档
 deploy/                      # Docker 部署（docker-compose.yml + allinone/）
 Makefile                     # 本地开发命令入口
 ```

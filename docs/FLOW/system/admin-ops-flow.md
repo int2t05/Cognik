@@ -20,7 +20,7 @@ DashboardHandler.GetStats (domain/system/dashboard/handler.go:30)
     └─ dashboardRepo.CountKnowledgeArticles → SELECT COUNT(*) FROM knowledge_articles WHERE status=4
 ```
 
-**输出** `{today_tickets, pending, processing, resolved, today_chats, avg_confidence, total_articles}`
+**输出** `{today_tickets, pending_tickets, processing_tickets, resolved_tickets, today_chats, avg_confidence, knowledge_count, helpful_feedback, unhelpful_feedback}`
 
 ### GET /api/v1/admin/dashboard/trends &emsp; 趋势数据 &emsp; [PermDashboardRead]
 
@@ -37,7 +37,7 @@ DashboardHandler.GetTrends (domain/system/dashboard/handler.go:43)
           GROUP BY DATE(created_at) ORDER BY 1
 ```
 
-**输出** `{ticket_trends:[{date,count}...], chat_trends:[{date,count}...]}`
+**输出** `{data_points:[{date, ticket_count, chat_count}...]}`
 
 ---
 
@@ -56,7 +56,7 @@ AuditHandler.List (domain/system/audit/handler.go:30)
         → SELECT * FROM audit_logs [WHERE ...] ORDER BY created_at DESC LIMIT ? OFFSET ?
 ```
 
-**输出** `{items:[{id,user_id,username,action,resource_type,resource_id,detail,ip,created_at}...], total}`
+**输出** `{items:[{id,operator_id,operator_name,action,target_type,target_id,detail,ip_address,created_at}...], total}`
 
 ---
 
@@ -67,7 +67,7 @@ AuditHandler.List (domain/system/audit/handler.go:30)
 ```
 ConfigHandler.Get (domain/system/config/handler.go:29)
   → ConfigService.GetConfig (domain/system/config/service.go:55)
-    ├─ validConfigKeys[key] → 白名单校验 (app_name / ai.top_k / ai.threshold)
+    ├─ validConfigKeys[key] → 白名单校验 (app_name / ai.top_k / ai.confidence_threshold_low / ai.confidence_threshold_high)
     └─ ConfigRepo.GetByKey (domain/system/config/repository.go:27)
         → SELECT * FROM system_configs WHERE config_key=?
 ```
@@ -79,7 +79,7 @@ ConfigHandler.Get (domain/system/config/handler.go:29)
 ```
 ConfigHandler.Update (domain/system/config/handler.go:51)
   → ConfigService.UpdateConfig (domain/system/config/service.go:80)
-    ├─ validConfigKeys[key] → 白名单校验 (app_name: string / ai.top_k: number / ai.threshold: number)
+    ├─ validConfigKeys[key] → 白名单校验 (app_name: string / ai.top_k: number / ai.confidence_threshold_low: number / ai.confidence_threshold_high: number)
     ├─ configKeyMeta.ValueType → 值类型校验（string/number）
     ├─ ConfigRepo.Upsert (domain/system/config/repository.go:37)
     │   → INSERT INTO system_configs (...) ON CONFLICT(config_key) DO UPDATE ...
@@ -127,7 +127,7 @@ MessageHandler.CountUnread (domain/system/message/handler.go:82)
         └─ setCachedUnread → 写入缓存
 ```
 
-**消息类型**: `ticket_supplement`（申告补充信息通知）、`system`（系统通知）
+**消息类型**: `ticket_supplement`（工单补充信息）、`ticket_resolved`（工单已解决）、`ticket_closed`（工单已关闭）、`ticket_overdue`（工单处理超时）、`knowledge_approved`（文章审核通过）、`knowledge_rejected`（文章审核驳回）、`system`（系统通知）
 
 ---
 

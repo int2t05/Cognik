@@ -32,7 +32,7 @@ flowchart LR
 | V1.3 | Agent 基座 | 自建 ReAct 循环 + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder/deep_research) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；六级上下文压缩；ExtractMemories + AutoDream 复盘；异步处理管道 | ✅ 已交付 |
-| V1.6 | 检索优化 + 自迭代闭环 | Agent 写回即发布（CreateAndPublish/UpdateAndRepublish）；语义去重（>0.92 拒绝）；frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
+| V1.6 | 检索优化 + 自迭代闭环 | Agent 写回即发布（CreateAndPublish/UpdateAndRepublish）；语义去重（>0.92 拒绝）；frontmatter schema + metadata 补全；embedding 维度可配（本地 Qwen3 1024 / 云端 DashScope 1536）；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
 | V1.7 | i18n + 文档审计 | 前端中英文切换（next-intl cookie 策略）；GitHub 展示面英文优先（README/CONTRIBUTING/Issue 模板双语）；孤儿清理；FLOW/API 按业务域分块；文档纯净审计 | ✅ 已交付 |
 | V2.0 | 智能化增强 | 多模态文档解析 / 知识图谱 / Agent 能力增强 / 企业特性 / 性能可观测 / 知识写入治理 | 📋 规划中 |
 
@@ -112,11 +112,11 @@ MinIO 在单实例部署中增加 200-500MB RAM + HTTP 延迟层。同类系统�
 
 ### 4.3 保留决策
 
-| 组件 | 决策 | 依据 |
-|------|------|------|
-| pgvector | 保留 | halfvec(FP16) + HNSW 不可替代 |
-| PostgreSQL | 保留 | JSONB GIN 索引；跨表事务一致性 |
-| `MinIOClient` | 保留代码 | escape hatch，多实例时恢复使用 |
+| 组件 | 依据 |
+|------|------|
+| pgvector | halfvec(FP16) + HNSW 不可替代 |
+| PostgreSQL | JSONB GIN 索引；跨表事务一致性 |
+| `MinIOClient` | escape hatch，多实例时恢复使用 |
 
 ---
 
@@ -388,7 +388,7 @@ rerank 后 topK 截断前，高分 chunk 放首尾，低分放中间。LLM 对�
 
 RRF k 值从 60 调低到 30（可配置）。k 值越小排名靠前结果得分优势越大，rerank 效果更好。
 
-### 9.5 Token-based Chunking（推迟）
+### 9.5 Token-based Chunking
 
 将 chunker 从 rune-count 改为 token-count（tiktoken-go），中英混排文档 chunk 大小更一致。
 
@@ -444,12 +444,12 @@ V1.6 已交付 Agentic RAG 自迭代闭环（Agent ReAct 循环 + 自建 ChatMod
 
 ### 10.6 知识写入治理
 
-> 回应 v1.7 评价短板：Agent 自动写入知识库默认无审核，AI 幻觉可直接污染 KB。
+Agent 自动写入知识库默认无审核，AI 幻觉可直接污染知识库——以下治理项应对该风险。
 
 - 写入审核门控——`auto_publish` 配置开关；关闭时 `CreateAndPublish` 落 `draft/` 走人工审核（复用现有 draft→published 状态机），不直发进 RAG
 - 写入前质量门——置信度阈值 + 引用完整性校验（无 sources/citation 的产出拒绝直发），低质量内容降级为草稿
 - Agent 决策轨迹审计——记录每轮 ReAct 的 tool_call/tool_result/检索召回，支持按 thread 回放，异常决策聚合
-- 速率限制——单会话/单时间窗 create 上限，防灌入低质量文章（TODO 已标 🟢，治理章节统一收口）
+- 速率限制——单会话/单时间窗 create 上限，防灌入低质量文章
 
 ---
 

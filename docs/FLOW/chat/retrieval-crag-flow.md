@@ -288,5 +288,5 @@ flowchart TD
 
 - [TECH.md](../TECH.md) §2.2 RAG 引擎、§4.2 pgvector 配置、§5 可靠性
 - [chat-rag-sse-flow.md](chat-rag-sse-flow.md) — 智能问答端到端流程
-- [knowledge-publish-flow.md](knowledge-publish-flow.md) — 发布管道（索引侧）
+- [knowledge-publish-flow.md](../knowledge/knowledge-publish-flow.md) — 发布管道（索引侧）
 - [ROADMAP.md](../ROADMAP.md) §9 V1.6 检索优化、§10 V2.0 Agentic RAG
