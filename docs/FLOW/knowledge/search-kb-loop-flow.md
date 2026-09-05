@@ -14,7 +14,7 @@
 | 维度 | 现状 | 说明 |
 |------|------|------|
 | 能不能用 | 能 | weak verdict → Agent 自主 web_search → kb(create) |
-| 写回什么 | 草稿文章 | frontmatter + 正文，含来源引用 |
+| 写回什么 | 已发布文章 | frontmatter + 正文，CreateAndPublish 自动发布进 RAG |
 | 何时可检索 | 异步索引后 | 入队 <5ms，消费者秒级处理 |
 | 谁触发 | Agent 经 verdict | RAG 引擎不触 web，保持 HTTP 无关 |
 
@@ -25,7 +25,7 @@
 | CRAG weak | 检索置信度低于阈值，结果不足以回答 |
 | decompose | 分解。把复杂 query 拆成原子 claim，逐条搜索 |
 | refine | 精炼。只保留 query 相关片段，丢弃噪声 |
-| kb(create) | 写草稿文章 + 入队索引，不直接发布 |
+| kb(create) | 写已发布文章 + 入队索引 | CreateAndPublish: Draft→Published 直达，下一轮可召回 |
 | 闭环 | 搜到的知识写回 KB，下次检索命中，无需再搜 |
 
 ---
@@ -42,7 +42,7 @@ flowchart LR
     DECOMP --> WS["web_search 逐条"]
     WS --> WF["web_fetch 提取全文"]
     WF --> REFINE["精炼去重<br/>保留 query 相关"]
-    REFINE --> CREATE["kb(create) 写草稿"]
+    REFINE --> CREATE["kb(create) CreateAndPublish"]
     CREATE --> QUEUE["入队 <5ms"]
     QUEUE --> ASYNC["异步索引"]
     ASYNC -.->|"下次命中"| KS
@@ -53,7 +53,7 @@ flowchart LR
 
 ### 信号流转
 
-CRAG verdict 以文本 preamble 返回 Agent（Agent 以文本消费工具结果）。Agent 读到 `[检索充分性: weak]` 后，按系统提示词指引执行 decompose→web_search→refine→create。
+CRAG verdict 以文本 preamble 返回 Agent（Agent 以文本消费工具结果）。Agent 读到 `[sufficiency: weak]` 后，按系统提示词指引执行 decompose→web_search→refine→create。
 
 ---
 
@@ -71,7 +71,7 @@ sequenceDiagram
     participant Q as IngestQueue
 
     AG->>KB: action=search, query
-    KB-->>AG: [检索充分性: weak] + chunks
+    KB-->>AG: [sufficiency: weak] + chunks
     AG->>AG: 分解 query 为原子 claim
     AG->>WS: 逐条 web_search
     WS-->>AG: 搜索结果片段
@@ -79,8 +79,8 @@ sequenceDiagram
     WF-->>AG: 干净 Markdown
     AG->>AG: 精炼去重（仅留 query 相关）
     AG->>CRT: action=create, title/content/type/tags
-    CRT->>Q: Enqueue <5ms
-    CRT-->>AG: slug（草稿已写入）
+    CRT->>Q: Enqueue <5ms（自动发布进 RAG）
+    CRT-->>AG: slug（文章已写入并自动发布进 RAG）
     Note over Q: 消费者异步索引（秒级）
     Note over AG: 下次同类问题 → kb(search) 命中
 ```
@@ -90,13 +90,14 @@ sequenceDiagram
 ```
 kb.go:doCreate (agent/tools/kb.go:268)
   ├─ 校验: title / content / type 非空
-  └─ store.Create (kb_store_impl.go:Create)
+  └─ store.CreateAndPublish (kb_store_impl.go:CreateAndPublish)
      ├─ formatArticleFrontmatter（8 字段 frontmatter）
-     ├─ articleSvc.CreateArticle（写 DB + 文件，状态 draft）
-     └─ 返回 slug（未入队索引——草稿不进 RAG）
+     ├─ articleSvc.CreateArticle + Publish（Draft→Published 直达）
+     ├─ ingestQueue.Enqueue（触发异步索引）
+     └─ 返回 slug（文章已自动发布进 RAG，下一轮 kb(search) 可召回）
 ```
 
-注意：kb(create) 写入的是草稿，不直接进 RAG 索引。需审核发布后才触发索引。deep_research SubAgent 产出的文章可配置自动发布通道。
+kb(create) 调用 `CreateAndPublish`（非 `Create`）：文章 Draft→Published 直达，自动入队索引，下一轮 kb(search) 即可召回。这是 Agent 自迭代闭环的核心——搜到的知识写回 KB 立即可检索，无需人工审核（deep_research 文章可配置自动发布）。
 
 ### 3.3 frontmatter 格式
 
@@ -133,8 +134,8 @@ kb.go:doCreate (agent/tools/kb.go:268)
 
 system_prompt.go 含 CRAG 指引块：
 
-- `[检索充分性: strong]` → 直接基于检索片段答
-- `[检索充分性: weak]` → 分解 query → web_search → 精炼 → 合并 → 答；可选 kb(create) 写回
+- `[sufficiency: strong]` → 直接基于检索片段答
+- `[sufficiency: weak]` → 分解 query → web_search → 精炼 → 合并 → 答；可选 kb(create) 写回
 - 不在 strong 时调 web_search（避免过度触发成本）
 
 ### 4.3 web 工具降级链
@@ -152,16 +153,16 @@ system_prompt.go 含 CRAG 指引块：
 
 | 缺口 | 现状 | 影响 |
 |------|------|------|
-| content-hash 去重 | 仅 title 去重 | 同主题搜索可能重复创建草稿 |
+| content-hash 去重 | 标题去重 + 语义去重（相似度≥0.92 拒绝），无 content-hash | 同主题不同标题可能重复创建 |
 | 搜索结果压缩节点 | 无 | 多源结果未去重即写入 |
-| 草稿→发布 | 需人工审核 | deep_research 文章自动发布通道待评估 |
+| 无速率限制 | CreateAndPublish 无限流 | Agent 短时间内大量 create 可能灌入低质量文章 |
 
 ### 5.2 架构约束
 
 | 约束 | 理由 |
 |------|------|
 | RAG 引擎不触 web | 保持 HTTP 无关，web fallback 由 Agent 经 verdict 触发 |
-| 草稿不进 RAG | 未审核内容不应被检索引用 |
+| 写回即发布 | CreateAndPublish 直达 Published，下一轮可召回（自迭代闭环核心） |
 | web 证据需精炼 | 原始网页片段含噪声，不精炼会污染生成 prompt |
 
 ---
@@ -172,8 +173,8 @@ system_prompt.go 含 CRAG 指引块：
 |------|------|
 | 闭环触发率 | weak verdict 占比（约 5% 为健康） |
 | 写回命中率 | kb(create) 文章发布后被检索命中的比例 |
-| 重复创建率 | 同主题重复建草稿的频率 |
-| 审核通过率 | 草稿→发布的转化率 |
+| 重复创建率 | 同主题重复建文章的频率（语义去重拦截） |
+| 闭环延迟 | 写回到可检索的间隔（入队+索引秒级） |
 
 ---
 
@@ -183,7 +184,7 @@ system_prompt.go 含 CRAG 指引块：
 
 - `kb_store_impl.Search` — 返回含 verdict 的检索结果
 - `KBTool.doCreate` — 草稿创建入口
-- `kb_store_impl.Create` — 写草稿 + frontmatter
+- `kb_store_impl.CreateAndPublish` — 写已发布文章 + 入队索引
 - `formatArticleFrontmatter` — frontmatter 生成
 - `IngestQueue.Enqueue` — 异步入队
 

@@ -148,7 +148,7 @@ flowchart TB
 
 | 后台 agent | 触发 | 做什么 |
 |-----------|------|--------|
-| ExtractMemories | 每轮结束 | forked agent 从对话提取经验，4 类型分类 |
+| ExtractMemories | 每轮结束 | forked agent 从对话提取经验，6 类型分类（system/pattern/decision/reference/learning/workflow） |
 | SessionExtractor | 会话结束 | session 记忆 → LLM 提取 → 写入 global |
 | AutoDream | 双门（24h + 5 会话 + 锁） | 跨会话合并去重、删矛盾、更新 MEMORY.md |
 

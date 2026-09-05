@@ -14,12 +14,15 @@
 
 ```
 待处理(1) ──→ 处理中(2) ──→ 已解决(4)
-                  │
-                  ↓
-            需补充信息(3)
-                  │
-                  ↓
-            处理中(2)
+    │              │
+    │              ↓
+    │        需补充信息(3)
+    │              │
+    │              ↓
+    │        处理中(2)
+    │
+    ↓
+已撤回(6)
 
 待处理(1) ──→ 已关闭(5)
 处理中(2) ──→ 已关闭(5)
@@ -43,8 +46,6 @@ Authorization: Bearer <token>
 {
   "title": "公司邮箱无法登录",
   "description": "从今天上午开始，Outlook 一直提示密码错误，已尝试修改密码无效",
-  "urgency": 2,
-  "impact_scope": 1,
   "affected_systems": ["Exchange", "Outlook"],
   "contact_phone": "13800001111",
   "contact_email": "user@company.com",
@@ -61,8 +62,6 @@ Authorization: Bearer <token>
 |------|------|------|------|
 | title | string | ✓ | 申告标题 |
 | description | string | ✓ | 详细描述 |
-| urgency | int | ✓ | 紧急程度：1=低, 2=中, 3=高 |
-| impact_scope | int | | 影响范围：1=个人, 2=部门, 3=全公司（对应 model/enums.go 中的枚举定义） |
 | affected_systems | string[] | | 受影响系统列表 |
 | contact_phone | string | ✓ | 联系电话 |
 | contact_email | string | | 联系邮箱 |
@@ -105,8 +104,6 @@ Authorization: Bearer <token>
       "user_id": 1,
       "submitter_name": "张三",
       "title": "公司邮箱无法登录",
-      "urgency": 2,
-      "impact_scope": 1,
       "contact_phone": "13800000001",
       "status": 1,
       "status_text": "待处理",
@@ -143,8 +140,6 @@ Authorization: Bearer <token>
     "user_id": 1,
     "submitter_name": "张三",
     "title": "公司邮箱无法登录",
-    "urgency": 2,
-    "impact_scope": 1,
     "contact_phone": "13800000001",
     "status": 3,
     "status_text": "需补充信息",
@@ -177,7 +172,7 @@ Authorization: Bearer <token>
 | 10003 | 400 | 无效的申告 ID |
 | 10004 | 404 | 申告不存在 |
 
-### 3a. 更新申告（门户）
+### 3.1 更新申告（门户）
 
 ```http
 PATCH /api/v1/portal/tickets/:id
@@ -247,7 +242,7 @@ Authorization: Bearer <token>
 ### 5. 全部申告列表
 
 ```http
-GET /api/v1/admin/tickets?page=1&page_size=10&status=1&urgency=0
+GET /api/v1/admin/tickets?page=1&page_size=10&status=1
 Authorization: Bearer <token>
 ```
 
@@ -256,9 +251,8 @@ Authorization: Bearer <token>
 | page | int | 1 | 页码 |
 | page_size | int | 10 | 每页条数 |
 | status | int | -1 | 按状态筛选（-1=全部, 1=待处理, 2=处理中, 3=需补充, 4=已解决, 5=已关闭） |
-| urgency | int | 0 | 按紧急程度筛选（0=全部, 1=低, 2=中, 3=高） |
 
-### 5a. 申告详情（后台）
+### 5.1 申告详情（后台）
 
 ```http
 GET /api/v1/admin/tickets/:id
@@ -388,3 +382,75 @@ Authorization: Bearer <token>
 | 错误码 | HTTP 状态 | 说明 |
 |--------|-----------|------|
 | 10003 | 400 | 参数校验失败 |
+
+### 10. 撤回申告（门户）
+
+```http
+POST /api/v1/portal/tickets/:id/withdraw
+Authorization: Bearer <token>
+```
+
+> 报障人撤回未处理工单。仅工单人、仅待处理(1)状态可撤回；撤回后状态转为已撤回(6)，记录 action=`withdraw`，不可恢复。
+
+**响应：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-----------|------|
+| 10003 | 400 | 无效的工单 ID / 仅待处理状态可撤回 / 工单状态已变更，请刷新后重试 |
+| 10004 | 404 | 申告不存在 |
+| 10002 | 403 | 非本人申告 |
+
+### 11. 批量关闭申告（后台）
+
+```http
+POST /api/v1/admin/tickets/batch-close
+Authorization: Bearer <token>
+```
+
+> 权限：`ticket:write`。逐条复用单条 close 状态机（CAS + 处理记录 + 审计 + 通知），部分失败不影响其他条目，单条结果通过 `error_msg` 返回。
+
+**请求体：**
+
+```json
+{
+  "ids": [1, 2, 3]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| ids | int64[] | ✓ | 工单 ID 列表（至少 1 条） |
+
+**响应：**
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "results": [
+      { "id": 1, "success": true, "error_msg": "" },
+      { "id": 2, "success": false, "error_msg": "已解决的工单不允许关闭" },
+      { "id": 3, "success": false, "error_msg": "工单不存在" }
+    ]
+  }
+}
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|-----------|------|
+| 10003 | 400 | 参数校验失败（ids 必填且至少 1 条） |
+
+> 单条 `error_msg` 常见值：工单不存在、工单已关闭无需重复操作、已解决的工单不允许关闭、工单状态已变更请刷新后重试。

@@ -6,7 +6,7 @@
 
 ---
 
-## POST /api/v1/portal/chat-sessions &emsp; 创建会话容器
+## POST /api/v1/portal/threads &emsp; 创建会话容器
 
 **输入** `{"kb_id":1, "title":"VPN问题"}`
 
@@ -22,7 +22,7 @@
 
 ---
 
-## POST /api/v1/portal/chat-sessions/:id/stream &emsp; SSE 流式对话
+## POST /api/v1/portal/threads/:id/stream &emsp; SSE 流式对话
 
 **输入** `{"question":"数据库超时怎么排查"}`
 
@@ -62,13 +62,13 @@ AgentRunner.Stream → Loop.Run (agent/loop.go)
   │   ├─ ChatModel.Stream → 流式生成（含 tool_calls）
   │   ├─ 检测 msg.ToolCalls → 分发工具
   │   │   ├─ kb(action=search) → KBStoreImpl.Search（见检索管道文档）
-  │   │   │   └─ 返回 SearchOutcome{Entries, Verdict}，文本含 [检索充分性: level]
+  │   │   │   └─ 返回 SearchOutcome{Entries, Verdict}，文本含 [sufficiency: level]
   │   │   ├─ memory(action=recall) → FileMemoryStore（BM25 / 子串匹配）
   │   │   ├─ web_search → SearchChain（Exa → Tavily → DuckDuckGo）  ← weak verdict 时触发
   │   │   └─ kb(action=create) → 写 Draft（不直接索引，需发布）
   │   ├─ tool_result → ToolMessage 注入历史（Microcompact 清理低价值结果）
   │   └─ 无 tool_calls 或达 maxStep → 生成最终回答
-  └─ GenerationHub 分发 SSE 事件
+  └─ Gateway 分发 SSE 事件
 ```
 
 ### 阶段 4 — 事件类型与降级
@@ -77,7 +77,7 @@ AgentRunner.Stream → Loop.Run (agent/loop.go)
 |------|------|------|
 | `reasoning` | Agent 思考 | `{content:"需要检索知识库..."}` |
 | `tool_call` | 工具调用 | `{name:"kb", input:{action:"search",...}}` |
-| `tool_result` | 工具返回 | `{name:"kb", output:"[检索充分性: strong]..."}` |
+| `tool_result` | 工具返回 | `{name:"kb", output:"[sufficiency: strong]..."}` |
 | `token` | LLM 逐 token | `{content:"数据库超时"}` |
 | `done` | 流结束 | `{answer, sources, confidence}` |
 | `error` | Agent 异常 | `{error:"..."}` |
@@ -88,11 +88,35 @@ AgentRunner.Stream → Loop.Run (agent/loop.go)
 - CRAG LLM 评估失败 → 降级阈值
 - LLM 不可用 → 返回错误
 
+### 阶段 5 — SSE Gateway 架构
+
+Agent 运行（生产者）与 HTTP 客户端（订阅者）经 Gateway 解耦。对齐 LangGraph Server / Mastra Durable / OpenAI Responses 的 channel+cursor 模式。
+
+```mermaid
+flowchart LR
+    AG["Agent Loop<br/>生产者"] -->|"Publish(event)"| GW["Gateway[runID]<br/>环形缓冲 cap=1024"]
+    GW -->|"Subscribe(since=seq)"| SUB["HTTP 客户端<br/>订阅者"]
+    SUB -.->|"断线重连<br/>since 游标回放"| GW
+    GW -.->|"Finish 后 30s grace"| BUF["缓冲保留<br/>覆盖重连窗口"]
+
+    style GW fill:#5e6ad215,stroke:#5e6ad2
+    style BUF fill:#f59e0b15,stroke:#f59e0b
+```
+
+| 机制 | 实现 | 作用 |
+|------|------|------|
+| 环形缓冲 | `eventStore[E]` cap=1024，环形覆盖最旧 | 防长生成内存膨胀；seq 单调增长 |
+| 游标重放 | `Subscribe(since=seq)` 先回放 buffer[since:] 再接实时 | 断线重连不丢事件 |
+| 30s grace | `Finish` 后保留缓冲 30s | 覆盖完成瞬间断线的客户端重连 |
+| 非阻塞 fan-out | `select/default` 写满即丢 | 慢订阅者不阻塞生成；凭 since 重连补回 |
+| 一问一答 | `ErrRunInProgress` | 同一 runID 已有进行中生成时拒绝新请求 |
+| Cancel | `Cancel(runID)` | 触发 run 取消，立即标记 finished |
+
 ---
 
 ## 其它会话操作
 
-### GET /api/v1/portal/chat-sessions &emsp; 会话列表
+### GET /api/v1/portal/threads &emsp; 会话列表
 
 ```
 ChatHandler.ListSessions → ChatService.ListSessions
@@ -100,7 +124,7 @@ ChatHandler.ListSessions → ChatService.ListSessions
   └─ ChatRepo.CountMessagesBySessions → SELECT session_id, COUNT(*) ... GROUP BY session_id（批量，消除 N+1）
 ```
 
-### GET /api/v1/portal/chat-sessions/:id &emsp; 会话详情
+### GET /api/v1/portal/threads/:id &emsp; 会话详情
 
 ```
 ChatHandler.GetChatDetail → ChatService.GetChatDetail
@@ -109,15 +133,7 @@ ChatHandler.GetChatDetail → ChatService.GetChatDetail
   └─ ChatRepo.FindMessagesBySession → 最多 50 条
 ```
 
-### POST /api/v1/portal/chat-sessions/:id/feedback &emsp; 反馈
-
-```
-ChatHandler.SubmitFeedback → ChatService.SubmitFeedback
-  ├─ feedback ∈ [1,2]（禁止 0 覆盖）
-  └─ ChatRepo.UpdateFeedback → UPDATE chat_sessions SET feedback=?
-```
-
-### DELETE /api/v1/portal/chat-sessions/:id &emsp; 删除会话
+### DELETE /api/v1/portal/threads/:id &emsp; 删除会话
 
 ```
 ChatHandler.DeleteSession → ChatService.DeleteSession

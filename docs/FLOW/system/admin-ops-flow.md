@@ -45,7 +45,7 @@ DashboardHandler.GetTrends (domain/system/dashboard/handler.go:43)
 
 ### GET /api/v1/admin/audit-logs &emsp; 操作日志 &emsp; [PermAuditRead]
 
-**输入** `?page=1&page_size=20&user_id=1&action=user.create&resource_type=user&start_date=2026-06-01&end_date=2026-06-22`
+**输入** `?page=1&page_size=20&operator_id=1&action=user.create&target_type=user&date_from=2026-06-01&date_to=2026-06-22`
 
 ```
 AuditHandler.List (domain/system/audit/handler.go:30)

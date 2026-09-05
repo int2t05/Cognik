@@ -31,14 +31,14 @@ KnowledgeService.UploadDocuments / republishFromApproved
 
 ### POST /api/v1/portal/tickets &emsp; 创建申告
 
-**输入** `{"title":"数据库超时","description":"MySQL间歇性超时...","urgency":2,"impact_scope":2,`<br/>`"affected_systems":["mysql"],"contact_phone":"13800138000","chat_context":{...}}`
+**输入** `{"title":"数据库超时","description":"MySQL间歇性超时...",`<br/>`"affected_systems":["mysql"],"contact_phone":"13800138000","chat_context":{...}}`
 
 ```
 1. TicketHandler.CreateTicket (domain/ticket/handler.go:37)
    └─ c.ShouldBindJSON → request.CreateTicketRequest
 
 2. TicketService.CreateTicket (domain/ticket/service.go:72)
-   ├─ 参数校验: title/description/contact_phone 非空, urgency∈[1,3]
+   ├─ 参数校验: title/description/contact_phone 非空
    ├─ generateTicketNo → "TK-YYYYMMDD-" + crypto/rand(6位数)
    ├─ marshalTicketTags(affectedSystems) → JSONB
    ├─ json.Marshal(chatContext) → JSONB
@@ -93,7 +93,7 @@ TicketHandler.SupplementTicket (domain/ticket/handler.go:72)
 TicketHandler.ListAll (domain/ticket/handler.go:101)
   → TicketService.ListAll (domain/ticket/service.go:369)
     └─ TicketRepo.ListAll (domain/ticket/repository.go:91)
-        → 分页 + status/urgency 可选过滤 + 批量用户姓名查询
+        → 分页 + status + 批量用户姓名查询
 ```
 
 ### GET /api/v1/admin/tickets/:id &emsp; 申告详情 &emsp; [PermTicketRead]
@@ -172,6 +172,24 @@ TicketService.AutoClose (domain/ticket/service.go:499)
       ├─ for each closedID: TicketRepo.CreateRecord (action="auto_close", operatorID=0)
       └─ AuditRepo.Create (action="ticket.auto_close", operatorID=0)
 ```
+
+## 定时任务: 超期工单通知
+
+Scheduler 运行两个独立周期任务：AutoClose（自动关闭）+ ScanOverdueTickets（超期通知）。
+
+```
+Scheduler.runOverdueScanLoop (infra/runtime/scheduler.go:86)
+  → goroutine: 首次立即执行, 之后每 1h
+
+TicketService.ScanOverdueTickets (domain/ticket/service.go:644)
+  └─ 查询 deadline_at 已超期但未关闭的工单
+      → 对每条发送站内消息通知（MessageService）
+```
+
+| 任务 | 频率 | 作用 |
+|------|------|------|
+| AutoClose | 每小时 | 关闭超 7 天未解决工单（status→5） |
+| ScanOverdueTickets | 每小时 | 对 `deadline_at` 超期工单发站内通知 |
 
 ---
 
