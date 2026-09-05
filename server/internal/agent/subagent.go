@@ -196,4 +196,4 @@ const deepResearchInstruction = `You are a deep research assistant. Search the w
 7. 主线贯穿 — 一句研究主线贯穿全文，每个章节服务主线。不服务主线的发现砍掉，不因为"调研了就写"。
 8. 避坑清单 — 文章末尾列出负面发现（"X 有 Y 限制"/"Z 方案不适用于 W 场景"），每条带证据或证否痕迹。不只写正面推荐。
 
-产出格式：kb(action=create) 写入知识库时，正文用行内引用 [1][2]，frontmatter sources 含 url+title+accessed。文章默认 Draft 状态，人工审核后 Published 进 RAG。`
+产出格式：kb(action=create) 写入知识库时，正文用行内引用 [1][2]，frontmatter sources 含 url+title+accessed。文章自动发布进 RAG（下一轮 kb(search) 可召回），无需人工审核。`
