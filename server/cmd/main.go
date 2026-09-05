@@ -334,7 +334,7 @@ func wireApp() (*app, error) {
 	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
 	// kb 工具：知识库 CRUD + 检索（封装纯检索原语，修复死代码断裂）。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
-	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue)
+	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue, cfg.Storage.Local.BaseDir, bucket)
 
 	// RRF k=30（RustyRAG 实证 k=20-30 优于标准 60）
 	rag.SetRRFK(30)
@@ -361,17 +361,13 @@ func wireApp() (*app, error) {
 	}
 	registry.Register(agent.NewDispatchSubagentTool(subAgents, agentModelFactory, registry, 3))
 
-	// 自建 Loop（系统提示词从 LLM 配置注入 + 全局记忆索引注入）。
-	systemPrompt := ""
-	if llmCfg := llmConfigSvc.GetManager().GetConfig(); llmCfg != nil && llmCfg.SystemPrompt != "" {
-		systemPrompt = llmCfg.SystemPrompt
+	// 系统提示词：静态原则 + 动态 KB 索引 + 全局记忆。
+	kbs, _ := knowledgeService.ListKBs(context.Background(), "")
+	var kbContexts []agent.KBContext
+	for _, kb := range kbs {
+		kbContexts = append(kbContexts, agent.LoadKBContext(kb.ID, kb.Name, cfg.Storage.Local.BaseDir, bucket))
 	}
-	// 启动加载：读取 global/MEMORY.md 注入 L1 上下文（Agent 启动即知晓跨会话经验）。
-	globalMemoryPath := filepath.Join(cfg.Memory.StorageRoot, "memory/global/MEMORY.md")
-	if memoryData, err := os.ReadFile(globalMemoryPath); err == nil && len(memoryData) > 0 {
-		systemPrompt += "\n\n## 全局记忆\n" + string(memoryData)
-		slog.Info("全局记忆索引已加载", "path", globalMemoryPath, "bytes", len(memoryData))
-	}
+	systemPrompt := agent.BuildSystemPrompt(kbContexts, cfg.Memory.StorageRoot)
 	taskRegistry := agent.NewTaskRegistry()
 
 	// 上下文压缩器：五级管线（Tool Result Budget → Microcompact → HeadAndTail → 去重 → Autocompact），autocompact 用 ChatModel 摘要。
