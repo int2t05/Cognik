@@ -9,8 +9,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // RunForkedAgent 执行一个隔离的 forked agent——独立 context + 独立 ToolRegistry + maxTurns 硬上限。
@@ -18,9 +17,9 @@ import (
 // 复用 Loop.Run 的 ReAct 循环，但用独立的 instruction + 工具集 + 空 TaskRegistry。
 func RunForkedAgent(
 	ctx context.Context,
-	modelGetter func() *openai.ChatModel,
+	modelGetter func() *llm.ChatModel,
 	instruction string,
-	input []*schema.Message,
+	input []*llm.Message,
 	tools []Tool,
 	maxTurns int,
 ) (string, error) {
@@ -53,9 +52,9 @@ func RunForkedAgent(
 // 传入 instruction + input，返回 LLM 生成文本。
 func RunForkedAgentSimple(
 	ctx context.Context,
-	modelGetter func() *openai.ChatModel,
+	modelGetter func() *llm.ChatModel,
 	instruction string,
-	input []*schema.Message,
+	input []*llm.Message,
 	maxTurns int,
 ) (string, error) {
 	return RunForkedAgent(ctx, modelGetter, instruction, input, nil, maxTurns)

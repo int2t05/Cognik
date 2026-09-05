@@ -10,12 +10,12 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // PostRunHook Loop.Run 完成后的回调（fire-and-forget，如 ExtractMemories）。
 // 传入 sessionID + 消息历史，异步执行，不阻塞主流程。
-type PostRunHook func(ctx context.Context, sessionID string, messages []*schema.Message)
+type PostRunHook func(ctx context.Context, sessionID string, messages []*llm.Message)
 
 // AgentRunner 跑 ReAct 循环并产出事件流（生产者）。
 type AgentRunner struct {
@@ -36,7 +36,7 @@ func (r *AgentRunner) WithPostRunHook(hook PostRunHook) *AgentRunner {
 
 // Stream 跑 ReAct 循环，返回事件 channel。
 // ctx 应为 detached（带超时）— 客户端断开不停止生成。
-func (r *AgentRunner) Stream(ctx context.Context, input []*schema.Message) (<-chan AgentEvent, error) {
+func (r *AgentRunner) Stream(ctx context.Context, input []*llm.Message) (<-chan AgentEvent, error) {
 	out := make(chan AgentEvent, 1024)
 
 	// 生产者：Loop.Run 内部通过 emit 推 reasoning/token/tool_call/tool_result 事件。

@@ -11,8 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // VerdictLevel CRAG 评估三态。
@@ -114,11 +113,11 @@ func (c *ChainEvaluator) Evaluate(ctx context.Context, query string, results []R
 // 廉价 LLM 调用；失败降级阈值（由 ChainEvaluator 捕获，永不阻塞检索返回）。
 // 仅对 Ambiguous 带触发（ChainEvaluator 控制），强路径零成本。
 type LLMCRAGEvaluator struct {
-	modelGetter func() *openai.ChatModel
+	modelGetter func() *llm.ChatModel
 }
 
 // NewLLMCRAGEvaluator 创建 LLM CRAG 评估器。
-func NewLLMCRAGEvaluator(modelGetter func() *openai.ChatModel) *LLMCRAGEvaluator {
+func NewLLMCRAGEvaluator(modelGetter func() *llm.ChatModel) *LLMCRAGEvaluator {
 	return &LLMCRAGEvaluator{modelGetter: modelGetter}
 }
 
@@ -162,9 +161,9 @@ func (e *LLMCRAGEvaluator) Evaluate(ctx context.Context, query string, results [
 
 %s`, sb.String())
 
-	resp, err := m.Generate(ctx, []*schema.Message{
-		schema.SystemMessage(prompt),
-		schema.UserMessage("评估检索充分性。"),
+	resp, err := m.Generate(ctx, []*llm.Message{
+		llm.SystemMessage(prompt),
+		llm.UserMessage("评估检索充分性。"),
 	})
 	if err != nil {
 		return Verdict{}, fmt.Errorf("CRAG LLM 评估失败: %w", err)

@@ -14,8 +14,19 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"cognos/internal/shared/model"
+)
+
+// 索引重建并发控制：per-kbID 互斥 + dirty-flag 循环。
+// 并发发布多篇 → 仅首个重建跑，其余标 dirty → 首个重建完后检测 dirty 再跑一次拾取全部变更。
+// 避免共享 .tmp 路径写交错损坏 INDEX.md。
+var (
+	idxMu       sync.Mutex
+	idxBuilding = map[int64]bool{} // kbID → 正在重建
+	idxDirty    = map[int64]bool{} // kbID → 重建期间有新变更，需再跑一次
 )
 
 // IndexBuilder 知识库页目录重建器。从已发布文章生成 INDEX.md。
@@ -30,7 +41,40 @@ func NewIndexBuilder(svc *KnowledgeService) *IndexBuilder {
 
 // RebuildKBIndex 包级函数——直接用 repo 查询已发布文章，重建 INDEX.md。
 // 用于 onKBChanged 回调（避免循环引用 KnowledgeService）。
+// 并发安全：per-kbID 锁 + dirty-flag 循环——首个重建期间到达的请求标 dirty，首个完成后再跑一次拾取全部变更。
 func RebuildKBIndex(repo knowledgeRepo, kbID int64, outputDir string) {
+	// 抢占重建权：已有人在重建则标 dirty 让其重跑，自己直接返回
+	idxMu.Lock()
+	if idxBuilding[kbID] {
+		idxDirty[kbID] = true
+		idxMu.Unlock()
+		return
+	}
+	idxBuilding[kbID] = true
+	idxMu.Unlock()
+
+	defer func() {
+		idxMu.Lock()
+		delete(idxBuilding, kbID)
+		delete(idxDirty, kbID)
+		idxMu.Unlock()
+	}()
+
+	for {
+		rebuildIndexOnce(repo, kbID, outputDir)
+		// 检查是否重建期间有新变更，有则再跑一次（拾取所有并发发布的文章）
+		idxMu.Lock()
+		if !idxDirty[kbID] {
+			idxMu.Unlock()
+			return
+		}
+		idxDirty[kbID] = false
+		idxMu.Unlock()
+	}
+}
+
+// rebuildIndexOnce 执行一次 INDEX.md 重建（DB 查询 → render → 原子写）。
+func rebuildIndexOnce(repo knowledgeRepo, kbID int64, outputDir string) {
 	ctx := context.Background()
 	articles, _, err := repo.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
 	if err != nil {
@@ -61,7 +105,8 @@ func RebuildKBIndex(repo knowledgeRepo, kbID int64, outputDir string) {
 		slog.Warn("INDEX.md 重建：创建目录失败", "kb_id", kbID, "error", err)
 		return
 	}
-	tmpPath := outputPath + ".tmp"
+	// 唯一 tmp 路径防并发写交错（防御性，锁已保证单重建）
+	tmpPath := fmt.Sprintf("%s.%d.tmp", outputPath, time.Now().UnixNano())
 	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
 		slog.Warn("INDEX.md 重建：写入失败", "kb_id", kbID, "error", err)
 		return
@@ -75,35 +120,64 @@ func RebuildKBIndex(repo knowledgeRepo, kbID int64, outputDir string) {
 
 // RebuildIndex 重建指定 KB 的 INDEX.md 页目录。
 // 扫描已发布文章，按 frontmatter type 分组，按 title 排序，原子写入。
+// 并发安全：与包级 RebuildKBIndex 共享同一 per-kbID 锁 + dirty-flag 机制。
 func (b *IndexBuilder) RebuildIndex(ctx context.Context, kbID int64, outputPath string) error {
-	// 从 DB 读取已发布文章（status=4），不依赖文件系统列举
+	// 抢占重建权
+	idxMu.Lock()
+	if idxBuilding[kbID] {
+		idxDirty[kbID] = true
+		idxMu.Unlock()
+		return nil
+	}
+	idxBuilding[kbID] = true
+	idxMu.Unlock()
+
+	defer func() {
+		idxMu.Lock()
+		delete(idxBuilding, kbID)
+		delete(idxDirty, kbID)
+		idxMu.Unlock()
+	}()
+
+	for {
+		if err := b.rebuildIndexOnce(ctx, kbID, outputPath); err != nil {
+			return err
+		}
+		idxMu.Lock()
+		if !idxDirty[kbID] {
+			idxMu.Unlock()
+			return nil
+		}
+		idxDirty[kbID] = false
+		idxMu.Unlock()
+	}
+}
+
+// rebuildIndexOnce 执行一次 INDEX.md 重建（方法版本，走 svc.ListArticles）。
+func (b *IndexBuilder) rebuildIndexOnce(ctx context.Context, kbID int64, outputPath string) error {
 	resp, err := b.svc.ListArticles(ctx, kbID, int(model.ArticleStatusPublished), 0, "", "", 1, 10000)
 	if err != nil {
 		return fmt.Errorf("读取文章列表失败: %w", err)
 	}
 
-	// 按 article_type 分组
-		groups := make(map[string][]indexEntry)
-		for _, a := range resp.Articles {
-			entryType := a.ArticleType
-			if entryType == "" {
-				entryType = "guide"
-			}
-			groups[entryType] = append(groups[entryType], indexEntry{
-				title: a.Title,
-				tags:  a.Tags, // ListArticles 返回的 ArticleResponse.Tags 是 []string
-				slug:  slugify(a.Title),
-			})
+	groups := make(map[string][]indexEntry)
+	for _, a := range resp.Articles {
+		entryType := a.ArticleType
+		if entryType == "" {
+			entryType = "guide"
 		}
+		groups[entryType] = append(groups[entryType], indexEntry{
+			title: a.Title,
+			tags:  a.Tags, // ListArticles 返回的 ArticleResponse.Tags 是 []string
+			slug:  slugify(a.Title),
+		})
+	}
 
-	// 渲染 INDEX.md
 	content := renderIndexMarkdown(groups)
-
-	// 原子写：write-to-temp + rename
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("创建目录失败: %w", err)
 	}
-	tmpPath := outputPath + ".tmp"
+	tmpPath := fmt.Sprintf("%s.%d.tmp", outputPath, time.Now().UnixNano())
 	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
 		return err
 	}

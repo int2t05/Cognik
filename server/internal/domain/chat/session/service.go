@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 	"cognos/internal/agent"
 	"cognos/internal/agent/store"
 	"cognos/internal/infra/runtime"
@@ -163,7 +163,7 @@ func (s *ChatService) StreamChat(ctx context.Context, threadID int64, question s
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败"}
 	}
 
-	// 加载历史消息构建 Eino schema.Message 输入（多轮上下文）
+	// 加载历史消息构建 Eino llm.Message 输入（多轮上下文）
 	msgs, msgErr := s.store.ListMessages(ctx, threadID)
 	if msgErr != nil {
 		slog.Warn("加载历史消息失败，降级为单轮", "thread_id", threadID, "error", msgErr)
@@ -223,10 +223,10 @@ type ThreadDetail struct {
 	Messages []store.Message `json:"messages"`
 }
 
-// buildAgentInput 从历史消息 + 当前问题构建 Eino schema.Message 输入。
+// buildAgentInput 从历史消息 + 当前问题构建 Eino llm.Message 输入。
 // 从 parts 数组提取 text 部分作为对话内容。
-func (s *ChatService) buildAgentInput(msgs []store.Message, question string) []*schema.Message {
-	input := make([]*schema.Message, 0, len(msgs)+1)
+func (s *ChatService) buildAgentInput(msgs []store.Message, question string) []*llm.Message {
+	input := make([]*llm.Message, 0, len(msgs)+1)
 	for _, m := range msgs {
 		if m.Role != "user" && m.Role != "assistant" {
 			continue
@@ -245,16 +245,16 @@ func (s *ChatService) buildAgentInput(msgs []store.Message, question string) []*
 		if content.Len() == 0 {
 			continue
 		}
-		role := schema.RoleType(m.Role)
-		input = append(input, &schema.Message{Role: role, Content: content.String()})
+		role := llm.RoleType(m.Role)
+		input = append(input, &llm.Message{Role: role, Content: content.String()})
 	}
-	input = append(input, schema.UserMessage(question))
+	input = append(input, llm.UserMessage(question))
 	return input
 }
 
 // runAgent Agent 事件循环 → gateway.Publish + parts 累积落库。
 // detached goroutine：客户端断开仍跑完 + 落库。
-func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, userMsgID, assistantID int64, question string, input []*schema.Message) {
+func (s *ChatService) runAgent(gctx context.Context, runID string, threadID, userMsgID, assistantID int64, question string, input []*llm.Message) {
 	defer s.gateway.Finish(runID)
 
 	agentEvents, err := s.agentRunner.Stream(gctx, input)

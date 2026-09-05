@@ -91,7 +91,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	db.Exec("DROP INDEX IF EXISTS idx_users_phone")
 	db.Exec("DROP INDEX IF EXISTS idx_users_username")
 
-	if err := database.AutoMigrate(db); err != nil {
+	if err := database.AutoMigrate(db, 1536); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 

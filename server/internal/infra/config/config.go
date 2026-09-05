@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -11,6 +12,7 @@ import (
 
 // AppConfig 是顶层配置结构体，包含所有子模块配置。
 type AppConfig struct {
+	DataRoot  string          `mapstructure:"data_root"` // 数据根目录（storage/memory/logs/agent.db 派生自此）
 	Server    ServerConfig    `mapstructure:"server"`
 	Database  DatabaseConfig  `mapstructure:"database"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
@@ -116,7 +118,7 @@ type LLMConfig struct {
 	APIKey    string        `mapstructure:"api_key"`
 	Model     string        `mapstructure:"model"`
 	MaxTokens int           `mapstructure:"max_tokens"`
-	Timeout   time.Duration `mapstructure:"timeout"` // LLM 调用超时，默认 60s
+	Timeout   time.Duration `mapstructure:"timeout"` // LLM 调用超时，默认 300s
 }
 
 // RerankConfig cross-encoder 重排序子进程配置（Python stdin/stdout JSON Lines 通信）。
@@ -134,7 +136,7 @@ type EmbeddingConfig struct {
 	APIKey    string        `mapstructure:"api_key"`
 	Model     string        `mapstructure:"model"`
 	Dimension int           `mapstructure:"dimension"`
-	Timeout   time.Duration `mapstructure:"timeout"` // Embedding 调用超时，默认 30s
+	Timeout   time.Duration `mapstructure:"timeout"` // Embedding 调用超时，默认 60s
 }
 
 // AIConfig AI 问答配置（ChunkSize/ChunkOverlap 供文档处理管道使用）。
@@ -169,12 +171,12 @@ type KnowledgeConfig struct {
 
 // MemoryConfig 记忆系统配置（文件式存储根目录 + MEMORY.md 行数上限 + 上下文压缩阈值）。
 type MemoryConfig struct {
-	StorageRoot     string        `mapstructure:"storage_root"`      // 记忆+知识库存储根目录，默认 storage/
-	MemoryMaxLines  int           `mapstructure:"memory_max_lines"`  // MEMORY.md 最大行数，默认 200
-	CompressDedup   float64       `mapstructure:"compress_dedup"`    // 去重清理触发阈值，默认 0.70
-	CompressCompact float64       `mapstructure:"compress_compact"`  // Autocompact 触发阈值，默认 0.85
+	StorageRoot        string        `mapstructure:"storage_root"`         // 记忆存储根目录，空 → {data_root}/memory
+	MemoryMaxLines     int           `mapstructure:"memory_max_lines"`     // MEMORY.md 最大行数，默认 200
+	CompressDedup      float64       `mapstructure:"compress_dedup"`       // 去重清理触发阈值，默认 0.70
+	CompressCompact    float64       `mapstructure:"compress_compact"`     // Autocompact 触发阈值，默认 0.85
 	IngestPollInterval time.Duration `mapstructure:"ingest_poll_interval"` // 异步队列轮询间隔，默认 5s
-	IngestLeaseTTL  time.Duration `mapstructure:"ingest_lease_ttl"`  // 消费 lease TTL，默认 60s
+	IngestLeaseTTL     time.Duration `mapstructure:"ingest_lease_ttl"`     // 消费 lease TTL，默认 60s
 }
 
 // Load 加载配置文件并应用环境变量覆盖。
@@ -210,14 +212,34 @@ func Load(configPath string) (*AppConfig, error) {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
+	// 从 data_root 派生 storage/memory 路径（未显式配置时）
+	cfg.resolveDataPaths()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("配置校验失败: %w", err)
 	}
 	return &cfg, nil
 }
 
+// resolveDataPaths 从 data_root 派生 storage/memory 路径。
+// storage.local.base_dir / memory.storage_root 为空时，用 {data_root}/storage、{data_root}/memory 填充。
+func (c *AppConfig) resolveDataPaths() {
+	if c.DataRoot == "" {
+		c.DataRoot = ".cognos"
+	}
+	if c.Storage.Local.BaseDir == "" {
+		c.Storage.Local.BaseDir = filepath.Join(c.DataRoot, "storage")
+	}
+	if c.Memory.StorageRoot == "" {
+		c.Memory.StorageRoot = filepath.Join(c.DataRoot, "memory")
+	}
+}
+
 // bindEnvs 显式绑定环境变量到配置 key。
 func bindEnvs(v *viper.Viper) {
+	// DataRoot（数据根目录，storage/memory/logs/agent.db 派生自此）
+	v.BindEnv("data_root", "COGNOS_DATA_ROOT")
+
 	// Server
 	v.BindEnv("server.port", "COGNOS_SERVER_PORT")
 	v.BindEnv("server.mode", "COGNOS_SERVER_MODE")
@@ -331,6 +353,9 @@ func (c *AppConfig) Validate() error {
 
 // setDefaults 设置配置默认值，与 config.yaml 保持一致。
 func setDefaults(v *viper.Viper) {
+	// DataRoot（数据根目录；server/ 运行时 .cognos = 项目根目录 .cognos/）
+	v.SetDefault("data_root", ".cognos")
+
 	// Server
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("server.mode", "debug")
@@ -354,9 +379,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.access_expire", "2h")
 	v.SetDefault("jwt.refresh_expire", "168h")
 
-	// Storage（统一数据根目录 ./cognos/，所有子目录基于此）
+	// Storage（路径由 data_root 派生，见 resolveDataPaths）
 	v.SetDefault("storage.driver", "local")
-	v.SetDefault("storage.local.base_dir", "./cognos/storage")
+	v.SetDefault("storage.local.base_dir", "") // 空 → {data_root}/storage
 	v.SetDefault("storage.minio.endpoint", "localhost:9000")
 	v.SetDefault("storage.minio.access_key", "minioadmin")
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
@@ -374,7 +399,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("embedding.base_url", "")
 	v.SetDefault("embedding.api_key", "")
 	v.SetDefault("embedding.model", "") // 无默认值，必须通过环境变量或 LLM 配置指定
-	v.SetDefault("embedding.dimension", 1024)
+	v.SetDefault("embedding.dimension", 1536)
 	v.SetDefault("embedding.timeout", "60s")
 
 	// AI
@@ -403,8 +428,8 @@ func setDefaults(v *viper.Viper) {
 	// Knowledge
 	v.SetDefault("kb.max_upload_size", 51200)
 
-	// Memory（记忆系统，基于 storage.local.base_dir 同级）
-	v.SetDefault("memory.storage_root", "./cognos/memory")
+	// Memory（路径由 data_root 派生，见 resolveDataPaths）
+	v.SetDefault("memory.storage_root", "") // 空 → {data_root}/memory
 	v.SetDefault("memory.memory_max_lines", 200)
 	v.SetDefault("memory.compress_dedup", 0.70)
 	v.SetDefault("memory.compress_compact", 0.85)

@@ -6,7 +6,7 @@ import (
 	"gorm.io/datatypes"
 )
 
-// Ticket 工单工单表
+// Ticket 工单表
 type Ticket struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketNo        string         `gorm:"type:varchar(32);uniqueIndex;not null;column:ticket_no" json:"ticket_no"`
@@ -21,7 +21,9 @@ type Ticket struct {
 	SupplementCount int16          `gorm:"not null;default:0;column:supplement_count" json:"supplement_count"`
 	ChatContext     datatypes.JSON `gorm:"type:jsonb;column:chat_context" json:"chat_context"`
 	Source          int16          `gorm:"not null;default:1" json:"source"`
-	DeadlineAt      *time.Time     `gorm:"column:deadline_at" json:"deadline_at"` // 处理时限，可空
+	DeadlineAt      *time.Time     `gorm:"column:deadline_at" json:"deadline_at"`                       // 处理时限，可空
+	RelatedArticleID *int64        `gorm:"column:related_article_id;index:idx_tickets_related_article" json:"related_article_id,omitempty"` // 知识库复核工单关联文章，可空
+	RelatedKBID      *int64         `gorm:"column:related_kb_id;index:idx_tickets_related_kb" json:"related_kb_id,omitempty"` // 知识库复核工单关联 KB，可空
 	TicketRecords   []TicketRecord `gorm:"foreignKey:TicketID" json:"ticket_records,omitempty"`
 	CreatedAt       time.Time      `gorm:"not null;index:idx_tickets_created_at" json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"not null" json:"updated_at"`

@@ -18,8 +18,9 @@ const (
 
 // 工单来源
 const (
-	TicketSourcePortal int16 = 1 // 门户提交
-	TicketSourceChat   int16 = 2 // 问答转工单
+	TicketSourcePortal          int16 = 1 // 门户提交
+	TicketSourceChat            int16 = 2 // 问答转工单
+	TicketSourceKnowledgeReview int16 = 3 // 知识库自动复核（上传/元数据补全时系统创建）
 )
 
 // 文章来源类型

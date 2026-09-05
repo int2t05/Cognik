@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"cognos/internal/domain/knowledge"
 	"cognos/internal/infra/adapter"
@@ -114,12 +113,11 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 	deduped := dedupByContent(reranked)
 
 	// 置信度计算：精度阶段信号优先（参考 CRAG + 生产 RAG 实践）
-	// - 有 rerank：ConfRaw = RerankScore（cross-encoder sigmoid ∈[0,1]，直接相关性概率，无需混合）
+	// - 有 rerank：ConfRaw = RerankScore（cross-encoder sigmoid ∈[0,1]，直接相关性概率）
 	// - 无 rerank：ConfRaw = RRF 融合分 min-max 归一化到 [0,1]（rank-based，召回阶段信号）
-	// 废弃旧混合法（0.4*BM25+0.6*Rerank 混入 cosine）——混淆召回/精度信号，无原则依据
 	computeConfidence(deduped, s.reranker != nil && len(reranked) > 1)
 
-	// 按 ConfRaw 降序重排（ConfRaw 混合三源，应为最终排序依据；sandwich 假设输入已排序）
+	// 按 ConfRaw 降序重排（ConfRaw 为最终排序依据；sandwich 假设输入已排序）
 	sortByConfRawDesc(deduped)
 
 	// CRAG 充分性评估（在 sandwich/packing/截断前，基于完整排序结果）
@@ -199,26 +197,6 @@ func (s *kbStoreImpl) GetBatch(ctx context.Context, kbID int64, articleIDs []int
 	return articles, nil
 }
 
-// parseFrontmatterSimple 解析 frontmatter（map[string]string + 正文）。
-func parseFrontmatterSimple(content string) (map[string]any, string) {
-	fm := make(map[string]any)
-	if !strings.HasPrefix(content, "---\n") {
-		return fm, content
-	}
-	parts := strings.SplitN(content[4:], "\n---\n", 2)
-	if len(parts) != 2 {
-		return fm, content
-	}
-	for _, line := range strings.Split(parts[0], "\n") {
-		if idx := strings.Index(line, ":"); idx > 0 {
-			key := strings.TrimSpace(line[:idx])
-			val := strings.TrimSpace(line[idx+1:])
-			fm[key] = val
-		}
-	}
-	return fm, strings.TrimSpace(parts[1])
-}
-
 // List 分页列出文章标题（按 type/tags 过滤，返回列表 + 总数）。
 func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter, limit, offset int) (items []KBListItem, total int, err error) {
 	if limit <= 0 {
@@ -263,57 +241,39 @@ func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter, lim
 	return items, total, nil
 }
 
-// Create 新建 Draft 文章（委托 KnowledgeService.CreateArticle，生成完整 frontmatter）。
+// Create 新建 Draft 文章（委托 KnowledgeService.CreateArticle）。
+// Content = 正文 body（无 frontmatter）；Type → req.ArticleType（发布时若缺失由 LLM 补全）；
+// Sources 作为正文末尾 ## Sources 段（自然 Markdown，非 frontmatter）。
 func (s *kbStoreImpl) Create(ctx context.Context, params KBCreateParams) (string, error) {
-	// 生成完整 frontmatter（8 字段：title/type/status/created/updated/tags/source_type/sources）
-	fullContent := formatArticleFrontmatter(params)
+	body := params.Content
+	if len(params.Sources) > 0 {
+		var sb strings.Builder
+		sb.WriteString(body)
+		if !strings.HasSuffix(body, "\n") {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n## Sources\n\n")
+		for i, src := range params.Sources {
+			if src.Title != "" {
+				sb.WriteString(fmt.Sprintf("%d. [%s](%s)\n", i+1, src.Title, src.URL))
+			} else {
+				sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, src.URL))
+			}
+		}
+		body = sb.String()
+	}
 	_, err := s.articleSvc.CreateArticle(ctx, request.CreateArticleRequest{
-		KBID:       params.KBID,
-		Title:      params.Title,
-		Content:    fullContent,
-		SourceType: model.SourceTypeDeepResearch,
-		Tags:       params.Tags,
+		KBID:        params.KBID,
+		Title:       params.Title,
+		Content:     body,
+		SourceType:  model.SourceTypeDeepResearch,
+		ArticleType: params.Type,
+		Tags:        params.Tags,
 	}, 0)
 	if err != nil {
 		return "", err
 	}
 	return slugify(params.Title), nil
-}
-
-// formatArticleFrontmatter 生成完整 frontmatter + 正文。
-// 必填 5 字段：title/type/status/created/updated；可选：tags/sources/source_type。
-func formatArticleFrontmatter(p KBCreateParams) string {
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("title: %s\n", p.Title))
-	sb.WriteString(fmt.Sprintf("type: %s\n", p.Type))
-	sb.WriteString("status: draft\n")
-	now := time.Now().Format(time.RFC3339)
-	sb.WriteString(fmt.Sprintf("created: %s\n", now))
-	sb.WriteString(fmt.Sprintf("updated: %s\n", now))
-	if len(p.Tags) > 0 {
-		sb.WriteString(fmt.Sprintf("tags: [%s]\n", strings.Join(p.Tags, ", ")))
-	}
-	sb.WriteString("source_type: deep_research\n")
-	if len(p.Sources) > 0 {
-		sb.WriteString("sources:\n")
-		for i, src := range p.Sources {
-			sb.WriteString(fmt.Sprintf("  - id: %d\n", i+1))
-			sb.WriteString(fmt.Sprintf("    url: %s\n", src.URL))
-			if src.Title != "" {
-				sb.WriteString(fmt.Sprintf("    title: %s\n", src.Title))
-			}
-		}
-	}
-	if p.System != "" {
-		sb.WriteString(fmt.Sprintf("system: %s\n", p.System))
-	}
-	if p.Severity != "" {
-		sb.WriteString(fmt.Sprintf("severity: %s\n", p.Severity))
-	}
-	sb.WriteString("---\n\n")
-	sb.WriteString(p.Content)
-	return sb.String()
 }
 
 // Update 更新文章（委托 KnowledgeService.UpdateArticle + 入队触发增量 re-index）。
@@ -383,7 +343,7 @@ var (
 )
 
 // =============================================================================
-// 检索辅助（内联实现，不依赖 pipeline.go 未导出函数）
+// 检索辅助函数
 // =============================================================================
 
 // normalizeBm25 将 BM25 原始分数归一化到 [0,1]（Bm25NormScore，保留供调试/可观测）。
@@ -432,11 +392,10 @@ func dedupByContent(chunks []rag.RetrievalResult) []rag.RetrievalResult {
 }
 
 // computeConfidence 计算综合置信度 ConfRaw。
-// 精度阶段信号优先（参考 CRAG：retrieval evaluator 基于相关性，非原始分混合）：
+// 精度阶段信号优先（参考 CRAG：retrieval evaluator 基于相关性）：
 // - rerankRan：ConfRaw = RerankScore（cross-encoder sigmoid ∈[0,1]，直接相关性概率）
 // - 无 rerank：ConfRaw = RRF 融合分（Score）min-max 归一化到 [0,1]
-// 不再混合 cosine/BM25/Rerank——召回阶段信号（cosine/BM25）与精度阶段信号（rerank）
-// 量纲不同，混合无原则依据；rerank 分即最佳相关性信号。
+// 召回阶段信号（cosine/BM25）与精度阶段信号（rerank）量纲不同，不混合。
 func computeConfidence(chunks []rag.RetrievalResult, rerankRan bool) {
 	if len(chunks) == 0 {
 		return

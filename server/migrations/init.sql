@@ -16,6 +16,6 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 列注释（GORM 不支持 COMMENT ON COLUMN）
 -- =============================================================================
 
-COMMENT ON COLUMN knowledge_chunks.embedding IS 'halfvec 半精度向量（固定 1024 维），pgvector 余弦相似度检索';
+COMMENT ON COLUMN knowledge_chunks.embedding IS 'halfvec 半精度向量（维度由 config 决定），pgvector 余弦相似度检索';
 COMMENT ON COLUMN chat_messages.pipeline_metrics IS 'RAG 管道各步骤耗时（ms）';
 COMMENT ON COLUMN chat_messages.confidence_raw IS '原始综合置信度分数 [0,1]，用于分位数统计';

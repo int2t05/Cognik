@@ -127,6 +127,47 @@ func (s *TicketService) CreateTicket(ctx context.Context, req request.CreateTick
 	return nil
 }
 
+// CreateSystemTicket 系统自动创建的复核工单（无联系电话，Source=KnowledgeReview）。
+// 由知识库服务在上传文件 / LLM 元数据补全时调用，标记需人工复核。失败仅记日志不阻断主流程。
+// 例：CreateSystemTicket(ctx, SystemTicketRequest{Title:"【文档复核】xxx", RelatedArticleID:&id, Reason:"uploaded_document"})
+func (s *TicketService) CreateSystemTicket(ctx context.Context, req request.SystemTicketRequest) error {
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Description) == "" {
+		return AppError{Code: errcode.ErrParam, Message: "标题和描述不能为空"}
+	}
+
+	ticketNo, err := generateTicketNo()
+	if err != nil {
+		return AppError{Code: errcode.ErrUnknown, Message: "生成工单编号失败"}
+	}
+
+	ticket := &model.Ticket{
+		TicketNo:         ticketNo,
+		UserID:           1, // 1=admin（系统自动工单归属于管理员，避免外键约束 fk_tickets_user 失败）
+		Title:            req.Title,
+		Description:      req.Description,
+		Tags:             marshalTicketTags(req.Tags),
+		Status:           model.TicketStatusPending,
+		Source:           model.TicketSourceKnowledgeReview,
+		RelatedArticleID: req.RelatedArticleID,
+		RelatedKBID:      req.RelatedKBID,
+	}
+	if err := s.repo.Create(ctx, ticket); err != nil {
+		return err
+	}
+
+	// 写处理记录：系统自动创建 + 触发原因
+	record := &model.TicketRecord{
+		TicketID:   ticket.ID,
+		OperatorID: 0, // 0=系统
+		Action:     "auto_created",
+		Content:    req.Reason,
+	}
+	if err := s.repo.CreateRecord(ctx, record); err != nil {
+		slog.Warn("系统工单处理记录写入失败（工单已创建）", "ticket_no", ticketNo, "error", err)
+	}
+	return nil
+}
+
 // =============================================================================
 // UpdateTicket / SupplementTicket
 // =============================================================================
@@ -486,7 +527,6 @@ func (s *TicketService) GetDetail(ctx context.Context, id int64, userID int64) (
 	}
 	detail.Description = ticket.Description
 	detail.ContactEmail = ticket.ContactEmail
-	detail.Source = ticket.Source
 	detail.Records = records
 
 	// 反序列化标签
@@ -509,19 +549,22 @@ func toTicketItem(t *model.Ticket) response.TicketItem {
 	}
 
 	return response.TicketItem{
-		ID:              t.ID,
-		TicketNo:        t.TicketNo,
-		UserID:          t.UserID,
-		SubmitterName:   submitterName,
-		Title:           t.Title,
-		Tags:            unmarshalTicketTags(t.Tags),
-		ContactPhone:    t.ContactPhone,
-		Status:          t.Status,
-		StatusText:      model.TicketStatusText(t.Status),
-		SupplementCount: t.SupplementCount,
-		DeadlineAt:      formatTimePtr(t.DeadlineAt),
-		CreatedAt:       t.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:       t.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:               t.ID,
+		TicketNo:         t.TicketNo,
+		UserID:           t.UserID,
+		SubmitterName:    submitterName,
+		Title:            t.Title,
+		Tags:             unmarshalTicketTags(t.Tags),
+		ContactPhone:     t.ContactPhone,
+		Status:           t.Status,
+		StatusText:       model.TicketStatusText(t.Status),
+		SupplementCount:  t.SupplementCount,
+		Source:           t.Source,
+		RelatedArticleID: t.RelatedArticleID,
+		RelatedKBID:      t.RelatedKBID,
+		DeadlineAt:       formatTimePtr(t.DeadlineAt),
+		CreatedAt:        t.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:        t.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 

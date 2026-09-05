@@ -17,7 +17,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // ListDirTool 目录列表工具。
@@ -32,13 +32,15 @@ func NewListDirTool(workDir string, maxBytes int64) *ListDirTool {
 }
 
 // Info 返回工具元信息。
-func (l *ListDirTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (l *ListDirTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "list_dir",
-		Desc: "List entries in a directory within the working directory sandbox. Returns name, type (file/dir), size, and mod time. Directories sorted first.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `List entries in a directory within the working directory sandbox.
+- Returns name, type (file/dir), size, and mod time. Directories sorted first.
+- Use to map structure. For deep file search use glob; for content search use grep.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Relative directory path within the working directory (default: root).",
 			},
 		}),

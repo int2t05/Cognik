@@ -20,18 +20,20 @@ type UpdateKBRequest struct {
 
 // CreateArticleRequest 创建知识文章请求。
 type CreateArticleRequest struct {
-	KBID       int64    `json:"kb_id"`
-	Title      string   `json:"title" binding:"required"`
-	Content    string   `json:"content" binding:"required"`
-	SourceType int16    `json:"source_type"`
-	Tags       []string `json:"tags"`
+	KBID        int64    `json:"kb_id"`
+	Title       string   `json:"title" binding:"required"`
+	Content     string   `json:"content" binding:"required"`
+	SourceType  int16    `json:"source_type"`
+	ArticleType string   `json:"article_type"` // 留空则发布时 LLM 补全，无合法值时降级 guide
+	Tags        []string `json:"tags"`
 }
 
 // UpdateArticleRequest 更新知识文章请求。
 type UpdateArticleRequest struct {
-	Title   string   `json:"title" binding:"required"`
-	Content string   `json:"content" binding:"required"`
-	Tags    []string `json:"tags"`
+	Title       string   `json:"title" binding:"required"`
+	Content     string   `json:"content" binding:"required"`
+	ArticleType string   `json:"article_type"`
+	Tags        []string `json:"tags"`
 }
 
 // ReviewRequest 审核知识文章请求。

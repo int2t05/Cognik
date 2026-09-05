@@ -15,7 +15,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // ReadFileTool 文件读取工具（实现 agent.SyncTool 接口）。
@@ -30,22 +30,24 @@ func NewReadFileTool(workDir string, maxBytes int64) *ReadFileTool {
 }
 
 // Info 返回工具元信息。
-func (r *ReadFileTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (r *ReadFileTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "read_file",
-		Desc: "Read a file's content with line numbers from the working directory sandbox. Returns cat -n style output (line number + tab + content). Use offset/limit to read ranges of large files.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Read a file's content with line numbers from the working directory sandbox.
+- Returns cat -n style output (line number + tab + content). Use offset/limit for ranges of large files.
+- Do NOT re-read a file you just edited to verify — edit_file would have errored if the change failed.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Relative path to the file within the working directory",
 				Required: true,
 			},
 			"offset": {
-				Type: schema.Integer,
+				Type: llm.Integer,
 				Desc: "1-based line number to start reading from (default 1). Use for large files.",
 			},
 			"limit": {
-				Type: schema.Integer,
+				Type: llm.Integer,
 				Desc: "Maximum number of lines to read (default: read to EOF). Use with offset for paging.",
 			},
 		}),

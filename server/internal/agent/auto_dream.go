@@ -15,14 +15,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // AutoDream 跨会话记忆复盘 agent。
 type AutoDream struct {
 	memoryRoot string                  // 记忆根目录（如 storage/memory/）
-	modelGetter func() *openai.ChatModel
+	modelGetter func() *llm.ChatModel
 	minHours   int                     // 时间门：距上次复盘 ≥ N 小时
 	minSessions int                    // 会话数门：新增会话 ≥ N 个
 	maxTurns    int                     // forked agent 最大步数
@@ -30,7 +29,7 @@ type AutoDream struct {
 }
 
 // NewAutoDream 创建复盘 agent。
-func NewAutoDream(memoryRoot string, modelGetter func() *openai.ChatModel) *AutoDream {
+func NewAutoDream(memoryRoot string, modelGetter func() *llm.ChatModel) *AutoDream {
 	return &AutoDream{
 		memoryRoot:  memoryRoot,
 		modelGetter: modelGetter,
@@ -106,9 +105,9 @@ func (a *AutoDream) consolidate(ctx context.Context) error {
 		}
 	}
 
-	input := []*schema.Message{
-		schema.SystemMessage(instruction),
-		schema.UserMessage(fmt.Sprintf("现有记忆索引：\n%s\n\n现有记忆文件：\n%s\n\n请执行 4 阶段复盘。",
+	input := []*llm.Message{
+		llm.SystemMessage(instruction),
+		llm.UserMessage(fmt.Sprintf("现有记忆索引：\n%s\n\n现有记忆文件：\n%s\n\n请执行 4 阶段复盘。",
 			memoryIndex, strings.Join(existing, "\n"))),
 	}
 
@@ -127,7 +126,7 @@ func (a *AutoDream) buildConsolidationPrompt() string {
 收集新增的 session 记忆，检测与现有记忆的矛盾或重复。
 
 ## Phase 3 — Consolidate
-合并重复记忆（而非创建近似副本），转换相对日期为绝对日期，删除矛盾事实。
+合并重复记忆（而非创建近似副本），转换相对日期为绝对日期，删除矛盾事实。只基于现有记忆合并，不编造未记录的事实。
 
 ## Phase 4 — Prune
 更新 MEMORY.md 索引保持 ≤200 行，移除过时指针，精简冗长条目。`

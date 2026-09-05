@@ -13,7 +13,7 @@ import (
 	"cognos/internal/agent"
 	"cognos/internal/infra/adapter"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // WebFetchTool 网页提取工具（实现 agent.SyncTool）。
@@ -28,13 +28,15 @@ func NewWebFetchTool(chain *adapter.FetchChain, maxBytes int64) *WebFetchTool {
 }
 
 // Info 返回工具元信息。
-func (t *WebFetchTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (t *WebFetchTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "web_fetch",
-		Desc: "Fetch a web page and return clean Markdown content. Given a URL, returns the page content (with title). Use to verify search results or read documentation.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Fetch a web page and return clean Markdown (with title).
+- Use to verify web_search snippets before citing, or read documentation.
+- Do NOT fetch authenticated/private URLs.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"url": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "URL to fetch (http/https, public addresses only)",
 				Required: true,
 			},

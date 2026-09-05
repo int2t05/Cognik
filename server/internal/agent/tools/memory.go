@@ -12,7 +12,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // MemoryEntry 记忆检索结果。
@@ -54,18 +54,21 @@ func NewMemoryTool(store MemoryStore) *MemoryTool {
 }
 
 // Info 返回工具元信息。
-func (t *MemoryTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (t *MemoryTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "memory",
-		Desc: "Agent memory operations. action: remember (write), recall (search), forget (mark disabled), update (overwrite by key), list (list all entries). scope: session (current conversation), global (cross-session experience).",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"action":     {Type: schema.String, Desc: "remember/recall/forget/update/list", Required: true},
-			"scope":      {Type: schema.String, Desc: "session / global", Required: true},
-			"text":       {Type: schema.String, Desc: "Memory text (action=remember/update)"},
-			"query":      {Type: schema.String, Desc: "Search query (action=recall)"},
-			"key":        {Type: schema.String, Desc: "Memory key (action=forget/update)"},
-			"importance": {Type: schema.Integer, Desc: "1-10 (action=remember)"},
-			"limit":      {Type: schema.Integer, Desc: "Max results (default 5, action=recall)"},
+		Desc: `Agent memory operations (remember/recall/forget/update/list) with session/global scope.
+- recall: check memory BEFORE searching the KB — short-circuits redundant retrieval.
+- remember: save only long-term valuable content (patterns, decisions, references), not ephemeral chatter.
+- Do NOT use for: data already in the KB, or one-off conversation details.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
+			"action":     {Type: llm.String, Desc: "remember/recall/forget/update/list", Required: true},
+			"scope":      {Type: llm.String, Desc: "session / global", Required: true},
+			"text":       {Type: llm.String, Desc: "Memory text (action=remember/update)"},
+			"query":      {Type: llm.String, Desc: "Search query (action=recall)"},
+			"key":        {Type: llm.String, Desc: "Memory key (action=forget/update)"},
+			"importance": {Type: llm.Integer, Desc: "1-10 (action=remember)"},
+			"limit":      {Type: llm.Integer, Desc: "Max results (default 5, action=recall)"},
 		}),
 	}
 }

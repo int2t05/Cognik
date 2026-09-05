@@ -9,8 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // ContextualGenerator 为 chunk 生成上下文摘要（索引时调用，非检索时）。
@@ -21,11 +20,11 @@ type ContextualGenerator interface {
 
 // LLMContextualGenerator 基于 LLM 的 Contextual Retrieval 实现。
 type LLMContextualGenerator struct {
-	modelGetter func() *openai.ChatModel
+	modelGetter func() *llm.ChatModel
 }
 
 // NewLLMContextualGenerator 创建 LLM 上下文生成器。
-func NewLLMContextualGenerator(modelGetter func() *openai.ChatModel) *LLMContextualGenerator {
+func NewLLMContextualGenerator(modelGetter func() *llm.ChatModel) *LLMContextualGenerator {
 	return &LLMContextualGenerator{modelGetter: modelGetter}
 }
 
@@ -48,9 +47,9 @@ Here is the chunk we want to situate within the whole document:
 </chunk>
 Please give a short succinct context to situate this chunk within the overall document for the purposes of improving search retrieval of the chunk. Answer only with the succinct context and nothing else.`, docContext, chunk)
 
-	msgs := []*schema.Message{
-		schema.SystemMessage(prompt),
-		schema.UserMessage("生成上下文摘要。"),
+	msgs := []*llm.Message{
+		llm.SystemMessage(prompt),
+		llm.UserMessage("生成上下文摘要。"),
 	}
 	resp, err := m.Generate(ctx, msgs)
 	if err != nil {

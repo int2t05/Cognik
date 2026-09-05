@@ -13,7 +13,7 @@ import (
 	"cognos/internal/agent"
 	"cognos/internal/rag"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // KBFilter 知识库检索/列表过滤条件（frontmatter 元数据预过滤）。
@@ -108,22 +108,27 @@ func NewKBTool(store KBStore) *KBTool {
 }
 
 // Info 返回工具元信息。
-func (t *KBTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (t *KBTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "kb",
-		Desc: "Knowledge base operations. action: search (RAG retrieve chunks), get (read article by article_id or article_ids for batch), list (paginated titles), create, update, delete.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"action":      {Type: schema.String, Desc: "search/get/list/create/update/delete", Required: true},
-			"kb_id":       {Type: schema.Integer, Desc: "Target knowledge base ID", Required: true},
-			"query":       {Type: schema.String, Desc: "Search query (action=search)"},
-			"article_id":  {Type: schema.Integer, Desc: "Article ID (action=get/update/delete)"},
-			"article_ids": {Type: schema.Array, Desc: "Article IDs for batch read (action=get)"},
-			"title":       {Type: schema.String, Desc: "Article title (action=create/update)"},
-			"content":     {Type: schema.String, Desc: "Markdown body (action=create/update)"},
-			"type":        {Type: schema.String, Desc: "guide/reference/procedure/analysis/note/faq/snippet"},
-			"tags":        {Type: schema.Array, Desc: "Tag list"},
-			"limit":       {Type: schema.Integer, Desc: "Page size (default 20 for list, 5 for search)"},
-			"offset":      {Type: schema.Integer, Desc: "Page offset (action=list, default 0)"},
+		Desc: `Knowledge base operations (search/get/list/create/update/delete).
+- search: RAG retrieve chunks by query; result begins with [检索充分性: strong|ambiguous|weak]. On weak, prefer web_search before answering.
+- get: read one full article by article_id, or batch summaries (first 500 chars each) by article_ids.
+- list: paginated titles (default 20/page) — use to browse, not to answer.
+- create/update: write findings back to KB (Draft status, human review → Published).
+- Do NOT use for: ticket status queries, user lookups, or non-KB data.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
+			"action":      {Type: llm.String, Desc: "search/get/list/create/update/delete", Required: true},
+			"kb_id":       {Type: llm.Integer, Desc: "Target knowledge base ID", Required: true},
+			"query":       {Type: llm.String, Desc: "Search query (action=search)"},
+			"article_id":  {Type: llm.Integer, Desc: "Article ID (action=get/update/delete)"},
+			"article_ids": {Type: llm.Array, Desc: "Article IDs for batch read (action=get)"},
+			"title":       {Type: llm.String, Desc: "Article title (action=create/update)"},
+			"content":     {Type: llm.String, Desc: "Markdown body (action=create/update)"},
+			"type":        {Type: llm.String, Desc: "guide/reference/procedure/analysis/note/faq/snippet"},
+			"tags":        {Type: llm.Array, Desc: "Tag list"},
+			"limit":       {Type: llm.Integer, Desc: "Page size (default 20 for list, 5 for search)"},
+			"offset":      {Type: llm.Integer, Desc: "Page offset (action=list, default 0)"},
 		}),
 	}
 }

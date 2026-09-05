@@ -14,7 +14,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // MkdirTool 目录创建工具。
@@ -28,13 +28,14 @@ func NewMkdirTool(workDir string) *MkdirTool {
 }
 
 // Info 返回工具元信息。
-func (m *MkdirTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (m *MkdirTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "mkdir",
-		Desc: "Create a directory (including parents) within the working directory sandbox.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Create a directory (including parents) within the working directory sandbox.
+- Use before write_file when the target path's parent does not exist.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Relative directory path to create within the working directory",
 				Required: true,
 			},

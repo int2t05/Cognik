@@ -11,8 +11,11 @@ import (
 )
 
 // AutoMigrate 自动迁移所有数据模型和索引。
-// 向量维度固定 1024（halfvec + HNSW），更换 embedding 模型须保持同维度。
-func AutoMigrate(db *gorm.DB) error {
+// dim 为向量维度（halfvec(N)），由 config 注入；更换 embedding 模型须保持同维度并清库重建。
+func AutoMigrate(db *gorm.DB, dim int) error {
+	if dim <= 0 {
+		dim = 1536 // 默认 1536（DashScope text-embedding-v2）
+	}
 	db.Exec("CREATE EXTENSION IF NOT EXISTS vector")
 
 	if err := db.AutoMigrate(
@@ -36,17 +39,17 @@ func AutoMigrate(db *gorm.DB) error {
 		}
 	}
 
-	// halfvec(1024) 列：固定维度，支持 HNSW 索引
-	if err := db.Exec(`
+	// halfvec(dim) 列：维度可配，支持 HNSW 索引
+	if err := db.Exec(fmt.Sprintf(`
 		DO $$ BEGIN
 			IF NOT EXISTS (
 				SELECT 1 FROM information_schema.columns
 				WHERE table_name = 'knowledge_chunks' AND column_name = 'embedding'
 			) THEN
-				ALTER TABLE knowledge_chunks ADD COLUMN embedding halfvec(1024);
+				ALTER TABLE knowledge_chunks ADD COLUMN embedding halfvec(%d);
 			END IF;
 		END $$;
-	`).Error; err != nil {
+	`, dim)).Error; err != nil {
 		return fmt.Errorf("添加 knowledge_chunks.embedding 列失败: %w", err)
 	}
 

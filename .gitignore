@@ -22,8 +22,6 @@ web/.env.local
 web/.env.*.local
 web/*.log
 web/*.tsbuildinfo
-web/test-results/
-web/playwright-report/
 
 # === Docker / 运行时数据 ===
 .env
@@ -33,6 +31,8 @@ web/playwright-report/
 postgres_data/
 minio_data/
 data/
+.cognos/
+cognos
 
 # === IDE / 编辑器 ===
 .idea/
@@ -87,9 +87,3 @@ scratch/
 
 # === Python ===
 __pycache__/
-
-# === 旧目录（已清理） ===
-defense
-server/storage/
-server/data/
-server/cognos/

@@ -14,7 +14,7 @@ import (
 	"cognos/internal/agent"
 	"cognos/internal/infra/adapter"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // WebSearchTool 网络搜索工具（实现 agent.SyncTool）。
@@ -32,18 +32,21 @@ func NewWebSearchTool(chain *adapter.SearchChain, timeout time.Duration) *WebSea
 }
 
 // Info 返回工具元信息。
-func (t *WebSearchTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (t *WebSearchTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "web_search",
-		Desc: "Search the web for current information. Returns a list of results (title + url). Use short keyword queries, max 3 queries. For deep research, use dispatch_subagent with deep_research.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Search the web for current information. Returns title + url list.
+- Snippets are leads, NOT evidence — always follow with web_fetch to confirm before citing.
+- Use short keyword queries (max 3 queries). For multi-source synthesis, dispatch_subagent with deep_research.
+- Do NOT cite search snippets without fetching the source page.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"query": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Short keyword query (<1500 chars)",
 				Required: true,
 			},
 			"max_results": {
-				Type: schema.Integer,
+				Type: llm.Integer,
 				Desc: "Max results (default 5)",
 			},
 		}),

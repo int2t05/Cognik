@@ -16,7 +16,7 @@ import (
 
 	"cognos/internal/agent"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // GlobTool 文件名模式搜索工具。
@@ -31,13 +31,15 @@ func NewGlobTool(workDir string, maxBytes int64) *GlobTool {
 }
 
 // Info 返回工具元信息。
-func (g *GlobTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (g *GlobTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "glob",
-		Desc: "Find files matching a glob pattern within the working directory sandbox. Supports ** for recursive matching (e.g. '**/*.go'), ? single char, [abc] char set.",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		Desc: `Find files matching a glob pattern within the working directory sandbox.
+- Supports ** for recursive matching (e.g. '**/*.go'), ? single char, [abc] char set.
+- Use to locate files by name. Do NOT use to search file contents — use grep.`,
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"pattern": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "Glob pattern, e.g. '**/*.go', 'src/*.ts', 'config/*.yaml'",
 				Required: true,
 			},

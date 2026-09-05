@@ -22,6 +22,17 @@ type ChatContextData struct {
 	Confidence float64 `json:"confidence"`
 }
 
+// SystemTicketRequest 系统自动创建的复核工单（无联系电话，Source=KnowledgeReview）。
+// 由知识库服务在上传文件 / LLM 元数据补全时调用，标记需人工复核。
+type SystemTicketRequest struct {
+	Title            string   `json:"title" binding:"required"`
+	Description      string   `json:"description" binding:"required"`
+	Tags             []string `json:"tags"`
+	RelatedArticleID *int64   `json:"related_article_id,omitempty"` // 关联文章，可空
+	RelatedKBID      *int64   `json:"related_kb_id,omitempty"`       // 关联知识库，可空
+	Reason           string   `json:"reason"`                        // uploaded_document / metadata_auto_completed
+}
+
 // UpdateTicketRequest 编辑工单请求，仅更新非空字段。
 type UpdateTicketRequest struct {
 	Title        string     `json:"title"`

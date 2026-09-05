@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -40,6 +42,11 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	dsn := dbPath
 	if dbPath == ":memory:" {
 		dsn = "file::memory:?cache=shared" // 共享缓存，所有连接看到同一内存库
+	} else if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+		// 确保父目录存在——SQLite 驱动只创建文件，不创建目录
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("创建 SQLite 目录失败 %s: %w", dir, err)
+		}
 	}
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {

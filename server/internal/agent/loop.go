@@ -15,8 +15,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 const (
@@ -26,13 +25,13 @@ const (
 
 // Loop 自建 ReAct 循环。
 type Loop struct {
-	modelGetter            func() *openai.ChatModel // 动态获取 ChatModel（热切换安全，不持快照）
+	modelGetter            func() *llm.ChatModel // 动态获取 ChatModel（热切换安全，不持快照）
 	registry               *ToolRegistry
 	taskRegistry           *TaskRegistry
 	maxStep                int
 	maxConsecutiveDispatch int
 	instruction            string             // 系统提示词（Run 时 prepend 为 SystemMessage）
-	toolInfos              []*schema.ToolInfo // 从 registry 提取，绑给 LLM
+	toolInfos              []*llm.ToolInfo // 从 registry 提取，绑给 LLM
 	compressor             *Compressor        // 上下文压缩器（nil 时不压缩）
 }
 
@@ -47,7 +46,7 @@ func WithCompressor(c *Compressor) LoopOption {
 // NewLoop 创建循环。
 // modelGetter 动态获取 ChatModel（热切换时返回新实例）；maxStep<=0 用默认值。
 // instruction 为系统提示词，Run 时 prepend 为首条 SystemMessage。
-func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskRegistry *TaskRegistry, maxStep, maxConsecutiveDispatch int, instruction string, opts ...LoopOption) *Loop {
+func NewLoop(modelGetter func() *llm.ChatModel, registry *ToolRegistry, taskRegistry *TaskRegistry, maxStep, maxConsecutiveDispatch int, instruction string, opts ...LoopOption) *Loop {
 	if maxStep <= 0 {
 		maxStep = defaultMaxStep
 	}
@@ -55,7 +54,7 @@ func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskR
 		maxConsecutiveDispatch = defaultMaxConsecutiveDispatch
 	}
 	// 从 registry 提取所有工具的 ToolInfo，供 LLM 决策调用。
-	toolInfos := make([]*schema.ToolInfo, 0, len(registry.tools))
+	toolInfos := make([]*llm.ToolInfo, 0, len(registry.tools))
 	for _, t := range registry.tools {
 		if info := t.Info(); info != nil {
 			toolInfos = append(toolInfos, info)
@@ -78,10 +77,10 @@ func NewLoop(modelGetter func() *openai.ChatModel, registry *ToolRegistry, taskR
 
 // Run 执行 ReAct 循环，emit 推流式事件，返回最终回答。
 // ctx 应为 detached（带超时）— 客户端断开不停止生成。
-func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSink) (string, error) {
+func (l *Loop) Run(ctx context.Context, messages []*llm.Message, emit EventSink) (string, error) {
 	// 系统提示词 prepend 为 SystemMessage（首条非 system 时注入）。
-	if l.instruction != "" && (len(messages) == 0 || messages[0].Role != schema.System) {
-		messages = append([]*schema.Message{schema.SystemMessage(l.instruction)}, messages...)
+	if l.instruction != "" && (len(messages) == 0 || messages[0].Role != llm.System) {
+		messages = append([]*llm.Message{llm.SystemMessage(l.instruction)}, messages...)
 	}
 	var pending []*Task
 	consecutiveDispatches := 0
@@ -122,7 +121,7 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 				"<task-notification>\n<task-id>%s</task-id>\n<tool-use-id>%s</tool-use-id>\n<status>%s</status>\n<result>%s</result>\n</task-notification>\n注意：结果已展示给用户，不要复述子代理的输出，直接基于结果继续回答用户问题。",
 				completed.ID, completed.ToolCallID, completed.Status, completed.Result)
 			// user 消息（非 tool_result）— 满足 API 契约。
-			messages = append(messages, schema.UserMessage(notification))
+			messages = append(messages, llm.UserMessage(notification))
 			// 完成事件带 TaskID，前端归入 dispatch_subagent 卡片（不混入主 Agent 文本）。
 			emit(AgentEvent{Type: EventToolCall, ID: completed.ID, Label: "task_completion", TaskID: completed.ID})
 			emit(AgentEvent{Type: EventToolResult, ID: completed.ID, Content: completed.Result, TaskID: completed.ID})
@@ -138,7 +137,7 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 			if tool == nil {
 				// LLM 幻觉调用了不存在的工具 → 返回错误 result，让 LLM 自我纠正。
 				errMsg := fmt.Sprintf("工具 '%s' 不存在", tc.Function.Name)
-				messages = append(messages, schema.ToolMessage(errMsg, tc.ID))
+				messages = append(messages, llm.ToolMessage(errMsg, tc.ID))
 				emit(AgentEvent{Type: EventToolResult, ID: tc.ID, Content: errMsg})
 				continue
 			}
@@ -148,14 +147,14 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 				if callErr != nil {
 					result = "错误: " + callErr.Error()
 				}
-				messages = append(messages, schema.ToolMessage(result, tc.ID))
+				messages = append(messages, llm.ToolMessage(result, tc.ID))
 				emit(AgentEvent{Type: EventToolResult, ID: tc.ID, Content: result})
 			case AsyncTool:
 				taskCtx, cancel := context.WithCancel(ctx) // 子 ctx，cancel 链到父
 				task, dErr := t.Dispatch(taskCtx, tc.Function.Arguments, emit)
 				if dErr != nil {
 					ack := "派发失败: " + dErr.Error()
-					messages = append(messages, schema.ToolMessage(ack, tc.ID))
+					messages = append(messages, llm.ToolMessage(ack, tc.ID))
 					emit(AgentEvent{Type: EventToolResult, ID: tc.ID, Content: ack})
 					cancel() // 派发失败，立即清理子 ctx
 					continue
@@ -166,7 +165,7 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 					l.taskRegistry.Register(task)
 				}
 				ack := fmt.Sprintf("task %s 已派发，运行中", task.ID)
-				messages = append(messages, schema.ToolMessage(ack, tc.ID))
+				messages = append(messages, llm.ToolMessage(ack, tc.ID))
 				// ack tool_result 带 TaskID，service 据此把后续子 Agent 事件归入此卡片（不立即 done）。
 				emit(AgentEvent{Type: EventToolResult, ID: tc.ID, Content: ack, TaskID: task.ID})
 				pending = append(pending, task)
@@ -176,7 +175,7 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 
 		// 守卫：连续派发不等待，防 LLM 无限 dispatch 烧步数。
 		if consecutiveDispatches > l.maxConsecutiveDispatch {
-			messages = append(messages, schema.UserMessage(
+			messages = append(messages, llm.UserMessage(
 				fmt.Sprintf("你已有 %d 个后台任务在运行。请等待它们完成后再派发新任务。", len(pending))))
 			consecutiveDispatches = 0
 		}
@@ -186,25 +185,22 @@ func (l *Loop) Run(ctx context.Context, messages []*schema.Message, emit EventSi
 }
 
 // drainModelStream 排空 LLM 流式输出：emit reasoning/token 事件，返回聚合完整 message。
-// 用 schema.ConcatMessages 聚合 tool_calls 增量（按 Index 拼 Arguments，处理流式 delta）。
-func (l *Loop) drainModelStream(ctx context.Context, messages []*schema.Message, emit EventSink) (*schema.Message, error) {
+// 用 llm.ConcatMessages 聚合 tool_calls 增量（按 Index 拼 Arguments，处理流式 delta）。
+func (l *Loop) drainModelStream(ctx context.Context, messages []*llm.Message, emit EventSink) (*llm.Message, error) {
 	m := l.modelGetter()
 	if m == nil {
 		return nil, errors.New("ChatModel 未初始化")
 	}
-	// 绑定工具 schema（每次绑定，热切换后新 model 自动生效）。
+	// 工具描述透明转成 OpenAI tools 字段，直接传入 Stream——无 WithTools 黑盒。
+	var tools []llm.OpenAITool
 	if len(l.toolInfos) > 0 {
-		wm, err := m.WithTools(l.toolInfos)
+		var err error
+		tools, err = llm.ToOpenAITools(l.toolInfos)
 		if err != nil {
-			return nil, fmt.Errorf("绑定工具失败: %w", err)
+			return nil, fmt.Errorf("转换工具失败: %w", err)
 		}
-		reader, err := wm.Stream(ctx, messages)
-		if err != nil {
-			return nil, fmt.Errorf("LLM 流式调用失败: %w", err)
-		}
-		return drainStream(ctx, reader, emit)
 	}
-	reader, err := m.Stream(ctx, messages)
+	reader, err := m.Stream(ctx, messages, tools)
 	if err != nil {
 		return nil, fmt.Errorf("LLM 流式调用失败: %w", err)
 	}
@@ -212,9 +208,9 @@ func (l *Loop) drainModelStream(ctx context.Context, messages []*schema.Message,
 }
 
 // drainStream 排空 StreamReader，emit 事件，ConcatMessages 聚合完整 message。
-func drainStream(ctx context.Context, reader *schema.StreamReader[*schema.Message], emit EventSink) (*schema.Message, error) {
+func drainStream(ctx context.Context, reader *llm.StreamReader[*llm.Message], emit EventSink) (*llm.Message, error) {
 	defer reader.Close()
-	var chunks []*schema.Message
+	var chunks []*llm.Message
 	for {
 		if err := ctx.Err(); err != nil {
 			break
@@ -236,9 +232,9 @@ func drainStream(ctx context.Context, reader *schema.StreamReader[*schema.Messag
 		chunks = append(chunks, msg)
 	}
 	if len(chunks) == 0 {
-		return &schema.Message{Role: schema.Assistant}, nil
+		return &llm.Message{Role: llm.Assistant}, nil
 	}
-	merged, err := schema.ConcatMessages(chunks)
+	merged, err := llm.ConcatMessages(chunks)
 	if err != nil {
 		// 聚合失败降级：用最后一个 chunk（至少不丢失 tool_calls）。
 		return chunks[len(chunks)-1], nil

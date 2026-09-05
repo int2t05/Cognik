@@ -11,13 +11,13 @@ package agent
 import (
 	"context"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // Tool 工具基接口。所有工具实现 Info，供 LLM 决策调用。
 type Tool interface {
 	// Info 返回工具元信息（名称/描述/参数 schema）。
-	Info() *schema.ToolInfo
+	Info() *llm.ToolInfo
 }
 
 // SyncTool 同步工具：Call 阻塞返回结果字符串。

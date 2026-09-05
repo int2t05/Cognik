@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino/schema"
+	"cognos/internal/agent/llm"
 )
 
 // SubAgent 内置子 Agent 定义。
@@ -42,18 +42,18 @@ func NewDispatchSubagentTool(agents map[string]*SubAgent, model *ChatModelFactor
 }
 
 // Info 返回工具元信息。description 列出可选 agent，供 LLM 决策。
-func (d *DispatchSubagentTool) Info() *schema.ToolInfo {
-	return &schema.ToolInfo{
+func (d *DispatchSubagentTool) Info() *llm.ToolInfo {
+	return &llm.ToolInfo{
 		Name: "dispatch_subagent",
 		Desc: d.buildDescription(),
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"agent": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     fmt.Sprintf("子 Agent 名称（可选: %s）", d.agentNames()),
 				Required: true,
 			},
 			"task": {
-				Type:     schema.String,
+				Type:     llm.String,
 				Desc:     "任务描述（子 Agent 要做什么）",
 				Required: true,
 			},
@@ -85,9 +85,9 @@ func (d *DispatchSubagentTool) Dispatch(ctx context.Context, argsJSON string, em
 	go func() {
 		defer cancel() // 清理 taskCtx（幂等，与 task.Cancel 安全共存）
 		// 子 Agent fresh context：SystemMessage(instruction) + UserMessage(task)，不继承父对话。
-		messages := []*schema.Message{
-			schema.SystemMessage(sa.Instruction),
-			schema.UserMessage(params.Task),
+		messages := []*llm.Message{
+			llm.SystemMessage(sa.Instruction),
+			llm.UserMessage(params.Task),
 		}
 		// 子 Loop 用独立 registry（父 registry 的工具子集 + 递归 dispatch_subagent）。
 		subRegistry := NewToolRegistry()
@@ -113,9 +113,13 @@ func (d *DispatchSubagentTool) Dispatch(ctx context.Context, argsJSON string, em
 	return task, nil
 }
 
-// buildDescription 构造工具描述（含可用 agent 列表）。
+// buildDescription 构造工具描述（含可用 agent 列表 + 委派引导）。
 func (d *DispatchSubagentTool) buildDescription() string {
-	return fmt.Sprintf("Dispatch a subagent to work on a task in the background. Returns immediately; the result arrives as a task-notification when the subagent completes. Available agents: %s.", d.agentList())
+	return fmt.Sprintf(`Dispatch a subagent to work on a task in the background. Returns immediately; the result arrives as a task-notification when the subagent completes.
+- Use for: independent parallelizable tasks, or heavy retrieval that would flood the main context.
+- Do NOT use for: simple single-step tasks, or work already delegated (don't re-run).
+- Never fabricate a pending subagent's result — wait for the notification.
+Available agents: %s.`, d.agentList())
 }
 
 // agentNames 返回逗号分隔的 agent 名。
@@ -140,26 +144,41 @@ func (d *DispatchSubagentTool) agentList() string {
 
 // ResearchSubAgent 只读探查子 Agent。
 var ResearchSubAgent = &SubAgent{
-	Name:        "research",
-	Description: "A research assistant that can read files, search content, and list directories. Use for read-only exploration tasks.",
-	Instruction: "You are a research assistant. Read files, search content, list directories. Report findings concisely.",
-	Tools:      []string{"read_file", "glob", "grep", "list_dir"},
-	MaxStep:     15,
+	Name: "research",
+	Description: "Read-only exploration: locate files, inspect content, map directory structure without modifying anything. " +
+		"Use for: gathering context before a change, finding where code lives. " +
+		"Do NOT use for: writing/editing files, running commands — use coder for those.",
+	Instruction: `You are a read-only research assistant. Read files, search content, and list directories to gather information. You CANNOT write, edit, or execute commands.
+
+- Use when the main agent needs to locate files, inspect content, or explore a directory structure without modifying anything.
+- Do NOT use for: writing code, running commands, or any state-changing operation.
+- Output: return a concise factual report of what you found (paths, key snippets, structure). Your final text is the return value to the main agent, not a user-facing message.`,
+	Tools:  []string{"read_file", "glob", "grep", "list_dir"},
+	MaxStep: 15,
 }
 
 // CoderSubAgent 读写操作子 Agent。
 var CoderSubAgent = &SubAgent{
-	Name:        "coder",
-	Description: "A coding assistant that can execute commands, edit files, and create directories. Use for write operations and code execution.",
-	Instruction: "You are a coding assistant. Execute commands, edit files, create directories. Be careful with destructive operations.",
-	Tools:       []string{"bash", "read_file", "write_file", "edit_file", "mkdir", "glob", "grep", "list_dir"},
-	MaxStep:     15,
+	Name: "coder",
+	Description: "Read/write/execute: run shell commands, edit files, create directories. " +
+		"Use for: applying changes, running scripts, file mutations. " +
+		"Do NOT use for: read-only exploration — use research for that.",
+	Instruction: `You are a coding assistant with read/write/execute access. Execute commands, edit files, create directories.
+
+- Use when the main agent needs to write or modify files, run shell commands, or perform state-changing operations.
+- Do NOT use for: read-only exploration (use the research subagent instead).
+- Before destructive commands (rm -rf, drop, force-push): confirm the target; prefer reversible operations (move aside) over deletion.
+- Output: return a concise report of what you changed and the result. Your final text is the return value to the main agent, not a user-facing message.`,
+	Tools:  []string{"bash", "read_file", "write_file", "edit_file", "mkdir", "glob", "grep", "list_dir"},
+	MaxStep: 15,
 }
 
 // DeepResearchSubAgent 深度网络调研子 Agent（提示词驱动）。
 var DeepResearchSubAgent = &SubAgent{
-	Name:        "deep_research",
-	Description: "A deep research assistant that searches the web, fetches pages, and generates knowledge base articles. Use for deep research tasks requiring external information.",
+	Name: "deep_research",
+	Description: "Deep web research producing structured KB articles with inline citations. " +
+		"Use for: questions requiring external information not in the KB, multi-source synthesis. " +
+		"Do NOT use for: questions already answerable by existing KB content, or simple single-source lookups.",
 	Instruction: deepResearchInstruction,
 	Tools:       []string{"web_search", "web_fetch", "kb"},
 	MaxStep:     15,
