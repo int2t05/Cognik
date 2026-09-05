@@ -89,10 +89,15 @@ stateDiagram-v2
     Reviewing --> Approved: 审核通过（审核人≠创建人）
     Reviewing --> Rejected: 审核驳回
     Approved --> Published: 发布 → 分块 → embedding → pgvector
+    Draft --> Published: Agent CreateAndPublish（自动发布，绕过审核）
+    Published --> Published: Agent UpdateAndRepublish（增量 reindex）
     Published --> Disabled: 停用 → 删除向量
     Disabled --> Published: 启用 → 重跑发布管道
 ```
 
+- 两条路径：人工路径（CreateArticle→Review→Publish）和 Agent 路径（CreateAndPublish 自动发布）
+- Agent 自迭代闭环：kb(create) 写回即发布进 RAG，下一轮 kb(search) 可召回；kb(update) 增量 reindex
+- 防滥用：标题精确去重 + 语义去重（CosineSearch > 0.92 拒绝）+ SourceTypeDeepResearch 系统标记
 - 文章元数据 schema：frontmatter（type/tags/status/source_type/created/updated），type 留空则发布时 LLM 补全
 - 文档上传支持 PDF/DOCX/MD/TXT（上限 50MB），异步解析入库；上传后自动创建【文档复核】工单
 - 发布管道：解析 frontmatter → LLM 补全 type/tags（缺失时）→ StripFrontmatter → Chunker(500/100) → Embedder(1536) → pgvector halfvec → BM25+INDEX.md 重建

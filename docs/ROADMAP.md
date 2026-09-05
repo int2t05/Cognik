@@ -19,7 +19,7 @@ flowchart LR
     V12 --> V13["V1.3<br/>Agent 基座"]
     V13 --> V14["V1.4<br/>深度搜索"]
     V14 --> V15["V1.5<br/>记忆系统框架"]
-    V15 --> V16["V1.6<br/>检索优化"]
+    V15 --> V16["V1.6<br/>检索优化 + 自迭代闭环"]
     V16 --> V2["V2.0<br/>Agentic RAG"]
 ```
 
@@ -31,7 +31,7 @@ flowchart LR
 | V1.3 | Agent 基座 | 自建 ReAct 循环 + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder/deep_research) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；六级上下文压缩；ExtractMemories + AutoDream 复盘；异步处理管道 | ✅ 已交付 |
-| V1.6 | 检索优化 | frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
+| V1.6 | 检索优化 + 自迭代闭环 | Agent 写回即发布（CreateAndPublish/UpdateAndRepublish）；语义去重（>0.92 拒绝）；frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -188,7 +188,7 @@ flowchart TB
     subgraph AgentLoop["Agent Loop"]
         AG -->|"同进程"| LLM["自建 ChatModel<br/>agent/llm（net/http 直连）"]
         AG -->|"ReAct 循环"| TOOLS["Tool Registry (9 工具)"]
-        AG -->|"SubAgent 委托"| SUB["research / coder"]
+        AG -->|"SubAgent 委托"| SUB["research / coder / deep_research"]
         AG -->|"事件流"| SSE["GenerationHub → SSE → 前端"]
         AG -->|"隔离"| SQLite["SQLite (per session)"]
     end
@@ -327,9 +327,12 @@ storage/
 
 | 级别 | 触发 | 操作 | 有损 |
 |------|------|------|:---:|
-| 1. HeadAndTail | 每轮 | 保留首尾，中间省略 | 否 |
-| 2. 去重清理 | token > 70% | 丢弃重复 tool result | 否 |
-| 3. Autocompact | token > 85% | LLM 摘要 | 是 |
+| 1. Tool Result Budget | 每轮 | 单条 tool_result 超限截断为占位 | 否 |
+| 2. Snip | token > 50% | 丢弃最旧非系统消息（消息级裁剪） | 是 |
+| 3. Microcompact | 每轮 | 按 tool_use ID 清理旧 tool_result（保留记录） | 否 |
+| 4. HeadAndTail | 每轮 | 保留系统+最近窗口，中间截断 | 否 |
+| 5. 去重清理 | token > 70% | 丢弃重复 tool result | 否 |
+| 6. Autocompact | token > 85% | LLM 摘要（熔断器保护） | 是 |
 
 自建六级压缩管线：Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact。
 
@@ -353,7 +356,7 @@ BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文�
 ### 8.6 会话生命周期
 
 - **启动**：加载 `global/MEMORY.md` → 注入 L1 上下文
-- **会话中**：三级压缩管线 → checkpoint 持久化 → `memory_recall` 按需检索
+- **会话中**：六级压缩管线 → checkpoint 持久化 → `memory_recall` 按需检索
 - **会话结束**：扫描 `sessions/{id}/` → LLM 提取 → 写入 `global/` → 更新 `MEMORY.md`
 - **暂停/恢复**：Thread 可序列化，pause = 持久化，resume = 加载
 
@@ -528,7 +531,7 @@ gantt
 | 向量数据库 | pgvector | halfvec+HNSW 不可替代 |
 | 业务数据库 | PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务 |
 | Agent 数据 | SQLite（per session） | ReAct 高频读写隔离 |
-| Agent 基座 | 自建 ReAct 循环 + 自建 ChatModel | 无外部框架依赖；net/http 直连 OpenAI 兼容 API；工具描述透明传入，无 WithTools 黑盒 |
+| Agent 基座 | 自建 ReAct 循环 + 自建 ChatModel | 无外部框架依赖；ReAct 循环 + 工具派发 + 异步恢复全自建 |
 | LLM Provider | 自建 agent/llm.ChatModel | net/http 直连 OpenAI 兼容 API；工具描述透明传入，无 WithTools 黑盒 |
 | SSE 输出 | Gin `fmt.Fprintf + Flush` | 标准 SSE 模式 |
 | 工具生态 | 自建 ToolRegistry | SyncTool / AsyncTool 接口；dispatch_subagent 委托子 Agent |

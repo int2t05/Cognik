@@ -228,10 +228,37 @@ Processor worker goroutine (rag/processor.go):
 ## 状态机速查
 
 ```
-Draft(1) → submit-review → Reviewing(2) → approve → Approved(3) → publish → Published(4)
-                                           → reject → Rejected(5)
+人工路径：Draft(1) → submit-review → Reviewing(2) → approve → Approved(3) → publish → Published(4)
+                                              → reject → Rejected(5)
+Agent 路径：Draft(1) → CreateAndPublish → Published(4)（绕过审核，语义去重 + auto-publish）
 Published(4) → disable → Disabled(0) → enable → (republish) → Published(4)
+Published(4) → UpdateAndRepublish → (增量 reindex) → Published(4)
 ```
+
+## Agent 自迭代闭环
+
+Agent 写回知识库时自动发布进 RAG，无需人工审核：
+
+### CreateAndPublish（kb(action=create)）
+
+```
+KnowledgeService.CreateAndPublish (domain/knowledge/service.go:690)
+  ├─ CreateArticle（标题去重 + 写 DB Draft + 写 draft/ 文件）
+  ├─ checkSemanticDuplicate（embed 标题+首段 → CosineSearch > 0.92 拒绝）
+  │   → 重复则删除 Draft + 提示 agent 用 update
+  └─ republishFromApproved（metadata 补全 → chunk → embed → pgvector → BM25+INDEX.md 重建）
+```
+
+### UpdateAndRepublish（kb(action=update)）
+
+```
+KnowledgeService.UpdateAndRepublish (domain/knowledge/service.go:730)
+  ├─ 更新正文（保持 Published 状态，不回退）
+  ├─ 重传 draft/ 正文文件
+  └─ republishFromApproved（增量 reindex，复用 SHA256 跳过未变 chunk）
+```
+
+> 防滥用：标题精确去重 + 语义去重（>0.92 拒绝）+ SourceTypeDeepResearch 系统标记（published_by=0 便于回滚）。人工路径（CreateArticle→Review→Publish）不变。
 
 ## 关键组件参数
 
