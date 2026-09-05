@@ -129,7 +129,7 @@ KnowledgeHandler.Publish (domain/knowledge/handler.go:230)
     ├─ Status != Approved(3) → 拒绝
     └─ republishFromApproved (核心管道):
         ├─ Step 1: Chunker.Split (rag/chunker.go:56)
-        │   → chunkSize=1000, overlap=200, 优先级 \n\n→\n→。→.→空格
+        │   → chunkSize=500, overlap=100, Markdown-aware 递归分割
         │   → 预处理: CRLF→LF, 全角→半角 ASCII
         ├─ Step 2: Embedder.Embed (rag/embedder.go:57)
         │   → batchSize=20, fail-fast → POST /v1/embeddings
@@ -236,7 +236,7 @@ Published(4) → disable → Disabled(0) → enable → (republish) → Publishe
 
 | 组件 | 文件 | 关键参数 |
 |------|------|---------|
-| Chunker | `rag/chunker.go` | size=1000, overlap=200, 优先级 \n\n→。→.→空格 |
+| Chunker | `rag/chunker.go` | size=500, overlap=100, Markdown-aware 递归分割 |
 | Embedder | `rag/embedder.go` | batchSize=20, fail-fast, 维度一致性校验 |
 | Processor | `rag/processor.go` | pool=2, buffer=100, timeout=10min, panic recovery |
 | DocParser | `parser/parser.go` | pdf/docx/md/txt, max 100MB |
