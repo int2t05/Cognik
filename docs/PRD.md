@@ -109,7 +109,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> Pending: 报障人提交 / 系统自动创建（source=3）
-    Pending --> Processing: 接单 start
+    Pending --> Processing: 处理人员接单 start
     Processing --> Resolved: 标记解决 resolve
     Processing --> NeedSupplement: 索要补充 request_info
     NeedSupplement --> Processing: 报障人补充后自动退回

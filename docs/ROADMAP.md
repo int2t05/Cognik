@@ -20,7 +20,7 @@ flowchart LR
     V13 --> V14["V1.4<br/>深度搜索"]
     V14 --> V15["V1.5<br/>记忆系统框架"]
     V15 --> V16["V1.6<br/>检索优化 + 自迭代闭环"]
-    V16 --> V2["V2.0<br/>Agentic RAG"]
+    V16 --> V2["V2.0<br/>智能化增强"]
 ```
 
 | 版本 | 主题 | 核心交付 | 状态 |
@@ -32,7 +32,7 @@ flowchart LR
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
 | V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；六级上下文压缩；ExtractMemories + AutoDream 复盘；异步处理管道 | ✅ 已交付 |
 | V1.6 | 检索优化 + 自迭代闭环 | Agent 写回即发布（CreateAndPublish/UpdateAndRepublish）；语义去重（>0.92 拒绝）；frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
-| V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
+| V2.0 | 智能化增强 | 多模态文档解析 / 知识图谱 / Agent 能力增强 / 企业特性 / 性能可观测 | 📋 规划中 |
 
 ---
 
@@ -85,7 +85,7 @@ mindmap
 | 数据库 | PostgreSQL + pgvector (halfvec + HNSW) |
 | 对象存储 | 本地 FS（MinIO 可选） |
 | RAG | 自建 Go 引擎 — BM25 (gse) / 向量 (pgvector) / RRF / cross-encoder |
-| LLM | llama.cpp server 或 OpenAI-compatible API |
+| LLM | 自建 agent/llm.ChatModel（net/http 直连） |
 | 前端 | Next.js + React + TypeScript + shadcn/ui + SWR + Tailwind v4 |
 | 部署 | Docker Compose |
 
@@ -279,7 +279,7 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 
 **目标**：搭建统一记忆系统框架。记忆 + RAG + 知识库统一为一个架构，Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
 
-**设计文档**：[`FLOW/memory-compression-flow.md`](FLOW/memory-compression-flow.md)、[`FLOW/async-indexing-flow.md`](FLOW/async-indexing-flow.md)　**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)
+**设计文档**：[`FLOW/chat/memory-compression-flow.md`](FLOW/chat/memory-compression-flow.md)、[`FLOW/knowledge/indexing-pipeline-flow.md`](FLOW/knowledge/indexing-pipeline-flow.md)　**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)
 
 ### 8.1 文档组织架构
 
@@ -366,7 +366,7 @@ BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文�
 
 **目标**：在大量文档中精确找到对应的那份上下文。基于 V1.5 记忆框架，深挖检索质量优化。
 
-**调研依据**：[`docs/research/unified-memory/06-retrieval-optimization.md`](research/unified-memory/06-retrieval-optimization.md)　**设计文档**：[`FLOW/retrieval-crag-flow.md`](FLOW/retrieval-crag-flow.md)
+**调研依据**：[`docs/research/unified-memory/06-retrieval-optimization.md`](research/unified-memory/06-retrieval-optimization.md)　**设计文档**：[`FLOW/chat/retrieval-crag-flow.md`](FLOW/chat/retrieval-crag-flow.md)
 
 ### 9.1 Contextual Retrieval（最大优化机会）
 
@@ -513,7 +513,7 @@ gantt
 | [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
 | [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比 |
 | [`research/unified-memory/`](research/unified-memory/) | V1.4/V1.5/V1.6 调研 — 统一记忆架构 + OS 类比 + 页表分库 + 异步管道 + 竞品对比 + 检索优化 |
-| [`FLOW/retrieval-crag-flow.md`](FLOW/retrieval-crag-flow.md) | 检索管道 + CRAG 评估设计 |
-| [`FLOW/memory-compression-flow.md`](FLOW/memory-compression-flow.md) | 记忆系统 + 上下文压缩设计 |
-| [`FLOW/async-indexing-flow.md`](FLOW/indexing-pipeline-flow.md) | 索引管道 + 异步处理设计 |
-| [`FLOW/search-kb-loop-flow.md`](FLOW/search-kb-loop-flow.md) | 搜索→知识库闭环设计 |
+| [`FLOW/chat/retrieval-crag-flow.md`](FLOW/chat/retrieval-crag-flow.md) | 检索管道 + CRAG 评估设计 |
+| [`FLOW/chat/memory-compression-flow.md`](FLOW/chat/memory-compression-flow.md) | 记忆系统 + 上下文压缩设计 |
+| [`FLOW/knowledge/indexing-pipeline-flow.md`](FLOW/knowledge/indexing-pipeline-flow.md) | 索引管道 + 异步处理设计 |
+| [`FLOW/knowledge/search-kb-loop-flow.md`](FLOW/knowledge/search-kb-loop-flow.md) | 搜索→知识库闭环设计 |

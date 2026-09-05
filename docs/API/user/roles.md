@@ -21,7 +21,7 @@
 | `ticket:manage` | 申告全管理 | 等同于 ticket:read + ticket:write |
 | `knowledge:read` | 知识库查看 | `/api/v1/admin/knowledge-bases`, `/api/v1/admin/articles` |
 | `knowledge:write` | 知识库编辑 | KB/文章/文档上传 CRUD |
-| `knowledge:create` | 知识创建 | 创建文章 (处理人员从申告生成知识候选) |
+| `knowledge:create` | 知识创建 | 创建文章 (从申告生成知识候选) |
 | `knowledge:review` | 知识审核 | 审核/发布/停用/启用文章 |
 | `knowledge:manage` | 知识全管理 | 等同于 knowledge:read + knowledge:write + knowledge:review |
 | `dashboard:read` | 看板查看 | `/api/v1/admin/dashboard` |
