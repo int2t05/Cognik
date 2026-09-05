@@ -244,7 +244,7 @@ func (s *kbStoreImpl) List(ctx context.Context, kbID int64, filter KBFilter, lim
 // Create 新建 Draft 文章（委托 KnowledgeService.CreateArticle）。
 // Content = 正文 body（无 frontmatter）；Type → req.ArticleType（发布时若缺失由 LLM 补全）；
 // Sources 作为正文末尾 ## Sources 段（自然 Markdown，非 frontmatter）。
-func (s *kbStoreImpl) Create(ctx context.Context, params KBCreateParams) (string, error) {
+func (s *kbStoreImpl) CreateAndPublish(ctx context.Context, params KBCreateParams) (string, error) {
 	body := params.Content
 	if len(params.Sources) > 0 {
 		var sb strings.Builder
@@ -262,7 +262,7 @@ func (s *kbStoreImpl) Create(ctx context.Context, params KBCreateParams) (string
 		}
 		body = sb.String()
 	}
-	_, err := s.articleSvc.CreateArticle(ctx, request.CreateArticleRequest{
+	_, err := s.articleSvc.CreateAndPublish(ctx, request.CreateArticleRequest{
 		KBID:        params.KBID,
 		Title:       params.Title,
 		Content:     body,
@@ -276,8 +276,9 @@ func (s *kbStoreImpl) Create(ctx context.Context, params KBCreateParams) (string
 	return slugify(params.Title), nil
 }
 
-// Update 更新文章（委托 KnowledgeService.UpdateArticle + 入队触发增量 re-index）。
-func (s *kbStoreImpl) Update(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error {
+// UpdateAndRepublish 更新已发布文章并重新进入发布管道（委托 KnowledgeService.UpdateAndRepublish）。
+// service 层内部触发 chunk→embed→ReplaceVectors 增量 reindex，无需 IngestQueue。
+func (s *kbStoreImpl) UpdateAndRepublish(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error {
 	if articleID <= 0 {
 		return fmt.Errorf("article_id is required for update")
 	}
@@ -291,20 +292,7 @@ func (s *kbStoreImpl) Update(ctx context.Context, kbID int64, slug string, artic
 	if len(fields.Tags) > 0 {
 		req.Tags = fields.Tags
 	}
-	if err := s.articleSvc.UpdateArticle(ctx, articleID, req); err != nil {
-		return err
-	}
-
-	// 入队触发增量 re-index（Processor 的 loadOldEmbeddings + computeHashes 仅 re-embed 变更 chunk）
-	if s.ingestQueue != nil {
-		_ = s.ingestQueue.Enqueue(rag.IngestItem{
-			ArticleID: articleID,
-			KBID:      kbID,
-			FilePath:   fmt.Sprintf("kb-%d/published/article-%d.md", kbID, articleID),
-			Action:    "update",
-		})
-	}
-	return nil
+	return s.articleSvc.UpdateAndRepublish(ctx, articleID, req, 0)
 }
 
 // Delete 删文章（委托 KnowledgeService.DeleteArticle）。

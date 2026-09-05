@@ -89,10 +89,10 @@ type KBStore interface {
 	GetBatch(ctx context.Context, kbID int64, articleIDs []int64, maxChars int) ([]KBArticle, error)
 	// List 分页列出文章标题（返回列表 + 总数）。
 	List(ctx context.Context, kbID int64, filter KBFilter, limit, offset int) (items []KBListItem, total int, err error)
-	// Create 新建 Draft 文章（质量门 + frontmatter 生成）。
-	Create(ctx context.Context, params KBCreateParams) (slug string, err error)
-	// Update 更新文章内容/frontmatter（增量 re-index）。
-	Update(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error
+	// CreateAndPublish 新建文章并自动发布进 RAG（agent 自迭代闭环：Draft→Published 直达）。
+	CreateAndPublish(ctx context.Context, params KBCreateParams) (slug string, err error)
+	// UpdateAndRepublish 更新已发布文章正文并重新进入发布管道（增量 reindex）。
+	UpdateAndRepublish(ctx context.Context, kbID int64, slug string, articleID int64, fields KBUpdateFields) error
 	// Delete 删文章 + 清理 pgvector/BM25 索引。
 	Delete(ctx context.Context, kbID int64, slug string, articleID int64) error
 }
@@ -114,8 +114,9 @@ func (t *KBTool) Info() *llm.ToolInfo {
 		Desc: `Knowledge base operations (search/get/list/create/update/delete).
 - search: RAG retrieve chunks by query; result begins with [sufficiency: strong|ambiguous|weak]. On weak, prefer web_search before answering.
 - get: read one full article by article_id, or batch summaries (first 500 chars each) by article_ids.
+- create: write findings back and auto-publish to RAG (next kb(search) can recall it).
+- update: modify a published article and re-index (incremental, reuses unchanged chunks).
 - list: paginated titles (default 20/page) — use to browse, not to answer.
-- create/update: write findings back to KB (Draft status, human review → Published).
 - Do NOT use for: ticket status queries, user lookups, or non-KB data.`,
 		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"action":      {Type: llm.String, Desc: "search/get/list/create/update/delete", Required: true},
@@ -280,7 +281,7 @@ func (t *KBTool) doCreate(ctx context.Context, p kbParams) (string, error) {
 	if p.Type == "" {
 		return "", fmt.Errorf("type is required for action=create")
 	}
-	slug, err := t.store.Create(ctx, KBCreateParams{
+	slug, err := t.store.CreateAndPublish(ctx, KBCreateParams{
 		KBID:    p.KBID,
 		Title:   p.Title,
 		Content: p.Content,
@@ -288,9 +289,9 @@ func (t *KBTool) doCreate(ctx context.Context, p kbParams) (string, error) {
 		Tags:    p.Tags,
 	})
 	if err != nil {
-		return "", fmt.Errorf("创建文章失败: %w", err)
+		return "", fmt.Errorf("创建并发布文章失败: %w", err)
 	}
-	return fmt.Sprintf("文章已写入知识库（slug: %s，Draft 状态，待人工审核后 Published 进 RAG）", slug), nil
+	return fmt.Sprintf("文章已写入知识库并自动发布进 RAG（slug: %s），下一轮 kb(search) 可召回", slug), nil
 }
 
 func (t *KBTool) doUpdate(ctx context.Context, p kbParams) (string, error) {
@@ -308,10 +309,10 @@ func (t *KBTool) doUpdate(ctx context.Context, p kbParams) (string, error) {
 		fields.Type = &p.Type
 	}
 	fields.Tags = p.Tags
-	if err := t.store.Update(ctx, p.KBID, "", p.ArticleID, fields); err != nil {
+	if err := t.store.UpdateAndRepublish(ctx, p.KBID, "", p.ArticleID, fields); err != nil {
 		return "", fmt.Errorf("更新文章失败: %w", err)
 	}
-	return "文章已更新（增量 re-index）", nil
+	return "文章已更新并重新索引（增量 reindex）", nil
 }
 
 func (t *KBTool) doDelete(ctx context.Context, p kbParams) (string, error) {

@@ -687,6 +687,107 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 	return nil
 }
 
+// CreateAndPublish 创建文章并自动发布（agent 自迭代闭环）。
+// 绕过 SubmitReview/Review/Publish 三道人工关卡，Draft→Published 直达。
+// 标题精确去重 + 语义去重（相似度 > 阈值则拒绝，提示更新已有文章）。
+// 仅用于 SourceType=DeepResearch（agent 写回）；人工创建仍走 CreateArticle + 审核。
+func (s *KnowledgeService) CreateAndPublish(ctx context.Context, req request.CreateArticleRequest, userID int64) (*model.KnowledgeArticle, error) {
+	// CreateArticle 含校验 + 标题去重 + 写 DB(Draft) + 写 draft/ 文件。
+	article, err := s.CreateArticle(ctx, req, userID)
+	if err != nil {
+		return nil, err
+	}
+	// 语义去重：embed 标题 + 首段，搜 KB 内已发布文章，相似度过高则拒绝。
+	if err := s.checkSemanticDuplicate(ctx, article); err != nil {
+		// 去重失败 → 删除刚建的 Draft（回滚），返回冲突提示 agent 用 update。
+		_ = s.repo.DeleteArticle(ctx, article.ID)
+		return nil, err
+	}
+	// 加载 KnowledgeBase 关联（republishFromApproved 依赖 article.KnowledgeBase）。
+	full, err := s.repo.FindArticleByID(ctx, article.ID)
+	if err != nil {
+		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "重新加载文章失败: " + err.Error()}
+	}
+	// republishFromApproved 内部设 Status=Published + processor.Submit 异步 embed + reindex。
+	if err := s.republishFromApproved(ctx, full, userID); err != nil {
+		return nil, err
+	}
+	full.Status = model.ArticleStatusPublished
+	return full, nil
+}
+
+// UpdateAndRepublish 更新已发布文章正文并重新进入发布管道（agent 自迭代闭环）。
+// 放开 Published 状态的编辑限制（UpdateArticle 仅允许 Draft/Rejected/Disabled）。
+// 保持 Published 状态不变，直接重走 republishFromApproved（增量 reindex，复用 hash 跳过未变 chunk）。
+func (s *KnowledgeService) UpdateAndRepublish(ctx context.Context, id int64, req request.UpdateArticleRequest, userID int64) error {
+	article, err := s.findArticle(ctx, id)
+	if err != nil {
+		return err
+	}
+	// 标题变更检查唯一性（防 slug 冲突）。
+	if req.Title != article.Title {
+		if err := s.checkTitleUnique(ctx, article.KBID, req.Title, id); err != nil {
+			return err
+		}
+	}
+	// 更新正文字段（不回退状态，保持 Published）。
+	article.Title = req.Title
+	article.Content = req.Content
+	article.WordCount = len([]rune(req.Content))
+	article.Tags = marshalTags(req.Tags)
+	if req.ArticleType != "" {
+		article.ArticleType = req.ArticleType
+	}
+	if err := s.repo.UpdateArticle(ctx, article); err != nil {
+		return errcode.AppError{Code: errcode.ErrUnknown, Message: "更新文章失败: " + err.Error()}
+	}
+	// 重传 draft/ 正文文件（republishFromApproved 从 draft/ 读取）。
+	draftFile := articleFile(article.KBID, slugify(article.Title), false)
+	s.uploadArticleFilesAsync(minioBucket, draftFile, formatArticleText(req.Title, req.Content), nil)
+	// 重走发布管道：chunk→embed→ReplaceVectors（增量 reindex）。
+	return s.republishFromApproved(ctx, article, userID)
+}
+
+// checkSemanticDuplicate 语义去重——embed 文章标题+首段，搜 KB 内已发布文章。
+// 相似度 > 0.92 视为重复，返回冲突错误（提示 agent 用 update 而非 create）。
+func (s *KnowledgeService) checkSemanticDuplicate(ctx context.Context, article *model.KnowledgeArticle) error {
+	if s.embedder == nil || s.store == nil {
+		return nil // RAG 未初始化时跳过语义去重（降级为仅标题去重）
+	}
+	// embed 标题 + 首段（取前 200 字符，控制 embedding 成本）。
+	probe := article.Title
+	if len([]rune(article.Content)) > 200 {
+		probe += " " + string([]rune(article.Content)[:200])
+	} else {
+		probe += " " + article.Content
+	}
+	kb, err := s.repo.FindKBByID(ctx, article.KBID)
+	if err != nil {
+		return nil // KB 查询失败不阻塞创建（降级）
+	}
+	model := s.effectiveEmbeddingModel(kb.EmbeddingModel)
+	vecs, _, err := s.embedder.Embed(ctx, []string{probe}, model)
+	if err != nil || len(vecs) == 0 {
+		slog.Warn("语义去重 embedding 失败，降级跳过", "article_id", article.ID, "error", err)
+		return nil
+	}
+	results, err := s.store.CosineSearch(ctx, article.KBID, vecs[0], 5)
+	if err != nil {
+		slog.Warn("语义去重检索失败，降级跳过", "article_id", article.ID, "error", err)
+		return nil
+	}
+	for _, r := range results {
+		if r.ArticleID == article.ID {
+			continue // 排除自身
+		}
+		if r.Score >= 0.92 {
+			return errcode.AppError{Code: errcode.ErrConflict,
+				Message: fmt.Sprintf("存在高度相似文章 (ID=%d, score=%.3f)，请用 kb(action=update) 更新而非新建", r.ArticleID, r.Score)}
+		}
+	}
+	return nil
+}
+
 // Disable 停用文章——从 pgvector 删除向量，清零 chunk 计数，触发 BM25 重建。
 func (s *KnowledgeService) Disable(ctx context.Context, id int64, operatorID int64) error {
 	article, err := s.findArticle(ctx, id)
