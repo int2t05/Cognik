@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [editTitle, setEditTitle] = useState('');
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
 
   const stream = sessionId ? store.getStream(sessionId) : undefined;
   const messages = stream?.messages ?? [];
@@ -33,8 +34,22 @@ export default function ChatPage() {
   const queueCount = sessionId ? store.getQueueCount(sessionId) : 0;
   const queuedMessages = sessionId ? store.getQueue(sessionId) : [];
 
+  // 滚动跟随：仅在用户靠近底部时自动滚到底（上滑阅读时不打断）
+  const handleScroll = useCallback(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
   useEffect(() => {
-    if (messagesRef.current) {
+    const el = messagesRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  useEffect(() => {
+    if (messagesRef.current && isNearBottomRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }
   }, [messages, isStreaming]);
@@ -43,6 +58,7 @@ export default function ChatPage() {
     const question = input.trim();
     if (!question) return;
     setInput('');
+    isNearBottomRef.current = true;
 
     let sid = sessionId;
     if (!sid) {
