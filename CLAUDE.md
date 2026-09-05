@@ -121,6 +121,7 @@ cd server && go test ./test/... -v -tags=integration -p 1
 - **Audit logs:** user/knowledge/ticket management operations write to `audit_logs`.
 - **LLM config hot-swap:** `atomic.Value` in `LLMConfigManager` — config changes take effect without restart.
 - **Design system:** Linear/Vercel 专业工具风格；靛蓝 `#5b5bd6`；system-ui 字体；中性小圆角；13px body。Tokens in `web/src/app/globals.css`。
+- **Markdown 渲染安全:** `web/src/components/shared/Markdown.tsx` 是聊天/工单/文章共用的渲染入口，渲染 LLM/用户上传内容。`rehype-raw` 必须配 `rehype-sanitize`（`rehype-raw` 之后、`rehype-katex`/`rehype-highlight` 之前），schema 扩 `math` + `unwrapDisallowed` —— 防未知 HTML 标签崩页 + XSS。
 
 ## 7. Project Boundaries
 

@@ -17,14 +17,23 @@
 
 Cognos 是一个私有部署的知识管理平台，帮助团队和个人沉淀知识、检索经验、解决问题。
 
-核心是一个能自主调用工具、多步推理的 Agent——它决定何时检索知识库、何时搜索网络、何时写入新知识。从 Agent 循环到检索管道全部自建，支持本地 llama.cpp 推理，数据不出域。
+核心是一个能自主调用工具、多步推理的 Agent——它决定何时检索知识库、何时搜索网络、何时写入新知识。写回即发布进 RAG，下一轮检索可召回，形成**自迭代知识闭环**。从 Agent 循环到检索管道全部自建，数据不出域。
+
+## 特性亮点
+
+- **Agent 自迭代闭环** — 搜索→抓取→写入→自动发布进 RAG，无需人工审核；语义去重防止重复写入
+- **自建 RAG 引擎** — BM25 + pgvector 混合检索 + RRF 融合 + cross-encoder rerank + CRAG 充分性评估
+- **六级上下文压缩** — Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact
+- **记忆系统** — 会话记忆 + 全局记忆 + ExtractMemories 每轮提取 + AutoDream 跨会话复盘
+- **工单闭环** — 上传/元数据补全自动创建复核工单，标记需人工介入
+- **私有部署** — PostgreSQL + pgvector + MinIO，全数据自持，支持 llama.cpp 本地推理
 
 ## 核心能力
 
 | 模块 | 能力 |
 |------|------|
 | **Agent 对话** | 自建 ReAct 循环，SubAgent 异步派发（research / coder / deep_research），reasoning + tool_call + tool_result 全事件流式渲染 |
-| **知识库** | 文件即真相（Markdown + frontmatter schema），异步索引（chunk→embed→pgvector+BM25），发布时 LLM 补全 type/tags，kb 工具 6 action |
+| **知识库** | 文件即真相（Markdown + frontmatter schema），异步索引（chunk→embed→pgvector+BM25），Agent 自迭代闭环（写回即发布进 RAG），kb 工具 6 action |
 | **记忆系统** | 会话记忆 + 全局记忆 + 后台复盘（ExtractMemories 每轮提取 + AutoDream 跨会话合并），参考 Claude Code 思想 |
 | **上下文压缩** | 六级管线（Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact），熔断器保护 |
 | **检索优化** | Sandwich Reorder + BM25 Enriched + RRF k=30 + Contextual Retrieval + Context Packing + Metadata 预过滤 |
