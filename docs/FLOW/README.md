@@ -37,7 +37,7 @@ flowchart TD
     R["Gin Router :8080"]
     R --> Public["/api/v1/auth — 无中间件<br/>POST login / POST refresh"]
     R --> AuthMe["/api/v1/auth/me — JWTAuth<br/>change-password / logout"]
-    R --> Portal["/api/v1/portal — JWTAuth<br/>chat-sessions / tickets / messages"]
+    R --> Portal["/api/v1/portal — JWTAuth<br/>threads / tickets / messages"]
     R --> Admin["/api/v1/admin — JWTAuth + RBAC<br/>tickets / knowledge-bases / users / roles<br/>llm-configs / dashboard / audit-logs"]
 
     style Public fill:#22c55e15,stroke:#22c55e

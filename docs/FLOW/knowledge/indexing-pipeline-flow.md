@@ -92,6 +92,7 @@ IngestConsumer.Start (rag/ingest_queue.go)
   └─ 5s 轮询: Claim → ProcessTask → Ack/Requeue
      └─ Processor.ProcessTask (rag/processor.go)
         ├─ 解析: parser.Parse（MinerU 优先，本地降级）
+        ├─ 图片归一化: normalizeImagePaths（内容寻址去重 + 引用重写）
         ├─ 分块: chunker.Chunk（Markdown 标题感知，500/100）
         ├─ Contextual（可选）: GenerateContextualPrefixes（LLM 摘要 prepend）
         ├─ 增量: GetChunkSnapshots → 算 SHA256 → 仅 re-embed 变更块
@@ -100,7 +101,29 @@ IngestConsumer.Start (rag/ingest_queue.go)
            └─ OnKBChanged 回调 → RebuildBM25ForKB
 ```
 
-### 3.3 增量复用
+### 3.3 图片归一化
+
+MinerU 与本地解析器输出的图片路径格式不同，`normalizeImagePaths`（parser.go:108-185）统一处理：
+
+| 机制 | 实现 | 作用 |
+|------|------|------|
+| 内容寻址 | SHA256(图片内容) → 文件名 | 相同图片自动去重，不重复存储 |
+| 引用重写 | Markdown `![]()` + HTML `<img src>` | 统一为 `../../image/{hash}.{ext}` |
+| 前缀对齐 | `imageRelPrefix = "../../image/"` | chunk 内引用可跨目录解析 |
+
+```mermaid
+flowchart LR
+    RAW["解析输出<br/>含图片引用"] --> HASH["SHA256 内容寻址"]
+    HASH --> DEDUP["相同图片去重"]
+    DEDUP --> REWRITE["重写引用路径<br/>→ ../../image/{hash}.{ext}"]
+    REWRITE --> STORE["图片存 image/ 目录"]
+    REWRITE --> CHUNK["归一化后文本进 chunker"]
+
+    style HASH fill:#5e6ad215,stroke:#5e6ad2
+    style DEDUP fill:#22c55e15,stroke:#22c55e
+```
+
+### 3.4 增量复用
 
 文章更新时不必全部重新向量化。
 
@@ -117,7 +140,7 @@ flowchart LR
     style REEMBED fill:#f59e0b15,stroke:#f59e0b
 ```
 
-### 3.4 分块策略
+### 3.5 分块策略
 
 | 项 | 值 | 说明 |
 |----|-----|------|
@@ -155,7 +178,7 @@ flowchart LR
 
 | 环境变量 | 默认 | 作用 |
 |---------|------|------|
-| `COGNOS_AI_PROCESSOR_WORKERS` | 2 | goroutine pool 大小 |
+| `COGNOS_AI_PROCESSOR_WORKERS` | 5 | goroutine pool 大小 |
 | `COGNOS_AI_EMBED_BATCH` | 20 | embedding 批大小 |
 | `COGNOS_AI_CONTEXTUAL_ENABLED` | false | Contextual Retrieval |
 | `COGNOS_AI_BM25_REBUILD_MINUTES` | 30 | BM25 索引 TTL |

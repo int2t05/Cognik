@@ -89,7 +89,7 @@ Authorization: Bearer <token>
             "id": 1,
             "name": "技术知识库",
             "description": "技术标准操作流程",
-            "embedding_model": "bge-m3",
+            "embedding_model": "Qwen3-Embedding-0.6B",
             "vector_dimension": 1536,
             "llm_config_id": 1,
             "article_count": 120,
@@ -127,7 +127,7 @@ Authorization: Bearer <token>
 {
     "name": "网络知识 FAQ",
     "description": "网络相关的技术知识",
-    "embedding_model": "bge-m3",
+    "embedding_model": "Qwen3-Embedding-0.6B",
     "vector_dimension": 1536,
     "llm_config_id": 1
 }
@@ -384,7 +384,7 @@ Authorization: Bearer <token>
                 "kb_id": 1,
                 "content": "VPN 连接超时怎么办？1. 检查本地网络连接...",
                 "chunk_index": 0,
-                "embedding_model": "bge-m3",
+                "embedding_model": "Qwen3-Embedding-0.6B",
                 "vector_dimension": 1536,
                 "created_at": "2026-06-11T20:30:00Z"
             }
@@ -743,3 +743,168 @@ Authorization: Bearer <token>
 | 错误码 | HTTP 状态 | 说明                     |
 | ------ | --------- | ------------------------ |
 | 10004  | 404       | 知识库不存在             |
+
+---
+
+## 文章删除
+
+### 17. 删除文章
+
+```http
+DELETE /api/v1/admin/articles/:id
+Authorization: Bearer <token>
+```
+
+> 删除文章及其分块向量、存储文件。不可逆操作。
+>
+> **内部逻辑：**
+>
+> 1. 查询文章（不存在返回 `code=10004`）
+> 2. 异步清理存储中的关联文件（`cleanupArticleFiles` goroutine）
+> 3. 事务删除 `knowledge_chunks`（按 `article_id`）与 `knowledge_articles` 记录
+
+**响应：**
+
+```json
+{ "code": 0, "message": "success", "data": null }
+```
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明       |
+| ------ | --------- | ---------- |
+| 10004  | 404       | 文章不存在 |
+
+---
+
+## 通用文件服务
+
+> 文章内嵌图片/附件的上传与访问，存储于 `article-assets` 目录，供 Markdown 编辑器内嵌引用；不绑定知识库、不触发解析流水线。
+
+### 18. 上传文件
+
+```http
+POST /api/v1/admin/files/upload
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+**请求：** multipart/form-data，字段名 `file`（单文件）。
+
+| 约束       | 值                     |
+| ---------- | ---------------------- |
+| 字段名     | `file`（单文件）       |
+| 单文件最大 | 50 MB                  |
+| 文件类型   | 不限（保留原始扩展名） |
+
+**响应 (200)：**
+
+```json
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "url": "/api/v1/admin/files/article-assets/550e8400-e29b-41d4-a716-446655440000.png",
+        "filename": "550e8400-e29b-41d4-a716-446655440000.png"
+    }
+}
+```
+
+| 字段     | 类型   | 说明                                           |
+| -------- | ------ | ---------------------------------------------- |
+| url      | string | 访问 URL（`/api/v1/admin/files/article-assets/` + 存储文件名） |
+| filename | string | 存储文件名（UUID + 原始扩展名）                |
+
+> 文件名以 UUID 重命名存储，避免冲突与路径穿越；原始扩展名保留用于 `Content-Type` 判定。
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                          |
+| ------ | --------- | ----------------------------- |
+| 10003  | 400       | 未选择文件 / 文件大小超过限制 |
+| 99999  | 500       | 存储未初始化或文件上传失败    |
+
+### 19. 获取文章资源文件
+
+```http
+GET /api/v1/admin/files/article-assets/:filename
+Authorization: Bearer <token>
+```
+
+> `filename` 为上传时返回的 `filename`（UUID + 扩展名）。
+>
+> 返回文件二进制内容：Local 存储模式直接 `ServeFile`（`Content-Type` 由 `http.ServeFile` 自动判定）；MinIO 模式 `302` 重定向到预签名 URL。
+>
+> **安全校验：** 文件名不允许包含 `/` 或 `\`，否则返回 `code=10003`。
+
+**响应：** 文件二进制流，或 `302` 重定向到 MinIO 预签名 URL。
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                       |
+| ------ | --------- | -------------------------- |
+| 10003  | 400       | 文件名非法（含路径分隔符） |
+| 99999  | 500       | 存储未初始化或获取文件失败 |
+
+---
+
+## 公共与配置接口
+
+### 20. 上传配置
+
+```http
+GET /api/v1/config/upload
+Authorization: Bearer <token>
+```
+
+> 供前端上传前校验文件类型与大小（对应 [上传文档](#8-上传文档)）。仅需 JWT 认证，无需 RBAC 权限码。
+
+**响应：**
+
+```json
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "max_upload_size_kb": 51200,
+        "max_upload_size": 52428800,
+        "allowed_types": ["bmp", "docx", "gif", "jpg", "md", "pdf", "png", "pptx", "txt", "webp", "xlsx"],
+        "max_files": 10
+    }
+}
+```
+
+| 字段               | 类型     | 说明                       |
+| ------------------ | -------- | -------------------------- |
+| max_upload_size_kb | int      | 上传大小上限（KB）         |
+| max_upload_size    | int64    | 上传大小上限（字节）       |
+| allowed_types      | string[] | 允许的文件类型列表         |
+| max_files          | int      | 单次上传文件数上限         |
+
+### 21. 公开图片访问
+
+```http
+GET /api/v1/public/images/:filename
+```
+
+> 公开端点（无需认证）。供 `<img>` 标签直接引用——img 标签无法携带 Authorization header。
+>
+> 服务解析器从文档提取的图片（全局 `image/` 目录，内容寻址命名，与文章解耦）。
+
+**路径参数：**
+
+| 参数     | 类型   | 说明                       |
+| -------- | ------ | -------------------------- |
+| filename | string | 图片文件名（不含路径分隔符） |
+
+**响应：**
+
+- Local 存储：直接返回图片文件，Content-Type 按扩展名推断。
+- MinIO 存储：302 重定向到预签名 URL。
+
+**错误码：**
+
+| 错误码 | HTTP 状态 | 说明                           |
+| ------ | --------- | ------------------------------ |
+| 10003  | 400       | 无效的文件名（含路径分隔符）   |
+| 20003  | 503       | 存储服务不可用（MinIO 操作失败） |

@@ -65,7 +65,7 @@ LLMConfigHandler.ListConfigs (domain/chat/llm_config/handler.go:52)
 
 ### POST /api/v1/admin/llm-configs &emsp; 创建 &emsp; [PermSystemConfig]
 
-**输入** `{"name":"DeepSeek","provider_type":2,"base_url":"https://api.deepseek.com/v1",`<br/>`"api_key":"sk-xxx","llm_model":"deepseek-chat","embedding_model":"bge-m3","is_default":true}`
+**输入** `{"name":"DeepSeek","provider_type":2,"base_url":"https://api.deepseek.com/v1",`<br/>`"api_key":"sk-xxx","llm_model":"deepseek-chat","embedding_model":"Qwen3-Embedding-0.6B","is_default":true}`
 
 ```
 LLMConfigHandler.CreateConfig (domain/chat/llm_config/handler.go:64)

@@ -25,7 +25,7 @@
 ## 1. 创建会话
 
 ```http
-POST /api/v1/portal/chat-sessions
+POST /api/v1/portal/threads
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -74,7 +74,7 @@ Content-Type: application/json
 ## 2. 发送消息（SSE 流式）
 
 ```http
-POST /api/v1/portal/chat-sessions/:id/stream
+POST /api/v1/portal/threads/:id/stream
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -85,68 +85,58 @@ Content-Type: application/json
 
 ```json
 {
-  "question": "如何重置 VPN 密码？",
-  "route_count": 3,
-  "rerank_count": 5
+  "question": "如何重置 VPN 密码？"
 }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | question | string | ✓ | 用户问题（max 2000 字符） |
-| route_count | int | | 多路检索子查询数（0=使用默认值 3） |
-| rerank_count | int | | 重排序截断数（0=使用默认值 5） |
 
 **SSE 事件流：**
 
-响应类型为 `text/event-stream`，包含以下事件类型：
+响应类型为 `text/event-stream`，Agent ReAct 循环驱动，包含以下事件类型：
 
-### chunks 事件 — 检索匹配分
-
-检索完成后、LLM 生成前发送，携带每个 chunk 的归一化展示分和来源标识：
+### reasoning 事件 — Agent 思考
 
 ```
-data: {"type":"chunks","chunks":[{"id":142,"score":1.0,"source":"VPN FAQ"},{"id":89,"score":0.72,"source":"账号管理"}]}
+data: {"type":"reasoning","content":"需要检索知识库..."}
+```
+
+Agent 的思考过程，展示决策意图（是否检索、是否补搜）。
+
+### tool_call 事件 — 工具调用
+
+```
+data: {"type":"tool_call","name":"kb","input":{"action":"search","query":"VPN 密码重置","kb_id":1,"limit":5}}
 ```
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| chunks | array | 检索到的分块列表（按分数降序） |
-| chunks[].id | int64 | chunk ID |
-| chunks[].score | float | 批次归一化展示分 [0,1]，前端渲染进度条 |
-| chunks[].source | string | 来源文档标识 |
+| name | string | 工具名：kb / memory / web_search / web_fetch / bash 等 |
+| input | object | 工具参数（按工具不同） |
 
-> 此事件不含分块内容文本，仅标识和分数。内容详情在 done 事件的 sources 中。
-
-### step 事件 — 管道步骤进度
+### tool_result 事件 — 工具返回
 
 ```
-data: {"type":"step","id":"query_rewrite","label":"查询改写"}
-
-data: {"type":"step","id":"multi_route","label":"多路检索"}
-
-data: {"type":"step","id":"vector_retrieve","label":"向量检索"}
-
-data: {"type":"step","id":"bm25_retrieve","label":"BM25检索"}
-
-data: {"type":"step","id":"hybrid_fuse","label":"结果融合"}
-
-data: {"type":"step","id":"rerank","label":"重排序"}
-
-data: {"type":"step","id":"llm_generate","label":"LLM 生成"}
+data: {"type":"tool_result","name":"kb","output":"[sufficiency: strong | confidence=0.82] 检索充分..."}
 ```
 
-| step id | label | 说明 |
-|---------|-------|------|
-| `query_rewrite` | 查询改写 | LLM 消除对话指代歧义 |
-| `multi_route` | 多路检索 | LLM 生成子查询 |
-| `vector_retrieve` | 向量检索 | pgvector cosine 相似度检索 |
-| `bm25_retrieve` | BM25检索 | 倒排索引稀疏检索 |
-| `hybrid_fuse` | 结果融合 | RRF 融合排序 |
-| `rerank` | 重排序 | cross-encoder 重排候选分块 |
-| `llm_generate` | LLM 生成 | 调用 LLM 生成答案 |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | string | 工具名 |
+| output | string | 工具结果（kb(search) 含 `[sufficiency: level]` preamble） |
 
-> step 事件在管道执行期间**实时**发送，无需等待完整答案生成。
+> Agent ReAct 循环可能多轮 tool_call/tool_result（多跳推理）。weak verdict 时 Agent 自主触发 web_search。
+
+### token 事件 — 逐 token 流式发送
+
+```
+data: {"type":"token","content":"VPN 密码"}
+data: {"type":"token","content":"重置步骤"}
+```
+
+LLM 生成答案的 token 实时转发。
 
 ### error 事件 — 流式过程错误
 
@@ -154,28 +144,10 @@ data: {"type":"step","id":"llm_generate","label":"LLM 生成"}
 data: {"type":"error","error":"LLM 生成中断: context deadline exceeded"}
 ```
 
-> 当 RAG 检索或 LLM 流式生成中途失败时发送此事件。前端应在接收到 error 事件后停止流式渲染并提示用户。
->
-> error 事件可能包含的消息类型：
-> - `"LLM 生成中断: ..."` — LLM 调用超时或失败
-> - `"LLM 流式调用失败: ..."` — LLM 流式响应中断
-> - `"知识检索失败: ..."` — 向量或 BM25 检索失败
-> - 其他运行时错误
-
-### token 事件 — 逐 token 流式发送
-
-```
-data: {"type":"token","content":"VPN 密码"}
-data: {"type":"token","content":"重置步骤"}
-data: {"type":"token","content":"如下：\n1."}
-```
-
-> LLM 服务返回的 token 实时转发，输出速率取决于 LLM 推理性能。
-
 ### done 事件 — 流式结束，含完整元数据
 
 ```
-data: {"type":"done","metadata":{"session_id":42,"question":"如何重置 VPN 密码？","answer":"VPN 密码重置步骤：1. 登录自助平台...","sources":[{"doc_name":"VPN 密码重置 FAQ","chunk_content":"...","confidence":0.85}],"confidence":0.76,"confidence_raw":0.76,"confidence_level":"high","can_submit_ticket":false,"duration_ms":3200,"feedback":0,"created_at":"2026-06-16 10:30:05","pipeline":{"steps":[{"id":"query_rewrite","label":"查询改写","duration_ms":120},{"id":"vector_retrieve","label":"向量检索","duration_ms":45},{"id":"hybrid_fuse","label":"结果融合","duration_ms":2},{"id":"rerank","label":"重排序","duration_ms":180},{"id":"llm_generate","label":"LLM 生成","duration_ms":2800}],"total_duration_ms":3185}}}
+data: {"type":"done","metadata":{"session_id":42,"question":"如何重置 VPN 密码？","answer":"VPN 密码重置步骤：1. 登录自助平台...","sources":[{"doc_name":"VPN 密码重置 FAQ","chunk_content":"...","confidence":0.85}],"confidence":0.76,"confidence_raw":0.76,"confidence_level":"high","can_submit_ticket":false,"duration_ms":3200,"created_at":"2026-06-16 10:30:05"}}
 ```
 
 | 字段 | 类型 | 说明 |
@@ -192,11 +164,7 @@ data: {"type":"done","metadata":{"session_id":42,"question":"如何重置 VPN �
 | metadata.confidence_level | string | 置信度等级：`"high"` / `"medium"` / `"low"` |
 | metadata.can_submit_ticket | bool | 是否建议转人工申告（`confidence_level != "high"`） |
 | metadata.duration_ms | int | 总耗时（毫秒） |
-| metadata.feedback | int16 | 用户反馈：0=未评价 1=赞 2=踩 |
 | metadata.created_at | string | 会话创建时间 |
-| metadata.pipeline | object | 管道执行耗时明细 |
-| metadata.pipeline.steps | array | 各步骤耗时 |
-| metadata.pipeline.total_duration_ms | int | 管道总耗时 |
 
 **错误降级（非 SSE）：**
 
@@ -241,11 +209,12 @@ while (true) {
     if (!line.startsWith('data: ')) continue
     const evt = JSON.parse(line.slice(6))
     switch (evt.type) {
-      case 'step':   setCurrentStep(evt.label); break
-      case 'chunks': /* evt.chunks: 检索匹配分 */ break
+      case 'reasoning': setReasoning(prev => prev + evt.content); break
+      case 'tool_call': /* evt.name + evt.input: 工具调用 */ break
+      case 'tool_result': /* evt.name + evt.output: 工具返回（含 CRAG verdict） */ break
       case 'token':  setAssistant(prev => prev + evt.content); break
       case 'done':   /* evt.metadata: 会话元数据 */ break
-      case 'error':  throw new Error(evt.message)
+      case 'error':  throw new Error(evt.error)
     }
   }
 }
@@ -258,7 +227,7 @@ while (true) {
 ## 3. 查询会话列表
 
 ```http
-GET /api/v1/portal/chat-sessions?page=1&page_size=10
+GET /api/v1/portal/threads?page=1&page_size=10
 Authorization: Bearer <token>
 ```
 
@@ -304,7 +273,7 @@ Authorization: Bearer <token>
 ## 4. 删除会话
 
 ```http
-DELETE /api/v1/portal/chat-sessions/:id
+DELETE /api/v1/portal/threads/:id
 Authorization: Bearer <token>
 ```
 
@@ -326,13 +295,13 @@ Authorization: Bearer <token>
 ## 5. 查询会话详情
 
 ```http
-GET /api/v1/portal/chat-sessions/:id
+GET /api/v1/portal/threads/:id
 Authorization: Bearer <token>
 ```
 
 > 含归属校验：仅允许查看自己的会话，非会话属主返回 `code=10002`（无权查看该会话）。
 
-**响应：** 含 `messages` 字段（多轮对话历史）及 `pipeline` 步骤指标：
+**响应：** 含 `messages` 字段（多轮对话历史）：
 
 ```json
 {
@@ -346,12 +315,7 @@ Authorization: Bearer <token>
     "confidence": 0.85,
     "can_submit_ticket": false,
     "duration_ms": 3200,
-    "feedback": 0,
     "created_at": "2026-06-16 10:30:00",
-    "pipeline": [
-      {"step_id": "query_rewrite", "label": "查询改写", "duration_ms": 120, "success": true},
-      {"step_id": "vector_retrieve", "label": "向量检索", "duration_ms": 45, "success": true}
-    ],
     "messages": [
       {"id": 1, "role": "user", "content": "如何重置 VPN 密码？", "confidence": 0, "created_at": "2026-06-16 10:30:00"},
       {"id": 2, "role": "assistant", "content": "VPN 密码重置步骤：...", "sources": [...], "confidence": 0.85, "created_at": "2026-06-16 10:30:05"},
@@ -371,7 +335,6 @@ Authorization: Bearer <token>
 | messages[].sources | array | 知识来源（仅 assistant 消息） |
 | messages[].confidence | float64 | 置信度（仅 assistant 消息） |
 | messages[].created_at | string | 消息创建时间 |
-| pipeline | array | RAG 管道步骤指标（可选，含 step_id/label/duration_ms/success/error） |
 
 **错误：**
 
@@ -383,75 +346,10 @@ Authorization: Bearer <token>
 
 ---
 
-## 6. 提交反馈
+## 6. 取消生成
 
 ```http
-POST /api/v1/portal/chat-sessions/:id/feedback
-Authorization: Bearer <token>
-```
-
-> 含归属校验：仅允许反馈本人所属会话。校验规则在 Service 层集中管理。
-
-**请求体：**
-
-```json
-{
-  "feedback": 1
-}
-```
-
-| 值 | 说明 |
-|----|------|
-| 1 | 已解决 |
-| 2 | 未解决 |
-
-> 反馈值仅接受 1（已解决）或 2（未解决）。0 为默认初始值，不可通过 API 提交。
-
-**错误响应：**
-
-| code | HTTP 状态 | 说明 |
-|------|-----------|------|
-| 10003 | 400 | 反馈值无效（非 1/2） |
-| 10002 | 403 | 无权操作该会话（非属主） |
-| 10004 | 404 | 会话不存在 |
-| 99999 | 500 | 服务未初始化 |
-
-> feedback 字段可选，默认为 0。
-
----
-
-## 7. 逐消息反馈
-
-```http
-POST /api/v1/portal/chat-sessions/:id/messages/:msgId/feedback
-Authorization: Bearer <token>
-```
-
-**请求体：**
-
-```json
-{ "feedback": 1 }
-```
-
-| 值 | 说明 |
-|----|------|
-| 1 | 已解决 |
-| 2 | 未解决 |
-
-**错误响应：**
-
-| code | HTTP 状态 | 说明 |
-|------|-----------|------|
-| 10003 | 400 | 反馈值无效 |
-| 10004 | 404 | 消息或会话不存在 |
-| 99999 | 500 | 服务未初始化 |
-
----
-
-## 8. 取消生成
-
-```http
-POST /api/v1/portal/chat-sessions/:id/cancel
+POST /api/v1/portal/threads/:id/cancel
 Authorization: Bearer <token>
 ```
 
@@ -466,10 +364,10 @@ Authorization: Bearer <token>
 
 ---
 
-## 9. 恢复流式输出
+## 7. 恢复流式输出
 
 ```http
-GET /api/v1/portal/chat-sessions/:id/stream
+GET /api/v1/portal/threads/:id/stream
 Authorization: Bearer <token>
 ```
 
@@ -477,10 +375,10 @@ Authorization: Bearer <token>
 
 ---
 
-## 10. 更新会话元信息
+## 8. 更新会话元信息
 
 ```http
-PATCH /api/v1/portal/chat-sessions/:id
+PATCH /api/v1/portal/threads/:id
 Authorization: Bearer <token>
 ```
 
@@ -505,24 +403,22 @@ Authorization: Bearer <token>
 
 ## 降级规则
 
-RAG 管道的降级策略：单步骤失败不阻塞后续步骤：
+Agent ReAct 检索的降级策略：单路失败不阻塞另一路，核心路径失败返回错误码：
 
-| 步骤 | 失败行为 | 降级结果 |
-|------|----------|----------|
-| 查询改写 | 降级 | 使用原始 question |
-| 多路检索 | 降级 | 使用单路检索 |
-| 向量检索 | **阻塞** | 返回 `code=20002`（核心路径） |
-| BM25 检索 | 降级 | BM25 结果为空，仅用向量结果 |
-| RRF 融合 | 降级 | 使用单路结果（哪个有结果用哪个） |
-| 重排序 | 降级 | 使用 RRF 排序结果 |
+| 失败点 | 行为 | 降级结果 |
+|--------|------|----------|
+| 向量检索 | Warn 日志 | BM25-only 继续；双路全失败返回 `code=20002` |
+| BM25 检索 | Warn 日志 | 向量-only 继续 |
+| rerank | Warn 日志 | 使用 RRF 排序结果 |
+| CRAG LLM 评估 | 降级阈值 | 永不阻塞检索返回 |
 | LLM 生成 | **阻塞** | 返回 `code=20001`（核心路径） |
 
 | 最终场景 | 行为 |
 |----------|------|
 | LLM 服务不可达 | 返回 `code=20001`，提示 AI 不可用 |
-| pgvector 检索失败 | 返回 `code=20002`，提示 RAG 服务不可用 |
+| 检索双路全失败 | 返回 `code=20002`，提示 RAG 服务不可用 |
+| CRAG weak verdict | Agent 自主触发 web_search 补搜 |
 | 检索结果为空 | 返回兜底答案 + `can_submit_ticket=true` |
-| 置信度 < 阈值（默认 0.6） | 返回兜底答案 + `can_submit_ticket=true` |
 
 **兜底文本：**
 - AI 服务不可用：「当前 AI 服务暂不可用，请提交申告由人工处理」

@@ -100,24 +100,29 @@ Authorization: Bearer <token>
 
 ---
 
-## 3. 反馈分析
+## 3. 导出趋势数据（CSV）
 
 ```http
-POST /api/v1/admin/feedback/analyze
+GET /api/v1/admin/dashboard/trends/export?start_date=2026-06-01&end_date=2026-06-11&granularity=day
 Authorization: Bearer <token>
 ```
 
-分析近 N 天用户反馈数据。请求体可选，默认分析最近 30 天。
+> 复用 [趋势数据](#2-趋势数据) 查询，返回 CSV 文件下载（含 UTF-8 BOM 头，防 Excel 乱码）。
 
-**请求体：**
+**查询参数：** 同 [趋势数据](#2-趋势数据)。
 
-```json
-{ "days": 30 }
+**响应：** CSV 文件（`text/csv`），首行表头 `日期,工单数,问答数`，每行一个数据点。
+
+```csv
+日期,工单数,问答数
+2026-06-01,5,23
+2026-06-02,3,18
 ```
 
-**错误码：**
+| 响应头 | 值 |
+|--------|------|
+| Content-Type | `text/csv; charset=utf-8` |
+| Content-Disposition | `attachment; filename=trends.csv` |
 
-| code | HTTP 状态 | 说明 |
-|------|-----------|------|
-| 99999 | 500 | 服务器内部错误 |
+**错误：** 同 [趋势数据](#2-趋势数据)。
 

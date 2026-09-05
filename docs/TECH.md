@@ -142,18 +142,18 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 
 ```mermaid
 flowchart LR
-    Q["Agent query"] --> PAR["errgroup 并行"]
-    PAR --> VEC["向量检索<br/>query embed 缓存 → pgvector cosine<br/>ef_search=100, halfvec(dim=1536)"]
+    Q["Agent query"] --> PAR["sync.WaitGroup 并行"]
+    PAR --> VEC["向量检索<br/>query embed 缓存 → pgvector cosine<br/>ef_search=100, halfvec(1024)"]
     PAR --> BM25["BM25 检索<br/>gse, 内存索引, enriched"]
     VEC --> RRF["RRF 融合 k=30<br/>retrievalK=30 候选"]
     BM25 --> RRF
     RRF --> RERANK["cross-encoder rerank<br/>全池 → 按 ConfRaw 重排"]
     RERANK --> DEDUP["内容去重"]
-    DEDUP --> CONF["分层置信度<br/>cosine→+BM25 0.4→+Rerank 0.6"]
+    DEDUP --> CONF["置信度计算<br/>有rerank: ConfRaw=RerankScore<br/>无rerank: RRF min-max 归一化"]
     CONF --> CRAG{"CRAG 评估"}
     CRAG --> SAND["Sandwich Reorder"]
     SAND --> PACK["Context Packing 2000"]
-    PACK --> OUT["SearchOutcome{Entries, Verdict}<br/>文本含 [检索充分性: level]"]
+    PACK --> OUT["SearchOutcome{Entries, Verdict}<br/>文本含 [sufficiency: level]"]
 ```
 
 两阶段检索：向量 + BM25 各取 `retrievalK=30` 候选 → RRF 融合 → cross-encoder rerank 全池 → 截到 `limit`（top N）。`ef_search` 必须 ≥ `retrievalK`。
@@ -191,8 +191,8 @@ classDiagram
     class StorageClient {
         <<interface>>
         UploadFile(ctx, bucket, dir, filename, reader, size, contentType) error
-        DownloadDir(ctx, bucket, dir) (map[string]io.ReadCloser, error)
-        DeleteDir(ctx, bucket, dir) error
+        DownloadFile(ctx, bucket, dir, filename) (io.ReadCloser, error)
+        DeleteFile(ctx, bucket, dir, filename) error
         GetFileURL(ctx, bucket, dir, filename) (string, error)
     }
 ```
@@ -235,9 +235,9 @@ flowchart LR
 
 ### 3.2 组件分类
 
-**Server Components（无 `'use client'`）：** RootLayout、NotFound、各 Layout 壳、AppleButton、AppleCard、AppleBadge、AppleSpinner
+**Server Components（无 `'use client'`）：** RootLayout、NotFound、各 Layout 壳、shadcn/ui 静态组件（Badge、Card）
 
-**Client Components（`'use client'`）：** 全部 Page 组件、AdminLayout、PortalLayout、AppleDialog、AppleInput/Textarea、ChatInput、ChatMessage、ChatPipeline、ConfirmDialog、StatusBadge、StatCard、ErrorBoundary
+**Client Components（`'use client'`）：** 全部 Page 组件、AdminLayout、PortalLayout、shadcn/ui 交互组件（Dialog、Input、DropdownMenu）、ChatInput、ChatMessage、ConfirmDialog、StatusBadge、StatCard、ErrorBoundary
 
 ### 3.3 状态管理
 
@@ -259,7 +259,7 @@ flowchart TD
 | 前端模块 | 核心函数 | 后端端点 |
 |---------|---------|---------|
 | `lib/api/auth.ts` | login / refreshToken / changePassword / logout | `/api/v1/auth/*` |
-| `lib/api/chat.ts` | createSession / getSessionList / deleteSession / submitFeedback | `/api/v1/portal/chat-sessions/*` |
+| `lib/api/chat.ts` | createThread / getThreadList / deleteThread / streamChat | `/api/v1/portal/threads/*` |
 | `lib/api/knowledge.ts` | getKBList / createKB / getArticleList / publishArticle / uploadDocuments | `/api/v1/admin/knowledge-bases/*` |
 | `lib/api/ticket.ts` | createTicket / getMyTickets / supplementTicket / updateTicketStatus | `/api/v1/portal/tickets/*` `/api/v1/admin/tickets/*` |
 | `lib/api/user.ts` | getUserList / createUser / freezeUser | `/api/v1/admin/users/*` |
@@ -314,7 +314,7 @@ erDiagram
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| 向量类型 | `halfvec(dim)` | 半精度；dim 由 `COGNOS_EMBEDDING_DIMENSION` 注入，默认 1536 |
+| 向量类型 | `halfvec(dim)` | 半精度；dim 由 config `embedding.dimension` 注入（默认 1536） |
 | 索引 | HNSW | `halfvec_cosine_ops`，m=16，ef_construction=200 |
 | 距离算子 | `<=>` | 余弦距离；score = `1 - 距离` |
 | ef_search | 100（`COGNOS_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
@@ -366,11 +366,11 @@ flowchart LR
 
 ### 5.1 RAG 检索降级矩阵
 
-检索由 `kb_store_impl.go:Search` 执行（Agent ReAct 驱动调用）；向量检索与 BM25 经 errgroup 并行，单路失败不阻塞另一路。
+检索由 `kb_store_impl.go:Search` 执行（Agent ReAct 驱动调用）；向量检索与 BM25 经 sync.WaitGroup 并行，单路失败不阻塞另一路。
 
 ```mermaid
 flowchart TD
-    Start(["kb(action=search)"]) --> PAR["errgroup 并行检索"]
+    Start(["kb(action=search)"]) --> PAR["sync.WaitGroup 并行检索"]
     PAR --> VEC["向量检索 pgvector<br/>query embed 缓存 → cosine"]
     PAR --> BM25["BM25 检索（内存）"]
     VEC -->|失败 ❌| VEC_DG["slog.Warn → BM25-only 降级"]
@@ -381,10 +381,10 @@ flowchart TD
     BM_DG --> FUSE
     FUSE --> RR["cross-encoder rerank"]
     RR -->|失败| RR_DG["slog.Warn → RRF 排序结果"]
-    RR --> CONF["分层置信度<br/>cosine→+BM25 0.4→+Rerank 0.6"]
+    RR --> CONF["置信度计算<br/>有rerank: ConfRaw=RerankScore<br/>无rerank: RRF min-max 归一化"]
     CONF --> CRAG{"CRAG 评估"}
-    CRAG -->|Strong| OK["返回 Agent<br/>[检索充分性: strong]"]
-    CRAG -->|Weak| WEAK["返回 Agent<br/>[检索充分性: weak]<br/>→ Agent 自主 web_search"]
+    CRAG -->|Strong| OK["返回 Agent<br/>[sufficiency: strong]"]
+    CRAG -->|Weak| WEAK["返回 Agent<br/>[sufficiency: weak]<br/>→ Agent 自主 web_search"]
     CRAG -->|Ambiguous| AMB["可选 LLM 评估器<br/>失败 → 降级阈值"]
     AMB --> OK
 
@@ -398,16 +398,14 @@ flowchart TD
 
 ### 5.2 置信度评分与 CRAG 评估
 
-分层置信度（`computeConfidence`），从基础向量分逐层叠加：
+精度阶段信号优先（参考 CRAG：retrieval evaluator 基于相关性，非原始分混合）：
 
-| 层 | 公式 | 权重 |
-|----|------|------|
-| 基础 | `s = RawCosineScore`（pgvector 余弦 [0,1]） | — |
-| +BM25（hybrid 命中） | `s = 0.6×s + 0.4×Bm25NormScore` | 0.4 |
-| +Rerank（rerank 命中） | `s = 0.4×s + 0.6×RerankScore` | 0.6 |
-| 钳位 | `[0, 1]` | — |
+| 场景 | 公式 | 依据 |
+|------|------|------|
+| 有 rerank | `ConfRaw = RerankScore` | cross-encoder sigmoid ∈[0,1]，直接相关性概率 |
+| 无 rerank | `ConfRaw = RRF 融合分 min-max 归一化` | rank-based 召回阶段信号 |
 
-BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信度计算后按 `ConfRaw` 降序重排，再 Sandwich Reorder。
+不混合 cosine/BM25/Rerank——召回阶段信号（cosine/BM25）与精度阶段信号（rerank）量纲不同，混合无原则依据。置信度计算后按 `ConfRaw` 降序重排，再 Sandwich Reorder。
 
 **CRAG 充分性评估**（`crag.go`）：`ThresholdEvaluator` 按 `ConfRaw` 与阈值比较产出 `Verdict`：
 
@@ -415,7 +413,7 @@ BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信�
 |---------|------|-----------|
 | Strong | `ConfRaw >= high` | 直接基于检索 chunk 答（零额外成本） |
 | Ambiguous | `low <= ConfRaw < high` | 可选 LLM 评估器二次判定（失败降级阈值） |
-| Weak | `ConfRaw < low` | 文本含 `[检索充分性: weak]`，Agent 自主 web_search 补充 |
+| Weak | `ConfRaw < low` | 文本含 `[sufficiency: weak]`，Agent 自主 web_search 补充 |
 
 阈值 `ai.confidence_threshold_low/high`（默认 0.40/0.70），经 `ComputeThresholds` 从近 N 天 `chat_messages.confidence_raw` 算 P30/P70 分位数动态更新（p30 下限 0.10，p70 上限 0.95，p70-p30 最小间距 0.10；无数据回退 0.40/0.70）。verdict 以文本 preamble 返回 Agent，web fallback 由 Agent ReAct 触发，RAG 引擎不触 web。
 
@@ -451,7 +449,7 @@ BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信�
 | `COGNOS_LLM_MODEL` | LLM 模型名称 | qwen3-4b |
 | `COGNOS_LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
 | `COGNOS_EMBEDDING_MODEL` | Embedding 模型 | 由环境变量指定 |
-| `COGNOS_EMBEDDING_DIMENSION` | 向量维度 | 1536 |
+| `COGNOS_EMBEDDING_DIMENSION` | 向量维度 | 1024 |
 | `COGNOS_DATA_ROOT` | 数据根目录（storage/memory/logs/agent.db 派生自此） | ../.cognos |
 | `COGNOS_AI_PROCESSOR_WORKERS` | Processor 消费者并行度 | 5 |
 | `COGNOS_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
@@ -486,35 +484,21 @@ flowchart LR
 
 ## 7. 设计系统
 
-### 7.1 色彩
+Linear/Vercel 专业工具风格。shadcn/ui（Radix + Tailwind v4），靛蓝强调色，高信息密度。Tokens 在 `web/src/app/globals.css`。
 
-| 令牌 | 色值 | 用途 |
-|------|------|------|
-| Action Blue | `#0066cc` | 唯一品牌色，pill 按钮 |
-| Focus Blue | `#2997ff` | 聚焦环 |
-| Surface White | `#f5f5f7` | 浅色背景 |
-| Surface Dark | `#1d1d1f` | 暗色背景 |
-| Ink | `#1d1d1f` / `#f5f5f7` | 浅/暗主题正文字 |
-| Ink Muted | `rgba(0,0,0,0.48)` | 辅助文字 |
-| Hairline | `rgba(0,0,0,0.08)` | 分隔线 |
+### 7.1 色彩与字体
 
-### 7.2 字体与圆角
+| 令牌 | 值 | 用途 |
+|------|-----|------|
+| Accent | `#5b5bd6` | 唯一品牌色（靛蓝） |
+| 字体 | `system-ui, -apple-system, 'Segoe UI', 'Inter Variable'` | 原生 UI 字体优先 |
+| 正文字号 | `13px`（`0.8125rem`） | 高信息密度 |
+| 圆角 | sm `6px` / md `8px` / lg `10px` / pill `9999px` | 中性小圆角 |
+| 亮暗双主题 | CSS 变量 `--background` / `--foreground` / `--accent` | 主题切换 |
 
-- 字体：Inter Variable，正文字号 17px，标题 28px/20px，辅助 13px
-- 按钮：完全圆角 pill（`9999px`）
-- 卡片：`12px` 圆角，hairline 边框，微阴影（`0 1px 3px rgba(0,0,0,0.04)`）
-- 输入框：`12px` 圆角，hairline 边框
+### 7.2 组件体系
 
-### 7.3 核心组件
-
-| 组件 | 特征 |
-|------|------|
-| AppleButton | 4 变体：pill（蓝底白字）/ ghost（透明）/ utility（灰底）/ pearl（白底灰框） |
-| AppleCard | 白底 + hairline 边框 + 12px 圆角，可选 hover 可点击 |
-| AppleInput | 标准输入 + pill 搜索变体，forwardRef |
-| AppleTable | 泛型 `<T>`，loading/empty 状态内置 |
-| ApplePagination | 页码 + pageSize 选择器 |
-| AppleDialog | Radix Dialog 封装，Apple 风格 |
+shadcn/ui（组件代码生成进仓库，非黑盒依赖）+ Tailwind v4。组件位于 `web/src/components/ui/`：badge、card、dialog、input、table、dropdown-menu 等。Radix primitives 提供无障碍交互。
 
 ## 8. 错误码
 
@@ -561,7 +545,7 @@ server/
 │   │   ├── tools/          # 工具集（kb/memory/web/bash 等）
 │   │   ├── loop.go         # ReAct 主循环
 │   │   ├── provider.go     # ChatModelFactory
-│   │   └── compressor.go   # 五级压缩
+│   │   └── compressor.go   # 六级压缩
 │   ├── parser/             # 文档解析（parser.go + mineru/ + local/）
 │   ├── router/             # 路由注册 + safeHandler
 │   └── shared/             # 共享类型和工具

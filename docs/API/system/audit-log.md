@@ -244,7 +244,7 @@ Authorization: Bearer <token>
 | page | int | 否 | 1 | 页码 |
 | page_size | int | 否 | 10 | 每页条数（最大 100） |
 | is_read | bool | 否 | — | 是否已读（true/false，不传不过滤） |
-| type | string | 否 | — | 消息类型（不传不过滤，可选值：`ticket_supplement` / `ticket_resolved` / `system_notice`） |
+| type | string | 否 | — | 消息类型（不传不过滤，可选值：`ticket_supplement` / `ticket_resolved` / `system`） |
 
 **响应体字段（Message）：**
 
@@ -254,7 +254,7 @@ Authorization: Bearer <token>
 | user_id | int64 | 接收用户 ID |
 | title | string | 消息标题 |
 | content | string | 消息正文 |
-| type | string | 消息类型：`ticket_supplement` / `ticket_resolved` / `system_notice` |
+| type | string | 消息类型：`ticket_supplement` / `ticket_resolved` / `system` |
 | related_type | string | 关联对象类型（如 `ticket`） |
 | related_id | int64 | 关联对象 ID |
 | is_read | bool | 是否已读 |

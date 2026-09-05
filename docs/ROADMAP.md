@@ -174,7 +174,7 @@ MinIO 在单实例部署中增加 200-500MB RAM + HTTP 延迟层。同类系统�
 
 **目标**：铺设原生 Go Agent Loop 基础设施，实现 ReAct 循环 + Tool Calling。
 
-**选型**：自建 ReAct 循环（`agent/loop.go`）+ 自建 ChatModel（`agent/llm`，net/http 直连 OpenAI 兼容 API）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
+**选型**：自建 ReAct 循环（`agent/loop.go`）+ 自建 ChatModel（`agent/llm`，net/http 直连 OpenAI 兼容 API）。
 
 ### 6.1 Agent 架构
 
@@ -189,8 +189,8 @@ flowchart TB
         AG -->|"同进程"| LLM["自建 ChatModel<br/>agent/llm（net/http 直连）"]
         AG -->|"ReAct 循环"| TOOLS["Tool Registry (9 工具)"]
         AG -->|"SubAgent 委托"| SUB["research / coder / deep_research"]
-        AG -->|"事件流"| SSE["GenerationHub → SSE → 前端"]
-        AG -->|"隔离"| SQLite["SQLite (per session)"]
+        AG -->|"事件流"| SSE["Gateway → SSE → 前端"]
+        AG -->|"隔离"| SQLite["SQLite (thread 级隔离)"]
     end
 ```
 
@@ -205,7 +205,7 @@ flowchart TB
 | 9 OS 工具 | bash / async_bash / read / write / edit / list / glob / grep / mkdir |
 | SubAgent | research（只读探查）+ coder（读写操作）+ deep_research，dispatch_subagent AsyncTool 注册 |
 | 异步任务 | async_bash 流式输出；任务管理 |
-| SQLite 隔离 | 每个 agent session 独立 SQLite 文件 |
+| SQLite 隔离 | 单库 `data/agent.db`，thread 级逻辑隔离（表内 thread_id 区分，非物理分文件） |
 | threads API | 对话线程管理 |
 | parts 数组模型 | 前端渲染并行工具调用 + SubAgent + TaskCard |
 | Provider 热切换 | `LLMConfigManager.OnChange` → 替换 agent/llm.ChatModel |
@@ -220,7 +220,7 @@ flowchart TB
 | `web_search` | SearXNG | 直接 HTTP | V1.4 |
 | `web_fetch` | Firecrawl 自托管 | 直接 HTTP | V1.4 |
 | `exa_search`（可选） | Exa API | 直接 HTTP | V1.4 |
-| `generate_article` | Go Agent | 搜索结果 → Markdown | V1.4 |
+| `kb(action=create)` | Go Agent | 搜索结果 → Markdown，CreateAndPublish 自动发布进 RAG | V1.4 |
 
 ### 6.4 SSE 事件
 
@@ -258,7 +258,7 @@ Agent 具备跨会话记忆和动态上下文压缩。
 
 ### 7.3 深度搜索方法论
 
-deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill + `reference/` 下开源项目实践）：
+deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineering-skills/research`](https://github.com/int2t05/engineering-skills/tree/main/skills/02-research/research) skill + 开源项目实践）：
 
 **搜索原则**：分层搜索 / 源优先级 / 全页提取 / 对抗性验证 / 引用注册表 / 上下文压缩 / 收敛控制 / 工具降级
 
@@ -386,9 +386,11 @@ rerank 后 topK 截断前，高分 chunk 放首尾，低分放中间。LLM 对�
 
 RRF k 值从 60 调低到 30（可配置）。k 值越小排名靠前结果得分优势越大，rerank 效果更好。
 
-### 9.5 Token-based Chunking
+### 9.5 Token-based Chunking（推迟）
 
 将 chunker 从 rune-count 改为 token-count（tiktoken-go），中英混排文档 chunk 大小更一致。
+
+> 推迟：rune-based + markdown-aware chunker 对 CJK 已够好（1 rune ≈ 1 token）；换 tiktoken-go 加依赖且须重嵌存量 chunk，边际收益小。eval 驱动：标定集测 recall@5 前后对比再定。
 
 ### 9.6 Metadata 预过滤
 
@@ -478,10 +480,17 @@ gantt
 
 | 决策 | 选择 | 依据 |
 |------|------|------|
+| Web 框架 | Gin + GORM | Go 生态成熟；Gin 路由性能 + GORM ORM 生产力；SSE 原生支持 |
+| 中文分词 | gse（go-ego/gse） | 纯 Go 无 CGO；HMM 模式；字典加载失败降级字符级 |
+| Rerank 通信 | Python 子进程（os/exec stdin/stdout） | 单租户私有部署免独立 HTTP 服务；崩溃自动重启 |
+| Rerank 模型 | ms-marco-MiniLM-L-4-v2 | 轻量 80MB cross-encoder；CPU FP16；质量/成本平衡 |
+| 文档解析双引擎 | MinerU 云端 + 本地纯 Go 降级 | MinerU 处理公式/表格/版面；本地兜底离线/无 Key/低延迟 |
+| CRAG 评估器 | 阈值 + 可选 LLM（非 fine-tuned T5） | 无训练数据；部署简洁；阈值零成本，LLM 仅 Ambiguous 带 |
+| 部署模式 | Docker Compose（开发）+ All-in-One（生产） | Compose 灵活编排；All-in-One 单容器降低生产部署门槛 |
 | 文档存储 | 本地 FS（MinIO 可选） | 单实例下本地 FS 足够 |
 | 向量数据库 | pgvector | halfvec+HNSW 不可替代 |
 | 业务数据库 | PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务 |
-| Agent 数据 | SQLite（per session） | ReAct 高频读写隔离 |
+| Agent 数据 | SQLite（单库 thread 级隔离） | ReAct 高频读写隔离，单文件 `data/agent.db` |
 | Agent 基座 | 自建 ReAct 循环 + 自建 ChatModel | 无外部框架依赖；ReAct 循环 + 工具派发 + 异步恢复全自建 |
 | LLM Provider | 自建 agent/llm.ChatModel | net/http 直连 OpenAI 兼容 API；工具描述透明传入，无 WithTools 黑盒 |
 | SSE 输出 | Gin `fmt.Fprintf + Flush` | 标准 SSE 模式 |

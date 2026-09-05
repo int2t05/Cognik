@@ -2,7 +2,7 @@
 
 > **Base URL:** `/api/v1`
 
-## Overview
+## 概览
 
 Cognos 后端提供 RESTful JSON API，分为三组路由：
 
@@ -12,7 +12,7 @@ Cognos 后端提供 RESTful JSON API，分为三组路由：
 | 门户端 | `/api/v1/portal` | JWT | 智能问答（SSE 流式 + RAG 管道）、申告提交、进度查询、站内消息 |
 | 后台管理 | `/api/v1/admin` | JWT + RBAC | 申告处理、知识库管理（含文档上传）、LLM 配置、用户/角色、看板、审计 |
 
-## Response Format
+## 响应格式
 
 所有 API 响应使用统一 JSON 结构：
 
@@ -37,7 +37,7 @@ Cognos 后端提供 RESTful JSON API，分为三组路由：
 }
 ```
 
-## Error Codes
+## 错误码
 
 所有 API 响应通过 `code` 字段标识业务结果，HTTP 状态码反映传输层状态。
 
@@ -56,7 +56,7 @@ Cognos 后端提供 RESTful JSON API，分为三组路由：
 | 20003 | 503 | 存储服务不可用（MinIO 操作失败） |
 | 99999 | 500 | 未知错误 / 服务未初始化 |
 
-## RBAC Permissions
+## RBAC 权限
 
 后台管理接口通过权限码控制访问。权限常量定义在 `server/internal/router/permissions.go`：
 
@@ -75,7 +75,7 @@ Cognos 后端提供 RESTful JSON API，分为三组路由：
 | `audit:read` | 审计日志查看 |
 | `system:config` | LLM 配置与系统配置管理 |
 
-## Authentication
+## 认证
 
 所有需要认证的接口需携带 JWT 令牌：
 
@@ -85,7 +85,7 @@ Authorization: Bearer <access_token>
 
 令牌通过 `/api/v1/auth/login` 获取，有效期 2 小时。过期后使用 `/api/v1/auth/refresh` 刷新。
 
-## Pagination
+## 分页
 
 支持分页的接口接受以下查询参数：
 
@@ -94,7 +94,7 @@ Authorization: Bearer <access_token>
 | `page` | int | 1 | 页码（从 1 开始） |
 | `page_size` | int | 10 | 每页条数（最大 100） |
 
-## API Reference（按业务域）
+## API 索引（按业务域）
 
 ### 用户与权限（user/）
 
