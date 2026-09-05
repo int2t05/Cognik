@@ -314,7 +314,7 @@ erDiagram
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| 向量类型 | `halfvec(dim)` | 半精度；dim 由 config `embedding.dimension` 注入（默认 1536） |
+| 向量类型 | `halfvec(dim)` | 半精度；dim 由 config `embedding.dimension` 注入（代码默认 1536；本地 Qwen3-Embedding-0.6B 用 1024） |
 | 索引 | HNSW | `halfvec_cosine_ops`，m=16，ef_construction=200 |
 | 距离算子 | `<=>` | 余弦距离；score = `1 - 距离` |
 | ef_search | 100（`COGNOS_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
@@ -449,7 +449,7 @@ flowchart TD
 | `COGNOS_LLM_MODEL` | LLM 模型名称 | qwen3-4b |
 | `COGNOS_LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
 | `COGNOS_EMBEDDING_MODEL` | Embedding 模型 | 由环境变量指定 |
-| `COGNOS_EMBEDDING_DIMENSION` | 向量维度 | 1024 |
+| `COGNOS_EMBEDDING_DIMENSION` | 向量维度（须与 embedding 模型一致） | 1536 |
 | `COGNOS_DATA_ROOT` | 数据根目录（storage/memory/logs/agent.db 派生自此） | ../.cognos |
 | `COGNOS_AI_PROCESSOR_WORKERS` | Processor 消费者并行度 | 5 |
 | `COGNOS_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
