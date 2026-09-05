@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { setConfig, getAllConfigs, computeThresholds, type ComputeThresholdsResult } from '@/lib/api/config';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { IconButton } from '@/components/ui/icon-button';
@@ -10,7 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { Pencil, RefreshCw, Loader2, Save, CheckCircle } from 'lucide-react';
 
 const CONFIG_KEYS = [
@@ -30,11 +31,12 @@ const CONFIG_KEYS = [
 type ConfigRowProps = { label: string; configKey: string; value: unknown; type?: 'text' | 'bool'; onSaved: () => void };
 
 function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRowProps) {
+  const t = useTranslations();
   const [val, setVal] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const displayVal = editing ? val : formatDisplay(value, type);
+  const displayVal = editing ? val : (type === 'bool' ? (value ? t('config.on') : t('config.off')) : formatDisplay(value));
   const startEdit = () => { setVal(formatEdit(value, type)); setEditing(true); };
 
   const handleSave = async () => {
@@ -42,8 +44,8 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
     try {
       const parsed = type === 'bool' ? val === 'true' : (isNaN(Number(val)) ? val : Number(val));
       await setConfig(configKey, parsed);
-      toast.success('已保存'); onSaved(); setEditing(false);
-    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
+      toast.success(t('common.saved')); onSaved(); setEditing(false);
+    } catch (err: unknown) { toast.error(translateError(err, t, t('common.saveFailed'))); }
     finally { setSaving(false); }
   };
 
@@ -58,28 +60,27 @@ function ConfigRow({ label, configKey, value, type = 'text', onSaved }: ConfigRo
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="true">开启</SelectItem>
-                <SelectItem value="false">关闭</SelectItem>
+                <SelectItem value="true">{t('config.on')}</SelectItem>
+                <SelectItem value="false">{t('config.off')}</SelectItem>
               </SelectContent>
             </Select>
           ) : (
             <Input value={val} onChange={(e) => setVal(e.target.value)} aria-label={label} className="flex-1 h-9" />
           )}
-          <IconButton variant="ghost" size="sm" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}保存</IconButton>
+          <IconButton variant="ghost" size="sm" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}{t('common.save')}</IconButton>
         </>
       ) : (
         <>
           <span className="flex-1 text-caption text-[var(--color-ink)]">{displayVal}</span>
-          <IconButton label="编辑" onClick={startEdit}><Pencil /></IconButton>
+          <IconButton label={t('common.edit')} onClick={startEdit}><Pencil /></IconButton>
         </>
       )}
     </div>
   );
 }
 
-function formatDisplay(v: unknown, type: string): string {
+function formatDisplay(v: unknown): string {
   if (v === undefined || v === null) return '—';
-  if (type === 'bool') return v ? '开启' : '关闭';
   return String(v);
 }
 
@@ -89,6 +90,7 @@ function formatEdit(v: unknown, type: string): string {
 }
 
 function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
+  const t = useTranslations();
   const [days, setDays] = useState(7);
   const [computing, setComputing] = useState(false);
   const [result, setResult] = useState<ComputeThresholdsResult | null>(null);
@@ -97,7 +99,7 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
   const handleCompute = async () => {
     setComputing(true); setResult(null);
     try { setResult(await computeThresholds(days)); }
-    catch { toast.error('计算失败'); }
+    catch { toast.error(t('config.computeFailed')); }
     finally { setComputing(false); }
   };
 
@@ -107,34 +109,34 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
     try {
       await setConfig('ai.confidence_threshold_low', result.p30);
       await setConfig('ai.confidence_threshold_high', result.p70);
-      toast.success('阈值已更新');
+      toast.success(t('config.thresholdsUpdated'));
       setResult(null);
       onApplied();
-    } catch { toast.error('应用失败'); }
+    } catch { toast.error(t('config.applyFailed')); }
     finally { setApplying(false); }
   };
 
   return (
     <div className="mb-3">
       <div className="flex items-center gap-3">
-        <span className="text-caption font-semibold text-[var(--color-ink)] w-[140px] shrink-0">自动计算阈值</span>
+        <span className="text-caption font-semibold text-[var(--color-ink)] w-[140px] shrink-0">{t('config.autoThresholds')}</span>
         <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
           <SelectTrigger className="h-9 rounded-[var(--radius-lg)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {[7, 14, 30, 60, 90].map(d => <SelectItem key={d} value={String(d)}>近 {d} 天</SelectItem>)}
+            {[7, 14, 30, 60, 90].map(d => <SelectItem key={d} value={String(d)}>{t('config.recentDays', { days: d })}</SelectItem>)}
           </SelectContent>
         </Select>
-        <IconButton variant="ghost" size="sm" disabled={computing}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}计算</IconButton>
+        <IconButton variant="ghost" size="sm" disabled={computing} onClick={handleCompute}>{computing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}{t('config.compute')}</IconButton>
       </div>
       {result && (
         <div className="flex items-center gap-3 mt-2 ml-[140px]">
           <span className="text-caption text-[var(--color-text-muted-48)]">
-            {result.sample_count} 条样本 · P30={result.p30} · P70={result.p70}
+            {t('config.thresholdsResult', { sample: result.sample_count, p30: result.p30, p70: result.p70 })}
             {result.warning && <span className="text-[var(--badge-warning-text)] ml-2">{result.warning}</span>}
           </span>
-          <IconButton variant="ghost" size="sm" disabled={applying}>{applying ? <Loader2 className="animate-spin" /> : <CheckCircle size={16} />}应用</IconButton>
+          <IconButton variant="ghost" size="sm" disabled={applying} onClick={handleApply}>{applying ? <Loader2 className="animate-spin" /> : <CheckCircle size={16} />}{t('config.apply')}</IconButton>
         </div>
       )}
     </div>
@@ -142,13 +144,14 @@ function ComputeThresholdsRow({ onApplied }: { onApplied: () => void }) {
 }
 
 export default function SystemConfigPage() {
+  const t = useTranslations();
   const { data: configs, error, mutate } = useSWR('all-configs', () => getAllConfigs(CONFIG_KEYS));
   const v = (key: string) => configs?.find((c) => c.key === key)?.value;
   const configsLoading = !configs && !error;
 
   return (
     <div className="min-w-0 overflow-hidden">
-      <PageTitle>系统配置</PageTitle>
+      <PageTitle>{t('config.systemTitle')}</PageTitle>
       {error && <InlineError />}
       {configsLoading ? (
         <Card className="max-w-form">
@@ -162,23 +165,23 @@ export default function SystemConfigPage() {
         </Card>
       ) : (
         <Card className="max-w-form">
-          <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">应用</h2>
-          <ConfigRow label="应用名称" configKey="app_name" value={v('app_name')} onSaved={mutate} />
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mb-4">{t('config.sectionApp')}</h2>
+          <ConfigRow label={t('config.appName')} configKey="app_name" value={v('app_name')} onSaved={mutate} />
 
-          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">RAG 管道</h2>
-          <ConfigRow label="启用 RAG" configKey="ai.rag_enabled" value={v('ai.rag_enabled')} type="bool" onSaved={mutate} />
-          <ConfigRow label="默认 Top K" configKey="ai.top_k" value={v('ai.top_k')} onSaved={mutate} />
-          <ConfigRow label="低置信阈值" configKey="ai.confidence_threshold_low" value={v('ai.confidence_threshold_low')} onSaved={mutate} />
-          <ConfigRow label="高置信阈值" configKey="ai.confidence_threshold_high" value={v('ai.confidence_threshold_high')} onSaved={mutate} />
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">{t('config.sectionRag')}</h2>
+          <ConfigRow label={t('config.ragEnabled')} configKey="ai.rag_enabled" value={v('ai.rag_enabled')} type="bool" onSaved={mutate} />
+          <ConfigRow label={t('config.topK')} configKey="ai.top_k" value={v('ai.top_k')} onSaved={mutate} />
+          <ConfigRow label={t('config.thresholdLow')} configKey="ai.confidence_threshold_low" value={v('ai.confidence_threshold_low')} onSaved={mutate} />
+          <ConfigRow label={t('config.thresholdHigh')} configKey="ai.confidence_threshold_high" value={v('ai.confidence_threshold_high')} onSaved={mutate} />
           <ComputeThresholdsRow onApplied={mutate} />
-          <ConfigRow label="多轮对话上限" configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
-          <ConfigRow label="查询改写" configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
-          <ConfigRow label="多路检索" configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
-          <ConfigRow label="BM25 混合检索" configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
-          <ConfigRow label="重排序" configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
+          <ConfigRow label={t('config.maxHistory')} configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
+          <ConfigRow label={t('config.queryRewrite')} configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
+          <ConfigRow label={t('config.multiRoute')} configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
+          <ConfigRow label={t('config.hybrid')} configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
+          <ConfigRow label={t('config.rerank')} configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
 
-          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">模型行为</h2>
-          <ConfigRow label="思考模式" configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
+          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">{t('config.sectionModel')}</h2>
+          <ConfigRow label={t('config.thinking')} configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
         </Card>
       )}
     </div>

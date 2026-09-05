@@ -3,11 +3,13 @@
  *  经 next/dynamic 懒加载（Markdown 组件按需引入本组件），不膨胀主包。
  *  监听 data-theme 变化自动切换主题重渲。securityLevel=strict 防 XSS。 */
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import mermaid from 'mermaid';
 
 let seq = 0;
 
 export function Mermaid({ chart }: { chart: string }) {
+  const t = useTranslations();
   const [svg, setSvg] = useState('');
   const [err, setErr] = useState('');
   const [themeTick, setThemeTick] = useState(0);
@@ -33,6 +35,6 @@ export function Mermaid({ chart }: { chart: string }) {
   }, [chart, themeTick]);
 
   if (err) return <pre className="md-mermaid-error text-fine text-[var(--color-error)] p-3 overflow-x-auto">{err}</pre>;
-  if (!svg) return <div className="md-mermaid-loading text-fine text-[var(--color-text-muted-48)] p-3">渲染图表…</div>;
+  if (!svg) return <div className="md-mermaid-loading text-fine text-[var(--color-text-muted-48)] p-3">{t('common.renderingChart')}</div>;
   return <div className="md-mermaid" dangerouslySetInnerHTML={{ __html: svg }} />;
 }

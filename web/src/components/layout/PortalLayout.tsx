@@ -3,6 +3,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth, type Menu } from '@/hooks/useAuth';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { hasAdminAccess } from '@/lib/roles';
@@ -37,11 +38,12 @@ function unreadBadge(count: number) {
 }
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations();
   const { permissions, menus } = useAuth();
   const { unreadCount } = useUnreadCount();
   const isAdmin = hasAdminAccess(permissions);
 
-  // 后端菜单 → 管理分区 NavItem（去重 + 路由别名 + 子菜单）
+  // 后端菜单 → 管理分区 NavItem（去重 + 路由别名 + 子菜单）。菜单名为后端 DB 值，不翻译。
   const adminItems: NavItem[] = useMemo(() => {
     if (!isAdmin || !menus.length) return [];
     const top = menus.filter((m: Menu) => !m.parent_id);
@@ -67,13 +69,13 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const nav: NavSection[] = [
     {
       items: [
-        { path: '/portal/chat', label: '智能问答', icon: <Bot size={18} /> },
-        { path: '/portal/tickets/new', label: '提交工单', icon: <TicketPlus size={18} /> },
-        { path: '/portal/tickets', label: '我的工单', icon: <ListTodo size={18} /> },
-        { path: '/portal/messages', label: '消息', icon: <MessageSquare size={18} />, badge: unreadBadge(unreadCount) },
+        { path: '/portal/chat', label: t('nav.chat'), icon: <Bot size={18} /> },
+        { path: '/portal/tickets/new', label: t('nav.newTicket'), icon: <TicketPlus size={18} /> },
+        { path: '/portal/tickets', label: t('nav.myTickets'), icon: <ListTodo size={18} /> },
+        { path: '/portal/messages', label: t('nav.messages'), icon: <MessageSquare size={18} />, badge: unreadBadge(unreadCount) },
       ],
     },
-    ...(isAdmin && adminItems.length > 0 ? [{ heading: '管理', items: adminItems }] : []),
+    ...(isAdmin && adminItems.length > 0 ? [{ heading: t('nav.admin'), items: adminItems }] : []),
   ];
 
   return (

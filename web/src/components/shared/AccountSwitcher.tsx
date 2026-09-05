@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { UserPlus, Trash2, LogIn, KeyRound, Loader2 } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
 import { changePassword } from '@/lib/api/auth';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { toast } from 'sonner';
 
 interface Props {
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function AccountSwitcher({ className, iconOnly }: Props) {
+  const t = useTranslations();
   const { accounts, switchTo, removeAccount, logout } = useAccountSwitcher();
   const router = useRouter();
   const [pwdOpen, setPwdOpen] = useState(false);
@@ -41,18 +43,18 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
   const resetPwdForm = () => { setOldPwd(''); setNewPwd(''); setConfirmPwd(''); };
 
   const handleChangePassword = async () => {
-    if (!oldPwd || !newPwd || !confirmPwd) { toast.error('请填写所有字段'); return; }
-    if (newPwd === oldPwd) { toast.error('新密码不能与旧密码相同'); return; }
-    if (newPwd !== confirmPwd) { toast.error('两次输入的新密码不一致'); return; }
-    if (newPwd.length < 8) { toast.error('新密码至少 8 位，需含大小写字母和数字'); return; }
+    if (!oldPwd || !newPwd || !confirmPwd) { toast.error(t('account.fillAll')); return; }
+    if (newPwd === oldPwd) { toast.error(t('account.sameAsOld')); return; }
+    if (newPwd !== confirmPwd) { toast.error(t('account.mismatch')); return; }
+    if (newPwd.length < 8) { toast.error(t('account.tooShort')); return; }
     setPwdLoading(true);
     try {
       await changePassword(oldPwd, newPwd);
-      toast.success('密码修改成功');
+      toast.success(t('account.changeSuccess'));
       setPwdOpen(false);
       resetPwdForm();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '修改失败'));
+      toast.error(translateError(err, t, t('account.changeFailed')));
     } finally {
       setPwdLoading(false);
     }
@@ -63,7 +65,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
     if (ok) {
       router.push('/portal/chat');
     } else {
-      toast.warning(`账号「${account.realName || account.username}」已被冻结或失效，已自动移除`);
+      toast.warning(t('account.accountFrozen', { name: account.realName || account.username }));
       logout();
       router.push('/login');
     }
@@ -77,20 +79,20 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <IconButton variant="menu" aria-label="切换账号" className={className}>
+        <IconButton variant="menu" aria-label={t('account.switchTitle')} className={className}>
           <UserPlus size={18} />
-          {!iconOnly && '切换账号'}
+          {!iconOnly && t('account.switchTitle')}
         </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64 p-0">
         <div className="px-4 py-3 border-b border-[var(--color-divider-soft)]">
-          <p className="text-fine text-[var(--color-text-muted-48)]">切换账号</p>
+          <p className="text-fine text-[var(--color-text-muted-48)]">{t('account.switchTitle')}</p>
         </div>
 
         <div className="max-h-[280px] overflow-y-auto overscroll-behavior-contain">
           {accounts.length === 0 ? (
             <p className="px-4 py-6 text-caption text-[var(--color-text-muted-48)] text-center">
-              暂无历史账号
+              {t('account.noAccounts')}
             </p>
           ) : (
             accounts.map((a) => {
@@ -110,7 +112,7 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
                     </span>
                   </span>
                   <IconButton
-                    label={`移除 ${a.username}`}
+                    label={t('account.removeAccount', { name: a.username })}
                     danger
                     size="icon-sm"
                     onClick={(e: React.MouseEvent) => { e.stopPropagation(); removeAccount(a.username); }}
@@ -127,11 +129,11 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
         <div className="border-t border-[var(--color-divider-soft)]">
           <IconButton variant="menu" onClick={() => setPwdOpen(true)} className="w-full justify-start">
             <KeyRound size={18} />
-            修改密码
+            {t('account.changePassword')}
           </IconButton>
           <IconButton variant="menu" onClick={handleNewLogin} className="w-full justify-start font-semibold">
             <LogIn size={18} />
-            其他账号登录
+            {t('account.otherLogin')}
           </IconButton>
         </div>
       </DropdownMenuContent>
@@ -141,17 +143,17 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[15px]">
               <KeyRound size={18} />
-              修改密码
+              {t('account.changePassword')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Field label="旧密码" required><Input type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} autoComplete="current-password" disabled={pwdLoading} autoFocus /></Field>
-            <Field label="新密码" required><Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} placeholder="至少 8 位，含大小写字母和数字" /></Field>
-            <Field label="确认新密码" required><Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} /></Field>
+            <Field label={t('account.oldPassword')} required><Input type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} autoComplete="current-password" disabled={pwdLoading} autoFocus /></Field>
+            <Field label={t('account.newPassword')} required><Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} placeholder={t('account.passwordHint')} /></Field>
+            <Field label={t('account.confirmPassword')} required><Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} /></Field>
           </div>
           <DialogFooter className="flex-row justify-end gap-2">
-            <IconButton variant="ghost" size="sm" onClick={() => setPwdOpen(false)} disabled={pwdLoading}>取消</IconButton>
-            <IconButton size="sm" onClick={handleChangePassword} disabled={pwdLoading}>{pwdLoading ? <Loader2 className="animate-spin" size={14} /> : <KeyRound size={14} />}确认修改</IconButton>
+            <IconButton variant="ghost" size="sm" onClick={() => setPwdOpen(false)} disabled={pwdLoading}>{t('common.cancel')}</IconButton>
+            <IconButton size="sm" onClick={handleChangePassword} disabled={pwdLoading}>{pwdLoading ? <Loader2 className="animate-spin" size={14} /> : <KeyRound size={14} />}{t('account.confirmChange')}</IconButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

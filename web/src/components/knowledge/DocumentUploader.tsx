@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
@@ -8,7 +9,7 @@ import { uploadFileXHR, type UploadProgress } from '@/lib/api/upload';
 import { Progress } from '@/components/ui/progress';
 import { IconButton } from '@/components/ui/icon-button';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { UploadCloud, X, FileText, CheckCircle, XCircle, Loader2, Pencil, RotateCw, Trash2 } from 'lucide-react';
 
 /** 扩展名 → 类型归一化（jpeg 归一为 jpg）。 */
@@ -52,6 +53,7 @@ interface DocumentUploaderProps {
 
 /** DocumentUploader 知识库文档拖拽上传组件：dropzone + 文件列表 + 每文件独立进度 + 并发上传。 */
 export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
+  const t = useTranslations();
   const router = useRouter();
   const { data: config } = useSWR('upload-config', () => getUploadConfig());
 
@@ -81,12 +83,12 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
     // 单次最多 maxFiles 个：超出部分拒绝，避免后端 400 后整批失败
     const remaining = maxFiles - queue.filter((it) => it.state !== 'success').length;
     if (remaining <= 0) {
-      toast.error(`单次最多上传 ${maxFiles} 个文件`);
+      toast.error(t('kb.uploadMaxFiles', { count: maxFiles }));
       return;
     }
     const toAdd = accepted.slice(0, remaining);
     if (toAdd.length < accepted.length) {
-      toast.error(`已达 ${maxFiles} 个上限，仅添加前 ${toAdd.length} 个`);
+      toast.error(t('kb.uploadMaxReached', { max: maxFiles, added: toAdd.length }));
     }
     const items: QueueItem[] = [];
     for (const f of toAdd) {
@@ -95,21 +97,21 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
       const ext = dotIdx > 0 ? f.name.slice(dotIdx).toLowerCase() : '';
       const type = EXT_TO_TYPE[ext];
       if (!type || !allowedTypes.includes(type)) {
-        toast.error(`"${f.name}" 格式不支持`);
+        toast.error(t('kb.unsupportedFormat', { name: f.name }));
         continue;
       }
       if (f.size === 0) {
-        toast.error(`"${f.name}" 为空文件`);
+        toast.error(t('kb.emptyFile', { name: f.name }));
         continue;
       }
       if (f.size > maxBytes) {
-        toast.error(`"${f.name}" 超过 ${Math.floor(maxBytes / 1024 / 1024)}MB 限制`);
+        toast.error(t('kb.fileTooLarge', { name: f.name, max: Math.floor(maxBytes / 1024 / 1024) }));
         continue;
       }
       items.push({ id: uid(), file: f, type, state: 'pending', progress: 0 });
     }
     if (items.length) setQueue((prev) => [...prev, ...items]);
-  }, [allowedTypes, maxBytes, maxFiles, queue]);
+  }, [allowedTypes, maxBytes, maxFiles, queue, t]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, maxFiles });
 
@@ -135,12 +137,12 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
       if (doc?.success) {
         setItem(item.id, { state: 'success', progress: 100, articleId: doc.article_id });
       } else {
-        setItem(item.id, { state: 'failed', error: doc?.error_msg || '上传失败' });
+        setItem(item.id, { state: 'failed', error: doc?.error_msg || t('kb.uploadFailed') });
       }
     } catch (err) {
       // 取消（卸载）不算失败，静默；其余记为失败
       if (controller.signal.aborted) return;
-      setItem(item.id, { state: 'failed', error: errorMessage(err, '上传失败') });
+      setItem(item.id, { state: 'failed', error: translateError(err, t, t('kb.uploadFailed')) });
     } finally {
       setRetryingIds((prev) => {
         const next = new Set(prev);
@@ -149,7 +151,7 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
       });
       abortControllers.current = abortControllers.current.filter((c) => c !== controller);
     }
-  }, [kbId, tags, setItem]);
+  }, [kbId, tags, setItem, t]);
 
   const uploadAll = async () => {
     const pending = queue.filter((it) => it.state === 'pending');
@@ -179,10 +181,10 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
         <input {...getInputProps()} />
         <UploadCloud className="h-8 w-8 text-[var(--color-text-muted-48)]" />
         <p className="text-caption text-[var(--color-ink)]">
-          {isDragActive ? '释放以上传文件' : '拖拽文件到此处，或点击选择'}
+          {isDragActive ? t('kb.dropRelease') : t('kb.dropHint')}
         </p>
         <p className="text-fine text-[var(--color-text-muted-48)]">
-          支持 {allowedTypes.join(' / ').toUpperCase()}，单文件最大 {Math.floor(maxBytes / 1024 / 1024)}MB
+          {t('kb.uploadSupports', { types: allowedTypes.join(' / ').toUpperCase(), max: Math.floor(maxBytes / 1024 / 1024) })}
         </p>
       </div>
 
@@ -201,19 +203,19 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
                 {item.state === 'failed' && item.error && (
                   <p className="mt-1 truncate text-fine text-[var(--color-error)]">{item.error}</p>
                 )}
-                {item.state === 'success' && <p className="mt-1 text-fine text-[var(--color-success)]">上传成功</p>}
+                {item.state === 'success' && <p className="mt-1 text-fine text-[var(--color-success)]">{t('kb.uploadSuccess')}</p>}
               </div>
               {item.state === 'pending' && (
-                <IconButton label="移除" size="icon-sm" onClick={() => removeItem(item.id)}><X size={16} /></IconButton>
+                <IconButton label={t('common.remove')} size="icon-sm" onClick={() => removeItem(item.id)}><X size={16} /></IconButton>
               )}
               {item.state === 'failed' && (
                 <IconButton variant="ghost" size="sm" onClick={() => uploadOne(item)} disabled={uploading || retryingIds.has(item.id)}>
-                  {retryingIds.has(item.id) ? <Loader2 className="animate-spin" size={14} /> : <RotateCw size={14} />}重试
+                  {retryingIds.has(item.id) ? <Loader2 className="animate-spin" size={14} /> : <RotateCw size={14} />}{t('common.retry')}
                 </IconButton>
               )}
               {item.state === 'success' && item.articleId && (
                 <IconButton variant="ghost" size="sm" onClick={() => router.push(`/admin/knowledge/${kbId}/${item.articleId}?edit=1`)}>
-                  <Pencil size={14} />编辑
+                  <Pencil size={14} />{t('common.edit')}
                 </IconButton>
               )}
             </div>
@@ -226,9 +228,9 @@ export function DocumentUploader({ kbId, tags }: DocumentUploaderProps) {
         <div className="mt-4 flex gap-3">
           <IconButton onClick={uploadAll} disabled={!hasPending || uploading}>
             {uploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
-            {uploading ? '上传中...' : '开始上传'}
+            {uploading ? t('kb.uploading') : t('kb.startUpload')}
           </IconButton>
-          {!uploading && <IconButton variant="ghost" size="sm" onClick={() => setQueue([])}><Trash2 size={14} />清空</IconButton>}
+          {!uploading && <IconButton variant="ghost" size="sm" onClick={() => setQueue([])}><Trash2 size={14} />{t('kb.clear')}</IconButton>}
         </div>
       )}
     </div>

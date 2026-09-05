@@ -1,4 +1,8 @@
-/** API 客户端 — fetch 封装 + 统一错误处理 + 类型安全响应解包。 */
+/**
+ * API 客户端 —— fetch 封装 + 统一错误处理 + 类型安全响应解包。
+ * 客户端侧错误（网络/解析/鉴权）抛 ApiError 带 messageKey（error 命名空间全路径），
+ * 由展示层 translateError 按 locale 翻译；后端侧错误（json.message）无 messageKey，原样 pass-through。
+ */
 
 import type { ApiResponse, PageResponse } from './types';
 import { defaultTokenGetter, clearAuth } from '@/lib/token-store';
@@ -7,7 +11,7 @@ import { defaultTokenGetter, clearAuth } from '@/lib/token-store';
 // 开发时设 NEXT_PUBLIC_API_URL=http://localhost:8080 可直连后端（绕过 Next.js Turbopack POST 代理 500 问题）
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-// 模块级 token getter — 默认通过 token-store 读取 localStorage，
+// 模块级 token getter —— 默认通过 token-store 读取 localStorage，
 // AuthProvider 挂载后可通过 setTokenGetter 切换为 React state 驱动。
 let _tokenGetter: () => string | null = defaultTokenGetter;
 
@@ -19,30 +23,39 @@ export function setTokenGetter(getter: () => string | null) {
   _tokenGetter = getter;
 }
 
-/** 获取当前认证 token — 供 XHR 等非 fetch 通道复用 */
+/** 获取当前认证 token —— 供 XHR 等非 fetch 通道复用 */
 export function getAuthToken(): string | null {
   return _tokenGetter();
 }
 
-/** 获取 API base URL — 供 XHR 通道构建请求路径 */
+/** 获取 API base URL —— 供 XHR 通道构建请求路径 */
 export function getBaseUrl(): string {
   return BASE_URL;
 }
 
 export class ApiError extends Error {
+  /** 客户端侧错误的 i18n 键（全路径，如 error.authExpired）；后端错误无此字段。 */
+  messageKey?: string;
+  /** i18n 插值参数。 */
+  messageParams?: Record<string, string | number>;
+
   constructor(
     public code: number,
-    message: string
+    message: string,
+    messageKey?: string,
+    messageParams?: Record<string, string | number>
   ) {
     super(message);
     this.name = 'ApiError';
+    this.messageKey = messageKey;
+    this.messageParams = messageParams;
   }
 }
 
 /**
  * parseApiResponse 解析统一响应信封，处理 code!==0 与 token 过期。
  * fetch 通道（rawApiRequest）与 XHR 通道（upload.ts）共享，消除重复。
- * 成功返回 data，失败抛 ApiError。
+ * 成功返回 data，失败抛 ApiError（后端错误原样 message，客户端错误带 messageKey）。
  */
 export function parseApiResponse(json: Record<string, unknown>): unknown {
   if (json.code !== 0) {
@@ -52,9 +65,14 @@ export function parseApiResponse(json: Record<string, unknown>): unknown {
       document.cookie = 'access_token=; path=/; max-age=0';
       document.cookie = 'refresh_token=; path=/; max-age=0';
       window.location.href = '/login';
-      throw new ApiError(json.code as number, '登录已过期，请重新登录');
+      throw new ApiError(json.code as number, '登录已过期，请重新登录', 'error.authExpired');
     }
-    throw new ApiError(json.code as number, (json.message as string) || `请求失败 (code=${json.code})`);
+    // 后端有 message → 原样透传；无 message → 客户端兜底（带 messageKey 供翻译）
+    const backendMsg = json.message as string;
+    if (backendMsg) {
+      throw new ApiError(json.code as number, backendMsg);
+    }
+    throw new ApiError(json.code as number, `请求失败 (code=${json.code})`, 'error.requestFailed', { code: json.code as number });
   }
   return json.data;
 }
@@ -67,11 +85,12 @@ async function safeResJson(res: Response): Promise<unknown> {
   // 先尝试读取文本，避免 res.json() 在空响应体上抛错
   const text = await res.text();
   if (!text) {
+    const unreachable = res.status === 502 || res.status === 503;
     throw new ApiError(
       res.status,
-      res.status === 502 || res.status === 503
-        ? '后端服务不可达，请确认服务已启动（端口 8080）'
-        : `服务器返回空响应 (HTTP ${res.status})`
+      unreachable ? '后端服务不可达，请确认服务已启动（端口 8080）' : `服务器返回空响应 (HTTP ${res.status})`,
+      unreachable ? 'error.backendUnreachable' : 'error.emptyResponse',
+      unreachable ? undefined : { status: res.status }
     );
   }
   try {
@@ -79,7 +98,7 @@ async function safeResJson(res: Response): Promise<unknown> {
   } catch {
     // HTML 错误页或纯文本错误
     const preview = text.slice(0, 200).replace(/\n/g, ' ');
-    throw new ApiError(res.status, `服务器返回非 JSON 响应 (HTTP ${res.status}): ${preview}`);
+    throw new ApiError(res.status, `服务器返回非 JSON 响应 (HTTP ${res.status}): ${preview}`, 'error.nonJsonResponse', { status: res.status, preview });
   }
 }
 
@@ -104,11 +123,10 @@ async function rawApiRequest(url: string, options?: RequestInit): Promise<Record
   try {
     res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
   } catch (err) {
-    throw new Error(
-      err instanceof TypeError && err.message === 'Failed to fetch'
-        ? '后端服务不可达，请确认服务已启动（端口 8080）'
-        : err instanceof Error ? err.message : '网络请求失败'
-    );
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      throw new ApiError(0, '后端服务不可达，请确认服务已启动（端口 8080）', 'error.backendUnreachable');
+    }
+    throw new Error(err instanceof Error ? err.message : '网络请求失败');
   }
 
   const json = (await safeResJson(res)) as Record<string, unknown>;

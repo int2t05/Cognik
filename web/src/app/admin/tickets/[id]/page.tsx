@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   createKnowledgeCandidate,
   getAdminTicketDetail,
@@ -22,25 +23,25 @@ import { InlineError } from '@/components/shared/InlineError';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { Play, CheckCircle, XCircle, MessageSquare, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 
 type Action = 'start' | 'request_info' | 'resolve' | 'close';
 
-function actionLabel(action: string) {
-  const labels: Record<string, string> = {
-    create: '创建工单',
-    start: '开始处理',
-    request_info: '要求补充',
-    supplement: '补充信息',
-    resolve: '标记解决',
-    close: '关闭工单',
-    withdraw: '撤回工单',
-  };
-  return labels[action] || action;
-}
+/** 工单操作 → i18n 键（ticket.action.*）；未知操作原样显示 */
+const ACTION_KEYS: Record<string, string> = {
+  create: 'ticket.action.create',
+  start: 'ticket.action.start',
+  request_info: 'ticket.action.request_info',
+  supplement: 'ticket.action.supplement',
+  resolve: 'ticket.action.resolve',
+  close: 'ticket.action.close',
+  withdraw: 'ticket.action.withdraw',
+};
 
 export default function AdminTicketDetailPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const ticketID = Number(id);
   const router = useRouter();
@@ -50,20 +51,22 @@ export default function AdminTicketDetailPage() {
   const [processing, setProcessing] = useState(false);
   const [kbId, setKbId] = useState<number>(0);
 
+  const actionLabel = (action: string) => ACTION_KEYS[action] ? t(ACTION_KEYS[action]) : action;
+
   const handleAction = async (action: Action) => {
     if (action === 'request_info' && !actionResult.trim()) {
-      toast.error('请填写需要补充的信息');
+      toast.error(t('ticket.fillSupplementInfo'));
       return;
     }
 
     setProcessing(true);
     try {
       await updateTicketStatus(ticketID, action, actionResult || undefined);
-      toast.success('操作成功');
+      toast.success(t('common.operationSuccess'));
       setActionResult('');
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '操作失败'));
+      toast.error(translateError(err, t, t('common.operationFailed')));
     } finally {
       setProcessing(false);
     }
@@ -73,9 +76,9 @@ export default function AdminTicketDetailPage() {
     if (!kbId) return;
     try {
       await createKnowledgeCandidate(ticketID, kbId);
-      toast.success('已生成知识候选');
+      toast.success(t('ticket.knowledgeCandidateCreated'));
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '生成失败'));
+      toast.error(translateError(err, t, t('ticket.generateFailed')));
     }
   };
 
@@ -89,18 +92,18 @@ export default function AdminTicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <IconButton label="返回" onClick={() => router.push('/admin/tickets')}><ChevronLeft /></IconButton>
+        <IconButton label={t('common.back')} onClick={() => router.push('/admin/tickets')}><ChevronLeft /></IconButton>
         <PageTitle className="mb-0">{ticket.title}</PageTitle>
       </div>
       <div className="mb-5 flex items-center gap-3">
         <StatusBadge type="ticket" status={ticket.status} />
         <span className="text-caption text-[var(--color-text-muted-48)]">
-          {ticket.ticket_no} / 提交人 {ticket.submitter_name || '-'} / {formatDate(ticket.created_at)}
+          {ticket.ticket_no} · {t('ticket.submitter', { name: ticket.submitter_name || '-' })} · {formatDate(ticket.created_at, locale)}
         </span>
         {ticket.tags && ticket.tags.length > 0 && (
           <span className="flex flex-wrap gap-1">
-            {ticket.tags.map((t) => (
-              <Badge key={t} variant="neutral">{t}</Badge>
+            {ticket.tags.map((tag) => (
+              <Badge key={tag} variant="neutral">{tag}</Badge>
             ))}
           </span>
         )}
@@ -112,41 +115,41 @@ export default function AdminTicketDetailPage() {
 
       <div className="mb-5 flex flex-wrap gap-2">
         {ticket.status === 1 && (
-          <IconButton size="lg" disabled={processing} onClick={() => handleAction('start')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}开始处理</IconButton>
+          <IconButton size="lg" disabled={processing} onClick={() => handleAction('start')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}{t('ticket.action.start')}</IconButton>
         )}
         {ticket.status === 2 && (
           <>
-            <IconButton size="lg" disabled={processing} onClick={() => handleAction('resolve')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}标记解决</IconButton>
-            <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction('request_info')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <MessageSquare size={16} />}索要补充</IconButton>
+            <IconButton size="lg" disabled={processing} onClick={() => handleAction('resolve')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}{t('ticket.action.resolve')}</IconButton>
+            <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction('request_info')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <MessageSquare size={16} />}{t('ticket.requestInfoBtn')}</IconButton>
           </>
         )}
         {(ticket.status === 1 || ticket.status === 2 || ticket.status === 3) && (
-          <IconButton variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}关闭工单</IconButton>
+          <IconButton variant="destructive" size="lg" disabled={processing} onClick={() => handleAction('close')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}{t('ticket.action.close')}</IconButton>
         )}
       </div>
 
       {ticket.status === 2 && (
         <Card className="mb-4">
-          <Field label="处理说明">
+          <Field label={t('ticket.processNote')}>
             <Textarea
               value={actionResult}
               onChange={(e) => setActionResult(e.target.value)}
               rows={2}
-              placeholder="可选：填写处理结果；索要补充时必填"
+              placeholder={t('ticket.processNotePlaceholder')}
             />
           </Field>
         </Card>
       )}
 
       <Card className="mb-5">
-        <h2 className="mb-3 text-title font-semibold">生成知识候选</h2>
+        <h2 className="mb-3 text-title font-semibold">{t('ticket.generateKnowledgeCandidate')}</h2>
         <div className="flex items-end gap-3">
           <Select value={String(kbId)} onValueChange={(v) => setKbId(Number(v))}>
-            <SelectTrigger aria-label="选择知识库" className="rounded-[var(--radius-pill)]">
-              <SelectValue placeholder="选择知识库..." />
+            <SelectTrigger aria-label={t('ticket.selectKb')} className="rounded-[var(--radius-pill)]">
+              <SelectValue placeholder={t('ticket.selectKb')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">选择知识库...</SelectItem>
+              <SelectItem value="0">{t('ticket.selectKb')}</SelectItem>
               {(kbs || []).map((kb) => (
                 <SelectItem key={kb.id} value={String(kb.id)}>
                   {kb.name}
@@ -154,17 +157,17 @@ export default function AdminTicketDetailPage() {
               ))}
             </SelectContent>
           </Select>
-          <IconButton variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />生成</IconButton>
+          <IconButton variant="ghost" size="sm" disabled={!kbId} onClick={handleCreateKnowledgeCandidate}><Sparkles size={16} />{t('ticket.generate')}</IconButton>
         </div>
       </Card>
 
       {ticket.records && ticket.records.length > 0 && (
         <Card>
-          <h2 className="mb-3 text-title font-semibold">处理记录</h2>
+          <h2 className="mb-3 text-title font-semibold">{t('ticket.records')}</h2>
           {ticket.records.map((record) => (
             <div key={record.id} className="border-b border-[var(--color-divider-soft)] py-2 last:border-b-0">
               <span className="text-caption font-semibold">{actionLabel(record.action)}</span>
-              <span className="ml-3 text-fine text-[var(--color-text-muted-48)]">{formatDate(record.created_at)}</span>
+              <span className="ml-3 text-fine text-[var(--color-text-muted-48)]">{formatDate(record.created_at, locale)}</span>
               <p className="mt-1 text-caption">{record.content}</p>
             </div>
           ))}

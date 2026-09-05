@@ -5,6 +5,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { IconButton } from '@/components/ui/icon-button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Square, Loader2, ListPlus } from 'lucide-react';
@@ -23,6 +24,7 @@ interface ChatInputProps {
 
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
   ({ value, onChange, onSend, onStop, disabled, loading, streaming, queueCount = 0, placeholder }, ref) => {
+    const t = useTranslations();
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Alt+Enter / Shift+Enter / Ctrl+Enter 换行；Enter 发送（streaming 时进队列）
       if (e.key === 'Enter') {
@@ -52,14 +54,14 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={streaming ? '输入消息加入队列…' : placeholder}
+              placeholder={streaming ? t('chat.queueInputPlaceholder') : placeholder}
               disabled={disabled}
-              aria-label="输入消息"
+              aria-label={t('chat.inputAria')}
               rows={1}
               className="min-h-11 max-h-40 field-sizing-content py-2.5 pl-5 pr-20 text-body rounded-[var(--radius-lg)] border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-ink)] resize-none"
             />
             <span className="absolute right-4 top-3 text-fine text-[var(--color-text-muted-48)] pointer-events-none select-none">
-              ⏎ 发送 · ⇧⏎ 换行
+              {t('chat.sendHint')}
             </span>
           </div>
           {/* 队列指示 */}
@@ -70,9 +72,9 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
             </span>
           )}
           {streaming ? (
-            <IconButton label="停止生成" danger onClick={onStop}><Square /></IconButton>
+            <IconButton label={t('chat.stop')} danger onClick={onStop}><Square /></IconButton>
           ) : (
-            <IconButton label="发送" disabled={!value.trim() || disabled || loading} onClick={onSend}>{loading ? <Loader2 className="animate-spin" /> : <Send />}</IconButton>
+            <IconButton label={t('chat.send')} disabled={!value.trim() || disabled || loading} onClick={onSend}>{loading ? <Loader2 className="animate-spin" /> : <Send />}</IconButton>
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { getTicketDetail, supplementTicket, updateTicket, withdrawTicket } from '@/lib/api/ticket';
 import { IconButton } from '@/components/ui/icon-button';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -15,7 +16,7 @@ import { InlineError } from '@/components/shared/InlineError';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { useState } from 'react';
 import { ChevronLeft, Send, Pencil, Save, Loader2, Ban } from 'lucide-react';
 
@@ -26,6 +27,8 @@ const TICKET_STATUS_NEED_SUPPLEMENT = 3;
 const canEdit = (status: number) => status === 1 || status === 2;
 
 export default function TicketDetailPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: ticket, error, mutate } = useSWR(`portal-ticket-${id}`, () => getTicketDetail(Number(id)));
@@ -44,11 +47,11 @@ export default function TicketDetailPage() {
     setSending(true);
     try {
       await supplementTicket(Number(id), supplement);
-      toast.success('补充信息已提交');
+      toast.success(t('ticket.supplementSent'));
       setSupplement('');
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '提交失败'));
+      toast.error(translateError(err, t, t('ticket.submitFailed')));
     } finally { setSending(false); }
   };
 
@@ -63,7 +66,7 @@ export default function TicketDetailPage() {
   };
 
   const handleSave = async () => {
-    if (!editTitle.trim()) { toast.error('标题不能为空'); return; }
+    if (!editTitle.trim()) { toast.error(t('ticket.titleRequired')); return; }
     setSending(true);
     try {
       const tagList = editTags.split(',').map((s) => s.trim()).filter(Boolean);
@@ -74,11 +77,11 @@ export default function TicketDetailPage() {
         contact_phone: editPhone,
         contact_email: editEmail,
       });
-      toast.success('工单已更新');
+      toast.success(t('ticket.updated'));
       setEditing(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '更新失败'));
+      toast.error(translateError(err, t, t('ticket.updateFailed')));
     } finally { setSending(false); }
   };
 
@@ -89,11 +92,11 @@ export default function TicketDetailPage() {
     setSending(true);
     try {
       await withdrawTicket(Number(id));
-      toast.success('已撤回工单');
+      toast.success(t('ticket.withdrawn'));
       setWithdrawConfirm(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '撤回失败'));
+      toast.error(translateError(err, t, t('ticket.withdrawFailed')));
     } finally { setSending(false); }
   };
 
@@ -103,23 +106,23 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-content">
       <div className="flex items-center gap-3 mb-5">
-        <IconButton label="返回" onClick={() => router.push('/portal/tickets')}><ChevronLeft /></IconButton>
+        <IconButton label={t('common.back')} onClick={() => router.push('/portal/tickets')}><ChevronLeft /></IconButton>
         {canEdit(ticket.status) && (
-          <IconButton label={editing ? '保存' : '编辑'} disabled={sending} onClick={toggleEdit}>{sending ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>
+          <IconButton label={editing ? t('common.save') : t('common.edit')} disabled={sending} onClick={toggleEdit}>{sending ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>
         )}
         {ticket.status === 1 && (
-          <IconButton label="撤回" danger disabled={sending} onClick={() => setWithdrawConfirm(true)}><Ban /></IconButton>
+          <IconButton label={t('ticket.withdraw')} danger disabled={sending} onClick={() => setWithdrawConfirm(true)}><Ban /></IconButton>
         )}
       </div>
 
       {editing ? (
         <Card className="mb-5">
-          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">编辑工单</h2>
-          <Field label="标题"><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="工单标题" /></Field>
-          <Field label="详细描述"><Textarea rows={5} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="详细描述" /></Field>
-          <Field label="标签（逗号分隔）"><Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="如：网络,邮箱,VPN" /></Field>
-          <Field label="联系电话"><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="联系电话" /></Field>
-          <Field label="联系邮箱"><Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="选填" /></Field>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('ticket.editTitle')}</h2>
+          <Field label={t('ticket.titleLabel')}><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder={t('ticket.titleLabel')} /></Field>
+          <Field label={t('ticket.descriptionLabel')}><Textarea rows={5} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder={t('ticket.descriptionLabel')} /></Field>
+          <Field label={t('ticket.tagsLabel')}><Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder={t('ticket.tagsPlaceholder')} /></Field>
+          <Field label={t('ticket.phoneLabel')}><Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder={t('ticket.phoneLabel')} /></Field>
+          <Field label={t('ticket.emailLabel')}><Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t('ticket.emailPlaceholder')} /></Field>
         </Card>
       ) : (
         <>
@@ -127,29 +130,29 @@ export default function TicketDetailPage() {
           <div className="flex gap-3 mb-5 items-center flex-wrap">
             <StatusBadge type="ticket" status={ticket.status} />
             <span className="text-caption text-[var(--color-text-muted-48)]">{ticket.ticket_no}</span>
-            <span className="text-caption text-[var(--color-text-muted-48)]">提交于 {formatDate(ticket.created_at)}</span>
+            <span className="text-caption text-[var(--color-text-muted-48)]">{t('ticket.submittedAt', { date: formatDate(ticket.created_at, locale) })}</span>
             {ticket.tags && ticket.tags.length > 0 && (
               <span className="flex flex-wrap gap-1">
-                {ticket.tags.map((t) => (
-                  <Badge key={t} variant="neutral">{t}</Badge>
+                {ticket.tags.map((tag) => (
+                  <Badge key={tag} variant="neutral">{tag}</Badge>
                 ))}
               </span>
             )}
           </div>
 
           <Card className="mb-5">
-            <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题描述</h2>
+            <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('ticket.issueDesc')}</h2>
             <Markdown content={ticket.description} />
           </Card>
 
           {ticket.records && ticket.records.length > 0 && (
             <Card className="mb-5">
-              <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">处理记录</h2>
+              <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('ticket.records')}</h2>
               {ticket.records.map((r) => (
                 <div key={r.id} className="py-3 border-b border-[var(--color-divider-soft)] last:border-b-0">
                   <div className="flex justify-between mb-1">
                     <span className="text-caption font-semibold text-[var(--color-text-muted-80)]">{r.action}</span>
-                    <span className="text-fine text-[var(--color-text-muted-48)]">{formatDate(r.created_at)}</span>
+                    <span className="text-fine text-[var(--color-text-muted-48)]">{formatDate(r.created_at, locale)}</span>
                   </div>
                   <p className="text-caption text-[var(--color-ink)]">{r.content}</p>
                 </div>
@@ -159,9 +162,9 @@ export default function TicketDetailPage() {
 
           {ticket.status === TICKET_STATUS_NEED_SUPPLEMENT && (
             <Card>
-              <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">补充信息</h2>
-              <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder="请提供团队成员需要的补充信息..." />
-              <IconButton size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}提交</IconButton>
+              <h2 className="text-title font-semibold mb-3 text-[var(--color-ink)]">{t('ticket.supplementInfo')}</h2>
+              <Textarea value={supplement} onChange={(e) => setSupplement(e.target.value)} rows={3} placeholder={t('ticket.supplementPlaceholder')} />
+              <IconButton size="sm" disabled={sending} onClick={handleSupplement}>{sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}{t('common.submit')}</IconButton>
             </Card>
           )}
         </>
@@ -169,9 +172,9 @@ export default function TicketDetailPage() {
       <ConfirmDialog
         open={withdrawConfirm}
         onOpenChange={setWithdrawConfirm}
-        title="撤回工单"
-        message="撤回后工单将不再处理，此操作不可撤销。确定要撤回吗？"
-        confirmLabel="撤回"
+        title={t('ticket.withdraw')}
+        message={t('ticket.withdrawMessage')}
+        confirmLabel={t('ticket.withdraw')}
         onConfirm={handleWithdraw}
         loading={sending}
         danger

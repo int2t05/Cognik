@@ -1,14 +1,16 @@
 'use client';
-// AppShell — 统一 Shell：顶栏（品牌 + 内联全局搜索 + 主题 + 账号）+ 可折叠侧栏（分区 nav）+ main。
+// AppShell — 统一 Shell：顶栏（品牌 + 内联全局搜索 + 主题 + 语言 + 账号）+ 可折叠侧栏（分区 nav）+ main。
 // 搜索框内联下拉即时结果（导航项 + 快捷操作过滤），非独立弹窗。
 // Portal/Admin 共用：管理员分区由调用方通过 nav 传入（权限判断在 layout 层）。
 import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useTheme } from '@/hooks/useTheme';
 import { useConfigValue } from '@/hooks/useAppConfig';
 import { SectionErrorBoundary } from '@/components/ErrorBoundary';
 import { AccountSwitcher } from '@/components/shared/AccountSwitcher';
+import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -83,6 +85,7 @@ function useIsClient(): boolean {
 }
 
 export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded = true, children }: AppShellProps) {
+  const t = useTranslations();
   const { theme, toggleTheme } = useTheme();
   const { value: appName } = useConfigValue('app_name');
   const pathname = usePathname();
@@ -144,7 +147,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
             <Image src={theme === 'dark' ? '/icon-dark.svg' : '/icon-light.svg'} alt="" width={28} height={28} className="shrink-0" />
             {!collapsed && <span className="text-title font-semibold text-[var(--color-ink)] truncate">{appName || 'Cognos'}</span>}
           </div>
-          <nav className="flex-1 py-2 overflow-y-auto overscroll-behavior-contain" aria-label="主导航">
+          <nav className="flex-1 py-2 overflow-y-auto overscroll-behavior-contain" aria-label={t('nav.mainAria')}>
             {nav.map((section, idx) => (
               <div key={section.heading || `s${idx}`}>
                 {!collapsed && section.heading && (
@@ -161,7 +164,7 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
       <div className="flex-1 flex flex-col min-w-0 transition-[margin-left] duration-[250ms]" style={{ marginLeft: sidebarWidth }}>
         <header className="h-[var(--header-height)] flex items-center gap-4 px-5 bg-[var(--color-canvas)]/80 border-b border-[var(--color-hairline)] sticky top-0 z-[var(--z-nav)] backdrop-blur-xl">
           {sidebarVisible && (
-            <IconButton label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight /> : <ChevronLeft />}</IconButton>
+            <IconButton label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight /> : <ChevronLeft />}</IconButton>
           )}
           <span className="text-callout font-semibold text-[var(--color-ink)] shrink-0">{appName || 'Cognos'}</span>
           <GlobalSearch nav={nav} crossLink={crossLink} toggleTheme={toggleTheme} />
@@ -169,7 +172,8 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
           {crossLink && (
             <IconButton label={crossLink.label} onClick={() => router.push(crossLink.path)}>{crossLink.icon}</IconButton>
           )}
-          <IconButton label={theme === 'dark' ? '切换浅色模式' : '切换暗色模式'} onClick={toggleTheme}>{theme === 'dark' ? <Sun /> : <Moon />}</IconButton>
+          <IconButton label={theme === 'dark' ? t('theme.toggleLight') : t('theme.toggleDark')} onClick={toggleTheme}>{theme === 'dark' ? <Sun /> : <Moon />}</IconButton>
+          <LocaleSwitcher />
           {isClient && <AccountSwitcher />}
         </header>
         {subbar && (
@@ -187,10 +191,12 @@ export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded =
 
 /** GlobalSearch — 顶栏内联搜索。输入即时过滤导航项 + 快捷操作，下拉展示结果。 */
 function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; crossLink?: { label: string; path: string; icon: ReactNode }; toggleTheme: () => void }) {
+  const t = useTranslations();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const toggleThemeLabel = t('theme.toggle');
 
   // ⌘K 聚焦搜索框
   useEffect(() => {
@@ -225,10 +231,10 @@ function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; cros
     }
     const matchedNav = navItems.filter((i) => i.label.toLowerCase().includes(q)).slice(0, 6);
     const matchedActions: { label: string; icon?: ReactNode; path?: string; onSelect?: () => void }[] = [];
-    if ('切换主题'.includes(q) || 'theme'.includes(q)) matchedActions.push({ label: '切换主题', icon: <Moon size={14} />, onSelect: toggleTheme });
+    if (toggleThemeLabel.toLowerCase().includes(q) || 'theme'.includes(q)) matchedActions.push({ label: toggleThemeLabel, icon: <Moon size={14} />, onSelect: toggleTheme });
     if (crossLink && crossLink.label.toLowerCase().includes(q)) matchedActions.push({ label: crossLink.label, icon: crossLink.icon, path: crossLink.path });
     return { nav: matchedNav, actions: matchedActions };
-  }, [query, nav, crossLink, toggleTheme]);
+  }, [query, nav, crossLink, toggleTheme, toggleThemeLabel]);
 
   const hasResults = results.nav.length > 0 || results.actions.length > 0;
 
@@ -239,20 +245,20 @@ function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; cros
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="搜索页面…"
+        placeholder={t('nav.searchPlaceholder')}
         className="h-8 text-fine pl-9 pr-12 rounded-[var(--radius-md)] bg-[var(--color-tile-1)] border-[var(--color-hairline)]"
-        aria-label="全局搜索"
+        aria-label={t('nav.searchAria')}
       />
       <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-fine bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded px-1.5 py-0.5 text-[var(--color-text-muted-48)] pointer-events-none">⌘K</kbd>
       {open && query.trim() && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-canvas)] rounded-[var(--radius-md)] border border-[var(--color-hairline)] shadow-[var(--shadow-dialog)] z-[var(--z-overlay)] overflow-hidden">
           {!hasResults ? (
-            <div className="px-4 py-6 text-center text-fine text-[var(--color-text-muted-48)]">无匹配结果</div>
+            <div className="px-4 py-6 text-center text-fine text-[var(--color-text-muted-48)]">{t('nav.noResults')}</div>
           ) : (
             <>
               {results.nav.length > 0 && (
                 <div className="py-1">
-                  <div className="px-3 py-1 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide">导航</div>
+                  <div className="px-3 py-1 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide">{t('nav.section')}</div>
                   {results.nav.map((r) => (
                     <button
                       key={r.path}
@@ -268,7 +274,7 @@ function GlobalSearch({ nav, crossLink, toggleTheme }: { nav: NavSection[]; cros
               )}
               {results.actions.length > 0 && (
                 <div className="py-1 border-t border-[var(--color-divider-soft)]">
-                  <div className="px-3 py-1 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide">快捷操作</div>
+                  <div className="px-3 py-1 text-fine text-[var(--color-text-muted-48)] uppercase tracking-wide">{t('nav.quickActions')}</div>
                   {results.actions.map((a) => (
                     <button
                       key={a.label}

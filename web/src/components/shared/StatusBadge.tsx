@@ -1,4 +1,7 @@
 /** StatusBadge — 领域状态标签。将领域状态码映射为 Badge 语义变体，图标+颜色双重编码。 */
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, AlertTriangle, XCircle, Info, Minus } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -13,39 +16,39 @@ const BADGE_ICONS: Record<BadgeVariant, ReactNode> = {
   neutral: <Minus size={12} />,
 };
 
-const TICKET_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
-  1: { label: '待处理', variant: 'warning' },
-  2: { label: '处理中', variant: 'info' },
-  3: { label: '需补充', variant: 'error' },
-  4: { label: '已解决', variant: 'success' },
-  5: { label: '已关闭', variant: 'neutral' },
-  6: { label: '已撤回', variant: 'neutral' },
+const TICKET_STATUS: Record<number, { labelKey: string; variant: BadgeVariant }> = {
+  1: { labelKey: 'status.ticket.pending', variant: 'warning' },
+  2: { labelKey: 'status.ticket.processing', variant: 'info' },
+  3: { labelKey: 'status.ticket.needInfo', variant: 'error' },
+  4: { labelKey: 'status.ticket.resolved', variant: 'success' },
+  5: { labelKey: 'status.ticket.closed', variant: 'neutral' },
+  6: { labelKey: 'status.ticket.withdrawn', variant: 'neutral' },
 };
 
-const USER_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
-  1: { label: '正常', variant: 'success' },
-  2: { label: '已冻结', variant: 'error' },
+const USER_STATUS: Record<number, { labelKey: string; variant: BadgeVariant }> = {
+  1: { labelKey: 'status.user.active', variant: 'success' },
+  2: { labelKey: 'status.user.frozen', variant: 'error' },
 };
 
-const ARTICLE_STATUS: Record<number, { label: string; variant: BadgeVariant }> = {
-  0: { label: '已停用', variant: 'neutral' },
-  1: { label: '草稿', variant: 'neutral' },
-  2: { label: '待审核', variant: 'warning' },
-  3: { label: '已通过', variant: 'info' },
-  4: { label: '已发布', variant: 'success' },
-  5: { label: '已驳回', variant: 'error' },
+const ARTICLE_STATUS: Record<number, { labelKey: string; variant: BadgeVariant }> = {
+  0: { labelKey: 'status.article.disabled', variant: 'neutral' },
+  1: { labelKey: 'status.article.draft', variant: 'neutral' },
+  2: { labelKey: 'status.article.pending', variant: 'warning' },
+  3: { labelKey: 'status.article.approved', variant: 'info' },
+  4: { labelKey: 'status.article.published', variant: 'success' },
+  5: { labelKey: 'status.article.rejected', variant: 'error' },
 };
 
-const PROCESS_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
-  pending: { label: '等待中', variant: 'neutral' },
-  processing: { label: '处理中', variant: 'info' },
-  parsing: { label: '解析中', variant: 'info' },
-  chunking: { label: '分块中', variant: 'info' },
-  embedding: { label: '向量化', variant: 'info' },
-  indexing: { label: '索引中', variant: 'info' },
-  completed: { label: '已完成', variant: 'success' },
-  failed: { label: '失败', variant: 'error' },
-  disabled: { label: '已停用', variant: 'neutral' },
+const PROCESS_STATUS: Record<string, { labelKey: string; variant: BadgeVariant }> = {
+  pending: { labelKey: 'status.process.pending', variant: 'neutral' },
+  processing: { labelKey: 'status.process.processing', variant: 'info' },
+  parsing: { labelKey: 'status.process.parsing', variant: 'info' },
+  chunking: { labelKey: 'status.process.chunking', variant: 'info' },
+  embedding: { labelKey: 'status.process.embedding', variant: 'info' },
+  indexing: { labelKey: 'status.process.indexing', variant: 'info' },
+  completed: { labelKey: 'status.process.completed', variant: 'success' },
+  failed: { labelKey: 'status.process.failed', variant: 'error' },
+  disabled: { labelKey: 'status.process.disabled', variant: 'neutral' },
 };
 
 interface StatusBadgeProps {
@@ -54,7 +57,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ type, status }: StatusBadgeProps) {
-  let entry: { label: string; variant: BadgeVariant } | undefined;
+  const t = useTranslations();
+  let entry: { labelKey: string; variant: BadgeVariant } | undefined;
   switch (type) {
     case 'ticket': entry = TICKET_STATUS[status as number]; break;
     case 'user': entry = USER_STATUS[status as number]; break;
@@ -67,7 +71,7 @@ export function StatusBadge({ type, status }: StatusBadgeProps) {
   return (
     <Badge variant={entry.variant}>
       {BADGE_ICONS[entry.variant]}
-      {entry.label}
+      {t(entry.labelKey)}
     </Badge>
   );
 }

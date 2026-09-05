@@ -14,9 +14,11 @@ afterEach(() => {
 });
 
 function mockResponse(status: number, body: unknown) {
+  const bodyStr = JSON.stringify(body);
   mockFetch.mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
+    text: () => Promise.resolve(bodyStr),
     json: () => Promise.resolve(body),
   });
 }
@@ -83,6 +85,6 @@ describe('apiFetchPage', () => {
     // 确认返回的是类型安全的 PageResponse，不含原始外层字段
     expect(result).not.toHaveProperty('code');
     expect(result).not.toHaveProperty('message');
-    expect(result.items).toBe(items);
+    expect(result.items).toEqual(items);
   });
 });

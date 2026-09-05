@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { getArticle, updateArticle, submitReview, reviewArticle, publishArticle, disableArticle, enableArticle, deleteArticle } from '@/lib/api/knowledge';
 import { uploadAsset } from '@/lib/api/upload';
 import { IconButton } from '@/components/ui/icon-button';
@@ -19,7 +20,7 @@ import { InlineError } from '@/components/shared/InlineError';
 import { useTheme } from '@/hooks/useTheme';
 import { formatDate } from '@/lib/date';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { ChevronLeft, Pencil, Save, Send, CheckCircle, XCircle, Rocket, Pause, Play, RotateCw, Trash2, Loader2 } from 'lucide-react';
 
 // MDEditor 懒加载（代码分割 + 避免 SSR）
@@ -31,6 +32,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 
 export default function ArticleEditPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const { kbId, articleId } = useParams<{ kbId: string; articleId: string }>();
   const router = useRouter();
   const { theme } = useTheme();
@@ -60,13 +63,13 @@ export default function ArticleEditPage() {
   const handleSave = async () => {
     setEditSaving(true);
     try {
-      const tagList = tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+      const tagList = tags.split(',').map((tag: string) => tag.trim()).filter(Boolean);
       await updateArticle(Number(articleId), { title, content, tags: tagList });
-      toast.success('已更新');
+      toast.success(t('common.updated'));
       setEditing(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '更新失败'));
+      toast.error(translateError(err, t, t('common.updateFailed')));
     } finally {
       setEditSaving(false);
     }
@@ -89,18 +92,23 @@ export default function ArticleEditPage() {
           const { url } = await uploadAsset(file);
           const md = `![${file.name}](${url})`;
           setContent((prev) => prev + (prev && !prev.endsWith('\n') ? '\n' : '') + md);
-          toast.success('图片已插入');
+          toast.success(t('kb.imageInserted'));
         } catch (err) {
-          toast.error(errorMessage(err, '图片上传失败'));
+          toast.error(translateError(err, t, t('kb.imageUploadFailed')));
         } finally {
           setUploadingImg(false);
         }
         break;
       }
     }
-  }, []);
+  }, [t]);
 
-  const handleAction = async (fn: () => Promise<unknown>, successMsg = '操作成功') => { setProcessing(true); try { await fn(); toast.success(successMsg); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); } finally { setProcessing(false); } };
+  const handleAction = async (fn: () => Promise<unknown>, successMsg: string) => {
+    setProcessing(true);
+    try { await fn(); toast.success(successMsg); mutate(); }
+    catch (err: unknown) { toast.error(translateError(err, t, t('common.operationFailed'))); }
+    finally { setProcessing(false); }
+  };
 
   // 上传后 ?edit=1 → 自动进入编辑模式（微任务延迟避免 effect 内同步 setState）
   useEffect(() => {
@@ -131,46 +139,46 @@ export default function ArticleEditPage() {
       <div className="flex justify-between items-center mb-5">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <IconButton label="返回" onClick={() => router.push(`/admin/knowledge/${kbId}`)}><ChevronLeft /></IconButton>
+            <IconButton label={t('common.back')} onClick={() => router.push(`/admin/knowledge/${kbId}`)}><ChevronLeft /></IconButton>
             <PageTitle className="mb-0">{article.title}</PageTitle>
           </div>
           <div className="flex gap-2">
             <StatusBadge type="article" status={article.status} />
             {article.process_status && <StatusBadge type="process" status={article.process_status} />}
-            <span className="text-caption text-[var(--color-text-muted-48)]">创建者: {article.created_by_name} · {formatDate(article.created_at)}</span>
+            <span className="text-caption text-[var(--color-text-muted-48)]">{t('kb.creator', { name: article.created_by_name })} · {formatDate(article.created_at, locale)}</span>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          {article.status === 1 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), '已提交审核')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交审核</IconButton>}
-          {article.status === 2 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), '审核已通过')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}通过</IconButton><IconButton variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), '已驳回'); else toast.error('驳回时需填写理由'); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}驳回</IconButton></>}
-          {article.status === 3 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '已发布')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}发布</IconButton>{article.process_status === 'failed' && <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, '正在重试发布')}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}重试发布</IconButton>}</>}
-          {article.status === 4 && <IconButton variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}停用</IconButton>}
-          {article.status === 0 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); }, '已启用')}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}启用</IconButton>}
+          {article.status === 1 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(() => submitReview(Number(articleId)), t('kb.reviewSubmitted'))}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}{t('kb.submitReview')}</IconButton>}
+          {article.status === 2 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(() => reviewArticle(Number(articleId), true), t('kb.approved'))}>{processing ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}{t('kb.approve')}</IconButton><IconButton variant="ghost" size="sm" disabled={processing} onClick={() => { if (reviewComment.trim()) handleAction(() => reviewArticle(Number(articleId), false, reviewComment), t('kb.rejected')); else toast.error(t('kb.rejectReasonRequired')); }}>{processing ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}{t('kb.reject')}</IconButton></>}
+          {article.status === 3 && <><IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, t('kb.published'))}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}{t('kb.publish')}</IconButton>{article.process_status === 'failed' && <IconButton variant="ghost" size="sm" disabled={processing} onClick={() => handleAction(async () => { await publishArticle(Number(articleId)); }, t('kb.retrying'))}>{processing ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}{t('kb.retryPublish')}</IconButton>}</>}
+          {article.status === 4 && <IconButton variant="secondary" size="sm" disabled={processing} onClick={() => setDisableConfirm(true)}>{processing ? <Loader2 className="animate-spin" size={16} /> : <Pause size={16} />}{t('kb.disable')}</IconButton>}
+          {article.status === 0 && <IconButton size="lg" disabled={processing} onClick={() => handleAction(async () => { await enableArticle(Number(articleId)); }, t('kb.enabled'))}>{processing ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}{t('kb.enable')}</IconButton>}
           {[0, 1, 2, 3, 4].includes(article.status) && <Separator orientation="vertical" className="h-6" />}
-          {(article.status === 0 || article.status === 1 || article.status === 5) && <IconButton label={editing ? '保存' : '编辑'} disabled={editSaving} onClick={toggleEdit}>{editSaving ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>}
-          <IconButton label="删除" danger onClick={() => setDeleteTarget(true)}><Trash2 /></IconButton>
+          {(article.status === 0 || article.status === 1 || article.status === 5) && <IconButton label={editing ? t('common.save') : t('common.edit')} disabled={editSaving} onClick={toggleEdit}>{editSaving ? <Loader2 className="animate-spin" /> : editing ? <Save /> : <Pencil />}</IconButton>}
+          <IconButton label={t('common.delete')} danger onClick={() => setDeleteTarget(true)}><Trash2 /></IconButton>
         </div>
       </div>
 
-      {article.status === 2 && <Card className="mb-4"><Field label="驳回理由（驳回时必填）"><Input value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></Field></Card>}
+      {article.status === 2 && <Card className="mb-4"><Field label={t('kb.rejectReasonLabel')}><Input value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></Field></Card>}
 
       {editing ? (
         <Card className="mb-4">
-          <Field label="标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="正文" required>
+          <Field label={t('kb.fieldTitle')} required><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label={t('kb.fieldContent')} required>
             <div data-color-mode={theme} onPaste={handlePaste} className="relative">
-              {uploadingImg && <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-[var(--radius-md)] bg-[var(--color-canvas)] px-2 py-1 text-fine"><Loader2 className="animate-spin" size={12} />上传图片…</div>}
+              {uploadingImg && <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-[var(--radius-md)] bg-[var(--color-canvas)] px-2 py-1 text-fine"><Loader2 className="animate-spin" size={12} />{t('kb.uploadingImage')}</div>}
               <MDEditor value={content} onChange={(v) => setContent(v || '')} height={600} preview="live" enableScroll={false}
                 previewOptions={{ remarkPlugins: [remarkGfm, remarkMath], rehypePlugins: [rehypeRaw, rehypeKatex, rehypeHighlight] }} />
             </div>
           </Field>
-          <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：VPN,密码,自助" /></Field>
+          <Field label={t('kb.fieldTagsShort')}><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('kb.tagsPlaceholder')} /></Field>
         </Card>
       ) : (
         <Card className="mb-4">
-          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">正文</h2>
-          {article.content ? <Markdown content={article.content} /> : <div className="text-body text-[var(--color-text-muted-48)]">(无内容)</div>}
-          {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((t) => <Badge key={t} variant="neutral">{t}</Badge>)}</div>}
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('kb.contentTitle')}</h2>
+          {article.content ? <Markdown content={article.content} /> : <div className="text-body text-[var(--color-text-muted-48)]">{t('kb.noContent')}</div>}
+          {article.tags && article.tags.length > 0 && <div className="mt-4 flex gap-1.5 flex-wrap">{article.tags.map((tag) => <Badge key={tag} variant="neutral">{tag}</Badge>)}</div>}
         </Card>
       )}
 
@@ -179,10 +187,10 @@ export default function ArticleEditPage() {
           <div className="flex items-start gap-3">
             <XCircle size={18} className="text-[var(--color-error)] shrink-0 mt-0.5" />
             <div>
-              <p className="text-caption font-semibold text-[var(--color-error)] mb-1">发布失败</p>
-              <p className="text-caption text-[var(--color-text-muted-80)]">{article.process_error || '未知错误'}</p>
+              <p className="text-caption font-semibold text-[var(--color-error)] mb-1">{t('kb.publishFailed')}</p>
+              <p className="text-caption text-[var(--color-text-muted-80)]">{article.process_error || t('kb.unknownError')}</p>
               {article.status === 3 && (
-                <p className="text-fine text-[var(--color-text-muted-48)] mt-2">请修复问题后点击上方&quot;发布&quot;或&quot;重试发布&quot;按钮</p>
+                <p className="text-fine text-[var(--color-text-muted-48)] mt-2">{t('kb.fixAndRetry')}</p>
               )}
             </div>
           </div>
@@ -192,19 +200,19 @@ export default function ArticleEditPage() {
       <ConfirmDialog
         open={disableConfirm}
         onOpenChange={setDisableConfirm}
-        title="停用文章"
-        message="确定要停用此文章吗？停用后文章将不可见。"
-        confirmLabel="停用"
-        onConfirm={() => { setDisableConfirm(false); handleAction(() => disableArticle(Number(articleId))); }}
+        title={t('kb.disableTitle')}
+        message={t('kb.disableMessage')}
+        confirmLabel={t('kb.disable')}
+        onConfirm={() => { setDisableConfirm(false); handleAction(() => disableArticle(Number(articleId)), t('common.operationSuccess')); }}
         danger
       />
       <ConfirmDialog
         open={deleteTarget}
         onOpenChange={setDeleteTarget}
-        title="删除文章"
-        message="确定要删除此文章吗？此操作不可撤销。"
-        confirmLabel="删除"
-        onConfirm={async () => { setDeleteTarget(false); await handleAction(() => deleteArticle(Number(articleId)), '已删除'); router.push(`/admin/knowledge/${kbId}`); }}
+        title={t('kb.deleteArticleTitle')}
+        message={t('kb.deleteArticleMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={async () => { setDeleteTarget(false); await handleAction(() => deleteArticle(Number(articleId)), t('common.deleted')); router.push(`/admin/knowledge/${kbId}`); }}
         loading={processing}
         danger
       />

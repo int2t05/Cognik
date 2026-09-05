@@ -1,6 +1,7 @@
 'use client';
 // ChatMessage — 消息渲染。
 // switch(part.type) 分发到对应 part 组件。
+// t 作为 prop 传入：locale 切换时 t 引用变化，触发 memo 重渲染（否则中文文案不刷新）。
 
 import { memo } from 'react';
 import { Bot, User, AlertCircle } from 'lucide-react';
@@ -11,12 +12,16 @@ import { ToolCallPart } from './parts/ToolCallPart';
 import { ToolResultPart } from './parts/ToolResultPart';
 import { SubAgentPart } from './parts/SubAgentPart';
 
+type Translator = (key: string, values?: Record<string, string | number>) => string;
+
 interface Props {
   message: ChatMessageType;
   isStreaming?: boolean;
+  /** 翻译函数；locale 切换时引用变化，驱动 memo 重渲染 */
+  t: Translator;
 }
 
-function ChatMessageBase({ message, isStreaming = false }: Props) {
+function ChatMessageBase({ message, isStreaming = false, t }: Props) {
   const isUser = message.role === 'user';
   const isError = message.status === 'error';
   const isCancelled = message.status === 'cancelled';
@@ -47,7 +52,7 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
             case 'tool_call':
               // 子 Agent 委托（dispatch_subagent + research/coder）用 SubAgentPart 渲染
               if (part.label === 'dispatch_subagent' || part.label === 'research' || part.label === 'coder') {
-                return <SubAgentPart key={key} part={part as any} isStreaming={isStreaming} />;
+                return <SubAgentPart key={key} part={part} isStreaming={isStreaming} />;
               }
               return <ToolCallPart key={key} part={part} />;
             case 'tool_result':
@@ -70,14 +75,14 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
         {isError && (
           <div className="flex items-center gap-1.5 text-red-500 text-[13px] mt-2 pt-2 border-t border-red-200">
             <AlertCircle size={14} />
-            <span>{message.error || '生成失败'}</span>
+            <span>{message.error || t('chat.generationFailed')}</span>
           </div>
         )}
 
         {/* 取消状态 */}
         {isCancelled && (
           <div className="text-[13px] text-[var(--color-text-muted-48)] mt-2 pt-2 border-t border-[var(--color-hairline)]">
-            已停止
+            {t('chat.stopped')}
           </div>
         )}
       </div>
@@ -92,5 +97,5 @@ function ChatMessageBase({ message, isStreaming = false }: Props) {
 }
 
 export const ChatMessage = memo(ChatMessageBase, (prev, next) =>
-  prev.message === next.message && prev.isStreaming === next.isStreaming
+  prev.message === next.message && prev.isStreaming === next.isStreaming && prev.t === next.t
 );

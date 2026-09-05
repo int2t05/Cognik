@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { getUserList, createUser, updateUser, freezeUser, unfreezeUser, getUserDetail, batchDeleteUsers } from '@/lib/api/user';
@@ -18,11 +19,13 @@ import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { BatchSelectHeader, BatchSelectRow, BatchSelectToolbar } from '@/components/chat/BatchSelectCheckbox';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { formatDate } from '@/lib/date';
 import { UserPlus, Pencil, Lock, Unlock, Loader2, Users, Save } from 'lucide-react';
 
 export default function UserListPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
   const { data, error, mutate } = useSWR(`users-${page}-${keyword}`, () => getUserList(page, keyword), { keepPreviousData: true });
@@ -47,24 +50,24 @@ export default function UserListPage() {
   const isEmpty = !error && data && items.length === 0;
 
   const handleSave = async () => {
-    if (!form.real_name) { toast.error('请填写姓名'); return; }
+    if (!form.real_name) { toast.error(t('user.fillName')); return; }
     setSaving(true);
     try {
       if (editUser) {
         await updateUser(editUser.id, { real_name: form.real_name, phone: form.phone, email: form.email, role_ids: form.role_ids });
-        toast.success('已更新');
+        toast.success(t('common.updated'));
       } else {
         await createUser({ ...form, role_ids: form.role_ids });
-        toast.success('已创建');
+        toast.success(t('common.created'));
       }
       setShowCreate(false); setEditUser(null); mutate();
-    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
+    } catch (err: unknown) { toast.error(translateError(err, t, t('common.saveFailed'))); }
     finally { setSaving(false); }
   };
 
   const handleFreeze = async () => {
     if (!confirmFreeze) return;
-    try { if (confirmFreeze.freeze) await freezeUser(confirmFreeze.id); else await unfreezeUser(confirmFreeze.id); toast.success('操作成功'); mutate(); } catch (err: unknown) { toast.error(errorMessage(err, '操作失败')); }
+    try { if (confirmFreeze.freeze) await freezeUser(confirmFreeze.id); else await unfreezeUser(confirmFreeze.id); toast.success(t('common.operationSuccess')); mutate(); } catch (err: unknown) { toast.error(translateError(err, t, t('common.operationFailed'))); }
     finally { setConfirmFreeze(null); }
   };
 
@@ -91,33 +94,33 @@ export default function UserListPage() {
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
-          <PageTitle className="mb-0">用户管理</PageTitle>
+          <PageTitle className="mb-0">{t('user.title')}</PageTitle>
           <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
         </div>
-        <IconButton label="新建用户" onClick={openCreate}><UserPlus /></IconButton>
+        <IconButton label={t('user.newUser')} onClick={openCreate}><UserPlus /></IconButton>
       </div>
       {error && <InlineError />}
       <div className="mb-4">
-        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索用户名、姓名…" />
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder={t('user.searchPlaceholder')} />
       </div>
       {isEmpty ? (
         <EmptyState
           icon={<Users size={40} />}
-          title="暂无用户"
-          description="点击右上角新建用户"
+          title={t('user.empty')}
+          description={t('user.emptyDesc')}
         />
       ) : (
         <>
           <DataTable
             columns={[
               { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-              { accessorKey: 'username', meta: { width: '100px' }, header: '用户名' }, { accessorKey: 'real_name', meta: { width: '88px' }, header: '姓名' }, { accessorKey: 'phone', meta: { width: '120px' }, header: '手机' },
-              { accessorKey: 'status', meta: { width: '88px' }, header: '状态', cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
-              { accessorKey: 'created_at', meta: { width: '120px' }, header: '创建时间', cell: ({ row }) => formatDate(row.original.created_at) },
-              { id: 'actions', meta: { width: '96px' }, header: '操作', cell: ({ row }) => <div className="flex gap-2">
-                <IconButton label="编辑" onClick={() => openEdit(row.original)}><Pencil /></IconButton>
-                {row.original.status === 1 ? <IconButton label="冻结" danger onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></IconButton>
-                  : <IconButton label="恢复" onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></IconButton>}
+              { accessorKey: 'username', meta: { width: '100px' }, header: t('user.colUsername') }, { accessorKey: 'real_name', meta: { width: '88px' }, header: t('user.colName') }, { accessorKey: 'phone', meta: { width: '120px' }, header: t('user.colPhone') },
+              { accessorKey: 'status', meta: { width: '88px' }, header: t('user.colStatus'), cell: ({ row }) => <StatusBadge type="user" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: t('user.colCreatedAt'), cell: ({ row }) => formatDate(row.original.created_at, locale) },
+              { id: 'actions', meta: { width: '96px' }, header: t('common.actions'), cell: ({ row }) => <div className="flex gap-2">
+                <IconButton label={t('common.edit')} onClick={() => openEdit(row.original)}><Pencil /></IconButton>
+                {row.original.status === 1 ? <IconButton label={t('user.freeze')} danger onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: true })}><Lock /></IconButton>
+                  : <IconButton label={t('user.unfreeze')} onClick={() => setConfirmFreeze({ id: row.original.id, username: row.original.username, freeze: false })}><Unlock /></IconButton>}
               </div> },
             ]}
             data={items} loading={!data && !error}
@@ -129,14 +132,14 @@ export default function UserListPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editUser ? '编辑用户' : '新建用户'}</DialogTitle>
-            {!editUser && <DialogDescription>密码需8-32位，含大小写字母和数字</DialogDescription>}
+            <DialogTitle>{editUser ? t('user.editTitle') : t('user.newUser')}</DialogTitle>
+            {!editUser && <DialogDescription>{t('user.passwordHint')}</DialogDescription>}
           </DialogHeader>
-          {!editUser && <><Field label="用户名" required><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label="密码" required><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
-          <Field label="姓名" required><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
-          <Field label="手机" required><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-          <Field label="邮箱"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-          <Field label="角色">
+          {!editUser && <><Field label={t('user.fieldUsername')} required><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field><Field label={t('auth.password')} required><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field></>}
+          <Field label={t('user.fieldName')} required><Input value={form.real_name} onChange={(e) => setForm({ ...form, real_name: e.target.value })} /></Field>
+          <Field label={t('user.fieldPhone')} required><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label={t('user.fieldEmail')}><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+          <Field label={t('user.fieldRoles')}>
             <div className="flex flex-wrap gap-2">
               {roles.map(role => (
                 <IconButton key={role.id} variant="segmented" size="sm"
@@ -145,22 +148,22 @@ export default function UserListPage() {
               ))}
             </div>
           </Field>
-          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}{t('common.save')}</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog open={!!confirmFreeze} onOpenChange={() => setConfirmFreeze(null)}
-        title={confirmFreeze?.freeze ? '冻结用户' : '恢复用户'}
-        message={confirmFreeze?.freeze ? `确定要冻结用户 ${confirmFreeze?.username} 吗？冻结后将无法登录。` : `确定要恢复用户 ${confirmFreeze?.username} 吗？`}
-        onConfirm={handleFreeze} confirmLabel={confirmFreeze?.freeze ? '冻结' : '恢复'} danger={confirmFreeze?.freeze} />
+        title={confirmFreeze?.freeze ? t('user.freezeTitle') : t('user.unfreezeTitle')}
+        message={confirmFreeze?.freeze ? t('user.freezeMessage', { name: confirmFreeze?.username ?? '' }) : t('user.unfreezeMessage', { name: confirmFreeze?.username ?? '' })}
+        onConfirm={handleFreeze} confirmLabel={confirmFreeze?.freeze ? t('user.freeze') : t('user.unfreeze')} danger={confirmFreeze?.freeze} />
 
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
-        title="批量删除用户"
-        message={`确定要删除 ${batch.selectedIds.size} 个用户吗？此操作不可撤销。`}
+        title={t('user.batchDeleteTitle')}
+        message={t('user.batchDeleteMessage', { count: batch.selectedIds.size })}
         onConfirm={async () => {
           await batch.handleBatchDelete();
-          toast.success(`已删除用户`);
-        }} loading={batch.deleting} danger confirmLabel="删除" />
+          toast.success(t('common.deleted'));
+        }} loading={batch.deleting} danger confirmLabel={t('common.delete')} />
     </div>
   );
 }

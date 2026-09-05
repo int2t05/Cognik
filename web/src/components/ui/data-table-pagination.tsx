@@ -1,5 +1,6 @@
 'use client';
 // DataTablePagination — 居中页码分页：左侧计数+页大小 + 居中页码导航。
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ export function DataTablePagination({
   pageSizeOptions = [10, 20, 50],
   onChange,
 }: DataTablePaginationProps) {
+  const t = useTranslations();
   if (total === 0) return null;
   const totalPages = Math.ceil(total / pageSize);
   const visible = getVisiblePages(page, totalPages);
@@ -49,7 +51,7 @@ export function DataTablePagination({
       {/* 左：计数 + 页大小 */}
       <div className="flex items-center gap-3 flex-1">
         <span className="text-fine text-[var(--color-text-muted-48)]">
-          第 {start}-{end} 条，共 {total} 条
+          {t('common.rangeInfo', { start, end, total })}
         </span>
         <Select value={String(pageSize)} onValueChange={(v) => onChange(1, Number(v))}>
           <SelectTrigger className="h-8 w-[68px] text-caption"><SelectValue /></SelectTrigger>
@@ -65,7 +67,7 @@ export function DataTablePagination({
       <div className="flex items-center gap-0.5 justify-center">
         <button
           type="button"
-          aria-label="上一页"
+          aria-label={t('common.prevPage')}
           disabled={page <= 1}
           onClick={() => page > 1 && onChange(page - 1, pageSize)}
           className={cn(btnBase, 'w-7', page <= 1 ? btnDisabled : btnIdle)}
@@ -89,7 +91,7 @@ export function DataTablePagination({
         )}
         <button
           type="button"
-          aria-label="下一页"
+          aria-label={t('common.nextPage')}
           disabled={page >= totalPages}
           onClick={() => page < totalPages && onChange(page + 1, pageSize)}
           className={cn(btnBase, 'w-7', page >= totalPages ? btnDisabled : btnIdle)}

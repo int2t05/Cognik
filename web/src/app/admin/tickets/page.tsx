@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { listAllTickets, batchDeleteTickets, batchCloseTickets } from '@/lib/api/ticket';
 import { useBatchSelection } from '@/hooks/useBatchSelection';
@@ -15,12 +16,15 @@ import { toast } from 'sonner';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { TableFilterHeader } from '@/components/shared/TableFilterHeader';
-import { TICKET_STATUS_OPTIONS } from '@/lib/ticket-options';
+import { ticketStatusOptions } from '@/lib/ticket-options';
+import { translateError } from '@/lib/api/error';
 import { InlineError } from '@/components/shared/InlineError';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { IconButton } from '@/components/ui/icon-button';
 
 export default function AdminTicketListPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState(-1);
   const [keyword, setKeyword] = useState('');
@@ -49,12 +53,12 @@ export default function AdminTicketListPage() {
       const res = await batchCloseTickets(ids);
       const ok = res.results.filter((r) => r.success).length;
       const fail = res.results.length - ok;
-      toast.success(`已关闭 ${ok} 条` + (fail ? `，${fail} 条失败（已关闭/已解决不可关闭）` : ''));
+      toast.success(fail > 0 ? t('ticket.batchClosedSome', { ok, fail }) : t('ticket.batchClosedAll', { ok }));
       setBatchCloseConfirm(false);
       batch.clearSelection();
       mutate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '批量关闭失败');
+      toast.error(translateError(err, t, t('ticket.batchCloseFailed')));
     } finally {
       setBatchClosing(false);
     }
@@ -63,19 +67,19 @@ export default function AdminTicketListPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5">
-        <PageTitle>工单管理</PageTitle>
+        <PageTitle>{t('ticket.adminTitle')}</PageTitle>
       </div>
       {error && <InlineError />}
       <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
-        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder="搜索标题、编号、描述…" />
+        <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); setPage(1); }} placeholder={t('ticket.searchPlaceholder')} />
         <BatchSelectToolbar selectedCount={batch.selectedIds.size} onDelete={() => batch.setConfirmDelete(true)} onCancel={batch.clearSelection} />
-        {batch.selectedIds.size > 0 && <IconButton size="sm" variant="ghost" onClick={() => setBatchCloseConfirm(true)}><XCircle size={14} />批量关闭</IconButton>}
+        {batch.selectedIds.size > 0 && <IconButton size="sm" variant="ghost" onClick={() => setBatchCloseConfirm(true)}><XCircle size={14} />{t('ticket.batchClose')}</IconButton>}
       </div>
       {isEmpty ? (
         <EmptyState
           icon={<FileText size={40} />}
-          title={hasFilters ? '未找到匹配的工单' : '暂无工单'}
-          description={hasFilters ? '尝试调整筛选条件或清除筛选' : '系统中暂无工单记录'}
+          title={hasFilters ? t('ticket.noMatch') : t('ticket.adminEmpty')}
+          description={hasFilters ? t('ticket.adjustFilters') : t('ticket.adminEmptyDesc')}
           onClearFilters={hasFilters ? clearFilters : undefined}
         />
       ) : (
@@ -83,12 +87,12 @@ export default function AdminTicketListPage() {
           <DataTable
             columns={[
               { id: '_check', meta: { width: '40px' }, header: () => <BatchSelectHeader items={items} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} onSelectAll={batch.selectAll} />, cell: ({ row }) => <BatchSelectRow row={row.original} selectedIds={batch.selectedIds} onToggleSelect={batch.toggleSelect} /> },
-              { accessorKey: 'ticket_no', meta: { width: '120px' }, header: '编号', cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
-              { accessorKey: 'title', header: '标题', cell: ({ row }) => <Link href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
-              { accessorKey: 'submitter_name', meta: { width: '88px' }, header: '提交人' },
-              { accessorKey: 'tags', meta: { width: '120px' }, header: '标签', cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
-              { accessorKey: 'status', meta: { width: '88px' }, header: () => <TableFilterHeader label="状态" value={status} options={TICKET_STATUS_OPTIONS} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
-              { accessorKey: 'created_at', meta: { width: '120px' }, header: '提交时间', cell: ({ row }) => formatDate(row.original.created_at) },
+              { accessorKey: 'ticket_no', meta: { width: '120px' }, header: t('ticket.colNo'), cell: ({ row }) => <span className="font-[var(--font-mono)] text-fine">{row.original.ticket_no}</span> },
+              { accessorKey: 'title', header: t('ticket.colTitle'), cell: ({ row }) => <Link href={`/admin/tickets/${row.original.id}`} className="text-[var(--color-accent)]">{row.original.title}</Link> },
+              { accessorKey: 'submitter_name', meta: { width: '88px' }, header: t('ticket.colSubmitter') },
+              { accessorKey: 'tags', meta: { width: '120px' }, header: t('ticket.colTags'), cell: ({ row }) => (row.original.tags || []).join(', ') || '-' },
+              { accessorKey: 'status', meta: { width: '88px' }, header: () => <TableFilterHeader label={t('ticket.colStatus')} value={status} options={ticketStatusOptions(t)} onChange={(v) => { setStatus(v); setPage(1); }} />, cell: ({ row }) => <StatusBadge type="ticket" status={row.original.status} /> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: t('ticket.colCreatedAt'), cell: ({ row }) => formatDate(row.original.created_at, locale) },
             ]}
             data={items} loading={!data && !error}
           />
@@ -96,13 +100,13 @@ export default function AdminTicketListPage() {
         </>
       )}
       <ConfirmDialog open={batch.confirmDelete} onOpenChange={batch.setConfirmDelete}
-        title="批量删除工单"
-        message={`确定要删除 ${batch.selectedIds.size} 条工单吗？此操作不可撤销。`}
-        onConfirm={async () => { await batch.handleBatchDelete(); toast.success('已删除'); }} loading={batch.deleting} danger confirmLabel="删除" />
+        title={t('ticket.batchDeleteTitle')}
+        message={t('ticket.batchDeleteMessage', { count: batch.selectedIds.size })}
+        onConfirm={async () => { await batch.handleBatchDelete(); toast.success(t('ticket.deleted')); }} loading={batch.deleting} danger confirmLabel={t('ticket.delete')} />
       <ConfirmDialog open={batchCloseConfirm} onOpenChange={setBatchCloseConfirm}
-        title="批量关闭工单"
-        message={`确定要关闭 ${batch.selectedIds.size} 条工单吗？已解决/已关闭的工单将被跳过。`}
-        onConfirm={handleBatchClose} loading={batchClosing} confirmLabel="关闭" />
+        title={t('ticket.batchCloseTitle')}
+        message={t('ticket.batchCloseMessage', { count: batch.selectedIds.size })}
+        onConfirm={handleBatchClose} loading={batchClosing} confirmLabel={t('ticket.close')} />
     </div>
   );
 }

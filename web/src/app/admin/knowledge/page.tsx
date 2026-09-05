@@ -1,6 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
 import { getLLMConfigs } from '@/lib/api/llm_config';
@@ -15,11 +16,12 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { ListSearchInput } from '@/components/shared/ListSearchInput';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { useRouter } from 'next/navigation';
 import { BookPlus, Pencil, Trash2, BookOpen, Loader2, Save } from 'lucide-react';
 
 export default function KnowledgeListPage() {
+  const t = useTranslations();
   const [keyword, setKeyword] = useState('');
   const { data: kbs, error, mutate } = useSWR(`kb-list-${keyword}`, () => getKBList(keyword), { keepPreviousData: true });
   const { data: llmConfigs } = useSWR('llm-configs', getLLMConfigs);
@@ -39,15 +41,15 @@ export default function KnowledgeListPage() {
   const router = useRouter();
 
   const handleSave = async () => {
-    if (!kbName.trim()) { toast.error('请输入知识库名称'); return; }
+    if (!kbName.trim()) { toast.error(t('kb.fillName')); return; }
     setSaving(true);
     const payload = { name: kbName, description: kbDesc, embedding_model: kbEmbeddingModel || undefined };
     try {
-      if (editId) { await updateKB(editId, payload); toast.success('已更新'); }
-      else { await createKB(payload); toast.success('已创建'); }
+      if (editId) { await updateKB(editId, payload); toast.success(t('common.updated')); }
+      else { await createKB(payload); toast.success(t('common.created')); }
       setShowCreate(false); setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel('');
       mutate();
-    } catch (err: unknown) { toast.error(errorMessage(err, '保存失败')); }
+    } catch (err: unknown) { toast.error(translateError(err, t, t('common.saveFailed'))); }
     finally { setSaving(false); }
   };
 
@@ -60,20 +62,20 @@ export default function KnowledgeListPage() {
     setDeleting(true);
     try {
       await deleteKB(deleteTarget);
-      toast.success('已删除');
+      toast.success(t('common.deleted'));
       setDeleteTarget(null);
       mutate();
-    } catch (err: unknown) { toast.error(errorMessage(err, '删除失败')); }
+    } catch (err: unknown) { toast.error(translateError(err, t, t('common.deleteFailed'))); }
     finally { setDeleting(false); }
   };
 
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-5 gap-3">
-        <PageTitle className="mb-0">知识库管理</PageTitle>
+        <PageTitle className="mb-0">{t('kb.title')}</PageTitle>
         <div className="flex items-center gap-3">
-          <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); }} placeholder="搜索知识库…" />
-          <IconButton label="新建知识库" onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></IconButton>
+          <ListSearchInput value={keyword} onDebouncedChange={(v) => { setKeyword(v); }} placeholder={t('kb.searchPlaceholder')} />
+          <IconButton label={t('kb.newKb')} onClick={() => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); }}><BookPlus /></IconButton>
         </div>
       </div>
 
@@ -81,24 +83,24 @@ export default function KnowledgeListPage() {
 
       <div className="grid gap-4">
         {error ? null : !kbs ? <Loader2 className="animate-spin" /> : kbs.length === 0 ? (
-          <EmptyState icon={<BookOpen size={40} />} title={keyword ? '未找到匹配的知识库' : '暂无知识库'} description={keyword ? `没有名称或描述含"${keyword}"的知识库` : '点击右上角"新建知识库"开始'} action={keyword ? undefined : { label: '新建知识库', icon: <BookPlus size={16} />, onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
+          <EmptyState icon={<BookOpen size={40} />} title={keyword ? t('kb.noMatch') : t('kb.empty')} description={keyword ? t('kb.noMatchDesc', { keyword }) : t('kb.emptyDesc')} action={keyword ? undefined : { label: t('kb.newKb'), icon: <BookPlus size={16} />, onClick: () => { setEditId(null); setKbName(''); setKbDesc(''); setKbEmbeddingModel(''); setShowCreate(true); } }} />
         ) : kbs.map((kb) => (
           <Card
             key={kb.id}
             className="flex justify-between items-center cursor-pointer hover:bg-[var(--color-tile-1)] hover:-translate-y-px transition-[transform,background-color] focus-visible:shadow-[var(--focus-ring)]"
             role="button"
             tabIndex={0}
-            aria-label={`打开知识库 ${kb.name}`}
+            aria-label={t('kb.openAria', { name: kb.name })}
             onClick={() => router.push(`/admin/knowledge/${kb.id}`)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/knowledge/${kb.id}`); } }}
           >
             <div>
               <h2 className="text-title font-semibold text-[var(--color-ink)] mb-1">{kb.name}</h2>
-              <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || '无描述'} · {kb.article_count} 篇文章{kb.embedding_model ? ` · ${kb.embedding_model}` : ''}</p>
+              <p className="text-body text-[var(--color-text-muted-48)]">{kb.description || t('kb.noDesc')} · {t('kb.articleCount', { count: kb.article_count })}{kb.embedding_model ? ` · ${kb.embedding_model}` : ''}</p>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <IconButton label="编辑" onClick={() => openEdit(kb)}><Pencil /></IconButton>
-              <IconButton label="删除" danger onClick={() => setDeleteTarget(kb.id)}><Trash2 /></IconButton>
+              <IconButton label={t('common.edit')} onClick={() => openEdit(kb)}><Pencil /></IconButton>
+              <IconButton label={t('common.delete')} danger onClick={() => setDeleteTarget(kb.id)}><Trash2 /></IconButton>
             </div>
           </Card>
         ))}
@@ -107,33 +109,33 @@ export default function KnowledgeListPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editId ? '编辑知识库' : '新建知识库'}</DialogTitle>
+            <DialogTitle>{editId ? t('kb.editTitle') : t('kb.newKb')}</DialogTitle>
           </DialogHeader>
-          <Field label="名称" required><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
-          <Field label="描述"><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
-          <Field label="Embedding 模型">
+          <Field label={t('kb.fieldName')} required><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
+          <Field label={t('kb.fieldDesc')}><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
+          <Field label={t('config.fieldEmbeddingModel')}>
             <Select value={kbEmbeddingModel} onValueChange={setKbEmbeddingModel}>
-              <SelectTrigger aria-label="Embedding 模型" className="w-full h-9 rounded-[var(--radius-pill)]">
-                <SelectValue placeholder="默认（跟随系统配置）" />
+              <SelectTrigger aria-label={t('config.fieldEmbeddingModel')} className="w-full h-9 rounded-[var(--radius-pill)]">
+                <SelectValue placeholder={t('kb.defaultEmbedding')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">默认（跟随系统配置）</SelectItem>
+                <SelectItem value="">{t('kb.defaultEmbedding')}</SelectItem>
                 {embeddingOptions.map((c) => (
-                  <SelectItem key={c.embedding_model} value={c.embedding_model}>{c.embedding_model}（{c.name}）</SelectItem>
+                  <SelectItem key={c.embedding_model} value={c.embedding_model}>{t('kb.embeddingOption', { model: c.embedding_model, name: c.name })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton></DialogFooter>
+          <DialogFooter><IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}{t('common.save')}</IconButton></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="删除知识库"
-        message="确定要删除此知识库吗？此操作不可撤销，知识库中的所有文章将被永久删除。"
-        confirmLabel="删除"
+        title={t('kb.deleteTitle')}
+        message={t('kb.deleteMessage')}
+        confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
         loading={deleting}
         danger

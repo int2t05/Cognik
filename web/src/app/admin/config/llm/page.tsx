@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   createLLMConfig,
   deleteLLMConfig,
@@ -20,7 +21,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InlineError } from '@/components/shared/InlineError';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Cpu, Pencil, Trash2, Star, Loader2, Save, Plug } from 'lucide-react';
 
@@ -41,6 +42,7 @@ const defaultForm: LLMConfigForm = {
 };
 
 export default function LLMConfigPage() {
+  const t = useTranslations();
   const { data: configs, error, mutate } = useSWR('llm-configs', getLLMConfigs);
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -88,11 +90,11 @@ export default function LLMConfigPage() {
       } else {
         await createLLMConfig(data);
       }
-      toast.success(editId ? '已更新' : '已创建');
+      toast.success(editId ? t('common.updated') : t('common.created'));
       setShowDialog(false);
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '保存失败'));
+      toast.error(translateError(err, t, t('common.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -106,10 +108,10 @@ export default function LLMConfigPage() {
       const result = await testLLMConnection(editId);
       setTestResult({
         success: true,
-        message: `连接成功 (${result.latency_ms}ms, ${result.tokens_used} tokens, ${result.model})`,
+        message: t('config.testSuccess', { latency: result.latency_ms, tokens: result.tokens_used, model: result.model }),
       });
     } catch (err: unknown) {
-      setTestResult({ success: false, message: errorMessage(err, '连接失败') });
+      setTestResult({ success: false, message: translateError(err, t, t('config.testFailed')) });
     } finally {
       setTesting(false);
     }
@@ -120,11 +122,11 @@ export default function LLMConfigPage() {
     setDeleting(true);
     try {
       await deleteLLMConfig(deleteTarget);
-      toast.success('已删除');
+      toast.success(t('common.deleted'));
       setDeleteTarget(null);
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '删除失败'));
+      toast.error(translateError(err, t, t('common.deleteFailed')));
     } finally {
       setDeleting(false);
     }
@@ -132,7 +134,7 @@ export default function LLMConfigPage() {
 
   const handleSetDefault = async (id: number) => {
     const cfg = configs?.find((c) => c.id === id);
-    if (!cfg) { toast.error('配置未找到'); return; }
+    if (!cfg) { toast.error(t('config.notFound')); return; }
     try {
       await updateLLMConfig(id, {
         name: cfg.name,
@@ -147,10 +149,10 @@ export default function LLMConfigPage() {
         vector_dimension: cfg.vector_dimension,
         is_default: true,
       });
-      toast.success('已设为默认');
+      toast.success(t('config.setAsDefault'));
       mutate();
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '设置失败'));
+      toast.error(translateError(err, t, t('config.setFailed')));
     }
   };
 
@@ -161,15 +163,15 @@ export default function LLMConfigPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="mb-5 flex items-center justify-between">
-        <PageTitle className="mb-0">LLM 配置</PageTitle>
-        <IconButton label="新建 LLM 配置" onClick={openCreate}><Cpu /></IconButton>
+        <PageTitle className="mb-0">{t('config.llmTitle')}</PageTitle>
+        <IconButton label={t('config.newLlm')} onClick={openCreate}><Cpu /></IconButton>
       </div>
 
       <div className="grid gap-4">
         {!configs ? (
           <Loader2 className="animate-spin" />
         ) : configs.length === 0 ? (
-          <EmptyState icon={<Cpu size={40} />} title="暂无 LLM 配置" description="点击右上角新建" action={{ label: '新建配置', icon: <Cpu size={16} />, onClick: openCreate }} />
+          <EmptyState icon={<Cpu size={40} />} title={t('config.llmEmpty')} description={t('config.llmEmptyDesc')} action={{ label: t('config.newLlm'), icon: <Cpu size={16} />, onClick: openCreate }} />
         ) : (
           [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((config) => (
             <Card key={config.id}>
@@ -178,7 +180,7 @@ export default function LLMConfigPage() {
                   <h2 className="text-title font-semibold text-[var(--color-ink)]">
                     {config.name}
                     {config.is_default && (
-                      <span className="text-fine font-normal text-[var(--color-accent)]"> （默认）</span>
+                      <span className="text-fine font-normal text-[var(--color-accent)]"> {t('config.defaultSuffix')}</span>
                     )}
                   </h2>
                   <p className="mt-1 text-caption text-[var(--color-text-muted-48)]">
@@ -187,10 +189,10 @@ export default function LLMConfigPage() {
                 </div>
                 <div className="flex gap-2">
                   {!config.is_default && (
-                    <IconButton label="设为默认" onClick={() => handleSetDefault(config.id)}><Star /></IconButton>
+                    <IconButton label={t('config.setAsDefaultLabel')} onClick={() => handleSetDefault(config.id)}><Star /></IconButton>
                   )}
-                  <IconButton label="编辑" onClick={() => openEdit(config)}><Pencil /></IconButton>
-                  <IconButton label="删除" onClick={() => setDeleteTarget(config.id)}><Trash2 /></IconButton>
+                  <IconButton label={t('common.edit')} onClick={() => openEdit(config)}><Pencil /></IconButton>
+                  <IconButton label={t('common.delete')} onClick={() => setDeleteTarget(config.id)}><Trash2 /></IconButton>
                 </div>
               </div>
             </Card>
@@ -201,9 +203,9 @@ export default function LLMConfigPage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
-            <DialogTitle>{editId ? '编辑 LLM 配置' : '新建 LLM 配置'}</DialogTitle>
+            <DialogTitle>{editId ? t('config.editLlm') : t('config.newLlm')}</DialogTitle>
           </DialogHeader>
-          <Field label="名称"><Input value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t('config.fieldName')}><Input value={String(form.name || '')} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
 
           <Field label="LLM Base URL">
             <Input
@@ -216,12 +218,12 @@ export default function LLMConfigPage() {
               type="password"
               value={String(form.llm_api_key || '')}
               onChange={(e) => setForm({ ...form, llm_api_key: e.target.value })}
-              placeholder={editId ? '留空则不修改已保存的 Key' : '本地部署可留空'}
+              placeholder={editId ? t('config.placeholderKeepKey') : t('config.placeholderLocalEmpty')}
             />
           </Field>
           <Field label="Embedding Base URL">
             <Input
-              placeholder="留空则使用 LLM Base URL"
+              placeholder={t('config.placeholderUseLlmUrl')}
               value={String(form.embedding_base_url || '')}
               onChange={(e) => setForm({ ...form, embedding_base_url: e.target.value })}
             />
@@ -231,29 +233,29 @@ export default function LLMConfigPage() {
               type="password"
               value={String(form.embedding_api_key || '')}
               onChange={(e) => setForm({ ...form, embedding_api_key: e.target.value })}
-              placeholder={editId ? '留空则不修改已保存的 Key' : '留空则使用 LLM API Key'}
+              placeholder={editId ? t('config.placeholderKeepKey') : t('config.placeholderUseLlmKey')}
             />
           </Field>
-          <Field label="LLM 模型">
+          <Field label={t('config.fieldLlmModel')}>
             <Input
               value={String(form.llm_model || '')}
               onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
             />
           </Field>
-          <Field label="Embedding 模型">
+          <Field label={t('config.fieldEmbeddingModel')}>
             <Input
               value={String(form.embedding_model || '')}
               onChange={(e) => setForm({ ...form, embedding_model: e.target.value })}
             />
           </Field>
-          <Field label="最大 Token">
+          <Field label={t('config.fieldMaxTokens')}>
             <Input
               type="number"
               value={String(form.max_tokens || '')}
               onChange={(e) => setForm({ ...form, max_tokens: Number(e.target.value) })}
             />
           </Field>
-          <Field label="向量维度">
+          <Field label={t('config.fieldVectorDim')}>
             <Input
               type="number"
               value={String(form.vector_dimension || '')}
@@ -264,7 +266,7 @@ export default function LLMConfigPage() {
           <Field label="System Prompt">
             <Textarea
               className="min-h-[80px]"
-              placeholder="自定义系统提示词，可选"
+              placeholder={t('config.placeholderSystemPrompt')}
               value={String(form.system_prompt || '')}
               onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
             />
@@ -277,11 +279,11 @@ export default function LLMConfigPage() {
           )}
           <DialogFooter>
             {editId && (
-              <IconButton variant="secondary" size="sm" disabled={testing}>{testing ? <Loader2 className="animate-spin" /> : <Plug size={16} />}测试连接</IconButton>
+              <IconButton variant="secondary" size="sm" disabled={testing}>{testing ? <Loader2 className="animate-spin" /> : <Plug size={16} />}{t('config.testConnection')}</IconButton>
             )}
             <div className="flex-1" />
-            
-            <IconButton size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}保存</IconButton>
+
+            <IconButton size="lg" disabled={saving} onClick={handleSave}>{saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}{t('common.save')}</IconButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -289,9 +291,9 @@ export default function LLMConfigPage() {
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="删除 LLM 配置"
-        message="确定要删除此 LLM 配置吗？删除后可能导致 AI 服务不可用。"
-        confirmLabel="删除"
+        title={t('config.deleteLlmTitle')}
+        message={t('config.deleteLlmMessage')}
+        confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
         loading={deleting}
         danger

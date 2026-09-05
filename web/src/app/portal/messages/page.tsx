@@ -1,6 +1,7 @@
 'use client';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { getMessages, markAsRead, markAllRead } from '@/lib/api/message';
 import { PAGE_SIZE } from '@/lib/api/constants';
 import { DataTable } from '@/components/ui/data-table';
@@ -15,29 +16,33 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TableFilterHeader, type TableFilterOption } from '@/components/shared/TableFilterHeader';
 import { CheckCheck, Mail, ExternalLink, Eye } from 'lucide-react';
 
-const TYPE_LABEL: Record<string, string> = {
-  ticket_supplement: '补充信息',
-  ticket_resolved: '已解决',
-  ticket_closed: '已关闭',
-  ticket_overdue: '处理超时',
-  knowledge_approved: '审核通过',
-  knowledge_rejected: '审核驳回',
-  knowledge_article: '知识文章',
+/** 消息类型 → i18n 键（message.type.*）；未知类型原样显示 */
+const MESSAGE_TYPE_KEYS: Record<string, string> = {
+  ticket_supplement: 'message.type.ticket_supplement',
+  ticket_resolved: 'message.type.ticket_resolved',
+  ticket_closed: 'message.type.ticket_closed',
+  ticket_overdue: 'message.type.ticket_overdue',
+  knowledge_approved: 'message.type.knowledge_approved',
+  knowledge_rejected: 'message.type.knowledge_rejected',
+  knowledge_article: 'message.type.knowledge_article',
 };
-
-const MESSAGE_TYPE_OPTIONS: TableFilterOption<string>[] = [
-  { value: '', label: '全部' },
-  ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
-];
 
 /** 有有效跳转目标的消息类型 */
 const NAVIGABLE_TYPES = new Set(['ticket']);
 
 export default function MessagesPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const [page, setPage] = useState(1);
   const [type, setType] = useState('');
   const router = useRouter();
   const { data, error, mutate } = useSWR(`messages-${page}-${type}`, () => getMessages(page, type), { keepPreviousData: true });
+
+  const typeLabel = (key: string) => MESSAGE_TYPE_KEYS[key] ? t(MESSAGE_TYPE_KEYS[key]) : key;
+  const typeOptions: TableFilterOption<string>[] = [
+    { value: '', label: t('common.all') },
+    ...Object.keys(MESSAGE_TYPE_KEYS).map((value) => ({ value, label: typeLabel(value) })),
+  ];
 
   const handleRead = async (id: number, relatedType: string, relatedId: number) => {
     try {
@@ -46,18 +51,18 @@ export default function MessagesPage() {
       globalMutate('unread-count');
       if (relatedType === 'ticket') router.push(`/portal/tickets/${relatedId}`);
     } catch {
-      toast.error('标记已读失败');
+      toast.error(t('message.markReadFailed'));
     }
   };
 
   const handleMarkAll = async () => {
     try {
       const res = await markAllRead();
-      toast.success(res.affected > 0 ? `已标记 ${res.affected} 条消息为已读` : '没有未读消息');
+      toast.success(res.affected > 0 ? t('message.markedRead', { count: res.affected }) : t('message.noUnread'));
       mutate();
       globalMutate('unread-count');
     } catch {
-      toast.error('操作失败');
+      toast.error(t('message.operationFailed'));
     }
   };
 
@@ -70,10 +75,10 @@ export default function MessagesPage() {
   return (
     <div className="min-w-0 overflow-hidden">
       <div className="flex items-center justify-between mb-5">
-        <PageTitle className="mb-0">站内消息</PageTitle>
+        <PageTitle className="mb-0">{t('message.title')}</PageTitle>
         {!isEmpty && (
           <IconButton variant="secondary" size="sm" onClick={handleMarkAll} disabled={!hasUnread}>
-            <CheckCheck size={16} />全部已读
+            <CheckCheck size={16} />{t('message.markAllRead')}
           </IconButton>
         )}
       </div>
@@ -81,20 +86,20 @@ export default function MessagesPage() {
       {error && <InlineError />}
 
       {isEmpty ? (
-        <EmptyState icon={<Mail size={40} />} title={hasFilters ? '未找到匹配的消息' : '暂无消息'} onClearFilters={hasFilters ? clearFilters : undefined} />
+        <EmptyState icon={<Mail size={40} />} title={hasFilters ? t('message.noMatch') : t('message.empty')} onClearFilters={hasFilters ? clearFilters : undefined} />
       ) : (
         <>
           <DataTable
             columns={[
-              { accessorKey: 'type', meta: { width: '88px' }, header: () => <TableFilterHeader label="类型" value={type} options={MESSAGE_TYPE_OPTIONS} onChange={(v) => { setType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine text-[var(--color-text-muted-48)]">{TYPE_LABEL[row.original.type] ?? row.original.type}</span> },
-              { accessorKey: 'title', meta: { width: '120px' }, header: '标题', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{row.original.title}</span> },
-              { accessorKey: 'content', header: '内容', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{row.original.content}</span> },
-              { accessorKey: 'created_at', meta: { width: '120px' }, header: '时间', cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at)}</span> },
+              { accessorKey: 'type', meta: { width: '88px' }, header: () => <TableFilterHeader label={t('message.colType')} value={type} options={typeOptions} onChange={(v) => { setType(v); setPage(1); }} />, cell: ({ row }) => <span className="text-fine text-[var(--color-text-muted-48)]">{typeLabel(row.original.type)}</span> },
+              { accessorKey: 'title', meta: { width: '120px' }, header: t('message.colTitle'), cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-80)]' : 'font-semibold'}>{row.original.title}</span> },
+              { accessorKey: 'content', header: t('message.colContent'), cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{row.original.content}</span> },
+              { accessorKey: 'created_at', meta: { width: '120px' }, header: t('message.colTime'), cell: ({ row }) => <span className={row.original.is_read ? 'text-[var(--color-text-muted-48)]' : ''}>{formatDate(row.original.created_at, locale)}</span> },
               { id: 'actions', meta: { width: '60px' }, header: '', cell: ({ row }) =>
                 !row.original.is_read ? (
-                  <IconButton label="查看" onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></IconButton>
+                  <IconButton label={t('message.view')} onClick={() => handleRead(row.original.id, row.original.related_type, row.original.related_id)}><Eye /></IconButton>
                 ) : NAVIGABLE_TYPES.has(row.original.related_type) ? (
-                  <IconButton label="跳转" onClick={() => {
+                  <IconButton label={t('message.goTo')} onClick={() => {
                     if (row.original.related_type === 'ticket') router.push(`/portal/tickets/${row.original.related_id}`);
                   }}>
                     <ExternalLink />

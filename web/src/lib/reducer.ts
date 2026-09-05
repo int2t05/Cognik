@@ -165,7 +165,7 @@ export function reduceStreamEvent(state: SessionStream, evt: SSEEvent): SessionS
       return updateLastAssistant(s, (msg) => ({
         ...msg,
         status: 'error',
-        error: evt.error ?? '生成失败',
+        error: evt.error ?? '',
       }))
 
     default:

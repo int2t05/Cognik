@@ -1,6 +1,7 @@
 'use client';
 import { useState, useMemo, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { createTicket } from '@/lib/api/ticket';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { Send, Loader2 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ interface ChatContextData {
 }
 
 export default function TicketSubmitPage() {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -40,7 +42,7 @@ export default function TicketSubmitPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) { toast.error('请输入工单标题'); return; }
+    if (!title.trim()) { toast.error(t('ticket.titleRequired')); return; }
 
     setSubmitting(true);
     try {
@@ -51,10 +53,10 @@ export default function TicketSubmitPage() {
         contact_phone: contactPhone || '—',
         contact_email: contactEmail, chat_context: chatContext,
       });
-      toast.success('工单提交成功');
+      toast.success(t('ticket.submitSuccess'));
       router.push('/portal/tickets');
     } catch (err: unknown) {
-      toast.error(errorMessage(err, '提交失败'));
+      toast.error(translateError(err, t, t('ticket.submitFailed')));
     } finally {
       setSubmitting(false);
     }
@@ -62,22 +64,22 @@ export default function TicketSubmitPage() {
 
   return (
     <div className="max-w-form">
-      <PageTitle>提交工单</PageTitle>
+      <PageTitle>{t('nav.newTicket')}</PageTitle>
       <form onSubmit={handleSubmit}>
         <Card className="mb-4">
-          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
-          <Field label="工单标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
-          <Field label="详细描述" required><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
-          <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" /></Field>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('ticket.issueInfo')}</h2>
+          <Field label={t('ticket.titleLabel')} required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('ticket.titlePlaceholder')} /></Field>
+          <Field label={t('ticket.descriptionLabel')} required><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('ticket.descriptionPlaceholder')} /></Field>
+          <Field label={t('ticket.tagsLabel')}><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('ticket.tagsPlaceholder')} /></Field>
         </Card>
         <Card className="mb-4">
-          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">联系信息</h2>
-          <Field label="联系电话" required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="方便团队成员联系您" /></Field>
-          <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
+          <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">{t('ticket.contactInfo')}</h2>
+          <Field label={t('ticket.phoneLabel')} required><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder={t('ticket.phonePlaceholder')} /></Field>
+          <Field label={t('ticket.emailLabel')}><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder={t('ticket.emailPlaceholder')} /></Field>
         </Card>
         <div className="flex gap-3">
-          <IconButton size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交工单</IconButton>
-          
+          <IconButton size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}{t('nav.newTicket')}</IconButton>
+
         </div>
       </form>
     </div>
