@@ -116,21 +116,43 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 
 ### 2.2 RAG 引擎
 
-11 个文件组成自包含领域引擎，不依赖 HTTP 层：
+自包含领域引擎，不依赖 HTTP 层。检索原语由 `kb(action=search)` 封装，Agent ReAct 循环驱动调用（非线性 Pipeline，线性 `Pipeline.Execute` 已废弃）。
 
 | 文件 | 职责 |
 |------|------|
-| `pipeline.go` | 管道编排：`Execute(ctx, query, kbID, opts, onStep)` |
-| `query_rewrite.go` | LLM 查询改写 |
-| `multi_route.go` | LLM 多路检索路由 |
-| `hybrid.go` | RRF 融合：`score = Σ 1/(60+rank_i)` |
-| `bm25.go` | Okapi BM25 (k1=1.5, b=0.75) + gse 中文分词 |
-| `rerank.go` | Cross-Encoder 重排序（子进程模式） |
-| `chunker.go` | RecursiveCharacterTextSplitter (1000/200) |
-| `embedder.go` | 批量 Embedding (batch=32) |
-| `retriever.go` | 向量检索入口 |
-| `processor.go` | goroutine pool 异步文档处理 |
+| `retriever.go` | 向量检索入口；`Retrieve` / `RetrieveFiltered`（metadata 硬过滤） |
+| `bm25.go` | Okapi BM25 (k1=1.5, b=0.75) + gse 中文分词；enriched 文本（title×2 + tags×3）；内存索引 30min TTL |
+| `hybrid.go` | RRF 融合：`score = Σ 1/(k+rank_i)`，k=30 可配（`ai.rrf_k`） |
+| `rerank.go` | Cross-Encoder 重排序（子进程模式）；失败降级原序并日志化 |
+| `crag.go` | CRAG 充分性评估——`Verdict{Strong/Ambiguous/Weak}`；`ThresholdEvaluator`（纯函数）+ 可选 LLM 评估器（仅 Ambiguous 带） |
+| `contextual.go` | Contextual Retrieval——索引时 LLM 为 chunk 生成上下文摘要 prepend |
+| `chunker.go` | Markdown-aware 递归分块（500 字符 / 重叠 100） |
+| `embedder.go` | 批量 Embedding（batch=20）+ 查询侧 LRU 缓存 |
+| `packing.go` | Context Packing——token 预算内贪心填充（2000 token） |
+| `sandwich.go` | Sandwich Reorder——高分放首尾，缓解 Lost in the Middle |
+| `processor.go` | goroutine pool 异步文档处理（parse→chunk→embed→pgvector） |
+| `ingest_queue.go` | 异步索引队列（append-only JSONL，<5ms 入队） |
 | `types.go` | 共享类型定义 |
+
+**检索管道**（`kb_store_impl.go:Search`，毫秒级）：
+
+```mermaid
+flowchart LR
+    Q["Agent query"] --> PAR["errgroup 并行"]
+    PAR --> VEC["向量检索<br/>query embed 缓存 → pgvector cosine<br/>ef_search=100, halfvec(1024)"]
+    PAR --> BM25["BM25 检索<br/>gse, 内存索引, enriched"]
+    VEC --> RRF["RRF 融合 k=30<br/>retrievalK=30 候选"]
+    BM25 --> RRF
+    RRF --> RERANK["cross-encoder rerank<br/>全池 → 按 ConfRaw 重排"]
+    RERANK --> DEDUP["内容去重"]
+    DEDUP --> CONF["分层置信度<br/>cosine→+BM25 0.4→+Rerank 0.6"]
+    CONF --> CRAG{"CRAG 评估"}
+    CRAG --> SAND["Sandwich Reorder"]
+    SAND --> PACK["Context Packing 2000"]
+    PACK --> OUT["SearchOutcome{Entries, Verdict}<br/>文本含 [检索充分性: level]"]
+```
+
+两阶段检索：向量 + BM25 各取 `retrievalK=30` 候选 → RRF 融合 → cross-encoder rerank 全池 → 截到 `limit`（top N）。`ef_search` 必须 ≥ `retrievalK`。
 
 ### 2.3 适配层接口
 
@@ -149,9 +171,18 @@ classDiagram
         <<interface>>
         BatchInsert(ctx, []VectorChunk) error
         CosineSearch(ctx, kbID, embedding, topK) ([]SearchResult, error)
+        CosineSearchWithFilter(ctx, kbID, embedding, topK, tags) ([]SearchResult, error)
         DeleteByArticle(ctx, articleID) error
         DeleteByKB(ctx, kbID) error
         ReplaceVectors(ctx, articleID, []VectorChunk) error
+    }
+    class Reranker {
+        <<interface>>
+        Rerank(ctx, query, passages) (*RerankResult, error)
+    }
+    class SufficiencyEvaluator {
+        <<interface>>
+        Evaluate(ctx, query, results) (Verdict, error)
     }
     class StorageClient {
         <<interface>>
@@ -163,7 +194,9 @@ classDiagram
 ```
 
 - `LLMClient` / `EmbeddingClient`：OpenAI-compatible 实现，指数退避重试（maxRetries=3，429/503 可重试）
-- `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验
+- `VectorStore`：pgvector 实现，halfvec 半精度 + HNSW 索引，维度一致性校验；`SetEfSearch` 设查询时 `hnsw.ef_search`（只读事务内 `SET LOCAL`，连接池安全）
+- `Reranker`：cross-encoder 子进程实现（ms-marco-MiniLM-L-4-v2），崩溃自动重启
+- `SufficiencyEvaluator`：CRAG 充分性评估；`ThresholdEvaluator`（纯函数，复用 `ai.confidence_threshold_low/high`）+ 可选 `LLMCRAGEvaluator`（仅 Ambiguous 带，失败降级阈值）
 - `StorageClient`：Local + MinIO 双实现（目录式），桶：`cognos-documents` 文档（`kb-{kbID}/{draft|published}/{filename}.md`）+ `image` 统一图片目录
 
 ## 3. 前端架构
@@ -275,17 +308,22 @@ erDiagram
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| 向量类型 | `halfvec(1024)` | 半精度，维度可配置 |
-| 索引 | HNSW | `halfvec_ip_ops`，内积算子 |
-| 距离算子 | `<=>` | 余弦距离 |
-| 分块大小 | 1000 字符 | 重叠 200 字符 |
+| 向量类型 | `halfvec(1024)` | 半精度，维度随 embedding 模型 |
+| 索引 | HNSW | `halfvec_cosine_ops`，m=16，ef_construction=200 |
+| 距离算子 | `<=>` | 余弦距离；score = `1 - 距离` |
+| ef_search | 100（`COGNOS_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
+| retrievalK | 30（`COGNOS_AI_RETRIEVAL_K` / `ai.retrieval_k`） | 两阶段候选池；rerank 全池后截到 limit |
+| RRF k | 30（`COGNOS_AI_RRF_K` / `ai.rrf_k`） | 融合常数，可调 |
+| 分块大小 | 500 字符 | 重叠 100 字符 |
 
 ### 4.3 关键索引
 
 | 表 | 索引 | 用途 |
 |----|------|------|
-| `knowledge_chunks` | HNSW `embedding halfvec_ip_ops` | 向量相似度检索 |
+| `knowledge_chunks` | HNSW `embedding halfvec_cosine_ops` | 向量相似度检索 |
 | `knowledge_chunks` | B-tree `kb_id` + `article_id` | 按范围过滤/删除 |
+| `knowledge_articles` | GIN `tags` | metadata 标签硬过滤（JSONB `?|`） |
+| `knowledge_articles` | B-tree `article_type` | metadata 类型硬过滤 |
 | `tickets` | UNIQUE `ticket_no` | 编号唯一 |
 | `tickets` | B-tree `user_id, status, created_at` | 列表查询 + AutoClose |
 | `chat_sessions` | B-tree `user_id, created_at` | 会话列表 |

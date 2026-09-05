@@ -401,3 +401,27 @@ func TestMkdir_PathTraversalBlocked(t *testing.T) {
 		t.Fatal("路径穿越应被拒绝")
 	}
 }
+
+// --- build（沙箱目录确保）---
+
+// TestBuild_CreatesSandboxIfMissing 验证 Build 自动创建不存在的沙箱工作目录。
+// 修复缺陷：全新部署下 workDir 缺失，首次 bash/list_dir 调用直接失败。
+func TestBuild_CreatesSandboxIfMissing(t *testing.T) {
+	root := t.TempDir()
+	sandbox := filepath.Join(root, "nested", "agent-workspace")
+	if _, err := os.Stat(sandbox); !os.IsNotExist(err) {
+		t.Fatalf("前置条件失败：沙箱目录不应存在, got %v", err)
+	}
+
+	tools, err := agenttools.Build(agenttools.Deps{WorkDir: sandbox, Timeout: time.Second, MaxBytes: 1024})
+	if err != nil {
+		t.Fatalf("Build 失败: %v", err)
+	}
+	if len(tools) == 0 {
+		t.Fatal("Build 应返回工具集")
+	}
+	info, err := os.Stat(sandbox)
+	if err != nil || !info.IsDir() {
+		t.Errorf("Build 应自动创建沙箱目录 %s, stat err=%v", sandbox, err)
+	}
+}

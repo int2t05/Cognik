@@ -91,6 +91,7 @@ type ChunkSnapshot struct {
 type PgvectorStore struct {
 	db         *sql.DB
 	maxRetries int
+	efSearch   int // HNSW 查询时 ef_search（>0 时在只读事务内 SET LOCAL，连接池安全）
 }
 
 // NewPgvectorStore 创建 PgvectorStore 实例，复用 GORM DB 连接池。
@@ -104,6 +105,10 @@ func NewPgvectorStore(gormDB *gorm.DB) (*PgvectorStore, error) {
 	}
 	return &PgvectorStore{db: db, maxRetries: defaultMaxRetries}, nil
 }
+
+// SetEfSearch 设置 HNSW 查询时 ef_search（ef_search 必须 ≥ LIMIT；越大召回越高、延迟越大）。
+// 仅查询时生效，不重建索引。0 表示用 pgvector 默认值 40。
+func (s *PgvectorStore) SetEfSearch(n int) { s.efSearch = n }
 
 // Close 关闭与 GORM 共享的底层连接（由 GORM 管理生命周期，此方法为 no-op）。
 func (s *PgvectorStore) Close() error { return nil }
@@ -195,17 +200,56 @@ func (s *PgvectorStore) CosineSearchWithFilter(ctx context.Context, kbID int64, 
 
 	query += ` ORDER BY kc.embedding <=> $1::halfvec LIMIT ` + fmt.Sprintf("%d", topK)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("向量检索失败 (kb_id=%d): %w", kbID, err)
+	// efSearch>0 时在只读事务内 SET LOCAL，作用域限单连接（连接池安全）。
+	// SET LOCAL 不接受参数占位符，用 %d（int 不可能注入）。
+	var (
+		results []SearchResult
+		err     error
+	)
+	if s.efSearch > 0 {
+		tx, txErr := s.db.BeginTx(ctx, nil)
+		if txErr != nil {
+			return nil, fmt.Errorf("开启 ef_search 事务失败 (kb_id=%d): %w", kbID, txErr)
+		}
+		defer tx.Rollback()
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf("SET LOCAL hnsw.ef_search = %d", s.efSearch)); err != nil {
+			return nil, fmt.Errorf("设置 ef_search 失败: %w", err)
+		}
+		rows, qerr := tx.QueryContext(ctx, query, args...)
+		results, err = scanSearchRows(rows, kbID)
+		if err == nil {
+			err = qerr
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("提交 ef_search 事务失败 (kb_id=%d): %w", kbID, err)
+		}
+	} else {
+		rows, qerr := s.db.QueryContext(ctx, query, args...)
+		results, err = scanSearchRows(rows, kbID)
+		if err == nil {
+			err = qerr
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return results, nil
+}
+
+// scanSearchRows 扫描向量检索结果；调用方负责 QueryContext 错误（rows 为 nil 时返回 nil）。
+func scanSearchRows(rows *sql.Rows, kbID int64) ([]SearchResult, error) {
+	if rows == nil {
+		return nil, nil
 	}
 	defer rows.Close()
-
 	var results []SearchResult
 	for rows.Next() {
 		var r SearchResult
 		if err := rows.Scan(&r.ChunkID, &r.ArticleID, &r.Content, &r.ChunkIndex, &r.Score); err != nil {
-			return nil, fmt.Errorf("扫描检索结果失败: %w", err)
+			return nil, fmt.Errorf("扫描检索结果失败 (kb_id=%d): %w", kbID, err)
 		}
 		results = append(results, r)
 	}
