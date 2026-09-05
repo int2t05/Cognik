@@ -173,7 +173,7 @@ KnowledgeHandler.Enable → KnowledgeService.Enable (domain/knowledge/service.go
 
 ### POST /api/v1/admin/knowledge-bases/:kb_id/documents/upload &emsp; 上传 &emsp; [PermKnowledgeWrite]
 
-**输入** `multipart/form-data files: [运维手册.pdf, FAQ.docx]`
+**输入** `multipart/form-data files: [技术手册.pdf, FAQ.docx]`
 
 ```
 KnowledgeHandler.UploadDocuments (domain/knowledge/handler.go:329)

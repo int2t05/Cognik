@@ -6,23 +6,24 @@
 
 # 后端
 
-## 1. 智能问答与 RAG 管道
+## 1. RAG 管道
 
 - 🟡 BM25 索引无增量更新，每次刷新全量重建——需算法重构
 - 🟡 文档处理器无阶段内重试机制，embedding API 瞬时失败直接中止——需架构变更
-- 🟢 RAG 历史截断按消息条数而非 token 数——设计权衡，非阻塞
+- 🟢 语义去重阈值 0.92 硬编码，不可配置——设计权衡
+- 🟢 CreateAndPublish 无速率限制——Agent 短时间内大量 create 可能灌入低质量文章
 
 ## 2. 知识库管理
 
 - 🟡 DOCX 解析仅读取 `word/document.xml`，不处理 `word/document2.xml` 分割文档
 - 🟡 PDF/DOCX 解析前全量读入内存（`io.ReadAll`），大文件 OOM 风险
 - 🟡 50MB 上传上限硬编码，不支持按 KB 粒度配置
-- 🟡 MinIO 惰性下载——`GetObject` 成功不代表数据可读，`defer reader.Close()` 不检查错误
-- 🟢 文档处理缺自动重试队列和死信队列——当前仅手动 `RetryDocument`
+- 🟢 UpdateAndRepublish 并发写同一文章无 CAS 保护——增量 reindex 可能竞态
 
-## 3. 数据看板
+## 3. Agent
 
-- 🟢 趋势查询窗口硬编码，不可配置——低优先级
+- 🟡 Agent 任务无持久化——崩溃后 ReAct 循环不可恢复（SQLite 仅存事件流）
+- 🟢 AutoDream 复盘无触发条件配置——固定双门（24h+5 sessions），不可调
 
 ---
 
@@ -39,15 +40,11 @@
 
 ## 3. 组件架构
 
-- 🟢 StatusBadge 领域状态映射硬编码在组件内，后端新增状态时前端需同步更新——`statusText` prop 为已提供的逃生舱
+- 🟢 StatusBadge 领域状态映射硬编码在组件内——`statusText` prop 已提供逃生舱
 
-## 4. 设计系统
+## 4. 工单展示
 
-- 🟢 审计页输入框样式在 5 处重复——审计页布局特殊，不适合直接 `AppleInput`
-
-## 5. 基础设施
-
-- 🟢 全局 ErrorBoundary 仅顶层一个——`SectionErrorBoundary` 已覆盖内容区
+- 🟢 系统复核工单（source=3）在前端列表无视觉区分——可加 badge 标记
 
 ---
 
@@ -55,11 +52,11 @@
 
 | | 🔴 P0 | 🟠 P1 | 🟡 P2 | 🟢 P3 |
 |---|---|---|---|---|
-| 后端 | 0 | 0 | 6 | 3 |
-| 前端 | 0 | 0 | 1 | 6 |
-| **合计** | **0** | **0** | **7** | **9** |
+| 后端 | 0 | 0 | 5 | 4 |
+| 前端 | 0 | 0 | 0 | 4 |
+| **合计** | **0** | **0** | **5** | **8** |
 
 ---
 
-> 产品技术路线图与未来方向见 [`ROADMAP.md`](ROADMAP.md)。
+> 产品技术路线图与未来方向见 [`ROADMAP.md`](ROADMAP.md) §10 V2.0。
 

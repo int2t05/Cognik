@@ -107,7 +107,7 @@ UserHandler.Restore (domain/user/account/handler.go:124)
 
 ### GET /api/v1/admin/roles &emsp; 角色列表 &emsp; [PermUserManage]
 
-**输入** `?page=1&page_size=20&keyword=运维`
+**输入** `?page=1&page_size=20&keyword=技术`
 
 ```
 RoleHandler.List (domain/user/role/handler.go:59)

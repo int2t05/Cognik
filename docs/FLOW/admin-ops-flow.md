@@ -1,4 +1,4 @@
-# 管理运维数据流 — 每个 API 端点
+# 管理后台数据流 — 每个 API 端点
 
 > 涉及文件: `domain/system/dashboard/handler.go`, `domain/system/audit/handler.go`, `domain/system/config/handler.go`, `domain/system/message/handler.go`, `domain/system/dashboard/service.go`, `domain/system/audit/service.go`, `domain/system/config/service.go`, `domain/system/message/service.go`, `domain/system/audit/repository.go`, `domain/system/config/repository.go`, `domain/system/message/repository.go`, `shared/model/audit.go`, `shared/model/system.go`, `shared/model/message.go`
 
@@ -74,7 +74,7 @@ ConfigHandler.Get (domain/system/config/handler.go:29)
 
 ### PUT /api/v1/admin/configs/:key &emsp; 更新配置 &emsp; [PermSystemConfig]
 
-**输入** `{"value":"运维数字员工系统 v2"}`
+**输入** `{"value":"Cognos 知识管理系统 v2"}`
 
 ```
 ConfigHandler.Update (domain/system/config/handler.go:51)

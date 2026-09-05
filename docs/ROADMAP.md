@@ -4,7 +4,7 @@
 
 ## 1. 项目愿景
 
-Cognos 是面向企业 IT 运维的**私有部署 AI 数字员工系统**。核心目标：让运维团队从重复性咨询中解放，让知识沉淀为可复用资产，让 AI 成为运维流程的第一响应者。
+Cognos 是面向团队的**私有部署 AI 知识管理平台**。核心目标：让知识沉淀为可复用资产，让 AI 自主检索与写入知识，让团队从重复性咨询中解放。
 
 **设计原则**：私有部署优先（数据不出域）、自建 RAG 引擎（全链路可控可审计）、单体分层架构（简洁可维护）。
 
@@ -264,11 +264,11 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 
 **架构原则**：三层分离（planner→execution→publisher）/ 多 LLM 角色分工 / 先大纲再填充 / 对抗性反思 / 累积式知识
 
-### 7.4 Ops 域搜索场景
+### 7.4 深度搜索场景
 
 | 场景 | 查询示例 | 来源 |
 |------|---------|------|
-| 错误代码查找 | "ORA-00942 error" | Stack Overflow、厂商文档 |
+| 技术问题查找 | "ORA-00942 error" | Stack Overflow、厂商文档 |
 | CVE 查询 | "CVE-2025-XXXX" | NVD、厂商安全公告 |
 | 软件版本兼容 | "PostgreSQL 17 pgvector" | 厂商文档、GitHub releases |
 | 内部 KB 未命中 | 内部无文档的问题 | 回退网络搜索 |
@@ -399,90 +399,41 @@ RRF k 值从 60 调低到 30（可配置）。k 值越小排名靠前结果得�
 token 预算内贪心填充——从高分到低分依次放入，剩余 token 用截断的下一个 chunk 填充。
 
 
-## 10. V2.0 — Agentic RAG（终点）
+## 10. V2.0 — 智能化增强（规划中）
 
-**目标**：Agent ReAct 循环替代固定 7 步管道，实现自主检索决策、网络搜索、多步推理。
+V1.6 已交付 Agentic RAG 自迭代闭环（Agent ReAct 循环 + 自建 ChatModel + 知识写回即发布）。V2.0 在此基础上增强智能化能力。
 
-### 10.1 核心变化
+### 10.1 多模态文档解析
 
-固定 7 步线性管道 → Agent ReAct 循环自主决策。
+- 图片内容提取（MinerU vision 模式）——当前图片仅存储不解析，无法被 RAG 检索
+- 表格结构化提取——复杂表格转 Markdown/HTML 结构，当前降级为纯文本
+- 扫描件 OCR——MinerU 云端高精度 OCR，补充本地解析能力
 
-```mermaid
-flowchart TD
-    subgraph V1["固定管道"]
-        Q1["用户提问"] --> R1["改写"] --> R2["路由"] --> R3["混合检索"] --> R4["重排"] --> G1["生成"]
-    end
-    subgraph V2["Agentic RAG"]
-        Q2["用户提问"] --> AG["Agent Loop"]
-        AG -->|"think"| T1{"需要什么信息?"}
-        T1 -->|"内部知识"| KB["search_knowledge_base"]
-        T1 -->|"实时信息"| WS["web_search"]
-        T1 -->|"结构化数据"| SQL["sql_query"]
-        T1 -->|"申告历史"| TK["ticket_lookup"]
-        KB & WS & SQL & TK --> AG
-        AG -->|"observe"| T2{"够了吗?"}
-        T2 -->|"不够"| T1
-        T2 -->|"够了"| ANS["生成回答"]
-    end
-    V1 -->|演进| V2
-```
+### 10.2 知识图谱
 
-### 10.2 目标架构
+- 文章间关联抽取——LLM 提取实体关系，构建知识图谱
+- 图谱可视化——前端图谱浏览（节点=文章/实体，边=关系）
+- 图谱增强检索——向量检索 + 图谱遍历融合，提升多跳问答能力
 
-```mermaid
-flowchart TB
-    FE["Frontend (Next.js)<br/>ChatStreamProvider"]
-    FE -->|"POST /api/chat"| SSE["Gin SSE bridge"]
-    SSE --> AGENT["agent/ 领域<br/>自建 ReAct 循环"]
-    AGENT -->|"agent/llm net/http"| LLM["自建 ChatModel"]
-    AGENT -->|"同进程"| RAG["RAG Engine<br/>BM25 + pgvector + RRF + rerank"]
-    AGENT -->|"直接 HTTP"| SEARCH["web_search / web_fetch<br/>SearXNG + Firecrawl"]
-    AGENT -->|"直接 HTTP"| KB["kb_create / kb_update<br/>知识库工具链"]
-    SSE -->|"SSE stream"| FE
-    RAG --> PG[("PostgreSQL + pgvector")]
-```
+### 10.3 Agent 能力增强
 
-### 10.3 深度搜索与知识库
+- 多 Agent 协作——research/coder/deep_research SubAgent 间任务委派与结果汇总
+- 长任务断点续传——Agent 任务持久化 + 崩溃恢复（当前仅 SQLite 事件流）
+- 工具市场——插件化工具注册，支持热加载第三方工具
 
-V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 已优化检索质量。V2.0 启用 Agent 自主调用完整工具链。
+### 10.4 企业特性
 
-### 10.4 Agent 场景
+- 多租户——知识库 + 工单按组织隔离
+- SSO 集成——OIDC/SAML 单点登录
+- 细粒度权限——知识库级 ACL（当前仅 RBAC 权限码）
+- 审计增强——Agent 决策轨迹完整回放
 
-| 场景 | Agent 模式 | 工具 |
-|------|-----------|------|
-| 智能问答 | ReAct + Corrective RAG | RAG 检索、网络搜索、申告历史 |
-| 根因分析 | Plan-then-Execute | 日志查询、拓扑探索、指标查询、知识检索 |
-| 自助修复 | ReAct + Tool Use | API 调用、脚本执行（需人工审批门） |
+### 10.5 性能与可观测
 
-### 10.5 废弃与保留
-
-| 废弃（固定管道） | 替代（Agentic） |
-|-----------|------------|
-| `ai.rag_query_rewrite` 开关 | Agent 自主决策 |
-| `ai.rag_multi_route` 开关 | Agent 循环多次调用 |
-| `ai.rag_hybrid` 开关 | 工具参数 `strategy=hybrid` |
-| `ai.rag_rerank` 开关 | 工具参数 `rerank=true` |
-| 固定 `Pipeline.Execute()` | `agent.Agent.Run()` ReAct 循环 |
-
-| 保留 | 原因 |
-|------|------|
-| RAG 引擎 | Go 引擎作为工具后端 |
-| pgvector + PostgreSQL | 向量存储 + 业务数据 |
-| Document Processor | 文档处理管道 |
-| SSE 流式 + GenerationHub | 事件类型已扩展 |
-| Auth/RBAC/Ticket/Knowledge | 领域逻辑不变 |
-
-### 10.6 验收标准
-
-| 验收项 | 标准 |
-|--------|------|
-| Agent 对话端到端 | 用户提问 → Agent 自主检索（≥1 轮）→ 带引用回答 |
-| 网络搜索 | 内部 KB 无结果时 Agent 自主触发搜索 |
-| 深度搜索 | 复杂问题 Agent 多轮搜索（≥2 轮）并综合 |
-| 知识库自进化 | 已解决申告生成知识条目 → 嵌入 pgvector |
-| Agent 事件 UI | thinking / tool_call / tool_result 实时渲染 |
-| 降级 | Agent Loop 异常时回退固定管道 |
-| 审计 | Agent 轨迹写入审计日志 |
+- BM25 增量更新——当前全量重建，大 KB 下性能瓶颈
+- 检索缓存——query embedding LRU 缓存（已实现单文本缓存，扩展到 batch）
+- Prometheus 指标——RAG 管道 + Agent 循环 + embedding 延迟监控
+- 分布式部署——Processor 跨节点水平扩展（当前单节点 goroutine pool）
 
 ---
 
@@ -513,12 +464,12 @@ gantt
     记忆系统框架         :done, v15, 2026-07-30, 30d
 
     section V1.6 已交付
-    检索优化             :done, v16, 2026-08-29, 7d
+    检索优化+自迭代闭环   :done, v16, 2026-08-29, 7d
 
-    section V2.0 Agentic RAG
-    Agent 替代固定管道    :v20a, 2026-09-15, 14d
-    前端 Agent 事件 UI    :v20b, 2026-09-15, 21d
-    端到端集成+降级       :v20c, 2026-10-01, 14d
+    section V2.0 规划中
+    多模态文档解析       :v20a, 2026-10-01, 30d
+    知识图谱             :v20b, 2026-11-01, 45d
+    企业特性             :v20c, 2026-12-01, 30d
 ```
 
 ---
@@ -539,14 +490,14 @@ gantt
 | deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词 |
 | Agent 记忆 | 记忆操作作为 Agent 工具 | Agent 自主决定何时记忆/检索 |
 | 记忆系统框架 | 记忆+RAG+知识库统一架构 | 上下文=L1 cache, md=disk, 页表=索引 |
-| 记忆压缩 | 无损优先，有损最后 | 运维信息不能被摘要丢失 |
+| 记忆压缩 | 无损优先，有损最后 | 知识信息不能被摘要丢失 |
 | 记忆 scope | 与系统相关，与用户无关 | scope = system_id |
 | 知识库组织 | 文件式 Markdown，索引是派生 | 文件即真相，可重建 |
 | RAG 检索 | BM25 为主，向量为补充 | BEIR 基准 + Claude Code 实证 |
-| Agent 模式 | ReAct + Corrective RAG | 运维问答需要多步推理 + 检索质量保证 |
+| Agent 模式 | ReAct + Corrective RAG | 知识问答需要多步推理 + 检索质量保证 |
 | LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
 | 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测 |
-| 版本终点 | V2.0 | 不规划 V2.x，业务提升全部归入 V1.1-V1.6 |
+| 版本规划 | V1.x 已交付，V2.0 智能化增强 | V1.6 交付自迭代闭环；V2.0 聚焦多模态/知识图谱/企业特性 |
 
 ---
 

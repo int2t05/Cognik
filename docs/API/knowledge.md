@@ -66,7 +66,7 @@ Authorization: Bearer <token>
 **响应：**
 
 ```json
-{ "code": 0, "message": "success", "data": [{ "id": 1, "name": "IT 运维 FAQ", "description": "常见的 IT 运维问题和解决方案" }] }
+{ "code": 0, "message": "success", "data": [{ "id": 1, "name": "IT 知识 FAQ", "description": "常见的 IT 问题和解决方案" }] }
 ```
 
 > 仅返回 `id`、`name`、`description`，不暴露 embedding 配置等管理字段。
@@ -87,8 +87,8 @@ Authorization: Bearer <token>
     "data": [
         {
             "id": 1,
-            "name": "运维知识库",
-            "description": "运维标准操作流程",
+            "name": "技术知识库",
+            "description": "技术标准操作流程",
             "embedding_model": "bge-m3",
             "vector_dimension": 1536,
             "llm_config_id": 1,
@@ -125,8 +125,8 @@ Authorization: Bearer <token>
 
 ```json
 {
-    "name": "网络运维 FAQ",
-    "description": "网络相关的运维知识",
+    "name": "网络知识 FAQ",
+    "description": "网络相关的技术知识",
     "embedding_model": "bge-m3",
     "vector_dimension": 1536,
     "llm_config_id": 1
@@ -166,7 +166,7 @@ Authorization: Bearer <token>
 **请求体：**
 
 ```json
-{ "name": "网络运维知识库", "description": "更新后的描述" }
+{ "name": "网络技术知识库", "description": "更新后的描述" }
 ```
 
 **响应：**
@@ -213,7 +213,7 @@ Authorization: Bearer <token>
         {
             "id": 1,
             "kb_id": 1,
-            "kb_name": "IT 运维 FAQ",
+            "kb_name": "IT 知识 FAQ",
             "title": "如何重置 VPN 密码？",
             "content": "请登录 VPN 自助服务平台...",
             "source_type": 1,
@@ -235,7 +235,7 @@ Authorization: Bearer <token>
         {
             "id": 2,
             "kb_id": 1,
-            "kb_name": "IT 运维 FAQ",
+            "kb_name": "IT 知识 FAQ",
             "title": "账号冻结处理流程.pdf",
             "content": "一、账号冻结场景说明...（解析后的文本全文）",
             "source_type": 2,
@@ -363,7 +363,7 @@ Authorization: Bearer <token>
     "data": {
         "id": 1,
         "kb_id": 1,
-        "kb_name": "IT 运维 FAQ",
+        "kb_name": "IT 知识 FAQ",
         "title": "VPN 连接超时怎么办？",
         "content": "1. 检查本地网络连接\n2. 尝试备用线路 vpn2.company.com\n3. 联系 IT 服务台（分机 8888）",
         "source_type": 1,
