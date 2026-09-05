@@ -18,10 +18,10 @@ package integration_test
 import (
 	"testing"
 
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/hash"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -166,9 +166,9 @@ func setupSeedDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(dbCfg)

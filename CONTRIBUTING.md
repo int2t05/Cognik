@@ -1,14 +1,14 @@
-# Contributing to Cognos
+# Contributing to Cognik
 
-Thanks for your interest in Cognos! Bug reports, feature suggestions, and code contributions are all welcome.
+Thanks for your interest in Cognik! Bug reports, feature suggestions, and code contributions are all welcome.
 
 [简体中文](CONTRIBUTING.zh-CN.md)
 
 ## Development setup
 
 ```bash
-git clone https://github.com/int2t05/Cognos.git
-cd Cognos
+git clone https://github.com/int2t05/Cognik.git
+cd Cognik
 
 # Start dependency services
 docker compose up -d postgres minio

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // AutoDream 跨会话记忆复盘 agent。

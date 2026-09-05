@@ -1,13 +1,13 @@
--- Cognos 数据库清空脚本
+-- Cognik 数据库清空脚本
 --
 -- 删除所有表中的数据，保留表结构（DDL）。用于开发/测试环境重置。
 --
 -- 与 seed_essential.sql 互为逆操作：
---   1. 清空数据：psql -U cognos -d cognos < server/migrations/clear_all.sql
---   2. 重新播种：psql -U cognos -d cognos < server/migrations/seed_essential.sql
+--   1. 清空数据：psql -U cognik -d cognik < server/migrations/clear_all.sql
+--   2. 重新播种：psql -U cognik -d cognik < server/migrations/seed_essential.sql
 --
 -- 手动加载方式：
---   docker compose exec -T postgres psql -U cognos -d cognos < server/migrations/clear_all.sql
+--   docker compose exec -T postgres psql -U cognik -d cognik < server/migrations/clear_all.sql
 
 BEGIN;
 

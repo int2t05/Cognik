@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 
-	"cognos/internal/shared/model"
+	"cognik/internal/shared/model"
 
 	"gorm.io/gorm"
 )

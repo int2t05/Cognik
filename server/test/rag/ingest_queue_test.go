@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/rag"
+	"cognik/internal/rag"
 )
 
 // newQueue 创建临时队列。

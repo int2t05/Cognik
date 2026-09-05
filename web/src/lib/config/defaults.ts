@@ -3,7 +3,7 @@
  */
 
 export const SYSTEM_CONFIG_DEFAULTS = {
-  app_name: 'Cognos',
+  app_name: 'Cognik',
   'ai.rag_enabled': true,
   'ai.top_k': 5,
   'ai.confidence_threshold_low': 0.40,

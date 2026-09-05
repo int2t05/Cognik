@@ -15,7 +15,7 @@ import (
 	"io"
 	"reflect"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 const (

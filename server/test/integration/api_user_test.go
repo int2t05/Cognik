@@ -51,7 +51,7 @@ func TestAPI_User_CreateSuccess(t *testing.T) {
 
 	resp := ts.doAuth(t, http.MethodPost, "/api/v1/admin/users", map[string]interface{}{
 		"username": "new_user", "password": "NewUser@123", "real_name": "Test",
-		"phone": "13800002001", "email": "test@cognos.local", "role_ids": []int64{},
+		"phone": "13800002001", "email": "test@cognik.local", "role_ids": []int64{},
 	})
 	assertCode(t, resp, 0)
 
@@ -133,7 +133,7 @@ func TestAPI_User_UpdateSuccess(t *testing.T) {
 	ts.DB.Raw("SELECT id FROM users WHERE username = 'update_me'").Scan(&userID)
 
 	assertCode(t, ts.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/users/%d", userID),
-		map[string]interface{}{"real_name": "Updated", "phone": "13800002998", "email": "new@cognos.local"}), 0)
+		map[string]interface{}{"real_name": "Updated", "phone": "13800002998", "email": "new@cognik.local"}), 0)
 
 	body := assertOK(t, ts.doAuth(t, http.MethodGet, fmt.Sprintf("/api/v1/admin/users/%d", userID), nil))
 	assert.Equal(t, "Updated", body["data"].(map[string]interface{})["real_name"])

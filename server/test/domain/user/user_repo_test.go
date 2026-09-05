@@ -3,7 +3,7 @@
 // Package repository_test 验证 UserRepo 数据访问层。
 //
 // 测试覆盖 5 个核心方法：GetByID/GetByUsername/GetByPhone/ExistsByPhone/Create。
-// 使用独立的 cognos_test 数据库，每个测试用例通过清理保证隔离性。
+// 使用独立的 cognik_test 数据库，每个测试用例通过清理保证隔离性。
 package user_test
 
 import (
@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/domain/user/account"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,9 +28,9 @@ func setupUserTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos_test",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik_test",
 		SSLMode:  "disable",
 	}
 

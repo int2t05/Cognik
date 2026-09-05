@@ -1,14 +1,14 @@
-# Contributing to Cognos
+# Contributing to Cognik
 
-感谢你对 Cognos 的关注！无论是 Bug 报告、功能建议还是代码贡献，都非常欢迎。
+感谢你对 Cognik 的关注！无论是 Bug 报告、功能建议还是代码贡献，都非常欢迎。
 
 [English](CONTRIBUTING.md)
 
 ## 开发环境设置
 
 ```bash
-git clone https://github.com/int2t05/Cognos.git
-cd Cognos
+git clone https://github.com/int2t05/Cognik.git
+cd Cognik
 
 # 启动依赖服务
 docker compose up -d postgres minio

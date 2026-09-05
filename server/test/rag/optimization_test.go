@@ -4,7 +4,7 @@ package rag_test
 import (
 	"testing"
 
-	"cognos/internal/rag"
+	"cognik/internal/rag"
 )
 
 // --- Sandwich Reorder ---

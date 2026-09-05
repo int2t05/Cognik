@@ -5,10 +5,10 @@ import (
 	"context"
 	"strings"
 
-	"cognos/internal/infra/cache"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/jwt"
-	"cognos/internal/shared/pkg/response"
+	"cognik/internal/infra/cache"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/jwt"
+	"cognik/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

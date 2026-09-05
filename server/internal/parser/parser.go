@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"cognos/internal/parser/local"
-	"cognos/internal/parser/mineru"
+	"cognik/internal/parser/local"
+	"cognik/internal/parser/mineru"
 )
 
 // maxDocumentSize 文档最大解析大小（100MB），防止恶意文件导致 OOM。

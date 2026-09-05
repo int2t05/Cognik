@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"cognos/internal/rag"
+	"cognik/internal/rag"
 )
 
 // --- 基础分块 ---

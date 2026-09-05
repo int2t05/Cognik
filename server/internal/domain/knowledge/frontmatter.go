@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/rag"
+	"cognik/internal/rag"
 )
 
 // ArticleMeta 文章 frontmatter 元数据（.md 文件头部 --- 块）。

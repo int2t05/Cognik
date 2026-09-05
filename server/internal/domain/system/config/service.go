@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# Cognos All-in-One entrypoint
+# Cognik All-in-One entrypoint
 # 首次启动：initdb → 建库 → supervisord
 # 后续启动：直接 supervisord
 
 PGDATA="${PGDATA:-/data/postgresql/pgdata}"
 PG_BIN="/usr/lib/postgresql/18/bin"
-PG_USER="${POSTGRES_USER:-cognos}"
-PG_PASS="${POSTGRES_PASSWORD:-cognos_dev}"
-PG_DB="${POSTGRES_DB:-cognos}"
+PG_USER="${POSTGRES_USER:-cognik}"
+PG_PASS="${POSTGRES_PASSWORD:-cognik_dev}"
+PG_DB="${POSTGRES_DB:-cognik}"
 
 log() { echo "[entrypoint] $(date +%H:%M:%S) $*"; }
 
@@ -52,7 +52,7 @@ init_database() {
     su - postgres -c "${PG_BIN}/pg_ctl -D ${PGDATA} stop"
 }
 
-log "=== Cognos All-in-One Starting ==="
+log "=== Cognik All-in-One Starting ==="
 init_pgdata
 init_database
 log "Launching supervisord..."

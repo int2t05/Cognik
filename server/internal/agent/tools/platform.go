@@ -1,7 +1,7 @@
 // Package tools 提供 Agent 内置工具集。
 // platform.go：平台相关的 bash 二进制探测。
 //
-// Windows 默认用 GitBash（对齐开发环境）；可通过 COGNOS_AGENT_BASH_BIN 覆盖。
+// Windows 默认用 GitBash（对齐开发环境）；可通过 COGNIK_AGENT_BASH_BIN 覆盖。
 // 非 Windows 直接用 PATH 中的 bash/sh。
 package tools
 
@@ -12,10 +12,10 @@ import (
 )
 
 // resolveBashBin 解析要执行的 bash 二进制路径。
-// 优先级：COGNOS_AGENT_BASH_BIN env > Windows GitBash 常见路径 > PATH(bash) > PATH(sh)。
+// 优先级：COGNIK_AGENT_BASH_BIN env > Windows GitBash 常见路径 > PATH(bash) > PATH(sh)。
 func resolveBashBin() string {
 	// 1. 显式配置
-	if bin := os.Getenv("COGNOS_AGENT_BASH_BIN"); bin != "" {
+	if bin := os.Getenv("COGNIK_AGENT_BASH_BIN"); bin != "" {
 		if _, err := os.Stat(bin); err == nil {
 			return bin
 		}

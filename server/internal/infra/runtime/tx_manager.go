@@ -19,7 +19,7 @@ type GormTxManager struct {
 // NewGormTxManager 创建事务管理器。db 为 nil 时立即 panic，构造期暴露装配错误。
 func NewGormTxManager(db *gorm.DB) *GormTxManager {
 	if db == nil {
-		panic("cognos: NewGormTxManager called with nil db")
+		panic("cognik: NewGormTxManager called with nil db")
 	}
 	return &GormTxManager{db: db}
 }

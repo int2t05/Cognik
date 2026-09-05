@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // ContextualGenerator 为 chunk 生成上下文摘要（索引时调用，非检索时）。

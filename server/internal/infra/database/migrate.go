@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"cognos/internal/shared/model"
+	"cognik/internal/shared/model"
 
 	"gorm.io/gorm"
 )

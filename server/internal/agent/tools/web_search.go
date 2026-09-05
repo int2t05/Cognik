@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/agent"
-	"cognos/internal/infra/adapter"
+	"cognik/internal/agent"
+	"cognik/internal/infra/adapter"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // WebSearchTool 网络搜索工具（实现 agent.SyncTool）。

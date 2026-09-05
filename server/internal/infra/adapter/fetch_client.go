@@ -195,7 +195,7 @@ func (c *LocalFetchClient) Fetch(ctx context.Context, targetURL string) (string,
 	if err != nil {
 		return "", FetchMeta{}, fmt.Errorf("创建本地请求失败: %w", err)
 	}
-	req.Header.Set("User-Agent", "Cognos (AI Ops Assistant)")
+	req.Header.Set("User-Agent", "Cognik (AI Ops Assistant)")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

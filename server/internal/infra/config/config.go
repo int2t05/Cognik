@@ -1,4 +1,4 @@
-// Package config 负责加载配置（Viper 读取 config.yaml + 环境变量覆盖，前缀 COGNOS）。
+// Package config 负责加载配置（Viper 读取 config.yaml + 环境变量覆盖，前缀 COGNIK）。
 package config
 
 import (
@@ -225,7 +225,7 @@ func Load(configPath string) (*AppConfig, error) {
 // storage.local.base_dir / memory.storage_root 为空时，用 {data_root}/storage、{data_root}/memory 填充。
 func (c *AppConfig) resolveDataPaths() {
 	if c.DataRoot == "" {
-		c.DataRoot = ".cognos"
+		c.DataRoot = ".cognik"
 	}
 	if c.Storage.Local.BaseDir == "" {
 		c.Storage.Local.BaseDir = filepath.Join(c.DataRoot, "storage")
@@ -238,89 +238,89 @@ func (c *AppConfig) resolveDataPaths() {
 // bindEnvs 显式绑定环境变量到配置 key。
 func bindEnvs(v *viper.Viper) {
 	// DataRoot（数据根目录，storage/memory/logs/agent.db 派生自此）
-	v.BindEnv("data_root", "COGNOS_DATA_ROOT")
+	v.BindEnv("data_root", "COGNIK_DATA_ROOT")
 
 	// Server
-	v.BindEnv("server.port", "COGNOS_SERVER_PORT")
-	v.BindEnv("server.mode", "COGNOS_SERVER_MODE")
-	v.BindEnv("server.read_timeout", "COGNOS_SERVER_READ_TIMEOUT")
-	v.BindEnv("server.write_timeout", "COGNOS_SERVER_WRITE_TIMEOUT")
-	v.BindEnv("server.idle_timeout", "COGNOS_SERVER_IDLE_TIMEOUT")
+	v.BindEnv("server.port", "COGNIK_SERVER_PORT")
+	v.BindEnv("server.mode", "COGNIK_SERVER_MODE")
+	v.BindEnv("server.read_timeout", "COGNIK_SERVER_READ_TIMEOUT")
+	v.BindEnv("server.write_timeout", "COGNIK_SERVER_WRITE_TIMEOUT")
+	v.BindEnv("server.idle_timeout", "COGNIK_SERVER_IDLE_TIMEOUT")
 
 	// Database
-	v.BindEnv("database.host", "COGNOS_DATABASE_HOST")
-	v.BindEnv("database.port", "COGNOS_DATABASE_PORT")
-	v.BindEnv("database.user", "COGNOS_DATABASE_USER")
-	v.BindEnv("database.password", "COGNOS_DATABASE_PASSWORD")
-	v.BindEnv("database.dbname", "COGNOS_DATABASE_DBNAME")
-	v.BindEnv("database.sslmode", "COGNOS_DATABASE_SSLMODE")
-	v.BindEnv("database.max_open_conns", "COGNOS_DATABASE_MAX_OPEN_CONNS")
-	v.BindEnv("database.max_idle_conns", "COGNOS_DATABASE_MAX_IDLE_CONNS")
-	v.BindEnv("database.conn_max_lifetime", "COGNOS_DATABASE_CONN_MAX_LIFETIME")
+	v.BindEnv("database.host", "COGNIK_DATABASE_HOST")
+	v.BindEnv("database.port", "COGNIK_DATABASE_PORT")
+	v.BindEnv("database.user", "COGNIK_DATABASE_USER")
+	v.BindEnv("database.password", "COGNIK_DATABASE_PASSWORD")
+	v.BindEnv("database.dbname", "COGNIK_DATABASE_DBNAME")
+	v.BindEnv("database.sslmode", "COGNIK_DATABASE_SSLMODE")
+	v.BindEnv("database.max_open_conns", "COGNIK_DATABASE_MAX_OPEN_CONNS")
+	v.BindEnv("database.max_idle_conns", "COGNIK_DATABASE_MAX_IDLE_CONNS")
+	v.BindEnv("database.conn_max_lifetime", "COGNIK_DATABASE_CONN_MAX_LIFETIME")
 
 	// JWT
-	v.BindEnv("jwt.secret", "COGNOS_JWT_SECRET")
-	v.BindEnv("jwt.access_expire", "COGNOS_JWT_ACCESS_EXPIRE")
-	v.BindEnv("jwt.refresh_expire", "COGNOS_JWT_REFRESH_EXPIRE")
+	v.BindEnv("jwt.secret", "COGNIK_JWT_SECRET")
+	v.BindEnv("jwt.access_expire", "COGNIK_JWT_ACCESS_EXPIRE")
+	v.BindEnv("jwt.refresh_expire", "COGNIK_JWT_REFRESH_EXPIRE")
 
 	// Storage
-	v.BindEnv("storage.driver", "COGNOS_STORAGE_DRIVER")
-	v.BindEnv("storage.local.base_dir", "COGNOS_STORAGE_LOCAL_BASE_DIR")
-	v.BindEnv("storage.minio.endpoint", "COGNOS_MINIO_ENDPOINT")
-	v.BindEnv("storage.minio.access_key", "COGNOS_MINIO_ACCESS_KEY")
-	v.BindEnv("storage.minio.secret_key", "COGNOS_MINIO_SECRET_KEY")
-	v.BindEnv("storage.minio.use_ssl", "COGNOS_MINIO_USE_SSL")
+	v.BindEnv("storage.driver", "COGNIK_STORAGE_DRIVER")
+	v.BindEnv("storage.local.base_dir", "COGNIK_STORAGE_LOCAL_BASE_DIR")
+	v.BindEnv("storage.minio.endpoint", "COGNIK_MINIO_ENDPOINT")
+	v.BindEnv("storage.minio.access_key", "COGNIK_MINIO_ACCESS_KEY")
+	v.BindEnv("storage.minio.secret_key", "COGNIK_MINIO_SECRET_KEY")
+	v.BindEnv("storage.minio.use_ssl", "COGNIK_MINIO_USE_SSL")
 
 	// LLM
-	v.BindEnv("llm.base_url", "COGNOS_LLM_BASE_URL")
-	v.BindEnv("llm.api_key", "COGNOS_LLM_API_KEY")
-	v.BindEnv("llm.model", "COGNOS_LLM_MODEL")
-	v.BindEnv("llm.max_tokens", "COGNOS_LLM_MAX_TOKENS")
-	v.BindEnv("llm.timeout", "COGNOS_LLM_TIMEOUT")
+	v.BindEnv("llm.base_url", "COGNIK_LLM_BASE_URL")
+	v.BindEnv("llm.api_key", "COGNIK_LLM_API_KEY")
+	v.BindEnv("llm.model", "COGNIK_LLM_MODEL")
+	v.BindEnv("llm.max_tokens", "COGNIK_LLM_MAX_TOKENS")
+	v.BindEnv("llm.timeout", "COGNIK_LLM_TIMEOUT")
 
 	// Embedding
-	v.BindEnv("embedding.base_url", "COGNOS_EMBEDDING_BASE_URL")
-	v.BindEnv("embedding.api_key", "COGNOS_EMBEDDING_API_KEY")
-	v.BindEnv("embedding.model", "COGNOS_EMBEDDING_MODEL")
-	v.BindEnv("embedding.dimension", "COGNOS_EMBEDDING_DIMENSION")
-	v.BindEnv("embedding.timeout", "COGNOS_EMBEDDING_TIMEOUT")
+	v.BindEnv("embedding.base_url", "COGNIK_EMBEDDING_BASE_URL")
+	v.BindEnv("embedding.api_key", "COGNIK_EMBEDDING_API_KEY")
+	v.BindEnv("embedding.model", "COGNIK_EMBEDDING_MODEL")
+	v.BindEnv("embedding.dimension", "COGNIK_EMBEDDING_DIMENSION")
+	v.BindEnv("embedding.timeout", "COGNIK_EMBEDDING_TIMEOUT")
 
 	// AI
-	v.BindEnv("ai.chunk_size", "COGNOS_AI_CHUNK_SIZE")
-	v.BindEnv("ai.chunk_overlap", "COGNOS_AI_CHUNK_OVERLAP")
+	v.BindEnv("ai.chunk_size", "COGNIK_AI_CHUNK_SIZE")
+	v.BindEnv("ai.chunk_overlap", "COGNIK_AI_CHUNK_OVERLAP")
 
 	// Search（深度搜索工具链，降级链模式）
-	v.BindEnv("search.exa.api_key", "COGNOS_SEARCH_EXA_API_KEY")
-	v.BindEnv("search.tavily.api_key", "COGNOS_SEARCH_TAVILY_API_KEY")
-	v.BindEnv("search.firecrawl.api_key", "COGNOS_SEARCH_FIRECRAWL_API_KEY")
-	v.BindEnv("search.max_results", "COGNOS_SEARCH_MAX_RESULTS")
-	v.BindEnv("search.timeout", "COGNOS_SEARCH_TIMEOUT")
+	v.BindEnv("search.exa.api_key", "COGNIK_SEARCH_EXA_API_KEY")
+	v.BindEnv("search.tavily.api_key", "COGNIK_SEARCH_TAVILY_API_KEY")
+	v.BindEnv("search.firecrawl.api_key", "COGNIK_SEARCH_FIRECRAWL_API_KEY")
+	v.BindEnv("search.max_results", "COGNIK_SEARCH_MAX_RESULTS")
+	v.BindEnv("search.timeout", "COGNIK_SEARCH_TIMEOUT")
 
 	// CORS
-	v.BindEnv("cors.allow_origins", "COGNOS_CORS_ALLOW_ORIGINS")
+	v.BindEnv("cors.allow_origins", "COGNIK_CORS_ALLOW_ORIGINS")
 
 	// Rerank
-	v.BindEnv("rerank.enabled", "COGNOS_RERANK_ENABLED")
-	v.BindEnv("rerank.python_path", "COGNOS_RERANK_PYTHON_PATH")
-	v.BindEnv("rerank.script_path", "COGNOS_RERANK_SCRIPT_PATH")
+	v.BindEnv("rerank.enabled", "COGNIK_RERANK_ENABLED")
+	v.BindEnv("rerank.python_path", "COGNIK_RERANK_PYTHON_PATH")
+	v.BindEnv("rerank.script_path", "COGNIK_RERANK_SCRIPT_PATH")
 
 	// Parser
-	v.BindEnv("parser.engine", "COGNOS_PARSER_ENGINE")
+	v.BindEnv("parser.engine", "COGNIK_PARSER_ENGINE")
 	v.BindEnv("parser.mineru.api_key", "MINERU_API_KEY")
-	v.BindEnv("parser.mineru.endpoint", "COGNOS_MINERU_ENDPOINT")
-	v.BindEnv("parser.mineru.timeout", "COGNOS_MINERU_TIMEOUT")
-	v.BindEnv("parser.python.path", "COGNOS_PARSER_PYTHON_PATH")
+	v.BindEnv("parser.mineru.endpoint", "COGNIK_MINERU_ENDPOINT")
+	v.BindEnv("parser.mineru.timeout", "COGNIK_MINERU_TIMEOUT")
+	v.BindEnv("parser.python.path", "COGNIK_PARSER_PYTHON_PATH")
 
 	// Knowledge
-	v.BindEnv("kb.max_upload_size", "COGNOS_KB_MAX_UPLOAD_SIZE")
+	v.BindEnv("kb.max_upload_size", "COGNIK_KB_MAX_UPLOAD_SIZE")
 
 	// Memory（记忆系统，文件式存储 + 上下文压缩阈值）
-	v.BindEnv("memory.storage_root", "COGNOS_MEMORY_STORAGE_ROOT")
-	v.BindEnv("memory.memory_max_lines", "COGNOS_MEMORY_MAX_LINES")
-	v.BindEnv("memory.compress_dedup", "COGNOS_MEMORY_COMPRESS_DEDUP")
-	v.BindEnv("memory.compress_compact", "COGNOS_MEMORY_COMPRESS_COMPACT")
-	v.BindEnv("memory.ingest_poll_interval", "COGNOS_MEMORY_INGEST_POLL_INTERVAL")
-	v.BindEnv("memory.ingest_lease_ttl", "COGNOS_MEMORY_INGEST_LEASE_TTL")
+	v.BindEnv("memory.storage_root", "COGNIK_MEMORY_STORAGE_ROOT")
+	v.BindEnv("memory.memory_max_lines", "COGNIK_MEMORY_MAX_LINES")
+	v.BindEnv("memory.compress_dedup", "COGNIK_MEMORY_COMPRESS_DEDUP")
+	v.BindEnv("memory.compress_compact", "COGNIK_MEMORY_COMPRESS_COMPACT")
+	v.BindEnv("memory.ingest_poll_interval", "COGNIK_MEMORY_INGEST_POLL_INTERVAL")
+	v.BindEnv("memory.ingest_lease_ttl", "COGNIK_MEMORY_INGEST_LEASE_TTL")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -353,8 +353,8 @@ func (c *AppConfig) Validate() error {
 
 // setDefaults 设置配置默认值，与 config.yaml 保持一致。
 func setDefaults(v *viper.Viper) {
-	// DataRoot（数据根目录；server/ 运行时 .cognos = 项目根目录 .cognos/）
-	v.SetDefault("data_root", ".cognos")
+	// DataRoot（数据根目录；server/ 运行时 .cognik = 项目根目录 .cognik/）
+	v.SetDefault("data_root", ".cognik")
 
 	// Server
 	v.SetDefault("server.port", 8080)
@@ -366,9 +366,9 @@ func setDefaults(v *viper.Viper) {
 	// Database
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.user", "cognos")
+	v.SetDefault("database.user", "cognik")
 	v.SetDefault("database.password", "")
-	v.SetDefault("database.dbname", "cognos")
+	v.SetDefault("database.dbname", "cognik")
 	v.SetDefault("database.sslmode", "disable")
 	v.SetDefault("database.max_open_conns", 0) // 0 = 不限，由 PostgreSQL max_connections 控制
 	v.SetDefault("database.max_idle_conns", 0) // 0 = 不限
@@ -386,7 +386,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("storage.minio.access_key", "minioadmin")
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
 	v.SetDefault("storage.minio.use_ssl", false)
-	v.SetDefault("storage.buckets.documents", "cognos-documents")
+	v.SetDefault("storage.buckets.documents", "cognik-documents")
 
 	// LLM
 	v.SetDefault("llm.base_url", "http://llama-cpp:8080/v1")

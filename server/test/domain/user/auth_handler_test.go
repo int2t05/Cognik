@@ -13,13 +13,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"cognos/internal/domain/user/account"
-	"cognos/internal/domain/user/auth"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/hash"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/domain/user/auth"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -51,9 +51,9 @@ func setupHandlerTestDB(t *testing.T) *gorm.DB {
 	dbCfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos_test",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik_test",
 		SSLMode:  "disable",
 	}
 

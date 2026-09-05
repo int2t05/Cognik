@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/agent/llm"
-	"cognos/internal/agent"
+	"cognik/internal/agent/llm"
+	"cognik/internal/agent"
 )
 
 // newCompressor 创建测试用压缩器。

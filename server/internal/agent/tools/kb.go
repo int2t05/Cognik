@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"strings"
 
-	"cognos/internal/agent"
-	"cognos/internal/rag"
+	"cognik/internal/agent"
+	"cognik/internal/rag"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // KBFilter 知识库检索/列表过滤条件（frontmatter 元数据预过滤）。

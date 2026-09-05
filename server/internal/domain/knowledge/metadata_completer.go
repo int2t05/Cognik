@@ -12,7 +12,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // MetadataCompleter 发布时补全文章元数据（type/tags），不修改正文。

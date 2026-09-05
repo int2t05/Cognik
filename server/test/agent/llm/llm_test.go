@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // 仿 OpenAI Chat Completion 流式响应——content 流 + reasoning + tool_calls 跨多块拼 Arguments。

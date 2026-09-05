@@ -184,7 +184,7 @@ flowchart TD
 | 评估器 | 触发 | 成本 | 失败处理 |
 |--------|------|------|---------|
 | ThresholdEvaluator | 默认，每次 | 零（纯函数） | 不会失败 |
-| LLMCRAGEvaluator | 仅 ambiguous + `COGNOS_AI_CRAG_LLM_EVAL=true` | 一次 LLM 调用 | 降级阈值结果 |
+| LLMCRAGEvaluator | 仅 ambiguous + `COGNIK_AI_CRAG_LLM_EVAL=true` | 一次 LLM 调用 | 降级阈值结果 |
 
 ### 4.3 置信度计算
 
@@ -212,13 +212,13 @@ flowchart TD
 
 | 环境变量 | 默认 | 作用 |
 |---------|------|------|
-| `COGNOS_AI_EF_SEARCH` | 100 | HNSW 查询时 ef_search，≥ limit |
-| `COGNOS_AI_RETRIEVAL_K` | 30 | 两阶段候选池大小 |
-| `COGNOS_AI_RRF_K` | 30 | RRF 融合常数，可调 |
-| `COGNOS_AI_CRAG_LLM_EVAL` | false | 启用 LLM CRAG 评估器（仅 ambiguous） |
-| `COGNOS_AI_QUERY_EMBED_CACHE_TTL` | 10m | 查询 embedding 缓存 TTL |
-| `COGNOS_AI_QUERY_EMBED_CACHE_MAX` | 1000 | 查询 embedding 缓存上限 |
-| `COGNOS_AI_EMBED_BATCH` | 20 | 索引侧 embedding batch |
+| `COGNIK_AI_EF_SEARCH` | 100 | HNSW 查询时 ef_search，≥ limit |
+| `COGNIK_AI_RETRIEVAL_K` | 30 | 两阶段候选池大小 |
+| `COGNIK_AI_RRF_K` | 30 | RRF 融合常数，可调 |
+| `COGNIK_AI_CRAG_LLM_EVAL` | false | 启用 LLM CRAG 评估器（仅 ambiguous） |
+| `COGNIK_AI_QUERY_EMBED_CACHE_TTL` | 10m | 查询 embedding 缓存 TTL |
+| `COGNIK_AI_QUERY_EMBED_CACHE_MAX` | 1000 | 查询 embedding 缓存上限 |
+| `COGNIK_AI_EMBED_BATCH` | 20 | 索引侧 embedding batch |
 
 ---
 

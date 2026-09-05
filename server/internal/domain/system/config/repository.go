@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"cognos/internal/shared/model"
+	"cognik/internal/shared/model"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

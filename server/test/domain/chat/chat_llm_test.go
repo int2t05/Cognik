@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // TestLLMClient_ChatCompletion 验证自建 ChatModel 可正常调用 llama.cpp。

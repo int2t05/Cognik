@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"cognos/internal/infra/config"
-	"cognos/internal/parser/local"
+	"cognik/internal/infra/config"
+	"cognik/internal/parser/local"
 )
 
 // fileSizeLimit MinerU 单文件大小上限（200MB，与服务端一致）。

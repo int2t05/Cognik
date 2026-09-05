@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/agent/tools"
+	"cognik/internal/agent/tools"
 )
 
 // newMemoryStore 创建临时存储目录的 FileMemoryStore。

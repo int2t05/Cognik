@@ -1,10 +1,10 @@
--- Cognos 数据库 DDL 增强脚本
+-- Cognik 数据库 DDL 增强脚本
 --
 -- GORM AutoMigrate 已覆盖表结构 + halfvec 列 + HNSW 索引。
 -- 本脚本仅补充 GORM 无法处理的列注释。
 --
 -- 加载方式：
---   docker compose exec -T postgres psql -U cognos -d cognos < server/migrations/init.sql
+--   docker compose exec -T postgres psql -U cognik -d cognik < server/migrations/init.sql
 
 -- =============================================================================
 -- pgvector 扩展（幂等，AutoMigrate 也执行，此处显式声明）

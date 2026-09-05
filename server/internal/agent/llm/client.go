@@ -216,7 +216,7 @@ func truncate(b []byte, n int) string {
 }
 
 // StreamReader 泛型流式读取器——channel 实现，提供 Recv/Close 接口。
-// Cognos loop.go drainStream 用 Recv() (T, error) + Close()，EOF 检测用 io.EOF。
+// Cognik loop.go drainStream 用 Recv() (T, error) + Close()，EOF 检测用 io.EOF。
 type StreamReader[T any] struct {
 	ch     chan T
 	closed chan struct{}

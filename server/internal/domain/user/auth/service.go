@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"cognos/internal/domain/user/account"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/infra/config"
-	respDto "cognos/internal/shared/dto/response"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/hash"
-	"cognos/internal/shared/pkg/jwt"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/infra/config"
+	respDto "cognik/internal/shared/dto/response"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/hash"
+	"cognik/internal/shared/pkg/jwt"
 
 	"gorm.io/gorm"
 )

@@ -14,10 +14,10 @@ import (
 	"strings"
 	"sync"
 
-	"cognos/internal/shared/dto/request"
-	dto "cognos/internal/shared/dto/response"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/response"
+	"cognik/internal/shared/dto/request"
+	dto "cognik/internal/shared/dto/response"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

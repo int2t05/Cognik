@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"cognos/internal/agent"
-	"cognos/internal/infra/adapter"
+	"cognik/internal/agent"
+	"cognik/internal/infra/adapter"
 )
 
 // Deps 工具装配依赖（构造时注入，构造后不可变）。

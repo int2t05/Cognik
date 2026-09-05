@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/domain/user/account"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

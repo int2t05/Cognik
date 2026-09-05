@@ -12,9 +12,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // MkdirTool 目录创建工具。

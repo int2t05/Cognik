@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"cognos/internal/infra/adapter"
+	"cognik/internal/infra/adapter"
 )
 
 // cacheEntry 查询 embedding 缓存条目。

@@ -15,9 +15,9 @@ import (
 	"sort"
 	"strings"
 
-	"cognos/internal/agent"
+	"cognik/internal/agent"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // ListDirTool 目录列表工具。

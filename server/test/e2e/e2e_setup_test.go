@@ -2,7 +2,7 @@
 
 // Package e2e_test 实现端到端 API 测试。
 //
-// 启动本地 cognos-server 进程，连接到容器化 PostgreSQL/MinIO/llama.cpp，
+// 启动本地 cognik-server 进程，连接到容器化 PostgreSQL/MinIO/llama.cpp，
 // 通过真实 HTTP 调用验证 API 行为，同时捕获服务器和 Docker 容器日志。
 //
 // 前置条件：
@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"cognos/internal/shared/pkg/hash"
+	"cognik/internal/shared/pkg/hash"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -85,7 +85,7 @@ func newE2EServer() (*e2eServer, error) {
 	}
 
 	db, err := gorm.Open(postgres.Open(
-		"host=localhost port=5432 user=cognos password=cognos_dev dbname=cognos sslmode=disable"))
+		"host=localhost port=5432 user=cognik password=cognik_dev dbname=cognik sslmode=disable"))
 	if err != nil {
 		cmd.Process.Kill()
 		return nil, fmt.Errorf("连接数据库失败: %w", err)
@@ -147,30 +147,30 @@ func (s *e2eServer) stop() {
 
 func serverEnv(port string) []string {
 	return append(os.Environ(),
-		"COGNOS_SERVER_PORT="+port,
-		"COGNOS_SERVER_MODE=debug",
-		"COGNOS_DATABASE_HOST=localhost",
-		"COGNOS_DATABASE_PORT=5432",
-		"COGNOS_DATABASE_USER=cognos",
-		"COGNOS_DATABASE_PASSWORD=cognos_dev",
-		"COGNOS_DATABASE_NAME=cognos",
-		"COGNOS_DATABASE_SSLMODE=disable",
-		"COGNOS_JWT_SECRET=e2e_test_secret_2024",
-		"COGNOS_LLM_BASE_URL=http://localhost:8081/v1",
-		"COGNOS_EMBEDDING_BASE_URL=http://localhost:8082/v1",
-		"COGNOS_LLM_MODEL=Qwen3-4B-Q4_K_M",
-		"COGNOS_EMBEDDING_MODEL=Qwen3-Embedding-0.6B-Q8_0",
-		"COGNOS_EMBEDDING_DIMENSION=1024",
-		"COGNOS_MINIO_ENDPOINT=localhost:9000",
-		"COGNOS_MINIO_ACCESS_KEY=minioadmin",
-		"COGNOS_MINIO_SECRET_KEY=minioadmin",
-		"COGNOS_MINIO_USE_SSL=false",
-		"COGNOS_CORS_ALLOW_ORIGINS=http://localhost:5173",
-		"COGNOS_AI_RAG_QUERY_REWRITE=false",
-		"COGNOS_AI_RAG_MULTI_ROUTE=false",
-		"COGNOS_AI_RAG_HYBRID=false",
-		"COGNOS_AI_RAG_RERANK=false",
-		"COGNOS_RERANK_ENABLED=false",
+		"COGNIK_SERVER_PORT="+port,
+		"COGNIK_SERVER_MODE=debug",
+		"COGNIK_DATABASE_HOST=localhost",
+		"COGNIK_DATABASE_PORT=5432",
+		"COGNIK_DATABASE_USER=cognik",
+		"COGNIK_DATABASE_PASSWORD=cognik_dev",
+		"COGNIK_DATABASE_NAME=cognik",
+		"COGNIK_DATABASE_SSLMODE=disable",
+		"COGNIK_JWT_SECRET=e2e_test_secret_2024",
+		"COGNIK_LLM_BASE_URL=http://localhost:8081/v1",
+		"COGNIK_EMBEDDING_BASE_URL=http://localhost:8082/v1",
+		"COGNIK_LLM_MODEL=Qwen3-4B-Q4_K_M",
+		"COGNIK_EMBEDDING_MODEL=Qwen3-Embedding-0.6B-Q8_0",
+		"COGNIK_EMBEDDING_DIMENSION=1024",
+		"COGNIK_MINIO_ENDPOINT=localhost:9000",
+		"COGNIK_MINIO_ACCESS_KEY=minioadmin",
+		"COGNIK_MINIO_SECRET_KEY=minioadmin",
+		"COGNIK_MINIO_USE_SSL=false",
+		"COGNIK_CORS_ALLOW_ORIGINS=http://localhost:5173",
+		"COGNIK_AI_RAG_QUERY_REWRITE=false",
+		"COGNIK_AI_RAG_MULTI_ROUTE=false",
+		"COGNIK_AI_RAG_HYBRID=false",
+		"COGNIK_AI_RAG_RERANK=false",
+		"COGNIK_RERANK_ENABLED=false",
 		// AutoMigrate 开启——自动建表
 	)
 }
@@ -179,7 +179,7 @@ func serverEnv(port string) []string {
 
 func buildBinary() (string, error) {
 	wd, _ := os.Getwd()
-	binary := fmt.Sprintf("%s/cognos-e2e-%d.exe", wd, time.Now().UnixNano())
+	binary := fmt.Sprintf("%s/cognik-e2e-%d.exe", wd, time.Now().UnixNano())
 	// 从 tests/e2e/ 向上两级到达 server/
 	cmd := exec.Command("go", "build", "-o", binary, "./cmd/main.go")
 	cmd.Dir = "../.."

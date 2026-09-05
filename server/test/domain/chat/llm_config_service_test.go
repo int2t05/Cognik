@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	llmconfig "cognos/internal/domain/chat/llm_config"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/crypto"
+	llmconfig "cognik/internal/domain/chat/llm_config"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/crypto"
 )
 
 const testEncryptionKey = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"

@@ -24,22 +24,22 @@ import (
 	"testing"
 	"time"
 
-	llmconfig "cognos/internal/domain/chat/llm_config"
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/domain/system/audit"
-	sysconfig "cognos/internal/domain/system/config"
-	"cognos/internal/domain/system/dashboard"
-	"cognos/internal/domain/system/message"
-	"cognos/internal/domain/ticket"
-	"cognos/internal/domain/user/account"
-	"cognos/internal/domain/user/auth"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/infra/cache"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/infra/runtime"
-	"cognos/internal/router"
-	"cognos/internal/shared/pkg/hash"
+	llmconfig "cognik/internal/domain/chat/llm_config"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/domain/system/audit"
+	sysconfig "cognik/internal/domain/system/config"
+	"cognik/internal/domain/system/dashboard"
+	"cognik/internal/domain/system/message"
+	"cognik/internal/domain/ticket"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/domain/user/auth"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/infra/cache"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/infra/runtime"
+	"cognik/internal/router"
+	"cognik/internal/shared/pkg/hash"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -76,8 +76,8 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	gin.SetMode(gin.TestMode)
 
 	dbCfg := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "cognos",
-		Password: "cognos_dev", DBName: "cognos_test", SSLMode: "disable",
+		Host: "localhost", Port: 5432, User: "cognik",
+		Password: "cognik_dev", DBName: "cognik_test", SSLMode: "disable",
 	}
 	jwtCfg := config.JWTConfig{
 		Secret: "test_secret_key_2024", AccessExpire: 2 * time.Hour, RefreshExpire: 168 * time.Hour,

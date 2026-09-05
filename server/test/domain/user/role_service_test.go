@@ -6,12 +6,12 @@ package user_test
 import (
 	"testing"
 
-	"cognos/internal/domain/system/audit"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/shared/model"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/domain/system/audit"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/shared/model"
+	"cognik/internal/shared/pkg/errcode"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -23,9 +23,9 @@ func init() {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos_test",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik_test",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(cfg)

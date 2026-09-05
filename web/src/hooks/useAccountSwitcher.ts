@@ -6,7 +6,7 @@ import { useAuth, type Menu } from './useAuth';
 import { getUnreadCount } from '@/lib/api/message';
 import { STORAGE_KEY, MAX_ACCOUNTS, EXPIRE_MS, type SavedAccount } from '@/lib/account-store';
 
-const ACCOUNTS_EVENT = 'cognos-accounts-change';
+const ACCOUNTS_EVENT = 'cognik-accounts-change';
 
 function loadAccounts(): SavedAccount[] {
   if (typeof window === 'undefined') return [];

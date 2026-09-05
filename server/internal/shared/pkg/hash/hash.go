@@ -22,7 +22,7 @@ var ErrPasswordWeak = errors.New("密码必须包含大写字母、小写字母�
 
 // bcryptCost 从环境变量读取成本参数，默认 10。
 func bcryptCost() int {
-	if v := os.Getenv("COGNOS_BCRYPT_COST"); v != "" {
+	if v := os.Getenv("COGNIK_BCRYPT_COST"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 4 && n <= 31 {
 			return n
 		}

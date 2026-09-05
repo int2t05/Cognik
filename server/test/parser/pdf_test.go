@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"cognos/internal/parser"
-	"cognos/internal/parser/local"
+	"cognik/internal/parser"
+	"cognik/internal/parser/local"
 )
 
 // TestParsePDF 验证 PDF 解析基本功能（直接调用 local.ParsePDF）。
@@ -36,7 +36,7 @@ func TestParser_PDF_ThroughParser(t *testing.T) {
 	if result.Markdown == "" {
 		t.Error("PDF 解析不应返回空内容")
 	}
-	if !strings.Contains(result.Markdown, "Cognos") {
+	if !strings.Contains(result.Markdown, "Cognik") {
 		t.Error("PDF 解析应包含文本内容")
 	}
 }

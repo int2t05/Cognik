@@ -13,10 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cognos/internal/infra/adapter"
-	"cognos/internal/infra/storage"
-	"cognos/internal/parser"
-	"cognos/internal/shared/pkg/pathutil"
+	"cognik/internal/infra/adapter"
+	"cognik/internal/infra/storage"
+	"cognik/internal/parser"
+	"cognik/internal/shared/pkg/pathutil"
 )
 
 // defaultTaskTimeout 单个任务最大处理时长（5 分钟），与 embedding HTTP 超时一致。
@@ -70,7 +70,7 @@ func (p *Processor) SetContextualGenerator(gen ContextualGenerator) {
 // NewProcessor 创建文档处理器实例。storage 为 nil 时降级到 Content 模式。
 func NewProcessor(parser *parser.Parser, chunker TextChunker, embedder TextEmbedder, store adapter.VectorStore, storage storage.StorageClient, poolSize int) *Processor {
 	if poolSize <= 0 {
-		poolSize = 5 // 默认 5 消费者并行，COGNOS_AI_PROCESSOR_WORKERS 可覆盖
+		poolSize = 5 // 默认 5 消费者并行，COGNIK_AI_PROCESSOR_WORKERS 可覆盖
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &Processor{

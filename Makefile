@@ -1,4 +1,4 @@
-# Cognos — 本地开发 Makefile
+# Cognik — 本地开发 Makefile
 # 用法：make help
 
 .PHONY: help dev dev-server dev-web dev-db dev-ai dev-stop dev-clean build server-build web-build rerank-model
@@ -65,7 +65,7 @@ dev-clean: dev-stop ## 停止并清除所有数据（谨慎！）
 build: server-build web-build ## 编译后端 + 前端
 
 server-build: ## 编译 Go 后端
-	cd server && $(GO_CMD) build -o bin/cognos-server ./cmd/main.go
+	cd server && $(GO_CMD) build -o bin/cognik-server ./cmd/main.go
 
 web-build: ## 构建 Next.js 前端
 	cd web && $(NPM_CMD) run build
@@ -100,10 +100,10 @@ lint: ## 代码检查
 # ============================================
 
 docker-allinone: ## 构建 All-in-One Docker 镜像（生产部署）
-	docker build -f deploy/allinone/Dockerfile -t cognos-allinone .
+	docker build -f deploy/allinone/Dockerfile -t cognik-allinone .
 
 docker-server: ## 构建 Go 后端 Docker 镜像
-	docker build -f deploy/docker/server/Dockerfile -t cognos-server server/
+	docker build -f deploy/docker/server/Dockerfile -t cognik-server server/
 
 docker-web: ## 构建 Next.js 前端 Docker 镜像
-	docker build -f deploy/docker/web/Dockerfile -t cognos-web web/
+	docker build -f deploy/docker/web/Dockerfile -t cognik-web web/

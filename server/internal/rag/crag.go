@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // VerdictLevel CRAG 评估三态。

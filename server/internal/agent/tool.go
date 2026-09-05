@@ -11,7 +11,7 @@ package agent
 import (
 	"context"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // Tool 工具基接口。所有工具实现 Info，供 LLM 决策调用。

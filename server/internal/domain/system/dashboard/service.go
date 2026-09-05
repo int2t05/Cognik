@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"cognos/internal/shared/dto/request"
-	respDto "cognos/internal/shared/dto/response"
-	"cognos/internal/shared/pkg/errcode"
+	"cognik/internal/shared/dto/request"
+	respDto "cognik/internal/shared/dto/response"
+	"cognik/internal/shared/pkg/errcode"
 )
 
 const maxTrendDays = 90

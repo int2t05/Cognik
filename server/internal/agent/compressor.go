@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"cognos/internal/agent/llm"
+	"cognik/internal/agent/llm"
 )
 
 // 可压缩工具白名单——低价值工具结果可被 Microcompact 清理。

@@ -1,11 +1,11 @@
-# Cognos 后端配置文件
+# Cognik 后端配置文件
 #
 # 本地开发使用默认值，Docker 环境通过环境变量覆盖。
-# 环境变量前缀：COGNOS_，例如 COGNOS_DATABASE_HOST 覆盖 database.host。
+# 环境变量前缀：COGNIK_，例如 COGNIK_DATABASE_HOST 覆盖 database.host。
 
 # 数据根目录：storage/memory/logs/agent.db 均在此目录下。
-# server/ 运行时 .cognos = 项目根目录 .cognos/；COGNOS_DATA_ROOT 环境变量可覆盖。
-data_root: ".cognos"
+# server/ 运行时 .cognik = 项目根目录 .cognik/；COGNIK_DATA_ROOT 环境变量可覆盖。
+data_root: ".cognik"
 
 server:
   port: 8080
@@ -17,16 +17,16 @@ server:
 database:
   host: 127.0.0.1        # Docker 内: postgres
   port: 5432
-  user: cognos
-  password: "cognos_dev"  # 通过环境变量 COGNOS_DATABASE_PASSWORD 覆盖
-  dbname: cognos
+  user: cognik
+  password: "cognik_dev"  # 通过环境变量 COGNIK_DATABASE_PASSWORD 覆盖
+  dbname: cognik
   sslmode: disable
   max_open_conns: 0    # 0 = 不限，由 PostgreSQL max_connections 控制
   max_idle_conns: 0    # 0 = 不限
   conn_max_lifetime: 5m
 
 jwt:
-  secret: ""             # 通过环境变量 COGNOS_JWT_SECRET 设置
+  secret: ""             # 通过环境变量 COGNIK_JWT_SECRET 设置
   access_expire: 2h
   refresh_expire: 168h   # 7 天
 
@@ -40,11 +40,11 @@ storage:
     secret_key: minioadmin
     use_ssl: false
   buckets:
-    documents: cognos-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
+    documents: cognik-documents   # 单桶；草稿/已发布由目录区分（kb-{id}/{draft|published}/article-{id}）
 
 llm:
   base_url: http://llama-cpp:8080/v1  # Docker 内部地址；OpenAI: https://api.openai.com/v1
-  api_key: ""                          # 通过环境变量 COGNOS_LLM_API_KEY 设置
+  api_key: ""                          # 通过环境变量 COGNIK_LLM_API_KEY 设置
   model: qwen3-4b                      # LLM 模型名称
   max_tokens: 8192                     # 最大生成 Token 数
   timeout: 300s                        # LLM 调用超时

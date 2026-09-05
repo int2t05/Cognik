@@ -7,22 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	llmconfig "cognos/internal/domain/chat/llm_config"
-	"cognos/internal/domain/chat/session"
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/domain/system/audit"
-	sysconfig "cognos/internal/domain/system/config"
-	"cognos/internal/domain/system/dashboard"
-	"cognos/internal/domain/system/message"
-	"cognos/internal/domain/ticket"
-	"cognos/internal/domain/user/account"
-	"cognos/internal/domain/user/auth"
-	"cognos/internal/domain/user/role"
-	"cognos/internal/infra/cache"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/middleware"
-	"cognos/internal/shared/pkg/errcode"
-	"cognos/internal/shared/pkg/response"
+	llmconfig "cognik/internal/domain/chat/llm_config"
+	"cognik/internal/domain/chat/session"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/domain/system/audit"
+	sysconfig "cognik/internal/domain/system/config"
+	"cognik/internal/domain/system/dashboard"
+	"cognik/internal/domain/system/message"
+	"cognik/internal/domain/ticket"
+	"cognik/internal/domain/user/account"
+	"cognik/internal/domain/user/auth"
+	"cognik/internal/domain/user/role"
+	"cognik/internal/infra/cache"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/middleware"
+	"cognik/internal/shared/pkg/errcode"
+	"cognik/internal/shared/pkg/response"
 )
 
 // Handlers 聚合所有 Handler 实例，供路由注册使用。
@@ -123,40 +123,40 @@ func Setup(cfg *config.AppConfig, userCache *cache.UserStatusCache, h *Handlers,
 // assertHandlers 生产模式下验证所有 Handler 非 nil。
 func assertHandlers(h *Handlers) {
 	if h == nil {
-		panic("cognos: Handlers 为 nil，装配错误")
+		panic("cognik: Handlers 为 nil，装配错误")
 	}
 	if h.Auth == nil {
-		panic("cognos: AuthHandler 未初始化")
+		panic("cognik: AuthHandler 未初始化")
 	}
 	if h.User == nil {
-		panic("cognos: UserHandler 未初始化")
+		panic("cognik: UserHandler 未初始化")
 	}
 	if h.Role == nil {
-		panic("cognos: RoleHandler 未初始化")
+		panic("cognik: RoleHandler 未初始化")
 	}
 	if h.Knowledge == nil {
-		panic("cognos: KnowledgeHandler 未初始化")
+		panic("cognik: KnowledgeHandler 未初始化")
 	}
 	if h.Ticket == nil {
-		panic("cognos: TicketHandler 未初始化")
+		panic("cognik: TicketHandler 未初始化")
 	}
 	if h.Chat == nil {
-		panic("cognos: ChatHandler 未初始化")
+		panic("cognik: ChatHandler 未初始化")
 	}
 	if h.Dashboard == nil {
-		panic("cognos: DashboardHandler 未初始化")
+		panic("cognik: DashboardHandler 未初始化")
 	}
 	if h.Audit == nil {
-		panic("cognos: AuditHandler 未初始化")
+		panic("cognik: AuditHandler 未初始化")
 	}
 	if h.Config == nil {
-		panic("cognos: ConfigHandler 未初始化")
+		panic("cognik: ConfigHandler 未初始化")
 	}
 	if h.LLMConfig == nil {
-		panic("cognos: LLMConfigHandler 未初始化")
+		panic("cognik: LLMConfigHandler 未初始化")
 	}
 	if h.Message == nil {
-		panic("cognos: MessageHandler 未初始化")
+		panic("cognik: MessageHandler 未初始化")
 	}
 }
 

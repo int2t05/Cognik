@@ -14,13 +14,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"cognos/internal/domain/knowledge"
-	"cognos/internal/infra/config"
-	"cognos/internal/infra/database"
-	"cognos/internal/parser"
-	"cognos/internal/rag"
-	"cognos/internal/shared/dto/request"
-	"cognos/internal/shared/model"
+	"cognik/internal/domain/knowledge"
+	"cognik/internal/infra/config"
+	"cognik/internal/infra/database"
+	"cognik/internal/parser"
+	"cognik/internal/rag"
+	"cognik/internal/shared/dto/request"
+	"cognik/internal/shared/model"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -36,9 +36,9 @@ func init() {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
-		User:     "cognos",
-		Password: "cognos_dev",
-		DBName:   "cognos_test",
+		User:     "cognik",
+		Password: "cognik_dev",
+		DBName:   "cognik_test",
 		SSLMode:  "disable",
 	}
 	db, err := database.Init(cfg)
