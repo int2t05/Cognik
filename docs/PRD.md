@@ -94,7 +94,7 @@ stateDiagram-v2
 ```
 
 - 文档上传支持 PDF/DOCX/MD/TXT（上限 50MB），异步解析入库
-- 发布管道：Chunker(1000/200) → Embedder(batch=32) → pgvector halfvec → 先写后删替换旧向量
+- 发布管道：Chunker(500/100, Markdown-aware) → Embedder(batch=20) → pgvector halfvec → 先写后删替换旧向量
 - 删除知识库级联清理文章和向量
 
 ### 4.3 申告管理

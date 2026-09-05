@@ -122,8 +122,9 @@ func (t *MemoryTool) doRemember(ctx context.Context, p memoryParams) (string, er
 }
 
 func (t *MemoryTool) doRecall(ctx context.Context, p memoryParams) (string, error) {
-	if strings.TrimSpace(p.Query) == "" {
-		return "", fmt.Errorf("query is required for action=recall")
+	query := strings.TrimSpace(p.Query)
+	if query == "" {
+		return "无相关记忆", nil
 	}
 	limit := p.Limit
 	if limit <= 0 {

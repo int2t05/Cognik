@@ -279,7 +279,7 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 
 **目标**：搭建统一记忆系统框架。记忆 + RAG + 知识库统一为一个架构，Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
 
-**设计文档**：[`docs/DESIGN.md`](DESIGN.md)　**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)
+**设计文档**：[`FLOW/memory-compression-flow.md`](FLOW/memory-compression-flow.md)、[`FLOW/async-indexing-flow.md`](FLOW/async-indexing-flow.md)　**调研依据**：[`docs/research/unified-memory/`](research/unified-memory/)
 
 ### 8.1 文档组织架构
 
@@ -363,7 +363,7 @@ BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文�
 
 **目标**：在大量文档中精确找到对应的那份上下文。基于 V1.5 记忆框架，深挖检索质量优化。
 
-**调研依据**：[`docs/research/unified-memory/06-retrieval-optimization.md`](research/unified-memory/06-retrieval-optimization.md)　**设计文档**：[`docs/DESIGN.md`](DESIGN.md) §9
+**调研依据**：[`docs/research/unified-memory/06-retrieval-optimization.md`](research/unified-memory/06-retrieval-optimization.md)　**设计文档**：[`FLOW/retrieval-crag-flow.md`](FLOW/retrieval-crag-flow.md)
 
 ### 9.1 Contextual Retrieval（最大优化机会）
 
@@ -568,4 +568,7 @@ gantt
 | [`research/knowledge-organization/`](research/knowledge-organization/) | V1.4 调研 — 知识库组织形式、Markdown 存储、Agent 写入实践、Firecrawl vs Exa |
 | [`research/agent-memory/`](research/agent-memory/) | V1.4 调研 — Agent 记忆系统：三层模型、Claude Code 五层实践、10 个参考项目对比 |
 | [`research/unified-memory/`](research/unified-memory/) | V1.4/V1.5/V1.6 调研 — 统一记忆架构 + OS 类比 + 页表分库 + 异步管道 + 竞品对比 + 检索优化 |
-| [`DESIGN.md`](DESIGN.md) | V1.5/V1.6 设计文档 — 统一记忆系统完整架构 + 端到端业务流程 |
+| [`FLOW/retrieval-crag-flow.md`](FLOW/retrieval-crag-flow.md) | 检索管道 + CRAG 评估设计 |
+| [`FLOW/memory-compression-flow.md`](FLOW/memory-compression-flow.md) | 记忆系统 + 上下文压缩设计 |
+| [`FLOW/async-indexing-flow.md`](FLOW/indexing-pipeline-flow.md) | 索引管道 + 异步处理设计 |
+| [`FLOW/search-kb-loop-flow.md`](FLOW/search-kb-loop-flow.md) | 搜索→知识库闭环设计 |

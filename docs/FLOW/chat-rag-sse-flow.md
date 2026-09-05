@@ -1,8 +1,8 @@
 # Chat RAG SSE 数据流 — 每个 API 端点
 
-> 涉及文件: `domain/chat/session/handler.go`, `domain/chat/session/service.go`, `agent/loop.go`, `agent/runner.go`, `agent/tools/kb_store_impl.go`, `agent/tools/kb.go`, `agent/tools/web_search.go`, `rag/hybrid.go`, `rag/bm25.go`, `rag/rerank.go`, `rag/crag.go`, `rag/embedder.go`, `rag/retriever.go`, `infra/adapter/embedding_client.go`, `infra/adapter/vector_store.go`, `infra/runtime/generation_hub.go`, `shared/model/chat.go`
+> 涉及代码：`domain/chat/session/handler.go`、`domain/chat/session/service.go`、`agent/loop.go`、`agent/runner.go`、`agent/tools/kb_store_impl.go`、`agent/tools/kb.go`、`rag/crag.go`、`infra/runtime/generation_hub.go`
 
-> 架构变化：固定线性 RAG 管道（`Pipeline.Execute`）已废弃，由 Agent ReAct 循环替代。Agent 自主决策检索时机、检索内容、结果是否充分、是否补充搜索。检索为 `kb(action=search)` 工具，CRAG 评估以 verdict 文本返回 Agent。
+> 架构变化：固定线性 RAG 管道（`Pipeline.Execute`）已废弃，由 Agent ReAct 循环替代。Agent 自主决策检索时机、检索内容、结果是否充分、是否补搜。
 
 ---
 
@@ -57,22 +57,16 @@ ChatService.StreamChat (domain/chat/session/service.go)
 
 ```
 AgentRunner.Stream → Loop.Run (agent/loop.go)
-  ├─ SystemMessage(BuildSystemPrompt) 注入：静态原则 + KB 索引 + 全局记忆 + CRAG 指引
+  ├─ SystemMessage(BuildSystemPrompt) 注入：静态原则 + KB 摘要 + 全局记忆 + CRAG 指引
   ├─ 循环（maxStep=20）:
   │   ├─ ChatModel.Stream → 流式生成（含 tool_calls）
-  │   ├─ 检测 msg.ToolCalls → 分发：
-  │   │   ├─ kb(action=search) → KBStoreImpl.Search (agent/tools/kb_store_impl.go)
-  │   │   │   ├─ errgroup 并行：向量检索（query embed 缓存 → pgvector cosine, ef_search=100）
-  │   │   │   │              + BM25 检索（gse, 内存索引, enriched, metadata 硬过滤）
-  │   │   │   ├─ RRF 融合 k=30（retrievalK=30 候选）
-  │   │   │   ├─ cross-encoder rerank（全池 → 按 ConfRaw 重排 → 截到 limit）
-  │   │   │   ├─ 去重 → 分层置信度（cosine→+BM25 0.4→+Rerank 0.6）
-  │   │   │   ├─ CRAG 评估 → Verdict{Strong/Ambiguous/Weak}
-  │   │   │   └─ Sandwich Reorder → Context Packing → 文本 [检索充分性: level] + chunks
+  │   ├─ 检测 msg.ToolCalls → 分发工具
+  │   │   ├─ kb(action=search) → KBStoreImpl.Search（见检索管道文档）
+  │   │   │   └─ 返回 SearchOutcome{Entries, Verdict}，文本含 [检索充分性: level]
   │   │   ├─ memory(action=recall) → FileMemoryStore（BM25 / 子串匹配）
-  │   │   ├─ web_search → SearchChain（Exa → Tavily → DuckDuckGo）  ← weak verdict 时 Agent 自主触发
-  │   │   └─ kb(action=create) → 写 Draft + 入队（<5ms，异步入队索引）
-  │   ├─ tool_result → ToolMessage 注入历史（microcompact 清理低价值结果）
+  │   │   ├─ web_search → SearchChain（Exa → Tavily → DuckDuckGo）  ← weak verdict 时触发
+  │   │   └─ kb(action=create) → 写 Draft（不直接索引，需发布）
+  │   ├─ tool_result → ToolMessage 注入历史（Microcompact 清理低价值结果）
   │   └─ 无 tool_calls 或达 maxStep → 生成最终回答
   └─ GenerationHub 分发 SSE 事件
 ```
@@ -89,14 +83,10 @@ AgentRunner.Stream → Loop.Run (agent/loop.go)
 | `error` | Agent 异常 | `{error:"..."}` |
 
 降级策略（非核心步骤失败不阻塞）:
-- 向量检索失败 → slog.Warn，BM25-only 降级；双路全失败 → 20002
-- BM25 失败 → slog.Warn，向量-only 降级
-- rerank 失败 → 原序返回（日志化，不静默吞错）
-- CRAG LLM 评估失败 → 降级阈值（永不阻塞检索返回）
-- LLM 不可用 → 20001
-- Agent Loop 异常 → 回退降级路径
-
-**CRAG 闭环**（Agent 驱动，RAG 引擎不触 web）: `kb(search)` 返回 `[检索充分性: weak]` → Agent 将 query 分解为原子 claim → 逐条 `web_search` → 精炼（仅留 query 相关片段）→ 合并 → 答；可选 `kb(create)` 写回 → 异步索引 → 下次命中。
+- 向量检索失败 → BM25-only 降级；双路全失败 → 返回空结果
+- rerank 失败 → 原序返回（日志化）
+- CRAG LLM 评估失败 → 降级阈值
+- LLM 不可用 → 返回错误
 
 ---
 
@@ -114,9 +104,9 @@ ChatHandler.ListSessions → ChatService.ListSessions
 
 ```
 ChatHandler.GetChatDetail → ChatService.GetChatDetail
-  ├─ ChatRepo.FindByID → 归属校验 (session.UserID != userID → 403)
+  ├─ ChatRepo.FindByID → 归属校验（session.UserID != userID → 403）
   ├─ json.Unmarshal(session.Sources) → []SourceItem
-  └─ ChatRepo.FindMessagesBySession → 最多 50 条, CanSubmitTicket=conf<0.6
+  └─ ChatRepo.FindMessagesBySession → 最多 50 条
 ```
 
 ### POST /api/v1/portal/chat-sessions/:id/feedback &emsp; 反馈

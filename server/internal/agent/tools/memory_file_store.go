@@ -37,9 +37,9 @@ func (s *FileMemoryStore) memoryDir(scope, sessionID string) string {
 		if sessionID == "" {
 			sessionID = "default"
 		}
-		return filepath.Join(s.storageRoot, "memory", "sessions", sessionID)
+		return filepath.Join(s.storageRoot, "sessions", sessionID)
 	}
-	return filepath.Join(s.storageRoot, "memory", "global")
+	return filepath.Join(s.storageRoot, "global")
 }
 
 // Remember 写入记忆到 md 文件 + 更新 MEMORY.md 索引。

@@ -84,7 +84,7 @@ func BuildSystemPrompt(summaries []KBSummary, memoryRoot string) string {
 	}
 
 	// 动态注入：全局记忆索引（MEMORY.md）
-	memoryPath := filepath.Join(memoryRoot, "memory/global/MEMORY.md")
+	memoryPath := filepath.Join(memoryRoot, "global", "MEMORY.md")
 	if data, err := os.ReadFile(memoryPath); err == nil && len(data) > 0 {
 		sb.WriteString("\n## Global Memory\n")
 		sb.Write(data)
