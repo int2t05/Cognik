@@ -1,16 +1,14 @@
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 
-export interface KB { id: number; name: string; description: string; embedding_model: string; vector_dimension: number; llm_config_id: number; article_count: number; created_at: string; }
-export interface Article { id: number; kb_id: number; kb_name: string; title: string; content: string; source_type: number; status: number; status_text: string; tags: string[]; file_type: string; process_status: string; process_error: string; created_by_name: string; created_at: string; updated_at: string; }
-export interface ArticleDetail extends Article { chunks: unknown[]; reviewed_by: number | null; published_by: number | null; minio_path: string; }
+export interface KB { id: number; name: string; description: string; embedding_model: string; vector_dimension: number; article_count: number; created_at: string; }
+export interface Article { id: number; title: string; content: string; source_type: number; status: number; tags: string[]; process_status: string; process_error: string; created_by_name: string; created_at: string; updated_at: string; }
 
 // KB
 export function getKBList(keyword?: string) {
   const url = keyword ? `/api/v1/admin/knowledge-bases?keyword=${encodeURIComponent(keyword)}` : '/api/v1/admin/knowledge-bases';
   return apiFetch<KB[]>(url);
 }
-export function getPortalKBList() { return apiFetch<Pick<KB, 'id' | 'name' | 'description'>[]>('/api/v1/portal/knowledge-bases'); }
 export function createKB(data: Record<string, unknown>) { return apiFetch<{ id: number }>('/api/v1/admin/knowledge-bases', { method: 'POST', body: JSON.stringify(data) }); }
 export function updateKB(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/knowledge-bases/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export function deleteKB(id: number) { return apiFetch<null>(`/api/v1/admin/knowledge-bases/${id}`, { method: 'DELETE' }); }
@@ -24,7 +22,7 @@ export function getArticleList(kbId: number, page: number, status?: string, keyw
   if (processStatus) url += `&process_status=${encodeURIComponent(processStatus)}`;
   return apiFetchPage<Article>(url);
 }
-export function getArticle(id: number) { return apiFetch<ArticleDetail>(`/api/v1/admin/articles/${id}`); }
+export function getArticle(id: number) { return apiFetch<Article>(`/api/v1/admin/articles/${id}`); }
 export function createArticle(kbId: number, data: Record<string, unknown>) { return apiFetch<{ id: number }>(`/api/v1/admin/knowledge-bases/${kbId}/articles`, { method: 'POST', body: JSON.stringify(data) }); }
 export function updateArticle(id: number, data: Record<string, unknown>) { return apiFetch<null>(`/api/v1/admin/articles/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
 export function submitReview(id: number) { return apiFetch<null>(`/api/v1/admin/articles/${id}/submit-review`, { method: 'POST' }); }
@@ -36,7 +34,6 @@ export function deleteArticle(id: number) { return apiFetch<null>(`/api/v1/admin
 
 // 上传配置
 export interface UploadConfig {
-  max_upload_size_kb: number;
   max_upload_size: number;
   allowed_types: string[];
   max_files: number;

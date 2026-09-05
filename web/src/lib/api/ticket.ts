@@ -1,9 +1,9 @@
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 
-export interface Ticket { id: number; ticket_no: string; title: string; tags: string[]; status: number; status_text: string; urgency?: number; submitter_name?: string; created_at: string; updated_at: string; }
-export interface TicketDetail extends Ticket { description: string; contact_phone: string; contact_email: string; supplement_count: number; records?: TicketRecord[]; }
-export interface TicketRecord { id: number; operator_id: number; action: string; content: string; created_at: string; }
+export interface Ticket { id: number; ticket_no: string; title: string; tags: string[]; status: number; submitter_name?: string; created_at: string; }
+export interface TicketDetail extends Ticket { description: string; contact_phone: string; contact_email: string; records?: TicketRecord[]; }
+export interface TicketRecord { id: number; action: string; content: string; created_at: string; }
 
 // 门户端
 export function createTicket(data: Record<string, unknown>) { return apiFetch<null>('/api/v1/portal/tickets', { method: 'POST', body: JSON.stringify(data) }); }

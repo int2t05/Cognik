@@ -22,7 +22,7 @@ const AUDIT_TARGET_TYPE_OPTIONS: TableFilterOption<string>[] = [
   { value: 'role', label: '角色' },
   { value: 'knowledge_article', label: '知识文章' },
   { value: 'knowledge_base', label: '知识库' },
-  { value: 'ticket', label: '申告' },
+  { value: 'ticket', label: '工单' },
   { value: 'config', label: '系统配置' },
   { value: 'llm_config', label: 'LLM 配置' },
 ];

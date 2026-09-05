@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth, type Menu } from './useAuth';
 import { getUnreadCount } from '@/lib/api/message';
 import { STORAGE_KEY, MAX_ACCOUNTS, EXPIRE_MS, type SavedAccount } from '@/lib/account-store';
 
@@ -109,8 +109,7 @@ export function useAccountSwitcher() {
         real_name: account.realName,
         phone: '',
         email: '',
-        first_login: false,
-      }, account.roles, account.permissions, account.menus as never[]);
+      }, account.roles, account.permissions, account.menus as Menu[]);
       // 立即验证 token——账号可能已被冻结，后台返回 10001 触发自动登出
       try {
         await getUnreadCount(account.token);

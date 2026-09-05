@@ -14,7 +14,6 @@ import type { SessionStream, SSEEvent, ChatMessage } from '@/lib/types';
 interface QueuedMessage {
   id: string;
   content: string;
-  createdAt: string;
 }
 
 interface Store {
@@ -61,7 +60,6 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     return queueRef.current[id]?.map((content, i) => ({
       id: `q-${id}-${i}`,
       content,
-      createdAt: new Date().toISOString(),
     })) ?? [];
   }, []);
 
@@ -80,7 +78,6 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
       messages: msgs,
       status: 'idle',
       lastSeq: -1,
-      thinking: false,
     }));
   }, [patch]);
 
@@ -192,8 +189,8 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
       status: 'streaming',
       messages: [
         ...s.messages,
-        { id: `u-${Date.now()}`, role: 'user', parts: [{ type: 'text', content: question }], status: 'done', createdAt: new Date().toISOString() },
-        { id: `a-${Date.now()}`, role: 'assistant', parts: [], status: 'streaming', createdAt: new Date().toISOString() },
+        { id: `u-${Date.now()}`, role: 'user', parts: [{ type: 'text', content: question }], status: 'done' },
+        { id: `a-${Date.now()}`, role: 'assistant', parts: [], status: 'streaming' },
       ],
     }));
 
@@ -282,7 +279,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
           break;
         }
       }
-      return { ...s, status: 'idle', thinking: false, messages };
+      return { ...s, status: 'idle', messages };
     });
   }, [cancelRAF, flushBuffer, patch]);
 
@@ -298,5 +295,4 @@ export function useChatStreamStore() {
 }
 
 // 导出 reducer 供测试
-export { reduceStreamEvent, createSessionStream, parseThreadMessage };
-export type { SessionStream, ChatMessage, SSEEvent };
+export type { ChatMessage };

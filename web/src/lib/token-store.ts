@@ -17,7 +17,6 @@ export interface StoredAuth {
     real_name: string;
     phone: string;
     email: string;
-    first_login: boolean;
   };
   roles: string[];
   permissions: string[];

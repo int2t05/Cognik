@@ -9,7 +9,7 @@ import useSWR from 'swr';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/form-field';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, type Menu } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
@@ -23,10 +23,10 @@ import { LogIn, Loader2 } from 'lucide-react';
 interface LoginResponse {
   access_token: string;
   refresh_token: string;
-  user: { id: number; username: string; real_name: string; phone: string; email: string; first_login: boolean };
+  user: { id: number; username: string; real_name: string; phone: string; email: string };
   roles: string[];
   permissions: string[];
-  menus: never[];
+  menus: Menu[];
 }
 
 export default function LoginPage() {
@@ -95,7 +95,7 @@ export default function LoginPage() {
             知识管理平台系统
           </p>
           <p className="text-caption text-[var(--color-text-muted-48)] mt-1">
-            智能问答 · 申告管理 · 知识库
+            智能问答 · 工单管理 · 知识库
           </p>
         </div>
 

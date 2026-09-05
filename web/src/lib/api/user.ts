@@ -4,7 +4,7 @@
 import { apiFetch, apiFetchPage } from './client';
 import { PAGE_SIZE } from './constants';
 
-export interface User { id: number; username: string; real_name: string; phone: string; email: string; status: number; first_login: boolean; roles: string[]; created_at: string; updated_at: string; }
+export interface User { id: number; username: string; real_name: string; phone: string; email: string; status: number; roles: string[]; created_at: string; updated_at: string; }
 
 export function getUserList(page: number, keyword?: string) {
   let url = `/api/v1/admin/users?page=${page}&page_size=${PAGE_SIZE}`;

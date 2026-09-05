@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTheme } from '../useTheme';
 
-// Mock localStorage
+// 模拟 localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -18,7 +18,7 @@ const localStorageMock = (() => {
 
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-// Mock matchMedia
+// 模拟 matchMedia
 Object.defineProperty(window, 'matchMedia', {
   value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
@@ -38,8 +38,7 @@ beforeEach(() => {
 });
 
 describe('useTheme', () => {
-  it('模块级缓存默认值 dark 确保 SSR 安全', () => {
-    // SSR 安全：模块级缓存初始为 'dark'，浏览器环境下会覆盖
+  it('初始渲染返回有效主题值（SSR 安全）', () => {
     const { result } = renderHook(() => useTheme());
     expect(['dark', 'light']).toContain(result.current.theme);
   });

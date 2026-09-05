@@ -1,7 +1,7 @@
 import { apiFetch, apiFetchPage, ApiError } from './client';
 import { PAGE_SIZE } from './constants';
 
-export interface MessageItem { id: number; user_id: number; title: string; content: string; type: string; related_type: string; related_id: number; is_read: boolean; created_at: string; }
+export interface MessageItem { id: number; title: string; content: string; type: string; related_type: string; related_id: number; is_read: boolean; created_at: string; }
 
 /** 消息模块 API 路径，供 useAccountSwitcher 等模块复用，避免硬编码漂移。 */
 export const MESSAGE_PATHS = {

@@ -19,8 +19,6 @@ export interface ChatMessage {
   parts: MessagePart[]
   status: MessageStatus
   error?: string
-  createdAt: string
-  dbId?: number
 }
 
 /** 会话流状态。 */
@@ -28,10 +26,9 @@ export interface SessionStream {
   messages: ChatMessage[]
   status: 'idle' | 'streaming' | 'error'
   lastSeq: number
-  thinking: boolean
 }
 
-/** SSE 事件（后端 StreamEvent 对齐）。 */
+/** SSE 事件。 */
 export interface SSEEvent {
   type: string
   seq: number
@@ -42,21 +39,14 @@ export interface SSEEvent {
   error?: string
   metadata?: {
     answer?: string
-    thread_id?: number
-    question?: string
     assistant_message_id?: number
-    user_message_id?: number
-    created_at?: string
   }
 }
 
-/** 对话线程（后端 store.Thread 对齐）。 */
+/** 对话线程。 */
 export interface Thread {
   id: number
-  user_id: number
   title: string
-  created_at: string
-  updated_at: string
 }
 
 /** 线程详情（含消息）。 */
@@ -64,10 +54,9 @@ export interface ThreadDetail extends Thread {
   messages: ThreadMessage[]
 }
 
-/** 后端消息（store.Message 对齐，parts 是 JSON 字符串）。 */
+/** 线程消息（parts 为 JSON 字符串）。 */
 export interface ThreadMessage {
   id: number
-  thread_id: number
   role: string
   parts: string
   status: string

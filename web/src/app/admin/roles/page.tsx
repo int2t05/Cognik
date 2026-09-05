@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { errorMessage } from '@/lib/api/error';
 import { ShieldPlus, Pencil, Trash2, Loader2, Shield, Save } from 'lucide-react';
 
-/** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示，与 seed_essential.sql 对齐。 */
+/** 系统已知权限码 — 当已有角色均无权限时作为 fallback 展示。 */
 const KNOWN_PERMISSIONS = [
   'user:manage', 'ticket:read', 'ticket:write', 'ticket:manage',
   'knowledge:read', 'knowledge:write', 'knowledge:create', 'knowledge:review', 'knowledge:manage',

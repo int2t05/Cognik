@@ -40,7 +40,7 @@ export default function TicketSubmitPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) { toast.error('请输入申告标题'); return; }
+    if (!title.trim()) { toast.error('请输入工单标题'); return; }
 
     setSubmitting(true);
     try {
@@ -51,7 +51,7 @@ export default function TicketSubmitPage() {
         contact_phone: contactPhone || '—',
         contact_email: contactEmail, chat_context: chatContext,
       });
-      toast.success('申告提交成功');
+      toast.success('工单提交成功');
       router.push('/portal/tickets');
     } catch (err: unknown) {
       toast.error(errorMessage(err, '提交失败'));
@@ -62,11 +62,11 @@ export default function TicketSubmitPage() {
 
   return (
     <div className="max-w-form">
-      <PageTitle>提交申告</PageTitle>
+      <PageTitle>提交工单</PageTitle>
       <form onSubmit={handleSubmit}>
         <Card className="mb-4">
           <h2 className="text-title font-semibold mb-4 text-[var(--color-ink)]">问题信息</h2>
-          <Field label="申告标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
+          <Field label="工单标题" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="简要描述遇到的问题" /></Field>
           <Field label="详细描述" required><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请详细描述问题现象、发生时间、影响范围等" /></Field>
           <Field label="标签（逗号分隔）"><Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如：网络,邮箱,VPN,紧急" /></Field>
         </Card>
@@ -76,7 +76,7 @@ export default function TicketSubmitPage() {
           <Field label="联系邮箱"><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="选填" /></Field>
         </Card>
         <div className="flex gap-3">
-          <IconButton size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交申告</IconButton>
+          <IconButton size="lg" type="submit" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}提交工单</IconButton>
           
         </div>
       </form>

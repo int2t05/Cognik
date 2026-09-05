@@ -1,6 +1,5 @@
 /**
- * 系统配置前端默认值。
- * 与后端 validConfigKeys 9 个键完全对齐，作为后端取不到值时的回落。
+ * 系统配置前端默认值，作为后端取不到值时的回落。
  */
 
 export const SYSTEM_CONFIG_DEFAULTS = {
