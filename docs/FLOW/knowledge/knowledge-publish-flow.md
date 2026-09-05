@@ -117,15 +117,14 @@ KnowledgeHandler.Review → KnowledgeService.Review (domain/knowledge/service.go
   ├─ 审核人 ≠ 创建人 → 防止自审
   ├─ 驳回需填写 review_comment
   ├─ approved → Status=Approved(3) / rejected → Status=Rejected(5)
-  ├─ KnowledgeRepo.UpdateArticle
-  └─ AuditRepo.Create (domain/system/audit/repository.go:50) → "knowledge.review"
+  └─ KnowledgeRepo.UpdateArticle
 ```
 
 ### POST /api/v1/admin/articles/:id/publish &emsp; 发布 &emsp; [PermKnowledgeReview]
 
 ```
 KnowledgeHandler.Publish (domain/knowledge/handler.go:230)
-  → KnowledgeService.Publish (domain/knowledge/service.go:518)
+  → KnowledgeService.Publish (domain/knowledge/service.go:545)
     ├─ Status != Approved(3) → 拒绝
     └─ republishFromApproved (核心管道):
         ├─ Step 0: ParseArticleMeta → 解析 frontmatter (domain/knowledge/frontmatter.go)
@@ -152,16 +151,18 @@ KnowledgeHandler.Publish (domain/knowledge/handler.go:230)
 ### POST /api/v1/admin/articles/:id/disable &emsp; 禁用 &emsp; [PermKnowledgeReview]
 
 ```
-KnowledgeHandler.Disable → KnowledgeService.Disable (domain/knowledge/service.go:483)
+KnowledgeHandler.Disable → KnowledgeService.Disable (domain/knowledge/service.go:792)
   ├─ Status != Published(4) → 拒绝
   ├─ PgvectorStore.DeleteByArticle → 删除 pgvector 向量
-  └─ Status=Disabled(0) → KnowledgeRepo.UpdateArticle
+  ├─ Status=Disabled(0) → KnowledgeRepo.UpdateArticle
+  ├─ AuditWriter.Write → "knowledge.disable"
+  └─ onKBChanged 回调 → RebuildBM25ForKB + RebuildKBIndex
 ```
 
 ### POST /api/v1/admin/articles/:id/enable &emsp; 启用 &emsp; [PermKnowledgeReview]
 
 ```
-KnowledgeHandler.Enable → KnowledgeService.Enable (domain/knowledge/service.go:520)
+KnowledgeHandler.Enable → KnowledgeService.Enable (domain/knowledge/service.go:827)
   ├─ Status != Disabled(0) → 拒绝
   ├─ article.Status = Approved(3) (临时, 绕过发布状态校验)
   └─ republishFromApproved → 复用完整发布管道

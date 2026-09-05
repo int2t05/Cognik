@@ -24,7 +24,7 @@ flowchart LR
 
     subgraph Infra["基础设施"]
         PG[("PostgreSQL + pgvector<br/>业务数据 + 向量存储")]
-        MinIO[("MinIO<br/>文档 / 附件")]
+        Storage[("文件存储<br/>Local / MinIO")]
         LLM["LLM 服务<br/>llama.cpp 或 OpenAI-compatible"]
     end
 
@@ -34,7 +34,7 @@ flowchart LR
     Web --> Server
     Server --> RAG
     Server --> PG
-    Server --> MinIO
+    Server --> Storage
     RAG --> LLM
     RAG --> PG
 
@@ -168,7 +168,7 @@ flowchart TD
 |----|------|
 | 后端框架 | Go + Gin + GORM |
 | 数据库 | PostgreSQL + pgvector (halfvec + HNSW) |
-| 对象存储 | MinIO (S3-compatible) |
+| 对象存储 | 本地 FS（MinIO 可选） |
 | 前端 | Next.js + React + TypeScript + Tailwind CSS |
 | UI | Radix UI + Lucide Icons + SWR |
 | LLM | 自建 agent/llm.ChatModel（net/http 直连 OpenAI 兼容 API） |

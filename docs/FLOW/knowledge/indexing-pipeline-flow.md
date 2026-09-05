@@ -221,6 +221,6 @@ flowchart LR
 
 ### 7.2 关联文档
 
-- [retrieval-crag-flow.md](retrieval-crag-flow.md) — 检索管道（消费侧）
+- [retrieval-crag-flow.md](../chat/retrieval-crag-flow.md) — 检索管道（消费侧）
 - [knowledge-publish-flow.md](knowledge-publish-flow.md) — 文章发布流程
 - [TECH.md](../TECH.md) §2.2 RAG 引擎、§4.2 pgvector 配置

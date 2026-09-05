@@ -190,6 +190,6 @@ system_prompt.go 含 CRAG 指引块：
 
 ### 7.2 关联文档
 
-- [retrieval-crag-flow.md](retrieval-crag-flow.md) — CRAG 评估（触发侧）
+- [retrieval-crag-flow.md](../chat/retrieval-crag-flow.md) — CRAG 评估（触发侧）
 - [indexing-pipeline-flow.md](indexing-pipeline-flow.md) — 异步索引（消费侧）
-- [chat-rag-sse-flow.md](chat-rag-sse-flow.md) — 端到端问答流程
+- [chat-rag-sse-flow.md](../chat/chat-rag-sse-flow.md) — 端到端问答流程

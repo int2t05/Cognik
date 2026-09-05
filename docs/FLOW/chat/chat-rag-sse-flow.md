@@ -1,6 +1,6 @@
 # Chat RAG SSE 数据流 — 每个 API 端点
 
-> 涉及代码：`domain/chat/session/handler.go`、`domain/chat/session/service.go`、`agent/loop.go`、`agent/runner.go`、`agent/tools/kb_store_impl.go`、`agent/tools/kb.go`、`rag/crag.go`、`infra/runtime/generation_hub.go`
+> 涉及代码：`domain/chat/session/handler.go`、`domain/chat/session/service.go`、`agent/loop.go`、`agent/runner.go`、`agent/tools/kb_store_impl.go`、`agent/tools/kb.go`、`rag/crag.go`、`infra/runtime/gateway.go`
 
 > 问答由 Agent ReAct 循环驱动。Agent 自主决策检索时机、检索内容、结果是否充分、是否补搜。检索是 Agent 工具（kb(action=search)），非固定线性管道。
 
