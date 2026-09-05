@@ -1,12 +1,16 @@
 /**
  * AccountSwitcher — 切换账号弹出框。基于 shadcn DropdownMenu（Radix 处理 overlay/escape/portal/focus），
- * 列出历史登录会话，有效会话点击切换，过期/新增跳登录页。
+ * 列出历史登录会话，有效会话点击切换，过期/新增跳登录页。内含修改密码入口。
  */
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Trash2, LogIn } from 'lucide-react';
+import { UserPlus, Trash2, LogIn, KeyRound, Loader2 } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/ui/form-field';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAccountSwitcher } from '@/hooks/useAccountSwitcher';
+import { changePassword } from '@/lib/api/auth';
+import { errorMessage } from '@/lib/api/error';
 import { toast } from 'sonner';
 
 interface Props {
@@ -26,6 +32,31 @@ interface Props {
 export function AccountSwitcher({ className, iconOnly }: Props) {
   const { accounts, switchTo, removeAccount, logout } = useAccountSwitcher();
   const router = useRouter();
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [oldPwd, setOldPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  const resetPwdForm = () => { setOldPwd(''); setNewPwd(''); setConfirmPwd(''); };
+
+  const handleChangePassword = async () => {
+    if (!oldPwd || !newPwd || !confirmPwd) { toast.error('请填写所有字段'); return; }
+    if (newPwd === oldPwd) { toast.error('新密码不能与旧密码相同'); return; }
+    if (newPwd !== confirmPwd) { toast.error('两次输入的新密码不一致'); return; }
+    if (newPwd.length < 8) { toast.error('新密码至少 8 位，需含大小写字母和数字'); return; }
+    setPwdLoading(true);
+    try {
+      await changePassword(oldPwd, newPwd);
+      toast.success('密码修改成功');
+      setPwdOpen(false);
+      resetPwdForm();
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, '修改失败'));
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   const handleSwitch = async (account: (typeof accounts)[0]) => {
     const ok = await switchTo(account);
@@ -94,12 +125,36 @@ export function AccountSwitcher({ className, iconOnly }: Props) {
         </div>
 
         <div className="border-t border-[var(--color-divider-soft)]">
+          <IconButton variant="menu" onClick={() => setPwdOpen(true)} className="w-full justify-start">
+            <KeyRound size={18} />
+            修改密码
+          </IconButton>
           <IconButton variant="menu" onClick={handleNewLogin} className="w-full justify-start font-semibold">
             <LogIn size={18} />
             其他账号登录
           </IconButton>
         </div>
       </DropdownMenuContent>
+
+      <Dialog open={pwdOpen} onOpenChange={(open) => { setPwdOpen(open); if (!open) resetPwdForm(); }}>
+        <DialogContent showCloseButton={false} className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[15px]">
+              <KeyRound size={18} />
+              修改密码
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Field label="旧密码" required><Input type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} autoComplete="current-password" disabled={pwdLoading} autoFocus /></Field>
+            <Field label="新密码" required><Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} placeholder="至少 8 位，含大小写字母和数字" /></Field>
+            <Field label="确认新密码" required><Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} autoComplete="new-password" disabled={pwdLoading} /></Field>
+          </div>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <IconButton variant="ghost" size="sm" onClick={() => setPwdOpen(false)} disabled={pwdLoading}>取消</IconButton>
+            <IconButton size="sm" onClick={handleChangePassword} disabled={pwdLoading}>{pwdLoading ? <Loader2 className="animate-spin" size={14} /> : <KeyRound size={14} />}确认修改</IconButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DropdownMenu>
   );
 }
