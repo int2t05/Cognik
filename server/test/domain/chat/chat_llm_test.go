@@ -13,8 +13,8 @@ import (
 	"cognos/internal/agent/llm"
 )
 
-// TestLLMClient_ChatCompletion 验证 Eino ChatModel 可正常调用 llama.cpp。
-// 用 Eino ChatModel.Generate 调用 LLM。
+// TestLLMClient_ChatCompletion 验证自建 ChatModel 可正常调用 llama.cpp。
+// 用 agent/llm.ChatModel.Generate 调用 LLM。
 //
 // 需要运行中的 LLM 服务，不可用时跳过。
 func TestLLMClient_ChatCompletion(t *testing.T) {

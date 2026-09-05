@@ -26,7 +26,7 @@ const defaultTaskTimeout = 5 * time.Minute
 // ProcessTask — 处理任务
 // =============================================================================
 
-// ProcessTask 单个文档处理任务。支持 MinIO 路径（Bucket/Key/FileType）或纯文本（Content）。
+// ProcessTask 单个文档处理任务。支持存储路径（Bucket/Key/FileType）或纯文本（Content）。
 // EmbeddingModel 为空时回退全局默认模型。
 type ProcessTask struct {
 	ArticleID      int64                                            `json:"article_id"`

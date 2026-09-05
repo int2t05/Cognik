@@ -19,7 +19,7 @@ func SetRRFK(k int) {
 }
 
 // HybridFuse 使用 RRF 融合向量检索和 BM25 检索结果。
-// 融合时保留 RawCosineScore 与 Bm25NormScore，由 KBStore.Search 后续加权混合为置信度。
+// 融合时保留 RawCosineScore 与 Bm25NormScore，供调试与可观测（置信度由 KBStore.Search 基于 rerank 或 RRF 归一化计算）。
 func HybridFuse(vectorResults, bm25Results []RetrievalResult, topK int) []RetrievalResult {
 	if len(vectorResults) == 0 && len(bm25Results) == 0 {
 		return nil

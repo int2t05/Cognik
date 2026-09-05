@@ -1,7 +1,7 @@
 // Package adapter 提供外部服务的适配层。
 //
 // 共享 HTTP 辅助（doHTTPRequest/retryableError/重试常量）供 Embedding/VectorStore 客户端复用。
-// LLM 调用走 Eino ChatModel（agent 域）；RAG 的 LLM 调用类型在 rag/llm_types.go。
+// LLM 调用走自建 ChatModel（agent/llm 包，net/http 直连）；RAG 的 LLM 调用类型在 rag/llm_types.go。
 package adapter
 
 import (

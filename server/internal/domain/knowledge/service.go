@@ -74,7 +74,7 @@ func articleFileName(slug string) string {
 	return fmt.Sprintf("%s.md", slug)
 }
 
-// formatArticleText 正文前附 markdown 一级标题，写入 MinIO 和 embedding 时统一使用。
+// formatArticleText 正文前附 markdown 一级标题，写入存储和 embedding 时统一使用。
 func formatArticleText(title, content string) string {
 	return "# " + title + "\n\n" + content
 }
@@ -164,7 +164,7 @@ func WithVectorStore(vs adapter.VectorStore) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.store = vs }
 }
 
-// WithDocParser 设置文档解析器（上传时非 MinIO 降级路径使用）。
+// WithDocParser 设置文档解析器（上传时本地降级路径使用）。
 func WithDocParser(dp *parser.Parser) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.docParser = dp }
 }
@@ -174,7 +174,7 @@ func WithProcessor(p *rag.Processor) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.processor = p }
 }
 
-// WithStorage 设置对象存储客户端（上传时写入 MinIO）。
+// WithStorage 设置对象存储客户端（上传时写入存储）。
 func WithStorage(sc storage.StorageClient) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.storage = sc }
 }
@@ -319,7 +319,7 @@ func (s *KnowledgeService) UpdateKB(ctx context.Context, id int64, req request.U
 // DeleteKB 删除知识库及其下所有内容。
 //
 // 先删向量再删数据库记录，避免向量删除失败产生孤儿数据。
-// MinIO 文件和 BM25 缓存由适配器异步管理。
+// 存储文件和 BM25 缓存由适配器异步管理。
 func (s *KnowledgeService) DeleteKB(ctx context.Context, id int64) error {
 	_, err := s.repo.FindKBByID(ctx, id)
 	if err != nil {
@@ -836,7 +836,7 @@ func (s *KnowledgeService) Enable(ctx context.Context, id int64, publisherID int
 	return s.republishFromApproved(ctx, article, publisherID)
 }
 
-// DeleteArticle 删除文章（任意状态均可删除，MinIO 清理异步执行）。
+// DeleteArticle 删除文章（任意状态均可删除，存储清理异步执行）。
 func (s *KnowledgeService) DeleteArticle(ctx context.Context, id int64) error {
 	article, err := s.findArticle(ctx, id)
 	if err != nil {

@@ -33,11 +33,6 @@ var validConfigKeys = map[string]configKeyMeta{
 	"ai.confidence_threshold_low":  {ValueType: "number", Description: "低置信阈值——Conf_raw 低于此值为低置信"},
 	"ai.confidence_threshold_high": {ValueType: "number", Description: "高置信阈值——Conf_raw 达到此值为高置信"},
 	"ai.max_history_messages":      {ValueType: "number", Description: "多轮对话历史消息数上限"},
-	"ai.rag_query_rewrite":         {ValueType: "bool", Description: "RAG 查询改写开关"},
-	"ai.rag_multi_route":           {ValueType: "bool", Description: "RAG 多路检索开关"},
-	"ai.rag_hybrid":                {ValueType: "bool", Description: "RAG BM25 混合检索开关"},
-	"ai.rag_rerank":                {ValueType: "bool", Description: "RAG 重排序开关"},
-	"ai.enable_thinking":           {ValueType: "bool", Description: "流式回答启用思考模式（推理链提升质量但延迟 5-10x）"},
 }
 
 // ConfigService 系统配置管理服务。

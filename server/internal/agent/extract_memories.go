@@ -1,7 +1,7 @@
 // Package agent 提供自建 ReAct 循环与工具接口。
 //
 // extract_memories.go：每轮对话结束后 fire-and-forget forked agent 提取经验。
-// 参考 Claude Code ExtractMemories：从对话记录提取持久记忆，4 类型分类，游标追踪只处理新消息。
+// 参考 Claude Code ExtractMemories：从对话记录提取持久记忆，6 类型分类（system/pattern/decision/reference/learning/workflow），游标追踪只处理新消息。
 // forked agent 独立上下文，不污染主对话（skipTranscript），maxTurns=5。
 package agent
 
@@ -85,7 +85,7 @@ func (e *ExtractMemoriesAgent) Extract(ctx context.Context, sessionID string, me
 }
 
 // buildExtractInstruction 构造提取记忆的 system prompt。
-// 参考 Claude Code 4 类型分类，适配通用知识管理场景。
+// 参考 Claude Code 记忆分类，适配通用知识管理（6 类型：system/pattern/decision/reference/learning/workflow）。
 func buildExtractInstruction(sessionID string) string {
 	return fmt.Sprintf(`你是记忆提取器。从对话记录中提取有长期价值的经验，分类写入记忆。
 

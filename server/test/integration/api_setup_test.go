@@ -25,7 +25,6 @@ import (
 	"time"
 
 	llmconfig "cognos/internal/domain/chat/llm_config"
-	"cognos/internal/domain/chat/session"
 	"cognos/internal/domain/knowledge"
 	"cognos/internal/domain/system/audit"
 	sysconfig "cognos/internal/domain/system/config"
@@ -99,7 +98,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	userRepo, roleRepo, menuRepo := account.NewUserRepo(db), role.NewRoleRepo(db), role.NewMenuRepo(db)
 	ticketRepo := ticket.NewTicketRepo(db)
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
-	chatRepo, messageRepo := session.NewChatRepo(db), message.NewMessageRepo(db)
+	messageRepo := message.NewMessageRepo(db)
 	auditRepo, dashboardRepo := audit.NewAuditRepo(db), dashboard.NewDashboardRepo(db)
 	configRepo, llmConfigRepo := sysconfig.NewConfigRepo(db), llmconfig.NewLlmConfigRepo(db)
 
@@ -111,27 +110,24 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	userSvc := account.NewUserService(userRepo, audit.NewAuditService(auditRepo), db, userCache)
 	roleSvc := role.NewRoleService(roleRepo, menuRepo, audit.NewAuditService(auditRepo), db)
 	messageSvc := message.NewMessageService(messageRepo)
-	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, nil, nil) // knowledgeCandidate 在 knowledgeSvc 构造后注入
-	dashboardSvc := dashboard.NewDashboardService(dashboardRepo)
-	configSvc := sysconfig.NewConfigService(configRepo, audit.NewAuditService(auditRepo))
 	auditSvc := audit.NewAuditService(auditRepo)
 
-	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, audit.NewAuditService(auditRepo))
+	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, auditSvc)
 	require.NoError(t, err)
 
 	knowledgeSvc := knowledge.NewKnowledgeService(knowledgeRepo,
-		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(audit.NewAuditService(auditRepo)))
-	ticketSvc.SetKnowledgeCandidate(knowledgeSvc)
+		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(auditSvc))
+	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, knowledgeSvc, nil)
+	dashboardSvc := dashboard.NewDashboardService(dashboardRepo)
+	configSvc := sysconfig.NewConfigService(configRepo, auditSvc)
 
-	chatSvc := session.NewChatService(knowledgeRepo, chatRepo, nil, session.RAGDefaults{
-		TopK: 5, QueryRewrite: false, MultiRoute: false, Hybrid: false, Rerank: false,
-	}, nil, nil, nil)
+	// Chat 服务在集成测试环境不构造（需 AgentRunner + Gateway，见 api_chat_test.go 单独测试）
 
 	// Handler → Router → HTTP Server
 	handlers := &router.Handlers{
 		Auth: auth.NewAuthHandler(authSvc), User: account.NewUserHandler(userSvc),
 		Role: role.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
-		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc), Chat: session.NewChatHandler(chatSvc),
+		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc),
 		Message: message.NewMessageHandler(messageSvc), Dashboard: dashboard.NewDashboardHandler(dashboardSvc),
 		Audit: audit.NewAuditHandler(auditSvc), Config: sysconfig.NewConfigHandler(configSvc),
 		LLMConfig: llmconfig.NewLLMConfigHandler(llmConfigSvc),
