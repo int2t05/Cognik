@@ -1,10 +1,10 @@
 # Cognos — 产品需求文档
 
-> 私有部署的 AI 运维数字员工系统。关联文档：[TECH](TECH.md) · [API](API/README.md) · [FLOW](FLOW/README.md)
+> 私有部署的 AI 知识管理平台。关联文档：[TECH](TECH.md) · [API](API/README.md) · [FLOW](FLOW/README.md)
 
 ## 1. 产品定位
 
-面向企业运维场景的 AI 数字员工，通过私有知识库 + 自建 RAG 引擎 + 申告全流程管理，替代或辅助人工完成咨询、自助处理、工单流转和知识沉淀。数据不出域，全部存储在自有 PostgreSQL + pgvector。
+面向团队的 AI 知识管理平台，通过私有知识库 + 自建 RAG 引擎 + 申告全流程管理，辅助团队完成咨询、知识沉淀和工单流转。数据不出域，全部存储在自有 PostgreSQL + pgvector。
 
 ## 2. 系统上下文
 
@@ -12,7 +12,7 @@
 flowchart LR
     subgraph Actors["用户角色"]
         Reporter["报障人<br/>智能问答 / 提交申告"]
-        Operator["运维人员<br/>处理申告 / 维护知识"]
+        Operator["处理人员<br/>处理申告 / 维护知识"]
         Admin["系统管理员<br/>用户权限 / 系统配置"]
     end
 
@@ -109,7 +109,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> Pending: 报障人提交 / 系统自动创建（source=3）
-    Pending --> Processing: 运维接单 start
+    Pending --> Processing: 接单 start
     Processing --> Resolved: 标记解决 resolve
     Processing --> NeedSupplement: 索要补充 request_info
     NeedSupplement --> Processing: 报障人补充后自动退回
@@ -130,7 +130,7 @@ stateDiagram-v2
 ```mermaid
 flowchart TD
     SA["系统管理员 — 全部权限"]
-    OP["运维人员 — 申告处理 / 知识候选"]
+    OP["处理人员 — 申告处理 / 知识候选"]
     KM["知识库管理员 — 知识 CRUD / 审核发布"]
     RP["报障人 — 门户端问答与申告"]
 

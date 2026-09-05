@@ -40,7 +40,7 @@ LLMConfigManager.OnChange (domain/chat/llm_config/service.go:33)
   maxTokens = configMgr.GetConfig().MaxTokens || 2048
 
 每次 LLM 调用 → buildMessages:
-  systemPrompt = configMgr.GetConfig().SystemPrompt || "你是一个运维知识助手..."
+  systemPrompt = configMgr.GetConfig().SystemPrompt || "你是一个知识管理助手..."
 
 每次 Embedding → Embedder.Embed:
   client 已被 OnChange 回调替换

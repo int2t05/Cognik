@@ -104,7 +104,7 @@ Authorization: Bearer <token>
   "api_key": "",
   "llm_model": "qwen3-4b",
   "embedding_model": "bge-m3",
-  "system_prompt": "你是一个专业的运维助手，请用简洁准确的中文回答用户问题。",
+  "system_prompt": "你是一个专业的知识管理助手，请用简洁准确的中文回答用户问题。",
   "max_tokens": 8192,
   "vector_dimension": 1536,
   "is_default": true
@@ -122,7 +122,7 @@ Authorization: Bearer <token>
   "api_key": "sk-your-api-key",
   "llm_model": "gpt-4o-mini",
   "embedding_model": "text-embedding-3-small",
-  "system_prompt": "你是一个专业的运维助手，请用简洁准确的中文回答用户问题。",
+  "system_prompt": "你是一个专业的知识管理助手，请用简洁准确的中文回答用户问题。",
   "max_tokens": 16384,
   "vector_dimension": 1536,
   "is_default": false
