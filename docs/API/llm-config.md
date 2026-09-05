@@ -42,7 +42,7 @@ Authorization: Bearer <token>
       "embedding_model": "bge-m3",
       "system_prompt": "",
       "max_tokens": 8192,
-      "vector_dimension": 1024,
+      "vector_dimension": 1536,
       "is_default": true,
       "created_at": "2026-06-11 19:00:00",
       "updated_at": "2026-06-11 19:00:00"
@@ -106,7 +106,7 @@ Authorization: Bearer <token>
   "embedding_model": "bge-m3",
   "system_prompt": "你是一个专业的运维助手，请用简洁准确的中文回答用户问题。",
   "max_tokens": 8192,
-  "vector_dimension": 1024,
+  "vector_dimension": 1536,
   "is_default": true
 }
 ```
@@ -141,7 +141,7 @@ Authorization: Bearer <token>
 | embedding_model | string | ✓ | Embedding 模型名称 |
 | system_prompt | string | | 系统提示词（自定义 LLM 角色和行为，可为空） |
 | max_tokens | int | | 最大生成 Token 数，默认 8192（建议 4096-32768） |
-| vector_dimension | int | | 向量维度，默认 1024（bge-m3=1024, text-embedding-3-small=1536） |
+| vector_dimension | int | | 向量维度，默认 1536（DashScope text-embedding-v2） |
 | is_default | bool | | 是否设为默认配置（设为 true 时自动将旧默认改为 false） |
 
 **业务规则：**
@@ -165,7 +165,7 @@ Authorization: Bearer <token>
     "embedding_model": "bge-m3",
     "system_prompt": "",
     "max_tokens": 8192,
-    "vector_dimension": 1024,
+    "vector_dimension": 1536,
     "is_default": true,
     "created_at": "2026-06-11 19:00:00",
     "updated_at": "2026-06-11 19:00:00"
@@ -207,7 +207,7 @@ PUT /api/v1/admin/llm-configs/:id
 Authorization: Bearer <token>
 ```
 
-**请求体：** 同创建（全量替换），其中 `max_tokens` 默认 8192，`vector_dimension` 默认 1024，不传时使用默认值。
+**请求体：** 同创建（全量替换），其中 `max_tokens` 默认 8192，`vector_dimension` 默认 1536，不传时使用默认值。
 
 > 修改后通过 `atomic.Value` 热替换内存中配置，**即时生效**，无需重启。注意 `api_key` 不传时保留原有密钥（不传递不等同于清空）。
 

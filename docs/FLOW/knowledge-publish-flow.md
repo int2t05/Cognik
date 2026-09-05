@@ -1,6 +1,6 @@
 # Knowledge 数据流 — 每个 API 端点
 
-> 涉及文件: `domain/knowledge/handler.go`, `domain/knowledge/service.go`, `domain/knowledge/repository.go`, `domain/system/audit/repository.go`, `rag/chunker.go`, `rag/embedder.go`, `rag/processor.go`, `parser/parser.go`, `infra/adapter/vector_store.go`, `infra/storage/storage.go`, `shared/model/knowledge.go`, `shared/model/audit.go`
+> 涉及文件: `domain/knowledge/handler.go`, `domain/knowledge/service.go`, `domain/knowledge/repository.go`, `domain/knowledge/frontmatter.go`, `domain/knowledge/metadata_completer.go`, `domain/knowledge/index_builder.go`, `domain/system/audit/repository.go`, `rag/frontmatter.go`, `rag/chunker.go`, `rag/embedder.go`, `rag/processor.go`, `parser/parser.go`, `infra/adapter/vector_store.go`, `infra/storage/storage.go`, `shared/model/knowledge.go`, `shared/model/audit.go`
 
 ---
 
@@ -125,23 +125,28 @@ KnowledgeHandler.Review → KnowledgeService.Review (domain/knowledge/service.go
 
 ```
 KnowledgeHandler.Publish (domain/knowledge/handler.go:230)
-  → KnowledgeService.Publish (domain/knowledge/service.go:367)
+  → KnowledgeService.Publish (domain/knowledge/service.go:518)
     ├─ Status != Approved(3) → 拒绝
     └─ republishFromApproved (核心管道):
-        ├─ Step 1: Chunker.Split (rag/chunker.go:56)
-        │   → chunkSize=500, overlap=100, Markdown-aware 递归分割
-        │   → 预处理: CRLF→LF, 全角→半角 ASCII
+        ├─ Step 0: ParseArticleMeta → 解析 frontmatter (domain/knowledge/frontmatter.go)
+        │   → 若 article_type 缺失/非法 → MetadataCompleter.Complete (LLM 推断 type/tags)
+        │   → 补全触发时 → CreateSystemTicket（【元数据复核】工单, source=3）
+        │   → LLM 失败降级 guide
+        │   → RenderArticleFile 生成含 frontmatter 的 .md 写入存储
+        ├─ Step 1: StripFrontmatter (rag/frontmatter.go) → 剥离 frontmatter，仅对 # 标题 + 正文分块
+        │   → Chunker.Split (rag/chunker.go:56), chunkSize=500, overlap=100
         ├─ Step 2: Embedder.Embed (rag/embedder.go:57)
-        │   → batchSize=20, fail-fast → POST /v1/embeddings
-        │   → 维度一致性校验
+        │   → batchSize=20, fail-fast → POST /v1/embeddings, 维度 1536
         ├─ Step 3: PgvectorStore.BatchInsert (infra/adapter/vector_store.go:115)
-        │   → INSERT INTO knowledge_chunks (embedding::halfvec) VALUES ...
+        │   → INSERT INTO knowledge_chunks (embedding::halfvec(dim)) VALUES ...
         │   → NaN/Inf → 0.0; 先写新向量
         ├─ Step 4: PgvectorStore.DeleteByArticle (infra/adapter/vector_store.go:220)
         │   → DELETE FROM knowledge_chunks WHERE article_id = ? (幂等, 后删旧)
-        ├─ Step 5: article.Status = Published(4)
-        │   → KnowledgeRepo.UpdateArticle
-        └─ Step 6: AuditRepo.Create → "knowledge.publish"
+        ├─ Step 5: article.Status = Published(4) → KnowledgeRepo.UpdateArticle
+        ├─ Step 6: onKBChanged 回调
+        │   → RebuildBM25ForKB（BM25 索引重建）
+        │   → RebuildKBIndex（INDEX.md 页目录重建, per-kbID 锁 + dirty-flag）
+        └─ Step 7: AuditRepo.Create → "knowledge.publish"
 ```
 
 ### POST /api/v1/admin/articles/:id/disable &emsp; 禁用 &emsp; [PermKnowledgeReview]
@@ -175,20 +180,16 @@ KnowledgeHandler.UploadDocuments (domain/knowledge/handler.go:329)
   ├─ parseID("kb_id"), c.Request.ParseMultipartForm(32MB)
   ├─ sniffFileType → http.DetectContentType(前512字节)
   └─ for each file:
-      → KnowledgeService.UploadDocuments (domain/knowledge/service.go:656)
+      → KnowledgeService.UploadDocuments (domain/knowledge/service.go:748)
         ├─ KnowledgeRepo.FindKBByID → 校验
         ├─ io.ReadAll(LimitReader(content, 50MB)) → 读取全部内容
-        ├─ 分支:
-        │   ├─ storageClient != nil: MinIOClient.Upload (infra/storage/storage.go:102)
-        │   │   → PUT object → article.MinioPath = "documents/<ts>_<name>"
-        │   │   → task = ProcessTask{Bucket, Key, FileType}
-        │   └─ storageClient == nil: DocParser.Parse (parser/parser.go:45)
-        │       → pdf: ledongthuc/pdf 逐页提取 / docx: ZIP → XML 解析
-        │       → article.Content = text; task = ProcessTask{Content}
-        ├─ KnowledgeRepo.CreateArticle → INSERT; MinIO失败则回滚
-        └─ Processor.Submit (rag/processor.go:106)
-            → 非阻塞 channel 发送 (buffer=100) → worker 异步处理
+        ├─ DocParser.Parse (parser/parser.go:61) — txt/md 纯文本直接本地解析，富文档走 MinerU
+        ├─ KnowledgeRepo.CreateArticle → INSERT; article_type 留空
+        ├─ CreateSystemTicket（【文档复核】工单, source=3, 关联 article_id + kb_id）
+        └─ storageClient.UploadFile → 写入 draft .md 文件
 ```
+
+> 上传创建草稿文章 + 自动创建 `source=3` 复核工单。分块/embedding 推迟到 Publish 阶段。
 
 ### GET /api/v1/admin/knowledge-bases/:kb_id/documents/:id/status &emsp; 状态查询 &emsp; [PermKnowledgeRead]
 
@@ -238,5 +239,5 @@ Published(4) → disable → Disabled(0) → enable → (republish) → Publishe
 |------|------|---------|
 | Chunker | `rag/chunker.go` | size=500, overlap=100, Markdown-aware 递归分割 |
 | Embedder | `rag/embedder.go` | batchSize=20, fail-fast, 维度一致性校验 |
-| Processor | `rag/processor.go` | pool=2, buffer=100, timeout=10min, panic recovery |
+| Processor | `rag/processor.go` | pool=5, buffer=100, timeout=5min, panic recovery |
 | DocParser | `parser/parser.go` | pdf/docx/md/txt, max 100MB |

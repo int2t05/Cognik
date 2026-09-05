@@ -2,24 +2,25 @@
 
 > **Base URL:** `/api/v1/portal` | **Auth:** JWT | **Module:** Chat & RAG Pipeline
 
-## RAG 管道概述
+## 问答架构
 
-问答请求经过以下 RAG 管道步骤：
+问答由 Agent ReAct 循环驱动——Agent 自主决策何时检索知识库、何时搜索网络、何时写入新知识：
 
 ```
 用户问题
-  → 查询改写 (可选)    — LLM 消除指代歧义（利用会话历史上下文）
-  → 多路检索 (可选)    — LLM 生成 2-4 个子查询
-  → 向量检索          — pgvector cosine 相似度
-  → BM25 检索 (可选)  — 稀疏检索 + RRF 融合
-  → 重排序   (可选)    — cross-encoder 重新评分候选分块（使用原始 query，非改写查询）
-  → LLM 生成          — 带上下文生成答案 (SSE 流式)
+  → memory(recall)       — 检索会话/全局记忆
+  → kb(search)           — RAG 检索（CRAG 充分性评估：strong/ambiguous/weak）
+  → [weak] web_search    — 知识库不足时补搜网络（Exa→Tavily→DuckDuckGo）
+  → [weak] web_fetch     — 页面提取（Firecrawl→本地）
+  → LLM 生成             — 带上下文生成答案（SSE 流式，token + tool_call + tool_result 事件）
+  → kb(create)           — [可选] 将新发现写入知识库闭环
 ```
 
-**管道入口规范化：** Pipeline.Execute 入口自动调用 `RAGOptions.Normalize()`，
-将零值字段（TopK/RouteCount/RerankCount）填充为默认值，避免 LIMIT 0 等异常行为。
+**检索优先级**：memory(recall, session) → memory(recall, global) → kb(search) → web_search → kb(create)
 
-**reranker 守卫：** 重排序步骤在 cross-encoder 子进程（reranker）不可用时静默跳过，降级为原始排序。
+**CRAG 充分性评估**：每次 kb(search) 返回 verdict（strong/ambiguous/weak），Agent 据 verdict 决定是否补搜。
+
+**reranker 守卫**：cross-encoder 子进程不可用时静默跳过，降级为原始排序。
 
 ## 1. 创建会话
 

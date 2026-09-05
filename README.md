@@ -24,20 +24,21 @@ Cognos 是一个私有部署的知识管理平台，帮助团队和个人沉淀�
 | 模块 | 能力 |
 |------|------|
 | **Agent 对话** | 自建 ReAct 循环，SubAgent 异步派发（research / coder / deep_research），reasoning + tool_call + tool_result 全事件流式渲染 |
-| **知识库** | 文件即真相（Markdown），异步索引（chunk→embed→pgvector+BM25），kb 工具 6 action（search/get/list/create/update/delete） |
+| **知识库** | 文件即真相（Markdown + frontmatter schema），异步索引（chunk→embed→pgvector+BM25），发布时 LLM 补全 type/tags，kb 工具 6 action |
 | **记忆系统** | 会话记忆 + 全局记忆 + 后台复盘（ExtractMemories 每轮提取 + AutoDream 跨会话合并），参考 Claude Code 思想 |
 | **上下文压缩** | 六级管线（Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact），熔断器保护 |
 | **检索优化** | Sandwich Reorder + BM25 Enriched + RRF k=30 + Contextual Retrieval + Context Packing + Metadata 预过滤 |
 | **深度搜索** | web_search（Exa→Tavily→DuckDuckGo）+ web_fetch（Firecrawl→本地）+ 搜索结果写入知识库闭环 |
-| **工单管理** | 完整状态机（待处理→处理中→需补充→已解决/已关闭），7 天自动关闭，CAS 并发控制 |
+| **工单管理** | 完整状态机（待处理→处理中→需补充→已解决/已关闭），7 天自动关闭，CAS 并发控制；上传/元数据补全自动创建复核工单 |
 | **权限** | JWT 双令牌 + RBAC，4 个预设角色，菜单动态渲染 |
 
 ## 技术栈
 
 - **后端**：Go + Gin + GORM
-- **数据库**：PostgreSQL + pgvector（halfvec + HNSW）
+- **数据库**：PostgreSQL + pgvector（halfvec + HNSW，维度可配）
 - **RAG**：自建 Go 引擎——BM25（gse 分词）/ 向量（pgvector）/ RRF 融合 / cross-encoder rerank
-- **LLM/Embedding**：llama.cpp 或 OpenAI 兼容 API，via adapter 接口
+- **LLM**：自建 `agent/llm.ChatModel`（net/http 直连 OpenAI 兼容 API，工具描述透明传入）
+- **Embedding**：DashScope text-embedding-v2 @ 1536 维（或任意 OpenAI 兼容 embedding 端点）
 - **前端**：Next.js + React + TypeScript + shadcn/ui
 - **部署**：Docker Compose + All-in-One 镜像
 
@@ -54,7 +55,7 @@ cd server && go run ./cmd/main.go
 cd web && npm run dev
 ```
 
-默认账号：`admin` / `Admin@2024`
+默认账号：`admin` / `Admin@123`
 
 ## 项目结构
 
@@ -63,6 +64,9 @@ server/
 ├── cmd/main.go              # 入口
 ├── internal/
 │   ├── agent/              # ReAct 循环 + 工具 + 记忆 + 压缩
+│   │   ├── llm/            # 自建 ChatModel（net/http 直连 OpenAI 兼容 API）
+│   │   ├── tools/          # Agent 内置工具集（kb/memory/bash/grep/...）
+│   │   └── store/          # SQLite 对话存储（与业务 PostgreSQL 隔离）
 │   ├── domain/             # 业务领域（chat / knowledge / ticket / user / system）
 │   ├── rag/                # 自建 RAG 引擎
 │   ├── parser/             # 文档解析

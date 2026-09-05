@@ -93,15 +93,17 @@ stateDiagram-v2
     Disabled --> Published: 启用 → 重跑发布管道
 ```
 
-- 文档上传支持 PDF/DOCX/MD/TXT（上限 50MB），异步解析入库
-- 发布管道：Chunker(500/100, Markdown-aware) → Embedder(batch=20) → pgvector halfvec → 先写后删替换旧向量
+- 文章元数据 schema：frontmatter（type/tags/status/source_type/created/updated），type 留空则发布时 LLM 补全
+- 文档上传支持 PDF/DOCX/MD/TXT（上限 50MB），异步解析入库；上传后自动创建【文档复核】工单
+- 发布管道：解析 frontmatter → LLM 补全 type/tags（缺失时）→ StripFrontmatter → Chunker(500/100) → Embedder(1536) → pgvector halfvec → BM25+INDEX.md 重建
+- 元数据补全触发时自动创建【元数据复核】工单（source=3）
 - 删除知识库级联清理文章和向量
 
 ### 4.3 申告管理
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: 报障人提交
+    [*] --> Pending: 报障人提交 / 系统自动创建（source=3）
     Pending --> Processing: 运维接单 start
     Processing --> Resolved: 标记解决 resolve
     Processing --> NeedSupplement: 索要补充 request_info
@@ -111,6 +113,8 @@ stateDiagram-v2
     NeedSupplement --> Closed: 关闭 close
 ```
 
+- 工单来源：source=1 门户提交，source=2 问答转工单，source=3 知识库自动复核（上传/元数据补全触发）
+- source=3 系统工单关联 article_id + kb_id，无联系电话，从 Pending 进入
 - 状态机显式校验前置状态，补充信息上限 3 次
 - 调度器每小时扫描，自动关闭超过 7 天的未完结申告
 - CAS 防并发：`UPDATE WHERE id=? AND status=?`
@@ -162,7 +166,8 @@ flowchart TD
 | 对象存储 | MinIO (S3-compatible) |
 | 前端 | Next.js + React + TypeScript + Tailwind CSS |
 | UI | Radix UI + Lucide Icons + SWR |
-| LLM/Embedding | llama.cpp server 或 OpenAI-compatible API |
+| LLM | 自建 agent/llm.ChatModel（net/http 直连 OpenAI 兼容 API） |
+| Embedding | DashScope text-embedding-v2 @ 1536 维（或任意 OpenAI 兼容端点） |
 | 中文分词 | gse（纯 Go，无 CGO） |
 | 部署 | Docker Compose（4 必须服务 + 2 可选 ai-local profile） |
 

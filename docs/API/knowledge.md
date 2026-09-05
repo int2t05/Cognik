@@ -90,7 +90,7 @@ Authorization: Bearer <token>
             "name": "运维知识库",
             "description": "运维标准操作流程",
             "embedding_model": "bge-m3",
-            "vector_dimension": 1024,
+            "vector_dimension": 1536,
             "llm_config_id": 1,
             "article_count": 120,
             "created_by": 1,
@@ -128,7 +128,7 @@ Authorization: Bearer <token>
     "name": "网络运维 FAQ",
     "description": "网络相关的运维知识",
     "embedding_model": "bge-m3",
-    "vector_dimension": 1024,
+    "vector_dimension": 1536,
     "llm_config_id": 1
 }
 ```
@@ -286,20 +286,20 @@ Authorization: Bearer <token>
     "title": "VPN 连接超时怎么办？",
     "content": "1. 检查网络连接\n2. 尝试备用线路 vpn2.company.com\n3. 联系 IT 服务台（分机 8888）",
     "source_type": 1,
-    "category": "网络与VPN",
+    "article_type": "procedure",
     "tags": ["VPN", "连接", "超时"]
 }
 ```
 
-| 字段        | 类型     | 必填 | 说明                                                  |
-| ----------- | -------- | ---- | ----------------------------------------------------- |
-| title       | string   | ✓    | 文章标题                                              |
-| content     | string   | ✓    | 文章正文（Markdown 格式）                             |
-| source_type | int      |      | 1=手动输入（默认）, 2=文档上传（由上传 API 自动创建） |
-| category    | string   |      | 分类                                                  |
-| tags        | string[] |      | 标签列表                                              |
+| 字段          | 类型     | 必填 | 说明                                                  |
+| ------------- | -------- | ---- | ----------------------------------------------------- |
+| title         | string   | ✓    | 文章标题                                              |
+| content       | string   | ✓    | 文章正文（Markdown 格式，不含 frontmatter）           |
+| source_type   | int      |      | 1=手动输入（默认）, 2=文档上传, 3=深度研究             |
+| article_type  | string   |      | 文章类型：guide/reference/procedure/analysis/note/faq/snippet；留空则发布时 LLM 补全 |
+| tags          | string[] |      | 标签列表                                              |
 
-> 创建后状态初始为「草稿(1)」。
+> 创建后状态初始为「草稿(1)」。article_type 留空时，发布时由 LLM 推断补全并自动创建【元数据复核】工单。
 
 **响应：**
 
@@ -385,7 +385,7 @@ Authorization: Bearer <token>
                 "content": "VPN 连接超时怎么办？1. 检查本地网络连接...",
                 "chunk_index": 0,
                 "embedding_model": "bge-m3",
-                "vector_dimension": 1024,
+                "vector_dimension": 1536,
                 "created_at": "2026-06-11T20:30:00Z"
             }
         ],
@@ -486,20 +486,12 @@ Content-Type: multipart/form-data
 
 ```
 上传 → 存储至 MinIO → 创建 article 记录(source_type=upload)
-  → 后台 goroutine pool 异步处理:
-    1. process_status = "parsing"
-       → 从 MinIO 下载 → 按文件类型解析文本
-    2. process_status = "chunking"
-       → Chunker.Split 分块
-       (chunk_size=1000, overlap=200)
-    3. process_status = "embedding"
-       → 调用 Embedding API 批量生成向量（每批 20 块）
-    4. process_status = "indexing"
-       → 向量写入 pgvector (knowledge_chunks 表)
-    5. process_status = "completed"
-       → 处理完成
-    失败 → process_status = "failed"，记录 process_error
+  → 自动创建【文档复核】工单（source=3，关联 article_id + kb_id）
+  → 发布时分块/embedding（上传时仅创建草稿，处理推迟到 Publish）
+  失败 → process_status = "failed"，记录 process_error
 ```
+
+> 上传后自动创建 `source=3` 知识库复核工单，标记需人工复核解析内容完整性。
 
 ### 9. 查询文档处理状态
 
@@ -627,11 +619,14 @@ Authorization: Bearer <token>
 >
 > **内部逻辑：**
 >
-> 1. 对文章 `content` 执行文本分块（Chunker）
-> 2. 批量调用 Embedding API 生成向量（Embedder）
-> 3. 将分块和向量写入 `knowledge_chunks` 表（VectorStore.BatchInsert）
-> 4. 重建该知识库的 BM25 索引（onKBChanged 回调 → BuildIndex）
-> 5. 记录审计日志
+> 1. 解析 frontmatter → 若 `article_type` 缺失/非法，LLM 推断 type/tags（MetadataCompleter）
+> 2. type 缺失触发补全时，自动创建【元数据复核】工单（source=3）
+> 3. 生成含 frontmatter 的 .md 文件写入存储
+> 4. 剥离 frontmatter → 对正文（# 标题 + body）分块（Chunker）
+> 5. 批量调用 Embedding API 生成向量（Embedder，1536 维）
+> 6. 将分块和向量写入 `knowledge_chunks` 表（VectorStore.BatchInsert）
+> 7. 重建该知识库的 BM25 索引 + INDEX.md 页目录（onKBChanged 回调，per-kbID 锁）
+> 8. 记录审计日志
 
 **响应：**
 

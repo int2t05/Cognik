@@ -28,10 +28,10 @@ flowchart LR
 | V1.0 | 固定管道 RAG | 7 步 RAG 管道 + 申告状态机 + 知识库 CRUD + RBAC + SSE 流式 | ✅ 已交付 |
 | V1.1 | 存储简化 | MinIO→本地 FS；配置体系统一 | ✅ 已交付 |
 | V1.2 | 业务完善 | 知识库与申告增强；Markdown 富文本；看板增强；前端体验优化 | ✅ 已交付 |
-| V1.3 | Agent 基座 | Eino ReactAgent + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
+| V1.3 | Agent 基座 | 自建 ReAct 循环 + 订阅渠道网关 + 9 OS 工具 + SubAgent(research/coder/deep_research) + 异步任务 + SQLite 隔离 + parts 前端模型 | ✅ 已交付 |
 | V1.4 | 深度搜索 | 深度搜索工具链（搜索→爬取→产出 md）；自建 ReAct Loop + 统一工具接口 + SubAgent 真异步派发；SQLite 增量写入 | ✅ 已交付 |
-| V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；上下文压缩；异步处理管道 | 📋 规划中 |
-| V1.6 | 检索优化 | Contextual Retrieval（67% 失败率降低）；Sandwich Reorder；BM25 Enriched Texts；RRF 调参；Token-based Chunking；Metadata 预过滤；Context Packing | 📋 规划中 |
+| V1.5 | 记忆系统框架 | 记忆+RAG+知识库统一架构；kb 扁平 md + memory global/session 两层；记忆工具(remember/recall/forget)；六级上下文压缩；ExtractMemories + AutoDream 复盘；异步处理管道 | ✅ 已交付 |
+| V1.6 | 检索优化 | frontmatter schema + metadata 补全；embedding 1536/DashScope；5-worker pool；INDEX.md 锁；工单闭环（CreateSystemTicket）；Contextual Retrieval；Sandwich Reorder；BM25 Enriched Texts；RRF 调参（k=30）；Metadata 预过滤；Context Packing | ✅ 已交付 |
 | V2.0 | Agentic RAG | Agent ReAct 循环替代固定管道；Agent 事件 UI；多步推理；事件知识自进化 | 📋 规划中 |
 
 ---
@@ -174,7 +174,7 @@ MinIO 在单实例部署中增加 200-500MB RAM + HTTP 延迟层。同类系统�
 
 **目标**：铺设原生 Go Agent Loop 基础设施，实现 ReAct 循环 + Tool Calling。
 
-**选型**：Eino（LLM Provider + Agent Loop + Stream Handling）+ modelcontextprotocol/go-sdk（MCP 工具）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
+**选型**：自建 ReAct 循环（`agent/loop.go`）+ 自建 ChatModel（`agent/llm`，net/http 直连 OpenAI 兼容 API）。详见 [`docs/design/agent-loop.md`](design/agent-loop.md)。
 
 ### 6.1 Agent 架构
 
@@ -186,7 +186,7 @@ flowchart TB
         S --> AG["agent/ 领域"]
     end
     subgraph AgentLoop["Agent Loop"]
-        AG -->|"同进程"| LLM["Eino ChatModel<br/>eino-ext/openai"]
+        AG -->|"同进程"| LLM["自建 ChatModel<br/>agent/llm（net/http 直连）"]
         AG -->|"ReAct 循环"| TOOLS["Tool Registry (9 工具)"]
         AG -->|"SubAgent 委托"| SUB["research / coder"]
         AG -->|"事件流"| SSE["GenerationHub → SSE → 前端"]
@@ -199,16 +199,16 @@ flowchart TB
 | 项 | 说明 |
 |----|------|
 | `server/internal/agent/` | Agent 领域包：provider 构造 + tool 注册 + handler |
-| Eino ChatModel | eino-ext/openai 接入 llama.cpp / OpenAI 兼容 |
-| Eino ReactAgent | ReAct 循环 + typed tools + parallel execution |
+| 自建 ChatModel | agent/llm net/http 直连 OpenAI 兼容 API |
+| 自建 ReAct 循环 | ReAct 循环 + typed tools + parallel execution |
 | 订阅渠道网关 | Gateway 统一 SSE 事件分发 |
 | 9 OS 工具 | bash / async_bash / read / write / edit / list / glob / grep / mkdir |
-| SubAgent | research（只读探查）+ coder（读写操作），`adk.NewAgentTool` 注册 |
+| SubAgent | research（只读探查）+ coder（读写操作）+ deep_research，dispatch_subagent AsyncTool 注册 |
 | 异步任务 | async_bash 流式输出；任务管理 |
 | SQLite 隔离 | 每个 agent session 独立 SQLite 文件 |
 | threads API | 对话线程管理 |
 | parts 数组模型 | 前端渲染并行工具调用 + SubAgent + TaskCard |
-| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 Eino ChatModel |
+| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 agent/llm.ChatModel |
 
 ### 6.3 工具集成
 
@@ -228,7 +228,7 @@ SSE 事件：`step` / `chunks` / `token` / `done` / `error` / `reasoning` / `too
 
 ---
 
-## 7. V1.4 — 深度搜索
+## 7. V1.4 — 深度搜索（已交付）
 
 **目标**：Agent 配备深度搜索工具链，实现搜索→爬取→整理→产出 md 文章闭环；Agent 具备跨会话记忆能力和动态上下文压缩。
 
@@ -254,7 +254,7 @@ Agent 具备跨会话记忆和动态上下文压缩。
 - 记忆与系统相关、与用户无关（scope = system_id）
 - 上下文动态压缩（无损优先，有损最后）
 - 会话暂停/恢复（Thread 可序列化）
-- 复用 Eino SDK 内置中间件（summarization + reduction）+ CheckPointStore
+- 自建六级压缩管线（Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact）
 
 ### 7.3 深度搜索方法论
 
@@ -275,7 +275,7 @@ deep_research SubAgent 的系统提示词遵循以下原则（参考 [`engineeri
 
 ---
 
-## 8. V1.5 — 记忆系统框架
+## 8. V1.5 — 记忆系统框架（已交付）
 
 **目标**：搭建统一记忆系统框架。记忆 + RAG + 知识库统一为一个架构，Agent 上下文 = 内存（L1 cache），MD 文件 = 硬盘，页表 = 映射，知识库分库 = 分区。
 
@@ -331,7 +331,7 @@ storage/
 | 2. 去重清理 | token > 70% | 丢弃重复 tool result | 否 |
 | 3. Autocompact | token > 85% | LLM 摘要 | 是 |
 
-复用 Eino SDK 内置 `summarization` + `reduction` 中间件 + `CheckPointStore`。
+自建六级压缩管线：Tool Result Budget → Snip → Microcompact → HeadAndTail → 去重 → Autocompact。
 
 ### 8.4 检索方案
 
@@ -359,7 +359,7 @@ BM25 为主，向量为补充。只有 kb/ 需要向量化，memory/ 用纯文�
 
 ---
 
-## 9. V1.6 — 检索优化
+## 9. V1.6 — 检索优化（已交付）
 
 **目标**：在大量文档中精确找到对应的那份上下文。基于 V1.5 记忆框架，深挖检索质量优化。
 
@@ -400,7 +400,7 @@ token 预算内贪心填充——从高分到低分依次放入，剩余 token �
 
 **目标**：Agent ReAct 循环替代固定 7 步管道，实现自主检索决策、网络搜索、多步推理。
 
-### 9.1 核心变化
+### 10.1 核心变化
 
 固定 7 步线性管道 → Agent ReAct 循环自主决策。
 
@@ -424,14 +424,14 @@ flowchart TD
     V1 -->|演进| V2
 ```
 
-### 9.2 目标架构
+### 10.2 目标架构
 
 ```mermaid
 flowchart TB
     FE["Frontend (Next.js)<br/>ChatStreamProvider"]
     FE -->|"POST /api/chat"| SSE["Gin SSE bridge"]
-    SSE --> AGENT["agent/ 领域<br/>Eino ReactAgent"]
-    AGENT -->|"eino-ext/openai"| LLM["Eino ChatModel"]
+    SSE --> AGENT["agent/ 领域<br/>自建 ReAct 循环"]
+    AGENT -->|"agent/llm net/http"| LLM["自建 ChatModel"]
     AGENT -->|"同进程"| RAG["RAG Engine<br/>BM25 + pgvector + RRF + rerank"]
     AGENT -->|"直接 HTTP"| SEARCH["web_search / web_fetch<br/>SearXNG + Firecrawl"]
     AGENT -->|"直接 HTTP"| KB["kb_create / kb_update<br/>知识库工具链"]
@@ -439,11 +439,11 @@ flowchart TB
     RAG --> PG[("PostgreSQL + pgvector")]
 ```
 
-### 9.3 深度搜索与知识库
+### 10.3 深度搜索与知识库
 
 V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 已优化检索质量。V2.0 启用 Agent 自主调用完整工具链。
 
-### 9.4 Agent 场景
+### 10.4 Agent 场景
 
 | 场景 | Agent 模式 | 工具 |
 |------|-----------|------|
@@ -451,7 +451,7 @@ V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 �
 | 根因分析 | Plan-then-Execute | 日志查询、拓扑探索、指标查询、知识检索 |
 | 自助修复 | ReAct + Tool Use | API 调用、脚本执行（需人工审批门） |
 
-### 9.5 废弃与保留
+### 10.5 废弃与保留
 
 | 废弃（固定管道） | 替代（Agentic） |
 |-----------|------------|
@@ -469,7 +469,7 @@ V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 �
 | SSE 流式 + GenerationHub | 事件类型已扩展 |
 | Auth/RBAC/Ticket/Knowledge | 领域逻辑不变 |
 
-### 9.6 验收标准
+### 10.6 验收标准
 
 | 验收项 | 标准 |
 |--------|------|
@@ -483,7 +483,7 @@ V1.4 已交付深度搜索工具链。V1.5 已搭建记忆系统框架。V1.6 �
 
 ---
 
-## 10. 里程碑
+## 11. 里程碑
 
 ```mermaid
 gantt
@@ -492,44 +492,35 @@ gantt
     axisFormat %Y-%m
 
     section V1.0 已交付
-    固定管道 RAG         :done, v1, 2026-06-01, 2026-09-01
+    固定管道 RAG         :done, v1, 2026-01-01, 2026-03-15
 
     section V1.1 已交付
-    存储简化             :done, v11, 2026-09-01, 2026-09-15
+    存储简化             :done, v11, 2026-03-15, 2026-04-01
 
     section V1.2 已交付
-    业务完善             :done, v12, 2026-09-15, 2026-11-01
+    业务完善             :done, v12, 2026-04-01, 2026-05-15
 
     section V1.3 已交付
-    Agent 基座           :done, v13, 2026-11-01, 2026-12-15
+    Agent 基座           :done, v13, 2026-05-15, 2026-06-30
 
-    section V1.4 深度搜索
-    SearXNG+Firecrawl    :v14a, 2027-01-15, 14d
-    搜索工具集成          :v14b, 2027-01-15, 14d
-    deep_research SubAgent :v14c, 2027-02-01, 21d
-    md 产出+RAG 衔接      :v14d, 2027-02-01, 14d
-    Agent 记忆系统       :v14e, 2027-02-15, 21d
+    section V1.4 已交付
+    深度搜索             :done, v14, 2026-06-30, 30d
 
-    section V1.5 记忆系统框架
-    文档组织+记忆工具     :v15a, 2027-03-01, 14d
-    上下文压缩+checkpoint  :v15b, 2027-03-01, 14d
-    异步管道+检索分层      :v15c, 2027-03-15, 21d
-    会话生命周期+提取      :v15d, 2027-03-15, 14d
+    section V1.5 已交付
+    记忆系统框架         :done, v15, 2026-07-30, 30d
 
-    section V1.6 检索优化
-    Sandwich+BM25+RRF     :v16a, 2027-04-01, 14d
-    Contextual Retrieval  :v16b, 2027-04-01, 21d
-    Chunking+Metadata+Packing :v16c, 2027-04-15, 14d
+    section V1.6 已交付
+    检索优化             :done, v16, 2026-08-29, 7d
 
     section V2.0 Agentic RAG
-    Agent 替代固定管道    :v20a, 2027-05-01, 14d
-    前端 Agent 事件 UI    :v20b, 2027-05-01, 21d
-    端到端集成+降级       :v20c, 2027-05-15, 14d
+    Agent 替代固定管道    :v20a, 2026-09-15, 14d
+    前端 Agent 事件 UI    :v20b, 2026-09-15, 21d
+    端到端集成+降级       :v20c, 2026-10-01, 14d
 ```
 
 ---
 
-## 11. 技术决策记录
+## 12. 技术决策记录
 
 | 决策 | 选择 | 依据 |
 |------|------|------|
@@ -537,10 +528,10 @@ gantt
 | 向量数据库 | pgvector | halfvec+HNSW 不可替代 |
 | 业务数据库 | PostgreSQL | JSONB GIN 索引；pgvector 依赖；跨表事务 |
 | Agent 数据 | SQLite（per session） | ReAct 高频读写隔离 |
-| Agent 基座 | Eino (ByteDance) | 唯一覆盖 LLM Provider + Agent Loop + Stream Handling 的 Go 框架 |
-| LLM Provider | eino-ext/openai | OpenAI 兼容 → llama.cpp；含 tool calling + streaming |
+| Agent 基座 | 自建 ReAct 循环 + 自建 ChatModel | 无外部框架依赖；net/http 直连 OpenAI 兼容 API；工具描述透明传入，无 WithTools 黑盒 |
+| LLM Provider | 自建 agent/llm.ChatModel | net/http 直连 OpenAI 兼容 API；工具描述透明传入，无 WithTools 黑盒 |
 | SSE 输出 | Gin `fmt.Fprintf + Flush` | 标准 SSE 模式 |
-| 工具生态 | 官方 Go MCP SDK | `modelcontextprotocol/go-sdk` v1.6.0 |
+| 工具生态 | 自建 ToolRegistry | SyncTool / AsyncTool 接口；dispatch_subagent 委托子 Agent |
 | 网络搜索 | 私有部署优先，可选 SaaS 增强 | 数据不出域优先 |
 | deep_research SubAgent | 与 research/coder 并列 | 独立工具集和系统提示词 |
 | Agent 记忆 | 记忆操作作为 Agent 工具 | Agent 自主决定何时记忆/检索 |
@@ -556,7 +547,7 @@ gantt
 
 ---
 
-## 12. 关联文档
+## 13. 关联文档
 
 | 文档 | 用途 |
 |------|------|

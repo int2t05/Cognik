@@ -2,6 +2,14 @@
 
 > **Base URL:** `/api/v1/portal` + `/api/v1/admin` | **Auth:** Portal: JWT only, Admin: JWT + RBAC
 
+## 申告来源
+
+| source 值 | 含义 | 创建方式 |
+| -------- | ---- | -------- |
+| 1 | 门户提交 | 用户通过 portal API 创建 |
+| 2 | 问答转工单 | Agent 对话中创建 |
+| 3 | 知识库自动复核 | 系统在上传文件 / LLM 元数据补全时自动创建（无联系电话，关联 article_id + kb_id） |
+
 ## 申告状态机
 
 ```
@@ -17,6 +25,8 @@
 处理中(2) ──→ 已关闭(5)
 需补充信息(3) → 已关闭(5)
 ```
+
+> source=3 系统复核工单从「待处理(1)」进入，状态机与门户工单一致。
 
 ## 门户端（报障人）
 
@@ -100,7 +110,10 @@ Authorization: Bearer <token>
       "contact_phone": "13800000001",
       "status": 1,
       "status_text": "待处理",
+      "source": 1,
       "supplement_count": 0,
+      "related_article_id": null,
+      "related_kb_id": null,
       "created_at": "2026-06-11 10:30:00",
       "updated_at": "2026-06-11 10:30:00"
     }
