@@ -1,13 +1,14 @@
 // Package agent 提供自建 ReAct 循环与工具接口。
 //
-// compressor.go：五级上下文压缩管线——每步 LLM 调用前对消息历史压缩。
-// 参考 Claude Code 思想：从最便宜/最无损到最贵/最有损逐级递进，每级检查上一级是否已降量。
+// compressor.go：六级上下文压缩管线——每步 LLM 调用前对消息历史压缩。
+// 从最便宜/最无损到最贵/最有损逐级递进，每级检查上一级是否已降量。
 //
 // 级别 1 Tool Result Budget（每轮）：单条 tool_result 超限截断为占位。
-// 级别 2 Microcompact（每轮）：按 tool_use ID 清理旧 tool_result（保留 tool_use 记录）。
-// 级别 3 HeadAndTail（每轮，无损）：保留系统+最近窗口，中间 tool_result 截断。
-// 级别 4 去重清理（token>70%，无损）：丢弃重复 tool_result。
-// 级别 5 Autocompact（token>85%，有损）：早期消息 LLM 摘要。
+// 级别 2 Snip（token>50%）：丢弃最旧非系统消息（消息级裁剪）。
+// 级别 3 Microcompact（每轮）：按 tool_use ID 清理旧 tool_result（保留 tool_use 记录）。
+// 级别 4 HeadAndTail（每轮，无损）：保留系统+最近窗口，中间 tool_result 截断。
+// 级别 5 去重清理（token>70%，无损）：丢弃重复 tool_result。
+// 级别 6 Autocompact（token>85%，有损）：早期消息 LLM 摘要。
 package agent
 
 import (
@@ -31,7 +32,7 @@ var compactableTools = map[string]bool{
 // SummarizeFunc 摘要函数——将早期消息批量摘要为单段文本（autocompact 用）。
 type SummarizeFunc func(ctx context.Context, messages []*llm.Message) (string, error)
 
-// Compressor 五级上下文压缩器。
+// Compressor 六级上下文压缩器。
 type Compressor struct {
 	summarize       SummarizeFunc // autocompact 摘要函数（nil 时跳过）
 	dedupThresh     float64       // 去重清理触发阈值，默认 0.70
@@ -72,7 +73,7 @@ func NewCompressor(maxTokens int, opts ...CompressorOption) *Compressor {
 	return c
 }
 
-// Compress 对消息历史执行五级压缩，返回压缩后的消息。
+// Compress 对消息历史执行六级压缩，返回压缩后的消息。
 // 在 Loop 的 drainModelStream 调用前执行。
 func (c *Compressor) Compress(ctx context.Context, messages []*llm.Message) []*llm.Message {
 	if len(messages) == 0 {
@@ -94,13 +95,13 @@ func (c *Compressor) Compress(ctx context.Context, messages []*llm.Message) []*l
 	// 检查是否还需降量
 	ratio := c.tokenRatio(messages)
 
-	// 级别 4: 去重清理（token > 70%，无损）
+	// 级别 5: 去重清理（token > 70%，无损）
 	if ratio > c.dedupThresh {
 		messages = c.dedupToolResults(messages)
 		ratio = c.tokenRatio(messages) // 重新计算
 	}
 
-	// 级别 5: Autocompact（token > 85%，有损）——熔断器保护
+	// 级别 6: Autocompact（token > 85%，有损）——熔断器保护
 	if ratio > c.compactThresh && c.summarize != nil && c.compactFailCount < c.maxCompactFails {
 		messages = c.autocompact(ctx, messages)
 	}
@@ -205,7 +206,7 @@ func isCompactableTool(toolName string) bool {
 	return compactableTools[toolName]
 }
 
-// headAndTail 保留系统消息 + 最近 recentKeep 条消息完整，中间 tool_result 截断（级别 3）。
+// headAndTail 保留系统消息 + 最近 recentKeep 条消息完整，中间 tool_result 截断（级别 4）。
 func (c *Compressor) headAndTail(messages []*llm.Message) []*llm.Message {
 	if len(messages) <= c.recentKeep+1 {
 		return messages
@@ -241,7 +242,7 @@ func (c *Compressor) headAndTail(messages []*llm.Message) []*llm.Message {
 	return result
 }
 
-// dedupToolResults 丢弃重复的 tool_result 内容（级别 4，content hash 比对，保留首次出现）。
+// dedupToolResults 丢弃重复的 tool_result 内容（级别 5，content hash 比对，保留首次出现）。
 func (c *Compressor) dedupToolResults(messages []*llm.Message) []*llm.Message {
 	seen := make(map[string]bool)
 	result := make([]*llm.Message, 0, len(messages))
@@ -263,7 +264,7 @@ func (c *Compressor) dedupToolResults(messages []*llm.Message) []*llm.Message {
 	return result
 }
 
-// autocompact 将早期消息批量摘要为单条 system 消息（级别 5，有损）。
+// autocompact 将早期消息批量摘要为单条 system 消息（级别 6，有损）。
 // 熔断器：失败时递增计数，达到上限停止后续重试。
 func (c *Compressor) autocompact(ctx context.Context, messages []*llm.Message) []*llm.Message {
 	if c.summarize == nil || len(messages) <= c.recentKeep+2 {
