@@ -72,7 +72,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     Q["Agent query"] --> PAR["errgroup 并行"]
-    PAR --> VEC["向量检索<br/>query embed 缓存<br/>→ pgvector cosine<br/>ef_search=100, halfvec(1024)"]
+    PAR --> VEC["向量检索<br/>query embed 缓存<br/>→ pgvector cosine<br/>ef_search=100, halfvec(dim=1536)"]
     PAR --> BM25["BM25 检索<br/>gse 分词, 内存索引<br/>enriched: title×2 + tags×3<br/>metadata 硬过滤"]
     VEC --> RRF["RRF 融合 k=30<br/>retrievalK=30 候选"]
     BM25 --> RRF

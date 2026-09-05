@@ -1,6 +1,29 @@
 # Ticket 数据流 — 每个 API 端点
 
-> 涉及文件: `domain/ticket/handler.go`, `domain/ticket/service.go`, `domain/system/message/service.go`, `infra/runtime/scheduler.go`, `infra/runtime/tx_manager.go`, `domain/ticket/repository.go`, `domain/system/audit/repository.go`, `domain/system/message/repository.go`, `shared/model/ticket.go`, `shared/model/message.go`, `shared/model/audit.go`
+> 涉及文件: `domain/ticket/handler.go`, `domain/ticket/service.go`, `domain/knowledge/service.go`, `domain/system/message/service.go`, `infra/runtime/scheduler.go`, `infra/runtime/tx_manager.go`, `domain/ticket/repository.go`, `domain/system/audit/repository.go`, `domain/system/message/repository.go`, `shared/model/ticket.go`, `shared/model/message.go`, `shared/model/audit.go`
+
+---
+
+## 系统自动创建（source=3）
+
+### 知识库复核工单
+
+**触发场景**：
+1. **文件上传**（`KnowledgeService.UploadDocuments`）→ 解析后创建草稿文章 → 自动创建 `【文档复核】` 工单
+2. **LLM 元数据补全**（`KnowledgeService.republishFromApproved`）→ 发布时 `article_type` 缺失/非法 → LLM 推断 → 自动创建 `【元数据复核】` 工单
+
+```
+KnowledgeService.UploadDocuments / republishFromApproved
+  → ticketCreator.CreateSystemTicket (domain/ticket/service.go:133)
+    ├─ generateTicketNo → "TK-YYYYMMDD-" + crypto/rand(6位数)
+    ├─ source = KnowledgeReview(3), user_id = 1(admin)
+    ├─ contact_phone 留空（系统工单无联系电话）
+    ├─ related_article_id / related_kb_id 关联文章
+    ├─ TicketRepo.Create → INSERT INTO tickets (status=1 Pending)
+    └─ TicketRepo.CreateRecord → action="auto_created", content=触发原因
+```
+
+> 系统工单从「待处理(1)」进入，状态机与门户工单一致，无联系电话，关联 article_id + kb_id。
 
 ---
 

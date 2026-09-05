@@ -71,7 +71,7 @@ LLMConfigHandler.ListConfigs (domain/chat/llm_config/handler.go:52)
 LLMConfigHandler.CreateConfig (domain/chat/llm_config/handler.go:64)
   → LLMConfigService.CreateConfig (domain/chat/llm_config/service.go:103)
     ├─ 校验: name 唯一, providerType∈{1,2}, baseURL 非空
-    ├─ 默认值: MaxTokens=8192, VectorDimension=1024
+    ├─ 默认值: MaxTokens=8192, VectorDimension=1536
     │
     ├─ is_default=true:
     │   GormTxManager.Transaction:

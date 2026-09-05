@@ -31,8 +31,8 @@ flowchart TB
 
     subgraph Service["Service 层"]
         AuthSvc["AuthService"] --- AgentSvc["AgentRunner — ReAct 循环 + 工具编排"]
-        ChatSvc["ChatService — 会话生命周期 + SSE"] --- KnowledgeSvc["KnowledgeService — 发布管道"]
-        TicketSvc["TicketService — 状态机 + TxManager"] --- LLMCfgSvc["LLMConfigService — atomic.Value 热替换"]
+        ChatSvc["ChatService — 会话生命周期 + SSE"] --- KnowledgeSvc["KnowledgeService — 发布管道 + SetMetadataCompleter/SetTicketCreator"]
+        TicketSvc["TicketService — 状态机 + TxManager + CreateSystemTicket"] --- LLMCfgSvc["LLMConfigService — atomic.Value 热替换"]
     end
 
     subgraph RAG["RAG 引擎 rag/"]
@@ -88,7 +88,7 @@ sequenceDiagram
 flowchart TB
     Start(["main()"]) --> Cfg["config.Load() — Viper 读取 config.yaml + 环境变量"]
     Cfg --> DB["gorm.Open(postgres) — MaxOpenConns=25, MaxIdle=10, Lifetime=5m"]
-    DB --> Migrate["AutoMigrate 全部 Model + pgvector 扩展"]
+    DB --> Migrate["AutoMigrate(db, dim) 全部 Model + pgvector 扩展（dim 由 config 注入）"]
     Migrate --> Adapters["初始化 LLMClient / EmbeddingClient / VectorStore"]
     Adapters --> Storage["switch cfg.Storage.Driver → Local | MinIO（目录式）"]
     Storage --> ParserInit["初始化 Parser（MinerU 云端 / 本地降级）"]
@@ -116,7 +116,7 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 
 ### 2.2 RAG 引擎
 
-自包含领域引擎，不依赖 HTTP 层。检索原语由 `kb(action=search)` 封装，Agent ReAct 循环驱动调用（非线性 Pipeline，线性 `Pipeline.Execute` 已废弃）。
+自包含领域引擎，不依赖 HTTP 层。检索原语由 `kb(action=search)` 封装，Agent ReAct 循环驱动调用。
 
 | 文件 | 职责 |
 |------|------|
@@ -127,19 +127,23 @@ Handler 层共享工具：`parsePagination` / `parseID` / `getCurrentUserID` / `
 | `crag.go` | CRAG 充分性评估——`Verdict{Strong/Ambiguous/Weak}`；`ThresholdEvaluator`（纯函数）+ 可选 LLM 评估器（仅 Ambiguous 带） |
 | `contextual.go` | Contextual Retrieval——索引时 LLM 为 chunk 生成上下文摘要 prepend |
 | `chunker.go` | Markdown-aware 递归分块（500 字符 / 重叠 100） |
+| `frontmatter.go` | `ParseFrontmatter`/`StripFrontmatter`（--- 分隔块解析，processor 剥离后分块） |
 | `embedder.go` | 批量 Embedding（batch=20）+ 查询侧 LRU 缓存 |
 | `packing.go` | Context Packing——token 预算内贪心填充（2000 token） |
 | `sandwich.go` | Sandwich Reorder——高分放首尾，缓解 Lost in the Middle |
-| `processor.go` | goroutine pool 异步文档处理（parse→chunk→embed→pgvector） |
+| `processor.go` | goroutine pool 异步文档处理（parse→chunk→embed→pgvector，poolSize=5，`COGNOS_AI_PROCESSOR_WORKERS` 覆盖） |
 | `ingest_queue.go` | 异步索引队列（append-only JSONL，<5ms 入队） |
+| `index_builder.go` | INDEX.md 页目录重建（per-kbID 锁 + dirty-flag 循环 + 原子写） |
 | `types.go` | 共享类型定义 |
+
+> Processor 处理文档时先经 `StripFrontmatter` 剥离 frontmatter 再分块，frontmatter 字段不进入 chunk 正文。
 
 **检索管道**（`kb_store_impl.go:Search`，毫秒级）：
 
 ```mermaid
 flowchart LR
     Q["Agent query"] --> PAR["errgroup 并行"]
-    PAR --> VEC["向量检索<br/>query embed 缓存 → pgvector cosine<br/>ef_search=100, halfvec(1024)"]
+    PAR --> VEC["向量检索<br/>query embed 缓存 → pgvector cosine<br/>ef_search=100, halfvec(dim=1536)"]
     PAR --> BM25["BM25 检索<br/>gse, 内存索引, enriched"]
     VEC --> RRF["RRF 融合 k=30<br/>retrievalK=30 候选"]
     BM25 --> RRF
@@ -301,6 +305,8 @@ erDiagram
     knowledge_bases ||--o{ knowledge_chunks : owns
     knowledge_articles ||--o{ knowledge_chunks : split
     tickets ||--o{ ticket_records : history
+    knowledge_articles ||--o{ tickets : "related_article_id"
+    knowledge_bases ||--o{ tickets : "related_kb_id"
     chat_sessions ||--o{ chat_messages : contains
 ```
 
@@ -308,7 +314,7 @@ erDiagram
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| 向量类型 | `halfvec(1024)` | 半精度，维度随 embedding 模型 |
+| 向量类型 | `halfvec(dim)` | 半精度；dim 由 `COGNOS_EMBEDDING_DIMENSION` 注入，默认 1536 |
 | 索引 | HNSW | `halfvec_cosine_ops`，m=16，ef_construction=200 |
 | 距离算子 | `<=>` | 余弦距离；score = `1 - 距离` |
 | ef_search | 100（`COGNOS_AI_EF_SEARCH`） | 查询时旋钮，≥ LIMIT，100 达 95%+ recall |
@@ -325,7 +331,9 @@ erDiagram
 | `knowledge_articles` | GIN `tags` | metadata 标签硬过滤（JSONB `?|`） |
 | `knowledge_articles` | B-tree `article_type` | metadata 类型硬过滤 |
 | `tickets` | UNIQUE `ticket_no` | 编号唯一 |
-| `tickets` | B-tree `user_id, status, created_at` | 列表查询 + AutoClose |
+| `tickets` | B-tree `user_id` / `status` / `created_at`（三个单列索引） | 列表查询 + AutoClose |
+| `tickets` | B-tree `related_article_id` | 知识库复核工单按文章检索 |
+| `tickets` | B-tree `related_kb_id` | 知识库复核工单按 KB 检索 |
 | `chat_sessions` | B-tree `user_id, created_at` | 会话列表 |
 
 ### 4.4 业务域划分
@@ -436,14 +444,16 @@ BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信�
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `POSTGRES_PASSWORD` | 数据库密码 | cognos_dev |
-| `JWT_SECRET` | JWT 签名密钥 | 需手动设置 |
-| `LLM_BASE_URL` | LLM API 地址 | http://llama-cpp:8080/v1 |
-| `LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
-| `LLM_MODEL` | LLM 模型名称 | qwen3-4b |
-| `LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
-| `EMBEDDING_MODEL` | Embedding 模型 | Qwen3-Embedding-0.6B |
-| `EMBEDDING_DIMENSION` | 向量维度 | 1024 |
+| `COGNOS_DATABASE_PASSWORD` | 数据库密码 | cognos_dev |
+| `COGNOS_JWT_SECRET` | JWT 签名密钥 | 需手动设置 |
+| `COGNOS_LLM_BASE_URL` | LLM API 地址 | http://llama-cpp:8080/v1 |
+| `COGNOS_LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
+| `COGNOS_LLM_MODEL` | LLM 模型名称 | qwen3-4b |
+| `COGNOS_LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
+| `COGNOS_EMBEDDING_MODEL` | Embedding 模型 | 由环境变量指定 |
+| `COGNOS_EMBEDDING_DIMENSION` | 向量维度 | 1536 |
+| `COGNOS_DATA_ROOT` | 数据根目录（storage/memory/logs/agent.db 派生自此） | ../.cognos |
+| `COGNOS_AI_PROCESSOR_WORKERS` | Processor 消费者并行度 | 5 |
 | `COGNOS_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
 | `COGNOS_AI_RETRIEVAL_K` | 两阶段候选池大小 | 30 |
 | `COGNOS_AI_RRF_K` | RRF 融合常数 | 30 |
@@ -453,13 +463,13 @@ BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信�
 | `COGNOS_AI_CRAG_LLM_EVAL` | CRAG LLM 评估器（仅 Ambiguous 带） | false |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
 | `COGNOS_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
-| `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录 | ./data/storage |
-| `AI_CONFIDENCE_THRESHOLD` | 置信度阈值 | 0.6 |
-| `AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
+| `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录（空 → 由 `COGNOS_DATA_ROOT` 派生） | 空 |
+| `COGNOS_AI_CONFIDENCE_THRESHOLD` | 置信度阈值 | 0.6 |
+| `COGNOS_AI_DEFAULT_TOP_K` | 默认检索 TopK | 5 |
 | `COGNOS_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
 | `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
 
-> 完整 28 项环境变量见 `.env.example` 和 `docker-compose.yml`。
+> 完整环境变量见 `.env.example` 和 `docker-compose.yml`。
 
 ### 6.2 LLM 配置热替换
 
@@ -492,7 +502,7 @@ flowchart LR
 
 - 字体：Inter Variable，正文字号 17px，标题 28px/20px，辅助 13px
 - 按钮：完全圆角 pill（`9999px`）
-- 卡片：`18px` 圆角，无边框，微阴影（`0 1px 3px rgba(0,0,0,0.04)`）
+- 卡片：`12px` 圆角，hairline 边框，微阴影（`0 1px 3px rgba(0,0,0,0.04)`）
 - 输入框：`12px` 圆角，hairline 边框
 
 ### 7.3 核心组件
@@ -545,6 +555,13 @@ server/
 │   │   ├── runtime/        # scheduler / tx_manager / generation_hub
 │   │   └── storage/        # StorageClient 接口 + MinIO / Local 双实现（目录式）
 │   ├── rag/                # 自建 RAG 引擎（pipeline/bm25/hybrid/rerank/chunker/embedder/processor）
+│   ├── agent/               # Agent 引擎（ReAct 循环 + 工具编排 + 记忆）
+│   │   ├── llm/            # 自建 ChatModel
+│   │   ├── store/          # SQLite 记忆存储
+│   │   ├── tools/          # 工具集（kb/memory/web/bash 等）
+│   │   ├── loop.go         # ReAct 主循环
+│   │   ├── provider.go     # ChatModelFactory
+│   │   └── compressor.go   # 五级压缩
 │   ├── parser/             # 文档解析（parser.go + mineru/ + local/）
 │   ├── router/             # 路由注册 + safeHandler
 │   └── shared/             # 共享类型和工具
