@@ -1,7 +1,7 @@
 // Package agent 提供 Agent Loop 基座。
-// provider.go：Eino ChatModel 工厂 + atomic.Value 热切换。
+// provider.go：ChatModel 工厂 + atomic.Value 热切换。
 //
-// 复用 LLMConfigManager（atomic.Value 零锁读模式）喂 Eino ChatModel；
+// 复用 LLMConfigManager（atomic.Value 零锁读模式）喂 ChatModel；
 // OnChange 回调触发 ChatModel 重建（与现有 LLM/Embedding 热切换共用同一回调）。
 
 package agent
@@ -17,7 +17,7 @@ import (
 	"cognos/internal/shared/model"
 )
 
-// ChatModelFactory 构造并热切换 Eino ChatModel。
+// ChatModelFactory 构造并热切换 ChatModel。
 // 复用 LLMConfigManager.atomic.Value 零锁读模式（llm_config/service.go:40）。
 type ChatModelFactory struct {
 	current   atomic.Value // *llm.ChatModel

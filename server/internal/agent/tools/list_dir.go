@@ -37,7 +37,7 @@ func (l *ListDirTool) Info() *llm.ToolInfo {
 		Name: "list_dir",
 		Desc: `List entries in a directory within the working directory sandbox.
 - Returns name, type (file/dir), size, and mod time. Directories sorted first.
-- Use to map structure. For deep file search use glob; for content search use grep.`,
+- Do NOT use for: deep file search (use glob) or content search (use grep).`,
 		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
 				Type:     llm.String,

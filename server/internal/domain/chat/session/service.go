@@ -48,7 +48,7 @@ type StreamDoneMeta struct {
 // ChatService Agent 对话服务。
 type ChatService struct {
 	store        store.ChatStore           // SQLite 对话数据存储
-	agentRunner  *agent.AgentRunner        // 事件生产者（Eino ReAct 循环）
+	agentRunner  *agent.AgentRunner        // 事件生产者（ReAct 循环）
 	gateway      *runtime.Gateway[StreamEvent]
 	onSessionEnd func(ctx context.Context, threadID int64) error // 会话结束钩子（记忆提取，best-effort）
 }
@@ -163,7 +163,7 @@ func (s *ChatService) StreamChat(ctx context.Context, threadID int64, question s
 		return nil, nil, nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "加载会话失败"}
 	}
 
-	// 加载历史消息构建 Eino llm.Message 输入（多轮上下文）
+	// 加载历史消息构建 llm.Message 输入（多轮上下文）
 	msgs, msgErr := s.store.ListMessages(ctx, threadID)
 	if msgErr != nil {
 		slog.Warn("加载历史消息失败，降级为单轮", "thread_id", threadID, "error", msgErr)
@@ -223,7 +223,7 @@ type ThreadDetail struct {
 	Messages []store.Message `json:"messages"`
 }
 
-// buildAgentInput 从历史消息 + 当前问题构建 Eino llm.Message 输入。
+// buildAgentInput 从历史消息 + 当前问题构建 llm.Message 输入。
 // 从 parts 数组提取 text 部分作为对话内容。
 func (s *ChatService) buildAgentInput(msgs []store.Message, question string) []*llm.Message {
 	input := make([]*llm.Message, 0, len(msgs)+1)

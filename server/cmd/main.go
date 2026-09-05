@@ -124,7 +124,7 @@ func wireApp() (*app, error) {
 	}
 
 	// 3. Adapter 层
-	// LLM 调用走 Eino ChatModel（agent 域），此处仅保留 Embedding/Rerank/VectorStore。
+	// LLM 调用走 ChatModel（agent 域），此处仅保留 Embedding/Rerank/VectorStore。
 	embedBaseURL := cfg.Embedding.BaseURL
 	if embedBaseURL == "" {
 		embedBaseURL = cfg.LLM.BaseURL
@@ -312,7 +312,7 @@ func wireApp() (*app, error) {
 	)
 	slog.Info("KnowledgeService 已初始化")
 
-	// Agent 基座（事件生产者）。Eino ChatModel + ReactAgent + 工具集。LLM 调用走 agent 域 ChatModel。
+	// Agent 基座（事件生产者）。ChatModel + ReactAgent + 工具集。LLM 调用走 agent 域 ChatModel。
 	agentModelFactory := agent.NewChatModelFactory(llmConfigSvc.GetManager())
 	if err := agentModelFactory.BuildInitial(context.Background()); err != nil {
 		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
@@ -617,14 +617,14 @@ func (a *app) run() error {
 }
 
 // setupLLMHotSwap 注册 LLM 配置变更回调，热重建 Agent ChatModel + Embedding 客户端。
-// 重建 Eino ChatModel（agentModelFactory.OnConfigChange）。
+// 重建 ChatModel（agentModelFactory.OnConfigChange）。
 func setupLLMHotSwap(llmConfigSvc *llmconfig.LLMConfigService, embedTimeout time.Duration, embedder *rag.Embedder, knowledgeService *knowledge.KnowledgeService, agentModelFactory *agent.ChatModelFactory) {
 	llmConfigSvc.GetManager().OnChange(func() {
 		newCfg := llmConfigSvc.GetManager().GetConfig()
 		if newCfg == nil {
 			return
 		}
-		// 重建 Agent Eino ChatModel
+		// 重建 Agent ChatModel
 		agentModelFactory.OnConfigChange()
 
 		// 重建 Embedding 客户端（文档处理管道仍需）

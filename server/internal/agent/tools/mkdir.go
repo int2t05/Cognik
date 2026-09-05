@@ -32,7 +32,8 @@ func (m *MkdirTool) Info() *llm.ToolInfo {
 	return &llm.ToolInfo{
 		Name: "mkdir",
 		Desc: `Create a directory (including parents) within the working directory sandbox.
-- Use before write_file when the target path's parent does not exist.`,
+- Use before write_file when the target path's parent does not exist.
+- Do NOT use for: creating files (use write_file), or searching (use glob/grep).`,
 		ParamsOneOf: llm.NewParamsOneOfByParams(map[string]*llm.ParameterInfo{
 			"path": {
 				Type:     llm.String,

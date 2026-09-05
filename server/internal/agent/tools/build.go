@@ -1,6 +1,6 @@
 // Package tools 提供 Agent 内置工具集。
 //
-// 工具实现 agent.SyncTool 接口（自建，不依赖 Eino InvokableTool/StreamableTool）。
+// 工具实现 agent.SyncTool 接口。
 // build.go：扁平装配函数，main.go 调 Build(deps) 得 []agent.Tool，逐个 registry.Register。
 package tools
 

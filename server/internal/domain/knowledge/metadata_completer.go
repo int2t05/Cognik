@@ -1,7 +1,7 @@
 // Package knowledge 知识库领域业务逻辑、数据访问与 HTTP 处理。
 //
 // metadata_completer.go：发布时 LLM 补全文章元数据（type/tags）。
-// 复用 rag.LLMContextualGenerator 的 modelGetter 模式（Eino ChatModel，零锁热切换）。
+// 复用 rag.LLMContextualGenerator 的 modelGetter 模式（ChatModel，零锁热切换）。
 // 仅补全字段，不修改正文——用户明确要求"不要 LLM 补全文章内容，只补全字段"。
 package knowledge
 
@@ -21,7 +21,7 @@ type MetadataCompleter interface {
 	Complete(ctx context.Context, title, content string, existing ArticleMeta) (ArticleMeta, error)
 }
 
-// LLMMetadataCompleter 基于 Eino ChatModel 的元数据补全实现。
+// LLMMetadataCompleter 基于 ChatModel 的元数据补全实现。
 // modelGetter 复用 agent.ChatModelFactory.GetModel（热切换零锁读）。
 type LLMMetadataCompleter struct {
 	modelGetter func() *llm.ChatModel
