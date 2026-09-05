@@ -1,8 +1,5 @@
 // Package llm 自建 LLM 传输层——OpenAI 兼容消息/工具类型 + net/http 客户端。
-//
-// 摒弃 eino/schema 依赖，使工具描述注入与系统提示词组装完全透明可控。
-// 类型 API 形态与 eino schema 对齐（ToolInfo 嵌入 *ParamsOneOf、构造器同名），
-// 调用点改动最小（仅改 import 前缀 schema. → llm.）。
+// 工具描述注入与系统提示词组装完全透明可控。
 //
 // types.go：消息/工具/参数 schema 类型 + 构造器 + JSON Schema 生成。
 package llm
@@ -55,7 +52,6 @@ type ToolCall struct {
 type Message struct {
 	Role             RoleType   `json:"role"`
 	Content          string     `json:"content"`
-	Name             string     `json:"name,omitempty"`
 	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID       string     `json:"tool_call_id,omitempty"` // 仅 Tool 角色
 	ToolName         string     `json:"tool_name,omitempty"`    // 仅 Tool 角色
@@ -162,7 +158,7 @@ func paramInfoToSchema(pi *ParameterInfo) map[string]any {
 }
 
 // ToolInfo 工具元信息（name/desc/params）。
-// 嵌入 *ParamsOneOf——保持与 eino API 形态一致，调用点仅改 import 前缀。
+// 嵌入 *ParamsOneOf 携带参数 schema，供 ToOpenAITools 序列化。
 type ToolInfo struct {
 	Name string
 	Desc string
@@ -222,7 +218,7 @@ func (t *ToolInfo) MarshalJSON() ([]byte, error) {
 
 // ConcatMessages 合并流式 chunks 为一条完整消息。
 // content/reasoning 按序拼接；tool_calls 按 Index 累积 Arguments（首个 chunk 给 id+name，
-// 后续 chunk 给 arguments 片段）。替代 eino schema.ConcatMessages。
+// 后续 chunk 给 arguments 片段）。
 func ConcatMessages(msgs []*Message) (*Message, error) {
 	if len(msgs) == 0 {
 		return &Message{Role: Assistant}, nil

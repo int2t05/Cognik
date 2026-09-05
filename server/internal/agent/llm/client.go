@@ -1,8 +1,6 @@
-// agent/llm/client.go：自建 OpenAI 兼容 ChatModel——net/http 直连 /v1/chat/completions。
-//
-// 替代 eino-ext/openai.ChatModel：Generate（非流式）/Stream（SSE 流式），
-// 工具描述通过 ToOpenAITools 透明转成 tools 字段传入请求（无 WithTools 黑盒）。
-// 流式 tool_calls delta 按 Index 累积 Arguments（替代 eino streamMessageBuilder + ConcatMessages）。
+// agent/llm/client.go：OpenAI 兼容 ChatModel——net/http 直连 /v1/chat/completions。
+// Generate（非流式）/Stream（SSE 流式）；工具描述通过 ToOpenAITools 透明转成 tools 字段传入请求；
+// 流式 tool_calls delta 按 Index 累积 Arguments。
 package llm
 
 import (
@@ -150,7 +148,7 @@ func (m *ChatModel) Generate(ctx context.Context, messages []*Message) (*Message
 }
 
 // Stream 流式生成。返回 StreamReader，调用方 Recv 逐 chunk 读取。
-// tools 直接传入——替代 eino 的 WithTools()+Stream() 两步黑盒。
+// tools 直接传入请求的 tools 字段，无需单独注册步骤。
 func (m *ChatModel) Stream(ctx context.Context, messages []*Message, tools []OpenAITool) (*StreamReader[*Message], error) {
 	resp, err := m.requestChatCompletion(ctx, messages, tools, true)
 	if err != nil {
@@ -217,7 +215,7 @@ func truncate(b []byte, n int) string {
 	return string(b[:n]) + "...(truncated)"
 }
 
-// StreamReader 泛型流式读取器——channel 实现，Recv/Close 接口与 eino 对齐。
+// StreamReader 泛型流式读取器——channel 实现，提供 Recv/Close 接口。
 // Cognos loop.go drainStream 用 Recv() (T, error) + Close()，EOF 检测用 io.EOF。
 type StreamReader[T any] struct {
 	ch     chan T

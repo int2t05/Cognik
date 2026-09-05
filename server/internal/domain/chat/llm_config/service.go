@@ -262,7 +262,7 @@ func (s *LLMConfigService) DeleteConfig(ctx context.Context, id int64) error {
 }
 
 // TestConnection 测试指定 LLM 配置的连接是否可用。
-// Eino ChatModel.Generate。
+// ChatModel.Generate。
 func (s *LLMConfigService) TestConnection(ctx context.Context, id int64) (map[string]any, error) {
 	cfg, err := s.GetConfig(ctx, id)
 	if err != nil {

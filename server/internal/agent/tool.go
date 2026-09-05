@@ -1,4 +1,4 @@
-// agent/tool.go：统一工具接口（自建，不依赖 Eino InvokableTool/StreamableTool）。
+// agent/tool.go：统一工具接口（SyncTool/AsyncTool）。
 //
 // 两种执行语义，由接口类型区分（Go 惯用，同 io.Reader/io.Writer）：
 //   - SyncTool  同步阻塞，Call 返回结果（read_file/grep/bash/web_search/web_fetch/generate_article）

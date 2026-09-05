@@ -112,7 +112,7 @@ func (t *KBTool) Info() *llm.ToolInfo {
 	return &llm.ToolInfo{
 		Name: "kb",
 		Desc: `Knowledge base operations (search/get/list/create/update/delete).
-- search: RAG retrieve chunks by query; result begins with [检索充分性: strong|ambiguous|weak]. On weak, prefer web_search before answering.
+- search: RAG retrieve chunks by query; result begins with [sufficiency: strong|ambiguous|weak]. On weak, prefer web_search before answering.
 - get: read one full article by article_id, or batch summaries (first 500 chars each) by article_ids.
 - list: paginated titles (default 20/page) — use to browse, not to answer.
 - create/update: write findings back to KB (Draft status, human review → Published).
@@ -193,17 +193,17 @@ func (t *KBTool) doSearch(ctx context.Context, p kbParams) (string, error) {
 		return "无检索结果", nil
 	}
 	var sb strings.Builder
-	// CRAG 充分性 preamble（机器可读，Agent 据此决定是否 web_search 补充）
+	// CRAG sufficiency preamble（机器可读，Agent 据此决定是否 web_search 补充）
 	v := outcome.Verdict
 	if v.Level != "" {
 		if v.Sufficient {
-			fmt.Fprintf(&sb, "[检索充分性: %s | confidence=%.2f] 检索充分，可直接基于以下内容回答。\n\n", v.Level, v.Confidence)
+			fmt.Fprintf(&sb, "[sufficiency: %s | confidence=%.2f] Sufficient retrieval — answer directly from the chunks below.\n\n", v.Level, v.Confidence)
 		} else {
-			fmt.Fprintf(&sb, "[检索充分性: %s | confidence=%.2f] %s 结果可能不足，建议改写查询或调用 web_search 补充后再回答。\n\n", v.Level, v.Confidence, v.Reason)
+			fmt.Fprintf(&sb, "[sufficiency: %s | confidence=%.2f] %s Results may be insufficient — consider refining the query or calling web_search before answering.\n\n", v.Level, v.Confidence, v.Reason)
 		}
 	}
 	for i, e := range entries {
-		fmt.Fprintf(&sb, "[%d] score=%.3f\n    %s\n    来源: %s\n", i+1, e.Score, e.Content, e.Source)
+		fmt.Fprintf(&sb, "[%d] score=%.3f\n    %s\n    source: %s\n", i+1, e.Score, e.Content, e.Source)
 	}
 	return strings.TrimSpace(sb.String()), nil
 }
