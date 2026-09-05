@@ -29,7 +29,7 @@ jwt:
 storage:
   driver: local              # local | minio
   local:
-    base_dir: ./data/storage  # 本地存储根目录
+    base_dir: ./cognos/storage  # 数据根目录（所有文件存储在此）
   minio:
     endpoint: localhost:9000  # Docker 内: minio:9000
     access_key: minioadmin
@@ -89,7 +89,7 @@ kb:
 
 # 记忆系统（文件式存储 + 上下文压缩）
 memory:
-  storage_root: "storage/"          # 记忆+知识库存储根目录
+  storage_root: "./cognos/memory"     # 记忆存储根目录
   memory_max_lines: 200             # MEMORY.md 最大行数，超出合并旧条目
   compress_dedup: 0.70              # 去重清理触发阈值（token 占比）
   compress_compact: 0.85            # Autocompact 触发阈值（token 占比）

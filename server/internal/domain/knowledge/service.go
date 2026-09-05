@@ -1179,14 +1179,15 @@ func RebuildBM25ForKB(repo *KnowledgeRepo, store adapter.VectorStore, bm25 *rag.
 
 		for _, c := range chunks {
 			docs = append(docs, rag.BM25Document{
-				ChunkID:    c.ID,
-				ArticleID:  a.ID,
-				KBID:       kbID,
-				Content:    c.Content,
-				ChunkIndex: c.ChunkIndex,
-				Tags:       tagList,
-				Title:      a.Title,
-				Source:     model.ArticleSourceTypeText(a.SourceType),
+				ChunkID:     c.ID,
+				ArticleID:   a.ID,
+				KBID:        kbID,
+				Content:     c.Content,
+				ChunkIndex:  c.ChunkIndex,
+				Tags:        tagList,
+				Title:       a.Title,
+				Source:      model.ArticleSourceTypeText(a.SourceType),
+				ArticleType: a.ArticleType,
 			})
 		}
 	}

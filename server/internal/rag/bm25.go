@@ -102,9 +102,10 @@ type BM25Document struct {
 	KBID       int64    `json:"kb_id"`
 	Content    string   `json:"content"`
 	ChunkIndex int      `json:"chunk_index"`
-	Tags       []string `json:"tags"`  // 文章标签，作为 BM25 关键词补充索引
-	Title      string   `json:"title"` // 文章标题，enriched text 重复两次增加权重
-	Source     string   `json:"source"` // 来源类型
+	Tags       []string `json:"tags"`        // 文章标签，作为 BM25 关键词补充索引
+	Title      string   `json:"title"`       // 文章标题，enriched text 重复两次增加权重
+	Source     string   `json:"source"`      // 来源类型
+	ArticleType string `json:"article_type"` // 文章类型，metadata 硬过滤
 }
 
 // =============================================================================
@@ -265,6 +266,18 @@ func (r *BM25Retriever) buildIndex(docs []BM25Document) *BM25Index {
 
 // Retrieve 执行 BM25 检索，返回 topK 个结果。索引不存在或已过期时返回空结果（不报错）。
 func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error) {
+	return r.RetrieveFiltered(ctx, query, kbID, topK, MetaFilter{})
+}
+
+// MetaFilter metadata 硬过滤条件（空值表示不过滤）。
+type MetaFilter struct {
+	ArticleType string   // 文章类型精确匹配
+	Tags        []string // 标签任一匹配（OR）
+}
+
+// RetrieveFiltered 带 metadata 硬过滤的 BM25 检索。
+// 过滤在评分后、截断前应用：排除 ArticleType/Tags 不匹配的文档。
+func (r *BM25Retriever) RetrieveFiltered(ctx context.Context, query string, kbID int64, topK int, filter MetaFilter) ([]RetrievalResult, error) {
 	if topK <= 0 {
 		topK = bm25DefaultTopK
 	}
@@ -317,13 +330,17 @@ func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, 
 		return sorted[i].score > sorted[j].score
 	})
 
-	if len(sorted) > topK {
-		sorted = sorted[:topK]
-	}
-
-	results := make([]RetrievalResult, 0, len(sorted))
+	// metadata 硬过滤：ArticleType 精确匹配 + Tags 任一匹配
+	hasFilter := filter.ArticleType != "" || len(filter.Tags) > 0
+	results := make([]RetrievalResult, 0, topK)
 	for _, s := range sorted {
+		if len(results) >= topK {
+			break
+		}
 		meta := entry.index.docMeta[s.chunkID]
+		if hasFilter && !matchMeta(meta, filter) {
+			continue
+		}
 		results = append(results, RetrievalResult{
 			ChunkID:        s.chunkID,
 			ArticleID:      meta.ArticleID,
@@ -335,6 +352,31 @@ func (r *BM25Retriever) Retrieve(ctx context.Context, query string, kbID int64, 
 		})
 	}
 	return results, nil
+}
+
+// matchMeta 判断文档是否满足 metadata 过滤条件（ArticleType 精确 + Tags 任一）。
+func matchMeta(doc BM25Document, filter MetaFilter) bool {
+	if filter.ArticleType != "" && doc.ArticleType != filter.ArticleType {
+		return false
+	}
+	if len(filter.Tags) > 0 {
+		hit := false
+		for _, t := range doc.Tags {
+			for _, ft := range filter.Tags {
+				if t == ft {
+					hit = true
+					break
+				}
+			}
+			if hit {
+				break
+			}
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
 }
 
 // tryRefreshIndex 在写锁保护下重建过期的 BM25 索引。
