@@ -6,6 +6,8 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -22,19 +24,23 @@ type kbStoreImpl struct {
 	vectorRetriever *rag.VectorRetriever
 	bm25Retriever    *rag.BM25Retriever
 	reranker         adapter.Reranker
+	storageRoot      string
+	bucket           string
 	articleSvc       *knowledge.KnowledgeService
 	ingestQueue      *rag.IngestQueue // 异步索引队列（update 时入队触发增量 re-index）
 }
 
 // NewKBStoreImpl 创建 KBStore 实现。
 // vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD；ingestQueue 用于 update 入队。
-func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue) KBStore {
+func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue, storageRoot, bucket string) KBStore {
 	return &kbStoreImpl{
 		vectorRetriever: vr,
 		bm25Retriever:   br,
 		reranker:        rr,
 		articleSvc:      svc,
 		ingestQueue:     iq,
+		storageRoot:     storageRoot,
+		bucket:          bucket,
 	}
 }
 
@@ -86,10 +92,27 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 	return entries, nil
 }
 
-// Get 按 article_id 读完整文章（slug 暂映射为 title 查找）。
+// Get 读完整文章。优先按 slug 从文件读取（文件即真相），slug 为空则按 article_id 从 DB 读。
 func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, slug string, articleID int64) (*KBArticle, error) {
+	// slug 优先：直接读 published/{slug}.md 文件
+	if slug != "" {
+		filePath := filepath.Join(s.storageRoot, s.bucket, fmt.Sprintf("kb-%d/published/%s.md", kbID, slug))
+		data, err := os.ReadFile(filePath)
+		if err == nil {
+			content := string(data)
+			// 解析 frontmatter
+			fm, body := parseFrontmatterSimple(content)
+			return &KBArticle{
+				Frontmatter: fm,
+				Content:    body,
+				FilePath:   filePath,
+			}, nil
+		}
+		// 文件读失败，降级到 DB
+	}
+	// article_id fallback：从 DB 读
 	if articleID <= 0 {
-		return nil, fmt.Errorf("article_id is required for action=get")
+		return nil, fmt.Errorf("slug or article_id is required for action=get")
 	}
 	detail, err := s.articleSvc.GetArticleDetail(ctx, articleID)
 	if err != nil {
@@ -97,14 +120,34 @@ func (s *kbStoreImpl) Get(ctx context.Context, kbID int64, slug string, articleI
 	}
 	return &KBArticle{
 		Frontmatter: map[string]any{
-			"title":       detail.Title,
-			"status":      detail.StatusText,
-			"article_id":  detail.ID,
-			"tags":        detail.Tags,
+			"title":      detail.Title,
+			"status":     detail.StatusText,
+			"article_id": detail.ID,
+			"tags":       detail.Tags,
 		},
 		Content:  detail.Content,
 		FilePath: detail.MinioPath,
 	}, nil
+}
+
+// parseFrontmatterSimple 解析 frontmatter（map[string]string + 正文）。
+func parseFrontmatterSimple(content string) (map[string]any, string) {
+	fm := make(map[string]any)
+	if !strings.HasPrefix(content, "---\n") {
+		return fm, content
+	}
+	parts := strings.SplitN(content[4:], "\n---\n", 2)
+	if len(parts) != 2 {
+		return fm, content
+	}
+	for _, line := range strings.Split(parts[0], "\n") {
+		if idx := strings.Index(line, ":"); idx > 0 {
+			key := strings.TrimSpace(line[:idx])
+			val := strings.TrimSpace(line[idx+1:])
+			fm[key] = val
+		}
+	}
+	return fm, strings.TrimSpace(parts[1])
 }
 
 // List 列出文章标题列表（按 type/tags 过滤）。
