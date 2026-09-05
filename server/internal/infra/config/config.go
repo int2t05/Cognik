@@ -354,9 +354,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.access_expire", "2h")
 	v.SetDefault("jwt.refresh_expire", "168h")
 
-	// Storage
+	// Storage（统一数据根目录 ./cognos/，所有子目录基于此）
 	v.SetDefault("storage.driver", "local")
-	v.SetDefault("storage.local.base_dir", "./data/storage")
+	v.SetDefault("storage.local.base_dir", "./cognos/storage")
 	v.SetDefault("storage.minio.endpoint", "localhost:9000")
 	v.SetDefault("storage.minio.access_key", "minioadmin")
 	v.SetDefault("storage.minio.secret_key", "minioadmin")
@@ -375,7 +375,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("embedding.api_key", "")
 	v.SetDefault("embedding.model", "") // 无默认值，必须通过环境变量或 LLM 配置指定
 	v.SetDefault("embedding.dimension", 1024)
-	v.SetDefault("embedding.timeout", "300s")
+	v.SetDefault("embedding.timeout", "60s")
 
 	// AI
 	v.SetDefault("ai.chunk_size", 500)
@@ -403,8 +403,8 @@ func setDefaults(v *viper.Viper) {
 	// Knowledge
 	v.SetDefault("kb.max_upload_size", 51200)
 
-	// Memory（记忆系统）
-	v.SetDefault("memory.storage_root", "storage/")
+	// Memory（记忆系统，基于 storage.local.base_dir 同级）
+	v.SetDefault("memory.storage_root", "./cognos/memory")
 	v.SetDefault("memory.memory_max_lines", 200)
 	v.SetDefault("memory.compress_dedup", 0.70)
 	v.SetDefault("memory.compress_compact", 0.85)

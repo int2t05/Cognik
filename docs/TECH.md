@@ -30,16 +30,16 @@ flowchart TB
     end
 
     subgraph Service["Service 层"]
-        AuthSvc["AuthService"] --- LLMSvc["LLMService — RAG 管道 + LLM 编排"]
-        ChatSvc["ChatService — 会话生命周期"] --- KnowledgeSvc["KnowledgeService — 发布管道"]
+        AuthSvc["AuthService"] --- AgentSvc["AgentRunner — ReAct 循环 + 工具编排"]
+        ChatSvc["ChatService — 会话生命周期 + SSE"] --- KnowledgeSvc["KnowledgeService — 发布管道"]
         TicketSvc["TicketService — 状态机 + TxManager"] --- LLMCfgSvc["LLMConfigService — atomic.Value 热替换"]
     end
 
     subgraph RAG["RAG 引擎 rag/"]
-        Pipeline["Pipeline.Execute — 查询改写→多路检索→混合→重排序"]
+        Search["kb_store_impl.Search — 并行检索→RRF→rerank→CRAG"]
         Processor["Processor — goroutine pool 异步文档处理"]
-        Chunker["Chunker — RecursiveCharacterTextSplitter"]
-        Embedder["Embedder — 批量 POST /v1/embeddings"]
+        Chunker["Chunker — Markdown-aware 递归分块"]
+        Embedder["Embedder — 批量 POST /v1/embeddings + 查询缓存"]
     end
 
     subgraph Adapter["适配层"]
@@ -356,65 +356,70 @@ flowchart LR
 
 ## 5. 可靠性设计
 
-### 5.1 RAG 管道降级矩阵
+### 5.1 RAG 检索降级矩阵
+
+检索由 `kb_store_impl.go:Search` 执行（Agent ReAct 驱动调用）；向量检索与 BM25 经 errgroup 并行，单路失败不阻塞另一路。
 
 ```mermaid
 flowchart TD
-    Start(["Pipeline.Execute()"]) --> QR{"查询改写?"}
-    QR -->|true,成功| MR{"多路检索?"}
-    QR -->|true,失败| QR_DG["降级: 使用原始 query"]
-    QR -->|false| MR
-    QR_DG --> MR
-    MR -->|true,成功| VR["向量检索 pgvector"]
-    MR -->|true,失败| VR_DG["降级: 单路检索"]
-    MR -->|false| VR
-    VR_DG --> VR
-    VR -->|成功| BM{"BM25?"}
-    VR -->|失败 ❌| VRFail["20002 RAG 不可用"]
-    BM -->|true,成功| FUSE["RRF 融合 k=60"]
-    BM -->|true,失败| BM_DG["降级: 仅向量结果"]
-    BM -->|false| RR
-    BM_DG --> RR{"重排序?"}
-    FUSE --> RR
-    RR -->|true,成功| LLM["LLM 流式生成"]
-    RR -->|true,失败| RR_DG["降级: RRF 排序结果"]
-    RR -->|false| LLM
-    RR_DG --> LLM
-    LLM -->|成功| Done(["SSE Stream"])
-    LLM -->|失败 ❌| LLMFail["20001 AI 不可用"]
+    Start(["kb(action=search)"]) --> PAR["errgroup 并行检索"]
+    PAR --> VEC["向量检索 pgvector<br/>query embed 缓存 → cosine"]
+    PAR --> BM25["BM25 检索（内存）"]
+    VEC -->|失败 ❌| VEC_DG["slog.Warn → BM25-only 降级"]
+    BM25 -->|失败| BM_DG["slog.Warn → 向量-only 降级"]
+    VEC --> FUSE["RRF 融合 k=30<br/>retrievalK=30 候选"]
+    BM25 --> FUSE
+    VEC_DG --> FUSE
+    BM_DG --> FUSE
+    FUSE --> RR["cross-encoder rerank"]
+    RR -->|失败| RR_DG["slog.Warn → RRF 排序结果"]
+    RR --> CONF["分层置信度<br/>cosine→+BM25 0.4→+Rerank 0.6"]
+    CONF --> CRAG{"CRAG 评估"}
+    CRAG -->|Strong| OK["返回 Agent<br/>[检索充分性: strong]"]
+    CRAG -->|Weak| WEAK["返回 Agent<br/>[检索充分性: weak]<br/>→ Agent 自主 web_search"]
+    CRAG -->|Ambiguous| AMB["可选 LLM 评估器<br/>失败 → 降级阈值"]
+    AMB --> OK
 
-    style VRFail fill:#ef444420,stroke:#ef4444
-    style LLMFail fill:#ef444420,stroke:#ef4444
-    style QR_DG fill:#f59e0b15,stroke:#f59e0b
-    style VR_DG fill:#f59e0b15,stroke:#f59e0b
+    style VEC_DG fill:#f59e0b15,stroke:#f59e0b
     style BM_DG fill:#f59e0b15,stroke:#f59e0b
     style RR_DG fill:#f59e0b15,stroke:#f59e0b
+    style WEAK fill:#ef444420,stroke:#ef4444
 ```
 
-核心原则：非核心步骤失败降级不阻塞。向量检索和 LLM 生成是核心路径，失败返回明确错误码。
+核心原则：非核心步骤失败降级不阻塞。向量检索是核心路径，双路全失败返回 20002；LLM 生成失败返回 20001。CRAG 评估失败降级阈值，永不阻塞检索返回。web_search fallback 由 Agent 经 verdict 文本信号自主触发，RAG 引擎不触 web（保持 HTTP 无关）。
 
-### 5.2 置信度评分
+### 5.2 置信度评分与 CRAG 评估
 
-三层次设计：
+分层置信度（`computeConfidence`），从基础向量分逐层叠加：
 
-| 层次 | 计算方式 | 用途 |
-|------|---------|------|
-| Chunk Score | pgvector `<=>` 距离归一化 | 单块相关性 |
-| Conf_raw | `α × S_retrieval + (1-α) × S_qa` | 综合评分 |
-| 置信等级 | P30/P70 分位数阈值 | 前端展示 |
+| 层 | 公式 | 权重 |
+|----|------|------|
+| 基础 | `s = RawCosineScore`（pgvector 余弦 [0,1]） | — |
+| +BM25（hybrid 命中） | `s = 0.6×s + 0.4×Bm25NormScore` | 0.4 |
+| +Rerank（rerank 命中） | `s = 0.4×s + 0.6×RerankScore` | 0.6 |
+| 钳位 | `[0, 1]` | — |
 
-- `S_retrieval`：Top-K chunk 得分加权聚合
-- `S_qa`：问题-答案 embedding 余弦相似度校验
-- 阈值通过分位数动态计算（P30/P70），带完整性检查（p30 下限 0.10，p70 上限 0.95，p70-p30 最小间距 0.10）；无数据时回退默认值 P30=0.40 / P70=0.70
+BM25 归一化（min-max → [0,1]；单结果 0.8；零跨度 0.8）。置信度计算后按 `ConfRaw` 降序重排，再 Sandwich Reorder。
+
+**CRAG 充分性评估**（`crag.go`）：`ThresholdEvaluator` 按 `ConfRaw` 与阈值比较产出 `Verdict`：
+
+| Verdict | 条件 | Agent 行为 |
+|---------|------|-----------|
+| Strong | `ConfRaw >= high` | 直接基于检索 chunk 答（零额外成本） |
+| Ambiguous | `low <= ConfRaw < high` | 可选 LLM 评估器二次判定（失败降级阈值） |
+| Weak | `ConfRaw < low` | 文本含 `[检索充分性: weak]`，Agent 自主 web_search 补充 |
+
+阈值 `ai.confidence_threshold_low/high`（默认 0.40/0.70），经 `ComputeThresholds` 从近 N 天 `chat_messages.confidence_raw` 算 P30/P70 分位数动态更新（p30 下限 0.10，p70 上限 0.95，p70-p30 最小间距 0.10；无数据回退 0.40/0.70）。verdict 以文本 preamble 返回 Agent，web fallback 由 Agent ReAct 触发，RAG 引擎不触 web。
 
 ### 5.3 外部服务重试策略
 
 | 服务 | 重试 | 策略 | 关键保护 |
 |------|------|------|---------|
 | LLM API | 3 次 | 指数退避，仅 429/503 | 超时 120s |
-| Embedding API | 3 次 | 指数退避，连接/超时始终重试 | batch=32 分批 |
-| Reranker 子进程 | 自动重启 | 崩溃后 3s 重连 | 内部 30s 超时 |
-| pgvector | 无 | 瞬时故障返回 20002 | HNSW 索引 |
+| Embedding API | 3 次 | 指数退避，连接/超时始终重试 | batch=20 分批；查询侧 LRU 缓存（10min/1000） |
+| Reranker 子进程 | 自动重启 | 崩溃后 3s 重连 | 内部 30s 超时；失败降级原序并日志化 |
+| CRAG LLM 评估器 | 无 | Ambiguous 带触发；失败降级阈值 | 仅 `COGNOS_AI_CRAG_LLM_EVAL=true` 启用 |
+| pgvector | 无 | 瞬时故障返回 20002 | HNSW 索引；`ef_search=100` |
 | MinIO | 无 | 惰性检查 | io.LimitReader(100MB) |
 | Local | 无 | 直接文件系统操作 | filepath.Join 防路径穿越 |
 
@@ -437,8 +442,15 @@ flowchart TD
 | `LLM_API_KEY` | API 密钥（OpenAI 需要） | — |
 | `LLM_MODEL` | LLM 模型名称 | qwen3-4b |
 | `LLM_MAX_TOKENS` | 最大生成 Token | 8192 |
-| `EMBEDDING_MODEL` | Embedding 模型 | bge-m3 |
+| `EMBEDDING_MODEL` | Embedding 模型 | Qwen3-Embedding-0.6B |
 | `EMBEDDING_DIMENSION` | 向量维度 | 1024 |
+| `COGNOS_AI_EF_SEARCH` | HNSW 查询时 ef_search（≥ LIMIT） | 100 |
+| `COGNOS_AI_RETRIEVAL_K` | 两阶段候选池大小 | 30 |
+| `COGNOS_AI_RRF_K` | RRF 融合常数 | 30 |
+| `COGNOS_AI_EMBED_BATCH` | 索引侧 embedding batch | 20 |
+| `COGNOS_AI_QUERY_EMBED_CACHE_TTL` | 查询 embedding 缓存 TTL | 10m |
+| `COGNOS_AI_CONTEXTUAL_ENABLED` | Contextual Retrieval（索引时 LLM 前缀） | false |
+| `COGNOS_AI_CRAG_LLM_EVAL` | CRAG LLM 评估器（仅 Ambiguous 带） | false |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | MinIO 凭证 | minioadmin |
 | `COGNOS_STORAGE_DRIVER` | 文件存储驱动（local / minio） | local |
 | `COGNOS_STORAGE_LOCAL_BASE_DIR` | 本地存储根目录 | ./data/storage |

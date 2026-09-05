@@ -23,6 +23,11 @@ func NewVectorRetriever(embedder *Embedder, store adapter.VectorStore) *VectorRe
 
 // Retrieve 执行向量检索。r 或 store 为 nil 时降级返回空结果，不阻塞管道。
 func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64, topK int) ([]RetrievalResult, error) {
+	return r.RetrieveFiltered(ctx, query, kbID, topK, MetaFilter{})
+}
+
+// RetrieveFiltered 带 metadata 硬过滤的向量检索（articleType + tags 下推到 pgvector WHERE）。
+func (r *VectorRetriever) RetrieveFiltered(ctx context.Context, query string, kbID int64, topK int, filter MetaFilter) ([]RetrievalResult, error) {
 	if r == nil || r.store == nil {
 		return nil, nil
 	}
@@ -38,21 +43,21 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, query string, kbID int64
 		return nil, fmt.Errorf("查询向量化返回空结果")
 	}
 
-	results, err := r.store.CosineSearch(ctx, kbID, vectors[0], topK)
+	results, err := r.store.CosineSearchFiltered(ctx, kbID, vectors[0], topK, filter.ArticleType, filter.Tags)
 	if err != nil {
 		return nil, fmt.Errorf("pgvector 检索失败: %w", err)
 	}
 
 	retrievalResults := make([]RetrievalResult, len(results))
-	for i, r := range results {
+	for i, rr := range results {
 		retrievalResults[i] = RetrievalResult{
-			ChunkID:        r.ChunkID,
-			ArticleID:      r.ArticleID,
-			Content:        r.Content,
-			Score:          r.Score,
-			RawCosineScore: r.Score, // 向量检索的 Score 即 1 - cosine_distance ∈ [0,1]
+			ChunkID:        rr.ChunkID,
+			ArticleID:      rr.ArticleID,
+			Content:        rr.Content,
+			Score:          rr.Score,
+			RawCosineScore: rr.Score, // 向量检索的 Score 即 1 - cosine_distance ∈ [0,1]
 			Source:         "vector",
-			ChunkIndex:     r.ChunkIndex,
+			ChunkIndex:     rr.ChunkIndex,
 		}
 	}
 	return retrievalResults, nil

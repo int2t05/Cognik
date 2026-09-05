@@ -85,7 +85,7 @@ func wireApp() (*app, error) {
 	// 初始化日志
 	logDir := os.Getenv("COGNOS_LOG_DIR")
 	if logDir == "" {
-		logDir = filepath.Join("..", "logs")
+		logDir = "./cognos/logs"
 	}
 	if cleanup, err := opslog.Init(logDir); err != nil {
 		slog.Warn("日志文件输出不可用，仅输出到控制台", "dir", logDir, "error", err)
@@ -159,7 +159,10 @@ func wireApp() (*app, error) {
 		// 不阻塞启动，降级到纯 BM25
 	} else {
 		a.vectorStore = vectorStore
-		slog.Info("pgvector VectorStore 已连接")
+		// HNSW 查询时 ef_search（必须 ≥ topK，越大召回越高、延迟越大；默认 100 达 95%+ recall）。
+		efSearch := envInt("COGNOS_AI_EF_SEARCH", 100)
+		vectorStore.SetEfSearch(efSearch)
+		slog.Info("pgvector VectorStore 已连接", "ef_search", efSearch)
 	}
 
 	// 文件存储（按 driver 选择 LocalStorageClient 或 MinIOClient；单桶，状态由目录区分）
@@ -223,7 +226,13 @@ func wireApp() (*app, error) {
 	slog.Info("LLM 配置服务已初始化")
 
 	// RAG 引擎组件
-	embedder := rag.NewEmbedder(embeddingClient, 5)
+	// batchSize 仅影响索引侧吞吐（单 query 文本与 batch 无关）；查询侧走单文本缓存路径。
+	embedder := rag.NewEmbedder(embeddingClient, envInt("COGNOS_AI_EMBED_BATCH", 20))
+	// 查询侧 embedding 缓存（LRU + TTL）；仅单文本命中，索引批旁路。
+	embedder.SetQueryCache(
+		envDuration("COGNOS_AI_QUERY_EMBED_CACHE_TTL", 10*time.Minute),
+		envInt("COGNOS_AI_QUERY_EMBED_CACHE_MAX", 1000),
+	)
 
 	// 文档解析器：MinerU 云端高精度优先，本地纯 Go 库兜底
 	var mineruEngine *mineru.Engine
@@ -309,6 +318,13 @@ func wireApp() (*app, error) {
 		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
 	}
 
+	// Contextual Retrieval：索引时为 chunk 生成 LLM 上下文摘要 prepend（失败率 -49~67%）。
+	// 成本特性，默认关闭；启用后由 Processor 复用 agent ChatModel 生成摘要。
+	if processor != nil && envStr("COGNOS_AI_CONTEXTUAL_ENABLED", "false") == "true" {
+		processor.SetContextualGenerator(rag.NewLLMContextualGenerator(agentModelFactory.GetModel))
+		slog.Info("Contextual Retrieval 已启用（索引时 LLM 上下文摘要）")
+	}
+
 	// 深度搜索工具链（降级链：Exa → Tavily → DuckDuckGo 本地兜底）
 	var searchBackends []adapter.SearchClient
 	if cfg.Search.Exa.APIKey != "" {
@@ -334,14 +350,26 @@ func wireApp() (*app, error) {
 	// 工具装配（扁平函数替代 ToolFactory）+ 注册到 ToolRegistry。
 	// kb 工具：知识库 CRUD + 检索（封装纯检索原语，修复死代码断裂）。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
-	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue, cfg.Storage.Local.BaseDir, bucket)
+	retrievalK := envInt("COGNOS_AI_RETRIEVAL_K", 30)
+	// CRAG 充分性评估器：阈值评估器（纯函数，复用 confidence_threshold 默认 0.40/0.70）。
+	// 阈值经 ComputeThresholds 从历史 confidence_raw 算 P30/P70 动态更新（管理端触发）。
+	confLow := envFloat("COGNOS_AI_CONFIDENCE_THRESHOLD_LOW", 0.40)
+	confHigh := envFloat("COGNOS_AI_CONFIDENCE_THRESHOLD_HIGH", 0.70)
+	thresholdEval := rag.NewThresholdEvaluator(confLow, confHigh)
+	// CRAG 评估器：默认纯阈值（零成本）；LLM 评估启用时仅对 Ambiguous 带二次判定（失败降级阈值）。
+	var evaluator rag.SufficiencyEvaluator = thresholdEval
+	if envStr("COGNOS_AI_CRAG_LLM_EVAL", "false") == "true" {
+		evaluator = rag.NewChainEvaluator(thresholdEval, rag.NewLLMCRAGEvaluator(agentModelFactory.GetModel))
+		slog.Info("CRAG LLM 评估器已启用（仅 Ambiguous 带）")
+	}
+	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue, cfg.Storage.Local.BaseDir, bucket, retrievalK, evaluator)
 
-	// RRF k=30（RustyRAG 实证 k=20-30 优于标准 60）
-	rag.SetRRFK(30)
+	// RRF 融合常数 k（可配；k 越小头部得分优势越大，需 eval 验证后再调，默认 30）
+	rag.SetRRFK(envInt("COGNOS_AI_RRF_K", 30))
 	memoryStore := agenttools.NewFileMemoryStore(cfg.Memory.StorageRoot, cfg.Memory.MemoryMaxLines)
 
 	toolDeps := agenttools.Deps{
-		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", "./data/agent-workspace"),
+		WorkDir:     envStr("COGNOS_AGENT_WORK_DIR", "./cognos/agent-workspace"),
 		Timeout:     envDuration("COGNOS_AGENT_TOOL_TIMEOUT", 30*time.Second),
 		MaxBytes:    int64(envInt("COGNOS_AGENT_TOOL_MAX_BYTES", 65536)),
 		SearchChain: searchChain,
@@ -424,11 +452,11 @@ func wireApp() (*app, error) {
 	slog.Info("Gateway 网关已初始化")
 
 	// Agent 对话数据存储（SQLite，与业务 PostgreSQL 隔离）
-	agentStore, err := store.NewSQLiteStore(envStr("COGNOS_AGENT_DB", "./data/agent.db"))
+	agentStore, err := store.NewSQLiteStore(envStr("COGNOS_AGENT_DB", "./cognos/agent.db"))
 	if err != nil {
 		return nil, fmt.Errorf("创建 Agent SQLite 存储失败: %w", err)
 	}
-	slog.Info("Agent SQLite 存储已初始化", "path", envStr("COGNOS_AGENT_DB", "./data/agent.db"))
+	slog.Info("Agent SQLite 存储已初始化", "path", envStr("COGNOS_AGENT_DB", "./cognos/agent.db"))
 
 	// 会话结束提取器：会话删除时扫描 session 记忆 → LLM 提取 → 写入 global。
 	sessionExtractor := agent.NewSessionExtractor(memoryStore, summarizeFn)
@@ -630,6 +658,16 @@ func envInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
+		}
+	}
+	return def
+}
+
+// envFloat 读取环境变量浮点数，空则用默认值。
+func envFloat(key string, def float64) float64 {
+	if v := os.Getenv(key); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
 		}
 	}
 	return def

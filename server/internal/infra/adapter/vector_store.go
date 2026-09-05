@@ -25,6 +25,9 @@ type VectorStore interface {
 	// CosineSearch 余弦相似度检索（使用 pgvector <=> 算子）。
 	CosineSearch(ctx context.Context, kbID int64, embedding []float32, topK int) ([]SearchResult, error)
 
+	// CosineSearchFiltered 带 metadata 过滤的余弦检索（articleType 精确 + tags 任一）。
+	CosineSearchFiltered(ctx context.Context, kbID int64, embedding []float32, topK int, articleType string, tags []string) ([]SearchResult, error)
+
 	// DeleteByArticle 删除指定文章的所有向量分块。
 	DeleteByArticle(ctx context.Context, articleID int64) error
 
@@ -170,12 +173,18 @@ func (s *PgvectorStore) BatchInsert(ctx context.Context, chunks []VectorChunk) e
 
 // CosineSearch 使用 <=> 算子检索 topK 相似向量；1 - 距离 = 相似度分数。
 func (s *PgvectorStore) CosineSearch(ctx context.Context, kbID int64, embedding []float32, topK int) ([]SearchResult, error) {
-	return s.CosineSearchWithFilter(ctx, kbID, embedding, topK, nil)
+	return s.CosineSearchFiltered(ctx, kbID, embedding, topK, "", nil)
 }
 
-// CosineSearchWithFilter 带 metadata 过滤的向量检索。
+// CosineSearchWithFilter 带 tags 过滤的向量检索（遗留，等价于无 articleType）。
 // tags 为空时不加过滤；非空时用 JSONB ?| 操作符匹配任一标签。
 func (s *PgvectorStore) CosineSearchWithFilter(ctx context.Context, kbID int64, embedding []float32, topK int, tags []string) ([]SearchResult, error) {
+	return s.CosineSearchFiltered(ctx, kbID, embedding, topK, "", tags)
+}
+
+// CosineSearchFiltered 带 metadata 过滤的向量检索。
+// articleType 非空时精确匹配；tags 非空时用 JSONB ?| 匹配任一标签。
+func (s *PgvectorStore) CosineSearchFiltered(ctx context.Context, kbID int64, embedding []float32, topK int, articleType string, tags []string) ([]SearchResult, error) {
 	if len(embedding) == 0 {
 		return nil, fmt.Errorf("embedding 为空，无法执行向量检索 (kb_id=%d)", kbID)
 	}
@@ -192,9 +201,17 @@ func (s *PgvectorStore) CosineSearchWithFilter(ctx context.Context, kbID int64, 
 		WHERE kc.kb_id = $2 AND ka.status = 4`
 	args := []interface{}{float32ToPgVector(embedding), kbID}
 
+	// metadata 过滤：article_type 精确匹配 + tags JSONB ?| 任一匹配
+	// HNSW 不支持 pre-filter，WHERE 在取 topK 候选后应用（post-filter）
+	paramIdx := 3
+	if articleType != "" {
+		query += fmt.Sprintf(` AND ka.article_type = $%d`, paramIdx)
+		args = append(args, articleType)
+		paramIdx++
+	}
 	if len(tags) > 0 {
 		tagsJSON, _ := json.Marshal(tags)
-		query += ` AND ka.tags ?| $3::jsonb`
+		query += fmt.Sprintf(` AND ka.tags ?| $%d::jsonb`, paramIdx)
 		args = append(args, string(tagsJSON))
 	}
 

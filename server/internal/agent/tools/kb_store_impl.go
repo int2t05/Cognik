@@ -6,8 +6,10 @@ package tools
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"cognos/internal/domain/knowledge"
@@ -22,6 +24,8 @@ type kbStoreImpl struct {
 	vectorRetriever *rag.VectorRetriever
 	bm25Retriever    *rag.BM25Retriever
 	reranker         adapter.Reranker
+	retrievalK       int // 两阶段候选池：retrieve retrievalK → rerank → 截到 limit
+	evaluator        rag.SufficiencyEvaluator // CRAG 充分性评估器（nil 时跳过 verdict）
 	storageRoot      string
 	bucket           string
 	articleSvc       *knowledge.KnowledgeService
@@ -30,11 +34,15 @@ type kbStoreImpl struct {
 
 // NewKBStoreImpl 创建 KBStore 实现。
 // vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD；ingestQueue 用于 update 入队。
-func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue, storageRoot, bucket string) KBStore {
+// retrievalK 为两阶段候选池大小（< limit 时回退为 limit），0 时用 limit。
+// evaluator 为 CRAG 充分性评估器（nil 时跳过 verdict，仅返回 entries）。
+func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue, storageRoot, bucket string, retrievalK int, evaluator rag.SufficiencyEvaluator) KBStore {
 	return &kbStoreImpl{
 		vectorRetriever: vr,
 		bm25Retriever:   br,
 		reranker:        rr,
+		retrievalK:      retrievalK,
+		evaluator:       evaluator,
 		articleSvc:      svc,
 		ingestQueue:     iq,
 		storageRoot:     storageRoot,
@@ -42,41 +50,98 @@ func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.R
 	}
 }
 
-// Search 封装纯检索原语：BM25 + pgvector → RRF 融合 → cross-encoder rerank。
+// Search 封装纯检索原语：BM25 + pgvector → RRF 融合 → cross-encoder rerank → CRAG 评估。
 // 不含 query_rewrite/multi_route——Agent ReAct 自行处理改写与多路。
-func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limit int, filter KBFilter) ([]KBEntry, error) {
+// 两阶段：向量+BM25 各取 retrievalK 候选 → RRF 融合 → rerank 全池 → 截到 limit。
+func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limit int, filter KBFilter) (SearchOutcome, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	// 并行检索：向量（核心）+ BM25（降级）
-	vecResults, _ := s.vectorRetriever.Retrieve(ctx, query, kbID, limit)
-	var bm25Results []rag.RetrievalResult
+	// 两阶段候选池：retrievalK ≥ limit，给 rerank 足够候选以提升精度
+	pool := s.retrievalK
+	if pool < limit {
+		pool = limit
+	}
+	// metadata 过滤条件（Type + Tags 硬过滤，下推两路检索器）
+	metaFilter := rag.MetaFilter{ArticleType: filter.Type, Tags: filter.Tags}
+
+	// 并行检索：向量（核心，含 embedding HTTP）+ BM25（内存，<1ms）。
+	// 两路皆尽力而为：单路失败仅 Warn 降级，不阻塞另一路（向量+LLM 为核心路径，双路全失败返回空）。
+	var (
+		vecResults   []rag.RetrievalResult
+		bm25Results   []rag.RetrievalResult
+		vecErr, bmErr error
+	)
+	var wg sync.WaitGroup
+	if s.vectorRetriever != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			vecResults, vecErr = s.vectorRetriever.RetrieveFiltered(ctx, query, kbID, pool, metaFilter)
+		}()
+	}
 	if s.bm25Retriever != nil {
-		bm25Results, _ = s.bm25Retriever.Retrieve(ctx, query, kbID, limit)
-		// BM25 分数归一化到 [0,1]
-		normalizeBm25(bm25Results)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			bm25Results, bmErr = s.bm25Retriever.RetrieveFiltered(ctx, query, kbID, pool, metaFilter)
+			// BM25 分数归一化到 [0,1]
+			normalizeBm25(bm25Results)
+		}()
+	}
+	wg.Wait()
+	if vecErr != nil {
+		slog.Warn("向量检索失败，降级为 BM25-only", "kb_id", kbID, "error", vecErr)
+	}
+	if bmErr != nil {
+		slog.Warn("BM25 检索失败，降级为向量-only", "kb_id", kbID, "error", bmErr)
 	}
 
-	// RRF 融合（空 BM25 时 HybridFuse 退化为向量截断）
-	fused := rag.HybridFuse(vecResults, bm25Results, limit)
+	// RRF 融合（融合到 pool，不早截——给 rerank 全部候选）
+	fused := rag.HybridFuse(vecResults, bm25Results, pool)
 	if len(fused) == 0 {
-		return nil, nil
+		return SearchOutcome{}, nil
 	}
 
-	// cross-encoder rerank（reranker 为 nil 时 Rerank 透传）
-	reranked, _ := rag.Rerank(ctx, s.reranker, query, fused)
+	// cross-encoder rerank（全池；reranker 为 nil 时 Rerank 透传）
+	reranked, err := rag.Rerank(ctx, s.reranker, query, fused)
+	if err != nil {
+		slog.Warn("rerank 失败，降级为 RRF 排序结果", "error", err)
+		reranked = fused
+	}
 
 	// 内容级去重，保留 Score 最高
 	deduped := dedupByContent(reranked)
 
-	// 置信度计算（分层：cosine → +BM25 → +rerank）
-	computeConfidence(deduped, len(bm25Results) > 0, s.reranker != nil && len(reranked) > 1)
+	// 置信度计算：精度阶段信号优先（参考 CRAG + 生产 RAG 实践）
+	// - 有 rerank：ConfRaw = RerankScore（cross-encoder sigmoid ∈[0,1]，直接相关性概率，无需混合）
+	// - 无 rerank：ConfRaw = RRF 融合分 min-max 归一化到 [0,1]（rank-based，召回阶段信号）
+	// 废弃旧混合法（0.4*BM25+0.6*Rerank 混入 cosine）——混淆召回/精度信号，无原则依据
+	computeConfidence(deduped, s.reranker != nil && len(reranked) > 1)
+
+	// 按 ConfRaw 降序重排（ConfRaw 混合三源，应为最终排序依据；sandwich 假设输入已排序）
+	sortByConfRawDesc(deduped)
+
+	// CRAG 充分性评估（在 sandwich/packing/截断前，基于完整排序结果）
+	var verdict rag.Verdict
+	if s.evaluator != nil {
+		verdict, err = s.evaluator.Evaluate(ctx, query, deduped)
+		if err != nil {
+			slog.Warn("CRAG 评估失败，降级为无 verdict", "error", err)
+			verdict = rag.Verdict{}
+		}
+	}
 
 	// Sandwich Reorder：高分放首尾，低分放中间（Lost in the Middle 缓解）
 	deduped = rag.SandwichReorder(deduped)
 
 	// Context Packing：token 预算内贪心填充（最大化有效信息量）
 	deduped = rag.PackContext(deduped, 2000)
+
+	// 截到 limit（两阶段：rerank 全池后取 top N）
+	if len(deduped) > limit {
+		deduped = deduped[:limit]
+	}
 
 	// 映射为 KBEntry
 	entries := make([]KBEntry, 0, len(deduped))
@@ -87,7 +152,7 @@ func (s *kbStoreImpl) Search(ctx context.Context, query string, kbID int64, limi
 			Source:  fmt.Sprintf("kb/%d/published/article-%d.md", kbID, r.ArticleID),
 		})
 	}
-	return entries, nil
+	return SearchOutcome{Entries: entries, Verdict: verdict}, nil
 }
 
 // Get 按 article_id 读完整文章 + frontmatter。
@@ -321,12 +386,7 @@ var (
 // 检索辅助（内联实现，不依赖 pipeline.go 未导出函数）
 // =============================================================================
 
-const (
-	bm25Weight   = 0.4 // BM25 归一化分在综合置信度中的权重
-	rerankWeight = 0.6 // Cross-encoder 分在综合置信度中的权重
-)
-
-// normalizeBm25 将 BM25 原始分数归一化到 [0,1]，使 Bm25NormScore 可与 RawCosineScore 加权混合。
+// normalizeBm25 将 BM25 原始分数归一化到 [0,1]（Bm25NormScore，保留供调试/可观测）。
 func normalizeBm25(results []rag.RetrievalResult) {
 	if len(results) == 0 {
 		return
@@ -371,23 +431,57 @@ func dedupByContent(chunks []rag.RetrievalResult) []rag.RetrievalResult {
 	return result
 }
 
-// computeConfidence 按管道步骤逐层计算综合置信度 ConfRaw。
-func computeConfidence(chunks []rag.RetrievalResult, hybridRan, rerankRan bool) {
+// computeConfidence 计算综合置信度 ConfRaw。
+// 精度阶段信号优先（参考 CRAG：retrieval evaluator 基于相关性，非原始分混合）：
+// - rerankRan：ConfRaw = RerankScore（cross-encoder sigmoid ∈[0,1]，直接相关性概率）
+// - 无 rerank：ConfRaw = RRF 融合分（Score）min-max 归一化到 [0,1]
+// 不再混合 cosine/BM25/Rerank——召回阶段信号（cosine/BM25）与精度阶段信号（rerank）
+// 量纲不同，混合无原则依据；rerank 分即最佳相关性信号。
+func computeConfidence(chunks []rag.RetrievalResult, rerankRan bool) {
+	if len(chunks) == 0 {
+		return
+	}
+	if rerankRan {
+		for i := range chunks {
+			chunks[i].ConfRaw = clamp01(chunks[i].RerankScore)
+		}
+		return
+	}
+	// 无 rerank：RRF 融合分 min-max 归一化
+	minS, maxS := chunks[0].Score, chunks[0].Score
+	for _, c := range chunks[1:] {
+		if c.Score < minS {
+			minS = c.Score
+		}
+		if c.Score > maxS {
+			maxS = c.Score
+		}
+	}
+	span := maxS - minS
 	for i := range chunks {
-		c := &chunks[i]
-		s := c.RawCosineScore
-		if hybridRan && c.Bm25NormScore > 0 {
-			s = (1-bm25Weight)*s + bm25Weight*c.Bm25NormScore
+		if span > 0 {
+			chunks[i].ConfRaw = (chunks[i].Score - minS) / span
+		} else {
+			chunks[i].ConfRaw = 0.8
 		}
-		if rerankRan && c.RerankScore > 0 {
-			s = (1-rerankWeight)*s + rerankWeight*c.RerankScore
+	}
+}
+
+func clamp01(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+// sortByConfRawDesc 按 ConfRaw 降序排序（ConfRaw 为最终相关性信号；sandwich 假设输入已排序）。
+func sortByConfRawDesc(chunks []rag.RetrievalResult) {
+	for i := 1; i < len(chunks); i++ {
+		for j := i; j > 0 && chunks[j].ConfRaw > chunks[j-1].ConfRaw; j-- {
+			chunks[j], chunks[j-1] = chunks[j-1], chunks[j]
 		}
-		if s < 0 {
-			s = 0
-		}
-		if s > 1 {
-			s = 1
-		}
-		c.ConfRaw = s
 	}
 }

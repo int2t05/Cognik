@@ -92,3 +92,4 @@ __pycache__/
 defense
 server/storage/
 server/data/
+server/cognos/

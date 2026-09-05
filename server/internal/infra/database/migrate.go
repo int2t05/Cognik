@@ -58,6 +58,18 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("创建 HNSW 索引失败: %w", err)
 	}
 
+	// metadata 过滤索引：tags JSONB GIN（?| 任一匹配）+ article_type B-tree（精确匹配）
+	if err := db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_articles_tags_gin ON knowledge_articles USING GIN (tags)
+	`).Error; err != nil {
+		return fmt.Errorf("创建 knowledge_articles.tags GIN 索引失败: %w", err)
+	}
+	if err := db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_articles_article_type ON knowledge_articles (article_type)
+	`).Error; err != nil {
+		return fmt.Errorf("创建 knowledge_articles.article_type 索引失败: %w", err)
+	}
+
 	return nil
 }
 

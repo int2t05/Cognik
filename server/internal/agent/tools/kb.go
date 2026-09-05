@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"cognos/internal/agent"
+	"cognos/internal/rag"
 
 	"github.com/cloudwego/eino/schema"
 )
@@ -24,9 +25,15 @@ type KBFilter struct {
 // KBEntry 知识库检索结果（chunk 粒度）。
 type KBEntry struct {
 	Content  string            `json:"content"`  // chunk 正文
-	Score    float64           `json:"score"`    // 相关度
+	Score    float64            `json:"score"`    // 相关度
 	Source   string            `json:"source"`   // 文件路径（引用追踪）
 	Metadata map[string]any    `json:"metadata"` // frontmatter 元数据
+}
+
+// SearchOutcome 检索产出——entries + CRAG 充分性 verdict。
+type SearchOutcome struct {
+	Entries []KBEntry     // 检索结果（已 rerank + dedup + packing）
+	Verdict rag.Verdict    // CRAG 评估：strong/ambiguous/weak
 }
 
 // KBArticle 完整文章（get 返回）。
@@ -74,8 +81,8 @@ type KBUpdateFields struct {
 // KBStore 知识库文章存储抽象（CRUD + 检索）。
 // 实现包装 KnowledgeService（CRUD）与 RAG 引擎检索步骤（search）。
 type KBStore interface {
-	// Search 检索文章（BM25+pgvector→RRF→rerank，返回 chunks）。
-	Search(ctx context.Context, query string, kbID int64, limit int, filter KBFilter) ([]KBEntry, error)
+	// Search 检索文章（BM25+pgvector→RRF→rerank→CRAG，返回 chunks + 充分性 verdict）。
+	Search(ctx context.Context, query string, kbID int64, limit int, filter KBFilter) (SearchOutcome, error)
 	// Get 按 article_id 读完整文章 + frontmatter。
 	Get(ctx context.Context, kbID, articleID int64) (*KBArticle, error)
 	// GetBatch 批量读文章摘要（每篇截断到 maxChars）。
@@ -172,14 +179,24 @@ func (t *KBTool) doSearch(ctx context.Context, p kbParams) (string, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	entries, err := t.store.Search(ctx, p.Query, p.KBID, limit, KBFilter{Type: p.Type, Tags: p.Tags})
+	outcome, err := t.store.Search(ctx, p.Query, p.KBID, limit, KBFilter{Type: p.Type, Tags: p.Tags})
 	if err != nil {
 		return "", fmt.Errorf("检索失败: %w", err)
 	}
+	entries := outcome.Entries
 	if len(entries) == 0 {
 		return "无检索结果", nil
 	}
 	var sb strings.Builder
+	// CRAG 充分性 preamble（机器可读，Agent 据此决定是否 web_search 补充）
+	v := outcome.Verdict
+	if v.Level != "" {
+		if v.Sufficient {
+			fmt.Fprintf(&sb, "[检索充分性: %s | confidence=%.2f] 检索充分，可直接基于以下内容回答。\n\n", v.Level, v.Confidence)
+		} else {
+			fmt.Fprintf(&sb, "[检索充分性: %s | confidence=%.2f] %s 结果可能不足，建议改写查询或调用 web_search 补充后再回答。\n\n", v.Level, v.Confidence, v.Reason)
+		}
+	}
 	for i, e := range entries {
 		fmt.Fprintf(&sb, "[%d] score=%.3f\n    %s\n    来源: %s\n", i+1, e.Score, e.Content, e.Source)
 	}
