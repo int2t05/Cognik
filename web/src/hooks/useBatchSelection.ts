@@ -3,7 +3,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { errorMessage } from '@/lib/api/error';
+import { useTranslations } from 'next-intl';
+import { translateError } from '@/lib/api/error';
 
 type Id = number | string;
 
@@ -32,6 +33,7 @@ export function useBatchSelection<T extends { id: Id }>({
   onMutate,
   onError,
 }: UseBatchSelectionOptions<T>): UseBatchSelectionReturn<T> {
+  const t = useTranslations();
   const [selectedIds, setSelectedIds] = useState<Set<Id>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,7 +63,7 @@ export function useBatchSelection<T extends { id: Id }>({
       setSelectedIds(new Set());
       onMutate();
     } catch (err: unknown) {
-      const msg = errorMessage(err, '删除失败');
+      const msg = translateError(err, t, t('common.deleteFailed'));
       onError?.(msg);
     } finally {
       setDeleting(false);

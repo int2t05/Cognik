@@ -46,7 +46,10 @@
     "rangeInfo": "{start}-{end} of {total}",
     "renderingChart": "Rendering chart…",
     "notFound": "Page not found",
-    "backHome": "Go home"
+    "backHome": "Go home",
+    "clearFilters": "Clear filters",
+    "noData": "No data",
+    "loadFailed": "Failed to load, please refresh"
   },
   "error": {
     "systemError": "System Error",
@@ -78,7 +81,17 @@
     "newTicket": "New Ticket",
     "myTickets": "My Tickets",
     "messages": "Messages",
-    "admin": "Admin"
+    "admin": "Admin",
+    "menu": {
+      "/admin/dashboard": "Dashboard",
+      "/admin/tickets": "Tickets",
+      "/admin/knowledge": "Knowledge Base",
+      "/admin/users": "Users",
+      "/admin/roles": "Roles",
+      "/admin/audit": "Audit Log",
+      "/admin/config/llm": "LLM Config",
+      "/admin/config/system": "System Config"
+    }
   },
   "account": {
     "switchTitle": "Switch account",
@@ -110,9 +123,17 @@
   },
   "chat": {
     "toolCall": "Tool call",
+    "thinking": "Thinking",
+    "reasoning": "Reasoning",
+    "sessionNotFound": "Session not found",
+    "generationInterrupted": "Generation interrupted",
+    "createSessionFailed": "Failed to create session",
+    "deleteSessionFailed": "Failed to delete session",
     "tool": {
       "args": "Arguments",
       "result": "Result",
+      "resultLabel": "{label} result",
+      "noOutput": "(no output)",
       "running": "Running…",
       "empty": "No content",
       "bash": "Run command",

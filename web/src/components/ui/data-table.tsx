@@ -1,5 +1,6 @@
 'use client';
 // DataTable — 通用数据表格。基于 shadcn Table 原语 + TanStack Table v9，内置 skeleton/empty 态。
+import { useTranslations } from 'next-intl';
 import { useTable, tableFeatures, type ColumnDef, type TableFeatures, type RowData } from '@tanstack/react-table';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,9 +18,10 @@ export function DataTable<TData extends RowData>({
   columns,
   data,
   loading,
-  emptyText = '暂无数据',
+  emptyText,
   skeletonRows = 5,
 }: DataTableProps<TData>) {
+  const t = useTranslations();
   const table = useTable({
     data,
     columns,
@@ -58,7 +60,7 @@ export function DataTable<TData extends RowData>({
           ) : table.getRowModel().rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-20 text-center text-[var(--color-text-muted-48)] text-caption">
-                {emptyText}
+                {emptyText ?? t('common.noData')}
               </TableCell>
             </TableRow>
           ) : (

@@ -1,4 +1,7 @@
 /** ConfirmDialog — 危险操作二次确认。基于 shadcn Dialog compound。 */
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/icon-button';
 import { Loader2 } from 'lucide-react';
@@ -20,12 +23,13 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   message,
-  confirmLabel = '确认',
+  confirmLabel,
   onConfirm,
   loading,
   danger,
   children,
 }: ConfirmDialogProps) {
+  const t = useTranslations();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -42,7 +46,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
           >
             {loading ? <Loader2 className="animate-spin" /> : null}
-            {confirmLabel}
+            {confirmLabel ?? t('common.confirm')}
           </IconButton>
         </DialogFooter>
       </DialogContent>

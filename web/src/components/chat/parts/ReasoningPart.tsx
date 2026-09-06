@@ -3,6 +3,7 @@
 // Collapsible 折叠（默认收起，点击展开），流式微光动画指示状态。
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Brain } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ReasoningPart({ part, streaming }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   return (
@@ -22,7 +24,7 @@ export function ReasoningPart({ part, streaming }: Props) {
       >
         <Brain size={14} className={streaming ? 'animate-pulse text-[var(--color-accent)]' : ''} />
         <span className={streaming ? 'text-[var(--color-accent)]' : ''}>
-          {streaming ? '思考中' : '思考过程'}
+          {streaming ? t('chat.thinking') : t('chat.reasoning')}
         </span>
         {streaming && (
           <span className="inline-flex gap-0.5">

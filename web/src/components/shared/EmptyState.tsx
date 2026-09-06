@@ -2,7 +2,10 @@
  * EmptyState — 空状态占位，引导用户下一步操作。
  * 所有空状态遵循"图标→标题→描述→可选操作"的信息层级。
  */
+'use client';
+
 import { type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { FilterX } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 
@@ -24,6 +27,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon, title, description, action, onClearFilters }: EmptyStateProps) {
+  const t = useTranslations();
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       {icon && (
@@ -45,7 +49,7 @@ export function EmptyState({ icon, title, description, action, onClearFilters }:
       )}
       {onClearFilters && (
         <IconButton variant="ghost" size="sm" onClick={onClearFilters} className="mt-2">
-          <FilterX size={14} />清除筛选
+          <FilterX size={14} />{t('common.clearFilters')}
         </IconButton>
       )}
     </div>

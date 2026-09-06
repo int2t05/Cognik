@@ -46,7 +46,10 @@
     "rangeInfo": "第 {start}-{end} 条，共 {total} 条",
     "renderingChart": "渲染图表…",
     "notFound": "页面不存在",
-    "backHome": "返回首页"
+    "backHome": "返回首页",
+    "clearFilters": "清除筛选",
+    "noData": "暂无数据",
+    "loadFailed": "加载失败，请刷新重试"
   },
   "error": {
     "systemError": "系统错误",
@@ -78,7 +81,17 @@
     "newTicket": "提交工单",
     "myTickets": "我的工单",
     "messages": "消息",
-    "admin": "管理"
+    "admin": "管理",
+    "menu": {
+      "/admin/dashboard": "仪表盘",
+      "/admin/tickets": "工单管理",
+      "/admin/knowledge": "知识库",
+      "/admin/users": "用户管理",
+      "/admin/roles": "角色管理",
+      "/admin/audit": "审计日志",
+      "/admin/config/llm": "模型配置",
+      "/admin/config/system": "系统配置"
+    }
   },
   "account": {
     "switchTitle": "切换账号",
@@ -110,9 +123,17 @@
   },
   "chat": {
     "toolCall": "工具调用",
+    "thinking": "思考中",
+    "reasoning": "思考过程",
+    "sessionNotFound": "会话不存在",
+    "generationInterrupted": "生成已中断",
+    "createSessionFailed": "创建会话失败",
+    "deleteSessionFailed": "删除会话失败",
     "tool": {
       "args": "参数",
       "result": "结果",
+      "resultLabel": "{label}结果",
+      "noOutput": "(无输出)",
       "running": "执行中…",
       "empty": "无内容",
       "bash": "执行命令",

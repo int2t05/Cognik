@@ -5,18 +5,20 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 import { listThreads, getThreadDetail, deleteThread, createThread } from '@/lib/api/chat';
 import { useChatStreamStore } from '@/contexts/ChatStreamProvider';
 import { parseThreadMessage } from '@/lib/reducer';
 import { toast } from 'sonner';
-import { errorMessage } from '@/lib/api/error';
+import { translateError } from '@/lib/api/error';
 
 interface UseChatSessionsOptions {
   token: string | null;
 }
 
 export function useChatSessions({ token }: UseChatSessionsOptions) {
+  const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useChatStreamStore();
@@ -103,7 +105,7 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
       selectSession(thread.id);
       return thread.id;
     } catch (err) {
-      toast.error(errorMessage(err, '创建会话失败'));
+      toast.error(translateError(err, t, t('chat.createSessionFailed')));
       return null;
     }
   }, [mutateThreads, selectSession]);
@@ -117,7 +119,7 @@ export function useChatSessions({ token }: UseChatSessionsOptions) {
         router.push('/portal/chat');
       }
     } catch (err) {
-      toast.error(errorMessage(err, '删除会话失败'));
+      toast.error(translateError(err, t, t('chat.deleteSessionFailed')));
     }
   }, [mutateThreads, router]);
 

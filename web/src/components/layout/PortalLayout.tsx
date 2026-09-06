@@ -43,7 +43,11 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const { unreadCount } = useUnreadCount();
   const isAdmin = hasAdminAccess(permissions);
 
-  // 后端菜单 → 管理分区 NavItem（去重 + 路由别名 + 子菜单）。菜单名为后端 DB 值，不翻译。
+  // 后端菜单 → 管理分区 NavItem。菜单 path 映射到 i18n key，DB 的中文 name 不用。
+  const menuLabel = (path: string): string => {
+    const r = FRONTEND_ROUTES[path] || path;
+    return t.has(`nav.menu.${r}`) ? t(`nav.menu.${r}`) : path;
+  };
   const adminItems: NavItem[] = useMemo(() => {
     if (!isAdmin || !menus.length) return [];
     const top = menus.filter((m: Menu) => !m.parent_id);
@@ -55,16 +59,16 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       seen.add(r);
       return true;
     }).map((m: Menu) => ({
-      label: m.name,
+      label: menuLabel(m.path),
       path: FRONTEND_ROUTES[m.path] || m.path,
       icon: ICON_MAP[m.icon] || <Settings size={18} />,
       children: childMenus.filter((c: Menu) => c.parent_id === m.id).map((c: Menu) => ({
-        label: c.name,
+        label: menuLabel(c.path),
         path: FRONTEND_ROUTES[c.path] || c.path,
         icon: ICON_MAP[c.icon] || <Settings size={18} />,
       })),
     }));
-  }, [isAdmin, menus]);
+  }, [isAdmin, menus, t]);
 
   const nav: NavSection[] = [
     {

@@ -217,7 +217,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
 
   const send = useCallback(async (threadId: number, question: string, token: string, onError?: (m: string) => void) => {
     const authToken = token || tokenRef.current;
-    if (!threadId) { onError?.('会话不存在'); return null; }
+    if (!threadId) { onError?.(''); return null; }
 
     // 若正在 streaming → 入队列（type-ahead）
     if (sendingRef.current[threadId]) {
@@ -243,7 +243,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
           const messages = [...s.messages];
           const last = messages[messages.length - 1];
           if (last?.role === 'assistant' && (last.status === 'streaming' || last.status === 'idle')) {
-            messages[messages.length - 1] = { ...last, status: 'error', error: '生成已中断' };
+            messages[messages.length - 1] = { ...last, status: 'error', error: '' };
           }
           return { ...s, messages, status: 'idle' };
         });
