@@ -35,6 +35,8 @@ ask → retrieve (BM25 + pgvector + RRF + rerank + CRAG)
 
 Everything runs on your server. PostgreSQL + pgvector + MinIO. No external API calls unless you enable them.
 
+![cognik.png](https://s3.bmp.ovh/2026/09/06/039tVckl.png)
+
 ## Highlights
 
 - 🔄 **Self-iterating Agent loop** — search → fetch → write → auto-publish into RAG; semantic de-duplication prevents garbage
