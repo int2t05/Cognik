@@ -26,7 +26,6 @@ import (
 
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
-	sysconfig "cognik/internal/domain/system/config"
 	"cognik/internal/domain/system/dashboard"
 	"cognik/internal/domain/system/message"
 	"cognik/internal/domain/ticket"
@@ -99,7 +98,6 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
 	messageRepo := message.NewMessageRepo(db)
 	auditRepo, dashboardRepo := audit.NewAuditRepo(db), dashboard.NewDashboardRepo(db)
-	configRepo := sysconfig.NewConfigRepo(db)
 
 	// 缓存
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
@@ -115,7 +113,6 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(auditSvc))
 	ticketSvc := ticket.NewTicketService(ticketRepo, nil, runtime.NewGormTxManager(db), messageSvc, knowledgeSvc, nil)
 	dashboardSvc := dashboard.NewDashboardService(dashboardRepo)
-	configSvc := sysconfig.NewConfigService(configRepo, auditSvc)
 
 	// Chat 服务在集成测试环境不构造（需 AgentRunner + Gateway，见 api_chat_test.go 单独测试）
 
@@ -125,7 +122,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 		Role: role.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
 		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc),
 		Message: message.NewMessageHandler(messageSvc), Dashboard: dashboard.NewDashboardHandler(dashboardSvc),
-		Audit: audit.NewAuditHandler(auditSvc), Config: sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{}),
+		Audit: audit.NewAuditHandler(auditSvc),
 	}
 
 	r := router.Setup(&config.AppConfig{

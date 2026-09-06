@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"cognik/internal/domain/chat/session"
-	"cognik/internal/domain/knowledge"
+		"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
 	sysconfig "cognik/internal/domain/system/config"
 	"cognik/internal/domain/system/dashboard"

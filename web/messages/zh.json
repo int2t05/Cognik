@@ -473,10 +473,6 @@
     "thresholdLow": "低置信阈值",
     "thresholdHigh": "高置信阈值",
     "maxHistory": "多轮对话上限",
-    "queryRewrite": "查询改写",
-    "multiRoute": "多路检索",
-    "hybrid": "BM25 混合检索",
-    "rerank": "重排序",
     "thinking": "思考模式"
   },
   "kb": {

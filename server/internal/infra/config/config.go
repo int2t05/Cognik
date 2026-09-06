@@ -14,6 +14,7 @@ import (
 
 // AppConfig 是顶层配置结构体，包含所有子模块配置。
 type AppConfig struct {
+	AppName   string          `mapstructure:"app_name"` // 应用名称，显示在页面标题和系统通知中
 	DataRoot  string          `mapstructure:"data_root"` // 数据根目录（storage/memory/logs/agent.db 派生自此）
 	Server    ServerConfig    `mapstructure:"server"`
 	Database  DatabaseConfig  `mapstructure:"database"`
@@ -235,6 +236,8 @@ type EnvConfigEntry struct {
 // GetEnvConfigs 返回 .env 派生的全部配置项(API key 脱敏)。
 func GetEnvConfigs(cfg *AppConfig) []EnvConfigEntry {
 	return []EnvConfigEntry{
+		// 通用
+		{Key: "app_name", Value: cfg.AppName},
 		// LLM
 		{Key: "llm_base_url", Value: cfg.LLM.BaseURL},
 		{Key: "llm_api_key", Value: maskEnvKey(cfg.LLM.APIKey)},
@@ -352,6 +355,8 @@ func (c *AppConfig) resolveDataPaths() {
 
 // bindEnvs 显式绑定环境变量到配置 key。
 func bindEnvs(v *viper.Viper) {
+	// AppName
+	v.BindEnv("app_name", "COGNIK_APP_NAME")
 	// DataRoot（数据根目录，storage/memory/logs/agent.db 派生自此）
 	v.BindEnv("data_root", "COGNIK_DATA_ROOT")
 
@@ -471,6 +476,8 @@ func (c *AppConfig) Validate() error {
 
 // setDefaults 设置配置默认值，与 config.yaml 保持一致。
 func setDefaults(v *viper.Viper) {
+	// AppName
+	v.SetDefault("app_name", "Cognik")
 	// DataRoot（数据根目录；server/ 运行时 .cognik = 项目根目录 .cognik/）
 	v.SetDefault("data_root", ".cognik")
 

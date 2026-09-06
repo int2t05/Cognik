@@ -23,7 +23,7 @@ func AutoMigrate(db *gorm.DB, dim int) error {
 		&model.Ticket{}, &model.TicketRecord{},
 		&model.KnowledgeBase{}, &model.KnowledgeArticle{}, &model.KnowledgeChunk{},
 		&model.ChatSession{}, &model.ChatMessage{},
-		&model.AuditLog{}, &model.SystemConfig{}, &model.Message{},
+		&model.AuditLog{}, &model.Message{},
 	); err != nil {
 		return err
 	}

@@ -473,10 +473,6 @@
     "thresholdLow": "Low confidence threshold",
     "thresholdHigh": "High confidence threshold",
     "maxHistory": "Max history messages",
-    "queryRewrite": "Query rewrite",
-    "multiRoute": "Multi-route retrieval",
-    "hybrid": "BM25 hybrid retrieval",
-    "rerank": "Reranking",
     "thinking": "Thinking mode"
   },
   "kb": {

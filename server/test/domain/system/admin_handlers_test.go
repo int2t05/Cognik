@@ -1,18 +1,14 @@
 //go:build integration
 
-// Package handler_test 验证 Dashboard / Audit / Config Handler HTTP 接口。
-//
-// 测试覆盖后台管理的数据看板、审计日志、系统配置端点。
+// Package handler_test 验证 Dashboard / Audit Handler HTTP 接口。
 package system_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
 
 	"cognik/internal/domain/system/audit"
-	sysconfig "cognik/internal/domain/system/config"
 	"cognik/internal/domain/system/dashboard"
 	"cognik/internal/infra/config"
 	"cognik/internal/infra/database"
@@ -39,7 +35,6 @@ func setupAdminTestDB(t *testing.T) (*gin.Engine, *gorm.DB) {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 
-	// 确保必要的表存在
 	db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
 		id BIGSERIAL PRIMARY KEY, ticket_no VARCHAR(32), user_id BIGINT,
 		title VARCHAR(255), description TEXT, tags JSONB,
@@ -61,10 +56,6 @@ func setupAdminTestDB(t *testing.T) (*gin.Engine, *gorm.DB) {
 		target_type VARCHAR(32), target_id BIGINT, detail TEXT,
 		created_at TIMESTAMPTZ DEFAULT NOW()
 	)`)
-	db.Exec(`CREATE TABLE IF NOT EXISTS system_configs (
-		id BIGSERIAL PRIMARY KEY, key VARCHAR(128) UNIQUE, value TEXT,
-		updated_by BIGINT, updated_at TIMESTAMPTZ DEFAULT NOW()
-	)`)
 
 	r := gin.New()
 	r.Use(middleware.RequestID())
@@ -83,7 +74,6 @@ func setupAdminTestDB(t *testing.T) (*gin.Engine, *gorm.DB) {
 func TestDashboardHandler_GetStats(t *testing.T) {
 	r, db := setupAdminTestDB(t)
 
-	// 清理并准备数据
 	db.Exec("DELETE FROM tickets")
 	db.Exec("DELETE FROM chat_sessions")
 	db.Exec("DELETE FROM knowledge_articles")
@@ -153,52 +143,6 @@ func TestAuditHandler_List(t *testing.T) {
 	r.GET("/audit-logs", h.List)
 
 	req := httptest.NewRequest("GET", "/audit-logs?page=1&page_size=10", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	if w.Code != 200 {
-		t.Fatalf("期望 200, 实际 %d: %s", w.Code, w.Body.String())
-	}
-}
-
-// =============================================================================
-// Config Handler
-// =============================================================================
-
-func TestConfigHandler_Get(t *testing.T) {
-	r, db := setupAdminTestDB(t)
-
-	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognik"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognik"', updated_at = NOW()`)
-
-	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
-	h := sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{})
-
-	r.GET("/configs/:key", h.Get)
-
-	req := httptest.NewRequest("GET", "/configs/app_name", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	if w.Code != 200 {
-		t.Fatalf("期望 200, 实际 %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestConfigHandler_Update(t *testing.T) {
-	r, db := setupAdminTestDB(t)
-
-	db.Exec("DELETE FROM system_configs WHERE key = 'app_name'")
-	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognik"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognik"', updated_at = NOW()`)
-
-	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
-	h := sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{})
-
-	r.PUT("/configs/:key", h.Update)
-
-	body, _ := json.Marshal(map[string]string{"value": "\"Cognik v2\""})
-	req := httptest.NewRequest("PUT", "/configs/app_name", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

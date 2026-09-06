@@ -73,10 +73,8 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.GET("/audit-logs", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.List }))
 	rg.POST("/audit-logs/batch-delete", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.BatchDelete }))
 
-	// 系统配置
+	// 系统配置（.env 读写,触发热加载）
 	rg.GET("/configs/llm-info", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.GetLLMInfo }))
 	rg.GET("/configs/env", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.GetEnvConfigs }))
 	rg.PUT("/configs/env", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.UpdateEnvConfig }))
-	rg.GET("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Get }))
-	rg.PUT("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Update }))
 }

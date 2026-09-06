@@ -20,7 +20,6 @@ import (
 	"cognik/internal/domain/chat/session"
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
-	sysconfig "cognik/internal/domain/system/config"
 	"cognik/internal/domain/system/dashboard"
 	"cognik/internal/domain/system/message"
 	"cognik/internal/domain/ticket"
@@ -194,7 +193,6 @@ func wireApp() (*app, error) {
 	}
 
 	// 4. Repository 层
-	configRepo := sysconfig.NewConfigRepo(db)
 	userRepo := account.NewUserRepo(db)
 	roleRepo := role.NewRoleRepo(db)
 	ticketRepo := ticket.NewTicketRepo(db)
@@ -217,7 +215,6 @@ func wireApp() (*app, error) {
 	roleService := role.NewRoleService(roleRepo, menuRepo, auditService, db)
 	messageService := message.NewMessageService(messageRepo)
 	dashboardService := dashboard.NewDashboardService(dashboardRepo)
-	configService := sysconfig.NewConfigService(configRepo, auditService)
 
 	// RAG 引擎组件
 	// batchSize 仅影响索引侧吞吐（单 query 文本与 batch 无关）；查询侧走单文本缓存路径。
@@ -499,13 +496,6 @@ func wireApp() (*app, error) {
 		Message:   message.NewMessageHandler(messageService),
 		Dashboard: dashboard.NewDashboardHandler(dashboardService),
 		Audit:     audit.NewAuditHandler(auditService),
-		Config:    sysconfig.NewConfigHandler(configService, sysconfig.LLMInfo{
-			LLMBaseURL:       cfg.LLM.BaseURL,
-			LLMModel:        cfg.LLM.Model,
-			EmbeddingBaseURL: embedBaseURL,
-			EmbeddingModel:  cfg.Embedding.Model,
-			EmbeddingDimension: cfg.Embedding.Dimension,
-		}, cfg),
 	}
 
 	// 7. 调度器

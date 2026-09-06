@@ -24,7 +24,6 @@ DELETE FROM user_roles;
 DELETE FROM menus;
 DELETE FROM users;
 DELETE FROM roles;
-DELETE FROM system_configs;
 
 -- =============================================================================
 -- 角色与权限
@@ -76,23 +75,8 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (1, 1), (2, 2), (3, 2), (4, 3), (5, 4), (6, 4);
 
 -- =============================================================================
--- 系统配置
+-- 配置
 -- =============================================================================
-
-INSERT INTO system_configs (key, value, description, updated_by, updated_at) VALUES
-('app_name',                '"Cognik"', '应用名称，显示在页面标题和系统通知中', 1, NOW()),
-('ai.rag_enabled',          'true',      '全局 RAG 检索开关',                  1, NOW()),
-('ai.top_k',                '5',         'RAG 默认检索 Top K',                 1, NOW()),
-('ai.confidence_threshold_low',  '0.40', '低置信阈值——Conf_raw 低于此值为低置信', 1, NOW()),
-('ai.confidence_threshold_high', '0.70', '高置信阈值——Conf_raw 达到此值为高置信', 1, NOW()),
-('ai.max_history_messages', '10',        '多轮对话历史消息数上限',               1, NOW());
-
--- =============================================================================
--- LLM 配置
--- =============================================================================
--- LLM/Embedding 配置不存 DB，由 .env 提供唯一配置源：
---   COGNIK_LLM_BASE_URL / COGNIK_LLM_API_KEY / COGNIK_LLM_MODEL
---   COGNIK_EMBEDDING_BASE_URL / COGNIK_EMBEDDING_API_KEY / COGNIK_EMBEDDING_MODEL
--- 用户可通过管理端 API 按需配置（POST /api/v1/admin/llm-configs）。
+-- LLM/Embedding/RAG/Search/Upload 配置均从 .env 读取,不入 DB。
 
 COMMIT;
