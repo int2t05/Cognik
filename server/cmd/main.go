@@ -269,21 +269,6 @@ func wireApp() (*app, error) {
 		processor = rag.NewProcessor(docParser, chunker, embedder, a.vectorStore, a.storageClient, procWorkers)
 	}
 
-	// 异步处理管道：文件即真相场景下 Agent 写入 draft 后入队，定时消费者处理。
-	var ingestQueue *rag.IngestQueue
-	var ingestConsumer *rag.IngestConsumer
-	if processor != nil {
-		queuePath := filepath.Join(cfg.Memory.StorageRoot, "_index/ingest_queue.jsonl")
-		ingestQueue, err = rag.NewIngestQueue(queuePath)
-		if err != nil {
-			slog.Warn("异步处理队列初始化失败", "error", err)
-		} else {
-			ingestConsumer = rag.NewIngestConsumer(ingestQueue, processor, cfg.Memory.IngestLeaseTTL, cfg.Memory.IngestPollInterval)
-			go ingestConsumer.Start(context.Background())
-			slog.Info("异步处理管道已启动", "queue", queuePath, "poll", cfg.Memory.IngestPollInterval)
-		}
-	}
-
 	knowledgeService := knowledge.NewKnowledgeService(knowledgeRepo,
 		knowledge.WithUserNames(userRepo),
 		knowledge.WithChunker(chunker),
@@ -349,8 +334,7 @@ func wireApp() (*app, error) {
 	// kb 工具：知识库 CRUD + 纯检索原语封装。
 	// memory 工具：记忆 remember/recall/forget/update/list（文件式存储）。
 	retrievalK := envInt("COGNIK_AI_RETRIEVAL_K", 30)
-	// CRAG 充分性评估器：阈值评估器（纯函数，复用 confidence_threshold 默认 0.40/0.70）。
-	// 阈值经 ComputeThresholds 从历史 confidence_raw 算 P30/P70 动态更新（管理端触发）。
+	// CRAG 充分性评估器：阈值从 .env 读取（默认 0.40/0.70）。
 	confLow := envFloat("COGNIK_AI_CONFIDENCE_THRESHOLD_LOW", 0.40)
 	confHigh := envFloat("COGNIK_AI_CONFIDENCE_THRESHOLD_HIGH", 0.70)
 	thresholdEval := rag.NewThresholdEvaluator(confLow, confHigh)
@@ -360,7 +344,7 @@ func wireApp() (*app, error) {
 		evaluator = rag.NewChainEvaluator(thresholdEval, rag.NewLLMCRAGEvaluator(agentModelFactory.GetModel))
 		slog.Info("CRAG LLM 评估器已启用（仅 Ambiguous 带）")
 	}
-	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, ingestQueue, cfg.Storage.Local.BaseDir, bucket, retrievalK, evaluator)
+	kbStore := agenttools.NewKBStoreImpl(vectorRetriever, bm25Retriever, a.reranker, knowledgeService, cfg.Storage.Local.BaseDir, bucket, retrievalK, evaluator)
 
 	// RRF 融合常数 k（可配；k 越小头部得分优势越大，需 eval 验证后再调，默认 30）
 	rag.SetRRFK(envInt("COGNIK_AI_RRF_K", 30))

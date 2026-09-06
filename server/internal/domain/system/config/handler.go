@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"cognik/internal/infra/config"
-	"cognik/internal/shared/dto/request"
 	"cognik/internal/shared/pkg/errcode"
 	resp "cognik/internal/shared/pkg/response"
 
@@ -150,25 +149,6 @@ func (h *ConfigHandler) Update(c *gin.Context) {
 	}
 
 	resp.Success(c, nil)
-}
-
-// ComputeThresholds 计算置信度阈值分位数。
-//
-// POST /api/v1/admin/confidence/compute-thresholds
-func (h *ConfigHandler) ComputeThresholds(c *gin.Context) {
-	var req request.ComputeThresholdsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, errcode.ErrParam, "参数校验失败")
-		return
-	}
-
-	result, err := h.svc.ComputeThresholds(c.Request.Context(), req.Days)
-	if err != nil {
-		handleServiceError(c, err)
-		return
-	}
-
-	resp.Success(c, result)
 }
 
 // GetLLMInfo 返回 .env 派生的 LLM/Embedding 配置(只读,不含 API key)。

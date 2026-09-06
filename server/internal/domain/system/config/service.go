@@ -1,4 +1,4 @@
-// Package config 系统配置业务逻辑（配置键白名单、值校验、阈值计算）。
+// Package config 系统配置业务逻辑（配置键白名单、值校验）。
 package config
 
 import (
@@ -14,11 +14,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// confidenceScoreQuerier 置信度分数查询接口（chat/session.ChatRepo 自动满足）。
-type confidenceScoreQuerier interface {
-	QueryRawScores(ctx context.Context, days int) ([]float64, error)
-}
-
 // configKeyMeta 配置键元信息：期望类型和说明。
 type configKeyMeta struct {
 	ValueType   string // "string" | "number" | "bool"
@@ -27,24 +22,13 @@ type configKeyMeta struct {
 
 // validConfigKeys 配置键白名单。
 var validConfigKeys = map[string]configKeyMeta{
-	"app_name":                     {ValueType: "string", Description: "应用名称，显示在页面标题和系统通知中"},
-	"ai.rag_enabled":               {ValueType: "bool", Description: "全局 RAG 检索开关（关闭后为纯 LLM 对话模式）"},
-	"ai.top_k":                     {ValueType: "number", Description: "RAG 默认检索 Top K"},
-	"ai.confidence_threshold_low":  {ValueType: "number", Description: "低置信阈值——Conf_raw 低于此值为低置信"},
-	"ai.confidence_threshold_high": {ValueType: "number", Description: "高置信阈值——Conf_raw 达到此值为高置信"},
-	"ai.max_history_messages":      {ValueType: "number", Description: "多轮对话历史消息数上限"},
+	"app_name": {ValueType: "string", Description: "应用名称，显示在页面标题和系统通知中"},
 }
 
 // ConfigService 系统配置管理服务。
 type ConfigService struct {
 	repo        *ConfigRepo
 	auditWriter audit.AuditWriter
-	chatRepo    confidenceScoreQuerier
-}
-
-// SetChatRepo 注入 chat 仓库（避免构造循环依赖）。
-func (s *ConfigService) SetChatRepo(r confidenceScoreQuerier) {
-	s.chatRepo = r
 }
 
 // NewConfigService 创建 ConfigService 实例。
@@ -133,88 +117,6 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, key string, value inte
 	}
 	s.auditWriter.Write(ctx, updatedBy, "config.update", "config", 0, string(jsonBytes))
 	return nil
-}
-
-// ComputeThresholdsResult 分位数计算结果。
-type ComputeThresholdsResult struct {
-	P30         float64 `json:"p30"`
-	P70         float64 `json:"p70"`
-	SampleCount int     `json:"sample_count"`
-	DateFrom    string  `json:"date_from"`
-	DateTo      string  `json:"date_to"`
-	Warning     string  `json:"warning,omitempty"`
-}
-
-// ComputeThresholds 从近 N 天 chat_messages 的 confidence_raw 中计算 P30/P70 分位数。
-func (s *ConfigService) ComputeThresholds(ctx context.Context, days int) (*ComputeThresholdsResult, error) {
-	if days <= 0 {
-		days = 7
-	}
-	if days > 90 {
-		days = 90
-	}
-	if s.chatRepo == nil {
-		return nil, errcode.AppError{Code: errcode.ErrUnknown, Message: "服务未初始化"}
-	}
-
-	scores, err := s.chatRepo.QueryRawScores(ctx, days)
-	if err != nil {
-		return nil, fmt.Errorf("查询原始置信度分数失败: %w", err)
-	}
-
-	n := len(scores)
-	if n == 0 {
-		return &ComputeThresholdsResult{
-			P30: 0.40, P70: 0.70, SampleCount: 0, Warning: "无可用数据，返回默认值",
-		}, nil
-	}
-
-	p30 := percentile(scores, 0.30)
-	p70 := percentile(scores, 0.70)
-
-	if p30 < 0.10 {
-		p30 = 0.10
-	}
-	if p70 > 0.95 {
-		p70 = 0.95
-	}
-	if p70-p30 < 0.10 {
-		p70 = p30 + 0.10
-		if p70 > 0.95 {
-			p70 = 0.95
-		}
-	}
-
-	var warning string
-	if n < 50 {
-		warning = fmt.Sprintf("样本数量不足（%d < 50），建议积累更多数据后重新计算", n)
-	}
-
-	return &ComputeThresholdsResult{
-		P30:         round2(p30),
-		P70:         round2(p70),
-		SampleCount: n,
-		Warning:     warning,
-	}, nil
-}
-
-// percentile 线性插值法计算第 p 百分位数（scores 须已升序）。
-func percentile(sorted []float64, p float64) float64 {
-	n := len(sorted)
-	if n == 0 {
-		return 0
-	}
-	idx := p * float64(n-1)
-	lo := int(idx)
-	hi := lo + 1
-	if hi >= n {
-		return sorted[n-1]
-	}
-	return sorted[lo]*(1-(idx-float64(lo))) + sorted[hi]*(idx-float64(lo))
-}
-
-func round2(v float64) float64 {
-	return float64(int(v*100+0.5)) / 100
 }
 
 // IsPublicKey 判断指定 key 是否为无需认证的公开配置项。

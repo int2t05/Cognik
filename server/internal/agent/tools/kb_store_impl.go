@@ -28,14 +28,13 @@ type kbStoreImpl struct {
 	storageRoot      string
 	bucket           string
 	articleSvc       *knowledge.KnowledgeService
-	ingestQueue      *rag.IngestQueue // 异步索引队列（update 时入队触发增量 re-index）
 }
 
 // NewKBStoreImpl 创建 KBStore 实现。
-// vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD；ingestQueue 用于 update 入队。
+// vectorRetriever/bm25Retriever/reranker 用于 search；articleSvc 用于 CRUD。
 // retrievalK 为两阶段候选池大小（< limit 时回退为 limit），0 时用 limit。
 // evaluator 为 CRAG 充分性评估器（nil 时跳过 verdict，仅返回 entries）。
-func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, iq *rag.IngestQueue, storageRoot, bucket string, retrievalK int, evaluator rag.SufficiencyEvaluator) KBStore {
+func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.Reranker, svc *knowledge.KnowledgeService, storageRoot, bucket string, retrievalK int, evaluator rag.SufficiencyEvaluator) KBStore {
 	return &kbStoreImpl{
 		vectorRetriever: vr,
 		bm25Retriever:   br,
@@ -43,7 +42,6 @@ func NewKBStoreImpl(vr *rag.VectorRetriever, br *rag.BM25Retriever, rr adapter.R
 		retrievalK:      retrievalK,
 		evaluator:       evaluator,
 		articleSvc:      svc,
-		ingestQueue:     iq,
 		storageRoot:     storageRoot,
 		bucket:          bucket,
 	}

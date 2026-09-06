@@ -143,8 +143,12 @@ type EmbeddingConfig struct {
 
 // AIConfig AI 问答配置（ChunkSize/ChunkOverlap 供文档处理管道使用）。
 type AIConfig struct {
-	ChunkSize    int `mapstructure:"chunk_size"`    // 文本分块大小（字符数），默认 500
-	ChunkOverlap int `mapstructure:"chunk_overlap"` // 分块重叠大小（字符数），默认 100
+	ChunkSize           int `mapstructure:"chunk_size"`    // 文本分块大小（字符数），默认 500
+	ChunkOverlap        int `mapstructure:"chunk_overlap"` // 分块重叠大小（字符数），默认 100
+	RAGEnabled         bool `mapstructure:"rag_enabled"`     // RAG 检索开关，默认 true
+	TopK               int `mapstructure:"top_k"`         // 默认检索 Top K，默认 5
+	ConfidenceThreshold float64 `mapstructure:"confidence_threshold"` // 置信度阈值，默认 0.6
+	MaxHistoryMessages int `mapstructure:"max_history_messages"` // 多轮对话历史消息数上限，默认 10
 }
 
 // ParserConfig 文档解析引擎配置（mineru 云端高精度 / local 本地库），mineru 不可用时自动降级。
@@ -177,8 +181,7 @@ type MemoryConfig struct {
 	MemoryMaxLines     int           `mapstructure:"memory_max_lines"`     // MEMORY.md 最大行数，默认 200
 	CompressDedup      float64       `mapstructure:"compress_dedup"`       // 去重清理触发阈值，默认 0.70
 	CompressCompact    float64       `mapstructure:"compress_compact"`     // Autocompact 触发阈值，默认 0.85
-	IngestPollInterval time.Duration `mapstructure:"ingest_poll_interval"` // 异步队列轮询间隔，默认 5s
-	IngestLeaseTTL     time.Duration `mapstructure:"ingest_lease_ttl"`     // 消费 lease TTL，默认 60s
+	IngestPollInterval time.Duration `mapstructure:"ingest_poll_interval"` // 重试扫描器轮询间隔，默认 5s
 }
 
 // Load 加载配置文件并应用环境变量覆盖。
@@ -229,19 +232,41 @@ type EnvConfigEntry struct {
 	Value string `json:"value"`
 }
 
-// GetEnvConfigs 返回 .env 派生的 AI/Embedding 配置(不含 API key)。
+// GetEnvConfigs 返回 .env 派生的全部配置项(API key 脱敏)。
 func GetEnvConfigs(cfg *AppConfig) []EnvConfigEntry {
 	return []EnvConfigEntry{
+		// LLM
 		{Key: "llm_base_url", Value: cfg.LLM.BaseURL},
 		{Key: "llm_api_key", Value: maskEnvKey(cfg.LLM.APIKey)},
 		{Key: "llm_model", Value: cfg.LLM.Model},
+		{Key: "llm_max_tokens", Value: fmt.Sprintf("%d", cfg.LLM.MaxTokens)},
+		// Embedding
 		{Key: "embedding_base_url", Value: cfg.Embedding.BaseURL},
 		{Key: "embedding_api_key", Value: maskEnvKey(cfg.Embedding.APIKey)},
 		{Key: "embedding_model", Value: cfg.Embedding.Model},
 		{Key: "embedding_dimension", Value: fmt.Sprintf("%d", cfg.Embedding.Dimension)},
-		{Key: "llm_max_tokens", Value: fmt.Sprintf("%d", cfg.LLM.MaxTokens)},
-		{Key: "llm_timeout", Value: cfg.LLM.Timeout.String()},
+		// RAG
+		{Key: "ai.rag_enabled", Value: boolStr(cfg.AI.RAGEnabled)},
+		{Key: "ai.top_k", Value: fmt.Sprintf("%d", cfg.AI.TopK)},
+		{Key: "ai.confidence_threshold", Value: fmt.Sprintf("%f", cfg.AI.ConfidenceThreshold)},
+		{Key: "ai.max_history_messages", Value: fmt.Sprintf("%d", cfg.AI.MaxHistoryMessages)},
+		// Search
+		{Key: "search.exa_api_key", Value: maskEnvKey(cfg.Search.Exa.APIKey)},
+		{Key: "search.tavily_api_key", Value: maskEnvKey(cfg.Search.Tavily.APIKey)},
+		{Key: "search.firecrawl_api_key", Value: maskEnvKey(cfg.Search.Firecrawl.APIKey)},
+		// Upload
+		{Key: "kb.max_upload_size", Value: fmt.Sprintf("%d", cfg.Knowledge.MaxUploadSizeKB)},
+		// Rerank
+		{Key: "rerank.enabled", Value: boolStr(cfg.Rerank.Enabled)},
 	}
+}
+
+// boolStr 将 bool 转字符串。
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }
 
 // maskEnvKey 脱敏 API key(仅显示前 8 字符)。
@@ -378,6 +403,10 @@ func bindEnvs(v *viper.Viper) {
 	// AI
 	v.BindEnv("ai.chunk_size", "COGNIK_AI_CHUNK_SIZE")
 	v.BindEnv("ai.chunk_overlap", "COGNIK_AI_CHUNK_OVERLAP")
+	v.BindEnv("ai.rag_enabled", "COGNIK_AI_RAG_ENABLED")
+	v.BindEnv("ai.top_k", "COGNIK_AI_TOP_K")
+	v.BindEnv("ai.confidence_threshold", "COGNIK_AI_CONFIDENCE_THRESHOLD")
+	v.BindEnv("ai.max_history_messages", "COGNIK_AI_MAX_HISTORY_MESSAGES")
 
 	// Search（深度搜索工具链，降级链模式）
 	v.BindEnv("search.exa.api_key", "COGNIK_SEARCH_EXA_API_KEY")
@@ -410,7 +439,6 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("memory.compress_dedup", "COGNIK_MEMORY_COMPRESS_DEDUP")
 	v.BindEnv("memory.compress_compact", "COGNIK_MEMORY_COMPRESS_COMPACT")
 	v.BindEnv("memory.ingest_poll_interval", "COGNIK_MEMORY_INGEST_POLL_INTERVAL")
-	v.BindEnv("memory.ingest_lease_ttl", "COGNIK_MEMORY_INGEST_LEASE_TTL")
 }
 
 // Validate 校验配置合法性，在 Load 完成后自动调用。
@@ -495,6 +523,10 @@ func setDefaults(v *viper.Viper) {
 	// AI
 	v.SetDefault("ai.chunk_size", 500)
 	v.SetDefault("ai.chunk_overlap", 100)
+	v.SetDefault("ai.rag_enabled", true)
+	v.SetDefault("ai.top_k", 5)
+	v.SetDefault("ai.confidence_threshold", 0.6)
+	v.SetDefault("ai.max_history_messages", 10)
 
 	// Search（深度搜索工具链，降级链模式）
 	v.SetDefault("search.max_results", 5)
@@ -524,5 +556,4 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("memory.compress_dedup", 0.70)
 	v.SetDefault("memory.compress_compact", 0.85)
 	v.SetDefault("memory.ingest_poll_interval", "5s")
-	v.SetDefault("memory.ingest_lease_ttl", "60s")
 }
