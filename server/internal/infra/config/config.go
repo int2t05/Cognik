@@ -3,7 +3,9 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -219,6 +221,94 @@ func Load(configPath string) (*AppConfig, error) {
 		return nil, fmt.Errorf("配置校验失败: %w", err)
 	}
 	return &cfg, nil
+}
+
+// EnvConfigEntry .env 派生配置项(前端读写,触发后端热加载)。
+type EnvConfigEntry struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// GetEnvConfigs 返回 .env 派生的 AI/Embedding 配置(不含 API key)。
+func GetEnvConfigs(cfg *AppConfig) []EnvConfigEntry {
+	return []EnvConfigEntry{
+		{Key: "llm_base_url", Value: cfg.LLM.BaseURL},
+		{Key: "llm_api_key", Value: maskEnvKey(cfg.LLM.APIKey)},
+		{Key: "llm_model", Value: cfg.LLM.Model},
+		{Key: "embedding_base_url", Value: cfg.Embedding.BaseURL},
+		{Key: "embedding_api_key", Value: maskEnvKey(cfg.Embedding.APIKey)},
+		{Key: "embedding_model", Value: cfg.Embedding.Model},
+		{Key: "embedding_dimension", Value: fmt.Sprintf("%d", cfg.Embedding.Dimension)},
+		{Key: "llm_max_tokens", Value: fmt.Sprintf("%d", cfg.LLM.MaxTokens)},
+		{Key: "llm_timeout", Value: cfg.LLM.Timeout.String()},
+	}
+}
+
+// maskEnvKey 脱敏 API key(仅显示前 8 字符)。
+func maskEnvKey(k string) string {
+	if len(k) <= 8 {
+		return "***"
+	}
+	return k[:8] + "..."
+}
+
+// UpdateEnvConfig 更新 .env 中指定 key 的值,返回新 AppConfig(调用方触发热重建)。
+func UpdateEnvConfig(key, value string) (*AppConfig, error) {
+	envFile := findEnvFile()
+	if envFile == "" {
+		return nil, fmt.Errorf(".env 文件未找到")
+	}
+
+	// 读取现有 .env 行,替换或追加目标 key
+	lines, err := readEnvLines(envFile)
+	if err != nil {
+		return nil, fmt.Errorf("读取 .env 失败: %w", err)
+	}
+
+	found := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, key+"=") {
+			lines[i] = key + "=" + value
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(lines, key+"="+value)
+	}
+
+	if err := writeEnvLines(envFile, lines); err != nil {
+		return nil, fmt.Errorf("写入 .env 失败: %w", err)
+	}
+
+	// 重新加载配置
+	return Load("")
+}
+
+// findEnvFile 查找 .env 文件路径(优先 ../.env)。
+func findEnvFile() string {
+	candidates := []string{"../.env", ".env", "../../.env"}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+// readEnvLines 读取 .env 文件所有行。
+func readEnvLines(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(string(data), "\n"), nil
+}
+
+// writeEnvLines 原子写入 .env 文件。
+func writeEnvLines(path string, lines []string) error {
+	content := strings.Join(lines, "\n")
+	return os.WriteFile(path, []byte(content), 0644)
 }
 
 // resolveDataPaths 从 data_root 派生 storage/memory 路径。

@@ -49,8 +49,7 @@ INSERT INTO menus (id, name, path, icon, parent_id, sort_order, type) VALUES
 (4, '用户管理',   '/admin/users',         'user',       0, 4, 'menu'),
 (5, '角色管理',   '/admin/roles',         'shield',     0, 5, 'menu'),
 (6, '审计日志',   '/admin/audit-logs',    'file-text',  0, 6, 'menu'),
-(7, '模型配置',   '/admin/config/llm',    'cpu',        0, 7, 'menu'),
-(8, '系统配置',   '/admin/config/system', 'settings',   0, 8, 'menu');
+(7, '系统配置',   '/admin/config/system', 'settings',   0, 7, 'menu');
 
 SELECT setval('menus_id_seq', (SELECT MAX(id) FROM menus));
 

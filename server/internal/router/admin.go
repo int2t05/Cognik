@@ -75,6 +75,8 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 
 	// 系统配置
 	rg.GET("/configs/llm-info", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.GetLLMInfo }))
+	rg.GET("/configs/env", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.GetEnvConfigs }))
+	rg.PUT("/configs/env", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.UpdateEnvConfig }))
 	rg.GET("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Get }))
 	rg.PUT("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Update }))
 

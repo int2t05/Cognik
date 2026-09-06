@@ -521,7 +521,7 @@ func wireApp() (*app, error) {
 			EmbeddingBaseURL: embedBaseURL,
 			EmbeddingModel:  cfg.Embedding.Model,
 			EmbeddingDimension: cfg.Embedding.Dimension,
-		}),
+		}, cfg),
 	}
 
 	// 7. 调度器

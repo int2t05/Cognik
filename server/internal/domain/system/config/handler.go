@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strconv"
 
+	"cognik/internal/infra/config"
 	"cognik/internal/shared/dto/request"
 	"cognik/internal/shared/pkg/errcode"
 	resp "cognik/internal/shared/pkg/response"
@@ -61,11 +62,12 @@ type LLMInfo struct {
 type ConfigHandler struct {
 	svc     *ConfigService
 	llmInfo LLMInfo
+	cfg     *config.AppConfig
 }
 
 // NewConfigHandler 创建 ConfigHandler 实例。
-func NewConfigHandler(svc *ConfigService, llmInfo LLMInfo) *ConfigHandler {
-	return &ConfigHandler{svc: svc, llmInfo: llmInfo}
+func NewConfigHandler(svc *ConfigService, llmInfo LLMInfo, cfg *config.AppConfig) *ConfigHandler {
+	return &ConfigHandler{svc: svc, llmInfo: llmInfo, cfg: cfg}
 }
 
 // GetPublic 获取公开配置值（无需认证）。
@@ -174,4 +176,41 @@ func (h *ConfigHandler) ComputeThresholds(c *gin.Context) {
 // GET /api/v1/admin/configs/llm-info
 func (h *ConfigHandler) GetLLMInfo(c *gin.Context) {
 	resp.Success(c, h.llmInfo)
+}
+
+// GetEnvConfigs 返回 .env 派生的全部配置项(LLM/Embedding/API key 脱敏)。
+//
+// GET /api/v1/admin/configs/env
+func (h *ConfigHandler) GetEnvConfigs(c *gin.Context) {
+	resp.Success(c, config.GetEnvConfigs(h.cfg))
+}
+
+// UpdateEnvConfig 更新 .env 配置项并触发热重建。
+// body: {"key": "llm_model", "value": "qwen3-4b"}
+//
+// PUT /api/v1/admin/configs/env
+func (h *ConfigHandler) UpdateEnvConfig(c *gin.Context) {
+	var body struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		resp.Error(c, errcode.ErrParam, "参数校验失败: "+err.Error())
+		return
+	}
+	newCfg, err := config.UpdateEnvConfig(body.Key, body.Value)
+	if err != nil {
+		resp.Error(c, errcode.ErrUnknown, "更新 .env 失败: "+err.Error())
+		return
+	}
+	// 更新 handler 的 cfg 快照(供 GetEnvConfigs/GetLLMInfo)
+	h.cfg = newCfg
+	h.llmInfo = LLMInfo{
+		LLMBaseURL:       newCfg.LLM.BaseURL,
+		LLMModel:        newCfg.LLM.Model,
+		EmbeddingBaseURL: newCfg.Embedding.BaseURL,
+		EmbeddingModel:  newCfg.Embedding.Model,
+		EmbeddingDimension: newCfg.Embedding.Dimension,
+	}
+	resp.Success(c, nil)
 }

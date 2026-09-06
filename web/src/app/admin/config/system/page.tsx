@@ -21,11 +21,6 @@ const CONFIG_KEYS = [
   'ai.confidence_threshold_low',
   'ai.confidence_threshold_high',
   'ai.max_history_messages',
-  'ai.rag_query_rewrite',
-  'ai.rag_multi_route',
-  'ai.rag_hybrid',
-  'ai.rag_rerank',
-  'ai.enable_thinking',
 ];
 
 type ConfigRowProps = { label: string; configKey: string; value: unknown; type?: 'text' | 'bool'; onSaved: () => void };
@@ -175,13 +170,6 @@ export default function SystemConfigPage() {
           <ConfigRow label={t('config.thresholdHigh')} configKey="ai.confidence_threshold_high" value={v('ai.confidence_threshold_high')} onSaved={mutate} />
           <ComputeThresholdsRow onApplied={mutate} />
           <ConfigRow label={t('config.maxHistory')} configKey="ai.max_history_messages" value={v('ai.max_history_messages')} onSaved={mutate} />
-          <ConfigRow label={t('config.queryRewrite')} configKey="ai.rag_query_rewrite" value={v('ai.rag_query_rewrite')} type="bool" onSaved={mutate} />
-          <ConfigRow label={t('config.multiRoute')} configKey="ai.rag_multi_route" value={v('ai.rag_multi_route')} type="bool" onSaved={mutate} />
-          <ConfigRow label={t('config.hybrid')} configKey="ai.rag_hybrid" value={v('ai.rag_hybrid')} type="bool" onSaved={mutate} />
-          <ConfigRow label={t('config.rerank')} configKey="ai.rag_rerank" value={v('ai.rag_rerank')} type="bool" onSaved={mutate} />
-
-          <h2 className="text-title font-semibold text-[var(--color-ink)] mt-6 mb-4">{t('config.sectionModel')}</h2>
-          <ConfigRow label={t('config.thinking')} configKey="ai.enable_thinking" value={v('ai.enable_thinking')} type="bool" onSaved={mutate} />
         </Card>
       )}
     </div>

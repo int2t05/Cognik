@@ -24,8 +24,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 const FRONTEND_ROUTES: Record<string, string> = {
   '/admin/audit-logs': '/admin/audit',
-  '/admin/model-config': '/admin/config/llm',
-  '/admin/llm-config': '/admin/config/llm',
   '/admin/system-config': '/admin/config/system',
 };
 
