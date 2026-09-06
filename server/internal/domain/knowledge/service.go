@@ -16,6 +16,7 @@ import (
 
 	"cognik/internal/domain/system/audit"
 	"cognik/internal/infra/adapter"
+	"cognik/internal/infra/runtime"
 	"cognik/internal/infra/storage"
 	"cognik/internal/parser"
 	"cognik/internal/rag"
@@ -49,6 +50,9 @@ const (
 	imageDir = "image"
 	// maxUploadFileCount 单次上传文件数上限，handler 校验与 GetUploadConfig 返回共用。
 	maxUploadFileCount = 10
+	// stuckProcessingThreshold 处理中文章停滞恢复阈值。defaultTaskTimeout=5min，2x 余量。
+	// worker 崩溃/重启后，processing/parsing 等中间态文章超过此阈值由 scanner 重新拾取。
+	stuckProcessingThreshold = 10 * time.Minute
 )
 
 // articleFile 返回文章 markdown 在存储中的相对路径（kb-{kbID}/{draft|published}/{slug}.md）。
@@ -91,9 +95,10 @@ type knowledgeRepo interface {
 	UpdateArticleMinioPath(ctx context.Context, id int64, path string) error
 	UpdateArticleStatusCAS(ctx context.Context, id int64, expectedOld, newStatus int) (int64, error)
 	UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error
+	UpdateArticleProcessStatusCAS(ctx context.Context, id int64, fromStatus, toStatus, processError string) (int64, error)
 	ScheduleArticleRetry(ctx context.Context, id int64, errMsg string, nextRetryAt time.Time) error
 	MarkArticleFailedTerminal(ctx context.Context, id int64, errMsg string) error
-	ListArticlesForRetry(ctx context.Context, limit int) ([]model.KnowledgeArticle, error)
+	ListArticlesForRetry(ctx context.Context, limit int, stuckBefore time.Time) ([]model.KnowledgeArticle, error)
 	UpdateArticleMetrics(ctx context.Context, id int64, wordCount, chunkCount int) error
 	CreateKB(ctx context.Context, kb *model.KnowledgeBase) error
 	UpdateKB(ctx context.Context, kb *model.KnowledgeBase) error
@@ -144,6 +149,7 @@ type KnowledgeService struct {
 	ticketCreator         ticketCreator    // 上传/补全时提工单（nil-safe，setter 注入）
 	maxRetries           int              // 文档处理最大重试次数（默认 3）
 	retryBaseDelay       time.Duration   // 重试退避基数（默认 30s，实际 30s * 2^count）
+	txManager            runtime.TxManager // 发布终态原子提交（向量+process_status 同一事务）
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -227,6 +233,11 @@ func WithMaxRetries(n int) KnowledgeServiceOption {
 // WithRetryBaseDelay 设置重试退避基数。
 func WithRetryBaseDelay(d time.Duration) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.retryBaseDelay = d }
+}
+
+// WithTxManager 注入事务管理器（发布终态原子提交：向量写入与 process_status 同一事务）。
+func WithTxManager(tm runtime.TxManager) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.txManager = tm }
 }
 
 // SetTicketCreator 注入工单创建器（setter 注入，解决初始化顺序：ticketService 晚于 knowledgeService 创建）。
@@ -587,6 +598,12 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		return err
 	}
 
+	// in-flight 读检查：文章正在处理中时拒绝重复发布（用户主动重发场景足够；
+	// scanner 的 CAS 声明提供原子保证）。
+	if isProcessActive(article.ProcessStatus) {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "文章正在处理中，请稍后重试"}
+	}
+
 	id := article.ID
 	content := article.Content
 	if strings.TrimSpace(content) == "" {
@@ -683,6 +700,7 @@ func (s *KnowledgeService) republishFromApproved(ctx context.Context, article *m
 		OnMetrics: func(aID int64, wordCount, chunkCount int) {
 			s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
 		},
+		Finalize: s.finalizeArticleVectors,
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -1088,8 +1106,13 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "文档处理器未初始化"}
 	}
 
-	if err := s.repo.UpdateArticleProcessStatus(ctx, articleID, "pending", ""); err != nil {
-		slog.Warn("重置处理状态失败，不阻断主流程", "article_id", articleID, "error", err)
+	// CAS 声明归属：failed→pending，仅首个声明者通过（并发手动重试时另一者获 rows==0）。
+	rows, err := s.repo.UpdateArticleProcessStatusCAS(ctx, articleID, "failed", "pending", "")
+	if err != nil {
+		slog.Warn("声明文章处理归属失败，不阻断主流程", "article_id", articleID, "error", err)
+	}
+	if rows == 0 {
+		return errcode.AppError{Code: errcode.ErrParam, Message: "文章状态已变更，请刷新后重试"}
 	}
 	task := rag.ProcessTask{
 		ArticleID:      articleID,
@@ -1102,6 +1125,7 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 		OnMetrics: func(aID int64, wordCount, chunkCount int) {
 			s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
 		},
+		Finalize: s.finalizeArticleVectors,
 	}
 	if err := s.processor.Submit(task); err != nil {
 		return errcode.AppError{Code: errcode.ErrUnknown, Message: "提交处理任务失败: " + err.Error()}
@@ -1177,17 +1201,23 @@ func (s *KnowledgeService) StartRetryScanner(ctx context.Context, interval time.
 	}
 }
 
-// scanAndRetry 拾取到期失败文章并重新提交。
+// scanAndRetry 拾取到期失败文章 + 停滞处理中文章并重新提交。
 func (s *KnowledgeService) scanAndRetry(ctx context.Context) {
-	articles, err := s.repo.ListArticlesForRetry(ctx, 10)
+	articles, err := s.repo.ListArticlesForRetry(ctx, 10, time.Now().Add(-stuckProcessingThreshold))
 	if err != nil {
 		slog.Warn("查询待重试文章失败", "error", err)
 		return
 	}
 	for _, article := range articles {
-		if err := s.repo.UpdateArticleProcessStatus(ctx, article.ID, "processing", ""); err != nil {
-			slog.Warn("重置文章处理状态失败", "article_id", article.ID, "error", err)
+		// CAS 声明归属：仅首个声明者通过（failed→processing 或 stuck→processing），
+		// 其余跳过，避免并发双写导致"索引已写但状态被另一任务覆盖为 failed"。
+		rows, err := s.repo.UpdateArticleProcessStatusCAS(ctx, article.ID, article.ProcessStatus, "processing", "")
+		if err != nil {
+			slog.Warn("声明文章处理归属失败", "article_id", article.ID, "error", err)
 			continue
+		}
+		if rows == 0 {
+			continue // 另一 worker 已声明，跳过
 		}
 		task := rag.ProcessTask{
 			ArticleID:      article.ID,
@@ -1200,6 +1230,7 @@ func (s *KnowledgeService) scanAndRetry(ctx context.Context) {
 			OnMetrics: func(aID int64, wordCount, chunkCount int) {
 				s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
 			},
+			Finalize: s.finalizeArticleVectors,
 		}
 		if err := s.processor.Submit(task); err != nil {
 			slog.Warn("重试提交处理任务失败", "article_id", article.ID, "error", err)
@@ -1213,6 +1244,33 @@ func (s *KnowledgeService) onProcessMetrics(ctx context.Context, aID int64, word
 	if err := s.repo.UpdateArticleMetrics(ctx, aID, wordCount, chunkCount); err != nil {
 		slog.Warn("更新文档指标失败", "article_id", aID, "error", err)
 	}
+}
+
+// finalizeArticleVectors 在单一 GORM 事务内原子提交向量写入 + process_status='completed'。
+// 替换 processor 的无事务提交路径，关闭"索引已写但状态未提交"的不一致窗口。
+// txManager 未注入时退化为独立提交路径（向量与状态分开提交，仅 benchmark 等无事务场景）。
+func (s *KnowledgeService) finalizeArticleVectors(ctx context.Context, articleID int64, chunks []adapter.VectorChunk) error {
+	if s.txManager == nil {
+		// 兜底：无事务管理器时独立提交向量（与无事务路径行为一致）。
+		return s.store.ReplaceVectors(ctx, articleID, chunks)
+	}
+	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		if err := s.store.ReplaceVectorsWithTx(ctx, tx, articleID, chunks); err != nil {
+			return err
+		}
+		// tx 绑定 repo（同 ticket service 模式），与向量写入同一事务提交。
+		txRepo := NewKnowledgeRepo(tx)
+		return txRepo.CompleteArticleProcessing(ctx, articleID)
+	})
+}
+
+// isProcessActive 判断文章是否处于异步处理中的中间态（禁止重复发布）。
+func isProcessActive(processStatus string) bool {
+	switch processStatus {
+	case "pending", "parsing", "chunking", "embedding", "indexing", "processing":
+		return true
+	}
+	return false
 }
 
 // resolveUserNames 批量解析用户名（去重后一次查询，避免 N+1）。

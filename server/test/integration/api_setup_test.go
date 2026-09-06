@@ -435,7 +435,7 @@ func cleanTables(t *testing.T, db *gorm.DB) {
 		"knowledge_chunks", "knowledge_articles", "knowledge_bases",
 		"ticket_records", "tickets", "chat_messages", "chat_sessions",
 		"messages", "audit_logs", "user_roles", "role_menus",
-		"users", "roles", "menus", "llm_configs", "system_configs",
+		"users", "roles", "menus",
 	} {
 		db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", tbl))
 	}

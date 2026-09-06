@@ -91,7 +91,6 @@ Authorization: Bearer <token>
             "description": "技术标准操作流程",
             "embedding_model": "Qwen3-Embedding-0.6B",
             "vector_dimension": 1536,
-            "llm_config_id": 1,
             "article_count": 120,
             "created_by": 1,
             "created_at": "2026-06-11 19:27:43",
@@ -108,7 +107,6 @@ Authorization: Bearer <token>
 | description      | string | 描述                      |
 | embedding_model  | string | 使用的 embedding 模型名称 |
 | vector_dimension | int    | 向量维度                  |
-| llm_config_id    | int64  | 关联的 LLM 配置 ID        |
 | article_count    | int    | 文章数量                  |
 | created_by       | int64  | 创建者用户 ID              |
 | created_at       | string | 创建时间（`YYYY-MM-DD HH:MM:SS` 格式） |
@@ -128,8 +126,7 @@ Authorization: Bearer <token>
     "name": "网络知识 FAQ",
     "description": "网络相关的技术知识",
     "embedding_model": "Qwen3-Embedding-0.6B",
-    "vector_dimension": 1536,
-    "llm_config_id": 1
+    "vector_dimension": 1536
 }
 ```
 
@@ -137,9 +134,8 @@ Authorization: Bearer <token>
 | ---------------- | ------ | ---- | ---------------------------------------- |
 | name             | string | ✓    | 知识库名称                               |
 | description      | string |      | 描述                                     |
-| embedding_model  | string | ✓    | embedding 模型名称（与 llm_config 一致） |
-| vector_dimension | int    | ✓    | 向量维度（与 llm_config 一致）           |
-| llm_config_id    | int64  |      | LLM 配置 ID（默认使用系统默认配置）      |
+| embedding_model  | string | ✓    | embedding 模型名称 |
+| vector_dimension | int    | ✓    | 向量维度           |
 
 > 知识库创建仅写入 PostgreSQL 记录，向量存储通过 pgvector 表 `knowledge_chunks` 管理。
 

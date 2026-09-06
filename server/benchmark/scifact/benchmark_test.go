@@ -75,7 +75,7 @@ func TestBenchmarkRAG_SciFact(t *testing.T) {
 	db.Exec("DELETE FROM knowledge_articles")
 	db.Exec("DELETE FROM knowledge_bases")
 
-	// ── Phase 4: 创建 KB + 文章 + 向量化 ──
+	// ── Phase 4: 创建 KB + 文章 ──
 	kb := model.KnowledgeBase{
 		Name:            "SciFact-Full",
 		EmbeddingModel:  embModel,
@@ -118,7 +118,7 @@ func TestBenchmarkRAG_SciFact(t *testing.T) {
 		t.Fatalf("创建 VectorStore 失败: %v", err)
 	}
 
-	t.Logf("向量化 %d 篇文档(串行,避免 API 限流,约 5-10 分钟)...", len(docs))
+	t.Logf("向量化 %d 篇文档(串行,避免 API 限流,约 15-20 分钟)...", len(docs))
 	embClient := adapter.NewOpenAIEmbeddingClient(embBase, embKey, embModel, 120*time.Second)
 	embedder := rag.NewEmbedder(embClient, 20)
 	chunker := rag.NewChunker(2000, 0)
@@ -155,7 +155,7 @@ func TestBenchmarkRAG_SciFact(t *testing.T) {
 	}
 	t.Logf("向量化完成(成功 %d, 失败 %d)", success, fail)
 
-	// ── Phase 5: BM25 索引 ──
+	// ── Phase 6: BM25 索引 ──
 	repo := knowledge.NewKnowledgeRepo(db)
 	segmenter := rag.NewGseSegmenter()
 	bm25 := rag.NewBM25Retriever(segmenter, 30*time.Minute)
@@ -164,7 +164,7 @@ func TestBenchmarkRAG_SciFact(t *testing.T) {
 
 	vectorRetriever := rag.NewVectorRetriever(embedder, store)
 
-	// ── Phase 6: 检索 + 指标 ──
+	// ── Phase 7: 检索 + 指标 ──
 	stages := map[string]stageMetrics{"vector": {}, "bm25": {}, "hybrid": {}}
 
 	for qi, q := range queries {
@@ -203,7 +203,7 @@ func TestBenchmarkRAG_SciFact(t *testing.T) {
 		}
 	}
 
-	// ── Phase 7: 汇总报告(同时输出 md 文件) ──
+	// ── Phase 8: 汇总报告(同时输出 md 文件) ──
 	evalCount := 0
 	for _, q := range queries {
 		if len(qrels[q.ID]) > 0 {
@@ -276,13 +276,3 @@ func accStage(s *stageMetrics, retrieved []int64, relevant map[int64]bool) {
 type stageMetrics struct {
 	rec5, rec10, mrr, ndcg float64
 }
-
-// maskKey 脱敏 API key(仅显示前 8 位)。
-func maskKey(k string) string {
-	if len(k) <= 8 {
-		return "***"
-	}
-	return k[:8] + "..."
-}
-
-var _ = fmt.Sprintf

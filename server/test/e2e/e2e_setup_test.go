@@ -166,10 +166,6 @@ func serverEnv(port string) []string {
 		"COGNIK_MINIO_SECRET_KEY=minioadmin",
 		"COGNIK_MINIO_USE_SSL=false",
 		"COGNIK_CORS_ALLOW_ORIGINS=http://localhost:5173",
-		"COGNIK_AI_RAG_QUERY_REWRITE=false",
-		"COGNIK_AI_RAG_MULTI_ROUTE=false",
-		"COGNIK_AI_RAG_HYBRID=false",
-		"COGNIK_AI_RAG_RERANK=false",
 		"COGNIK_RERANK_ENABLED=false",
 		// AutoMigrate 开启——自动建表
 	)

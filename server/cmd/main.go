@@ -20,6 +20,7 @@ import (
 	"cognik/internal/domain/chat/session"
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
+	sysconfig "cognik/internal/domain/system/config"
 	"cognik/internal/domain/system/dashboard"
 	"cognik/internal/domain/system/message"
 	"cognik/internal/domain/ticket"
@@ -285,8 +286,9 @@ func wireApp() (*app, error) {
 		knowledge.WithMessageNotifier(messageService),
 		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),
 		knowledge.WithEmbeddingDimension(cfg.Embedding.Dimension),
-		knowledge.WithMaxRetries(envInt("COGNOS_AI_MAX_RETRIES", 3)),
-		knowledge.WithRetryBaseDelay(envDuration("COGNOS_AI_RETRY_BASE_DELAY", 30*time.Second)),
+		knowledge.WithMaxRetries(envInt("COGNIK_AI_MAX_RETRIES", 3)),
+		knowledge.WithRetryBaseDelay(envDuration("COGNIK_AI_RETRY_BASE_DELAY", 30*time.Second)),
+		knowledge.WithTxManager(txManager),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
@@ -485,6 +487,26 @@ func wireApp() (*app, error) {
 	go imageCleaner.StartPeriodicCleanup(context.Background(), 24*time.Hour)
 	slog.Info("孤儿图片清理已启动", "interval", "24h", "dir", imageDir)
 
+	// ConfigReloader：.env 变更后热重建 LLM/Embedding 客户端（原子替换，零锁读）。
+	// LLM 走 ChatModelFactory.BuildFromEnv（atomic.Store）；Embedding 走 embedder.SetClient（atomic.Pointer）。
+	reloadClients := func(newCfg *config.AppConfig) {
+		agentModelFactory.BuildFromEnv(newCfg.LLM.BaseURL, newCfg.LLM.APIKey, newCfg.LLM.Model)
+		eb := newCfg.Embedding.BaseURL
+		if eb == "" {
+			eb = newCfg.LLM.BaseURL
+		}
+		ek := newCfg.Embedding.APIKey
+		if ek == "" {
+			ek = newCfg.LLM.APIKey
+		}
+		et := newCfg.Embedding.Timeout
+		if et <= 0 {
+			et = 30 * time.Second
+		}
+		embedder.SetClient(adapter.NewOpenAIEmbeddingClient(eb, ek, newCfg.Embedding.Model, et))
+		slog.Info("配置热重建完成", "llm_model", newCfg.LLM.Model, "embedding_model", newCfg.Embedding.Model)
+	}
+
 	// 6. Handler 层
 	handlers := &router.Handlers{
 		Auth:      auth.NewAuthHandler(a.authService),
@@ -496,6 +518,13 @@ func wireApp() (*app, error) {
 		Message:   message.NewMessageHandler(messageService),
 		Dashboard: dashboard.NewDashboardHandler(dashboardService),
 		Audit:     audit.NewAuditHandler(auditService),
+		Config:    sysconfig.NewConfigHandler(cfg, sysconfig.LLMInfo{
+			LLMBaseURL:         cfg.LLM.BaseURL,
+			LLMModel:          cfg.LLM.Model,
+			EmbeddingBaseURL:   embedBaseURL,
+			EmbeddingModel:    cfg.Embedding.Model,
+			EmbeddingDimension: cfg.Embedding.Dimension,
+		}, reloadClients),
 	}
 
 	// 7. 调度器

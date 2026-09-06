@@ -38,7 +38,7 @@ flowchart TD
     R --> Public["/api/v1/auth — 无中间件<br/>POST login / POST refresh"]
     R --> AuthMe["/api/v1/auth/me — JWTAuth<br/>change-password / logout"]
     R --> Portal["/api/v1/portal — JWTAuth<br/>threads / tickets / messages"]
-    R --> Admin["/api/v1/admin — JWTAuth + RBAC<br/>tickets / knowledge-bases / users / roles<br/>llm-configs / dashboard / audit-logs"]
+    R --> Admin["/api/v1/admin — JWTAuth + RBAC<br/>tickets / knowledge-bases / users / roles<br/>configs / dashboard / audit-logs"]
 
     style Public fill:#22c55e15,stroke:#22c55e
     style AuthMe fill:#f59e0b15,stroke:#f59e0b
@@ -81,5 +81,4 @@ flowchart TD
 
 | 文档 | 核心调用链 |
 |------|-----------|
-| [admin-ops-flow.md](system/admin-ops-flow.md) | Dashboard 统计 → 趋势分析 → 审计日志 → 系统配置 |
-| [llm-config-hot-reload-flow.md](system/llm-config-hot-reload-flow.md) | CRUD → atomic.Value 热替换 → 连接测试 |
+| [admin-ops-flow.md](system/admin-ops-flow.md) | Dashboard 统计 → 趋势分析 → 审计日志 → 系统配置（.env 热加载） |

@@ -59,17 +59,3 @@ func NDCGAtK(retrieved []int64, relevant map[int64]bool, k int) float64 {
 	}
 	return dcg / idcg
 }
-
-// ResultArticleIDs 从 ArticleID 列表提取去重后的 ID(保留首次出现的排名)。
-// 调用方先从 RetrievalResult 列表提取 ArticleID 再传入。
-func ResultArticleIDs(articleIDs []int64) []int64 {
-	ids := make([]int64, 0, len(articleIDs))
-	seen := make(map[int64]bool)
-	for _, id := range articleIDs {
-		if !seen[id] {
-			ids = append(ids, id)
-			seen[id] = true
-		}
-	}
-	return ids
-}

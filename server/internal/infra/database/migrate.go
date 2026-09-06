@@ -75,7 +75,7 @@ func AutoMigrate(db *gorm.DB, dim int) error {
 	return nil
 }
 
-// AutoSeed 加载种子数据（角色/用户/菜单/LLM 配置）。
+// AutoSeed 加载种子数据（角色/用户/菜单）。LLM/系统配置从 .env 读取，不入库。
 // 通过检查 roles 表判断是否已加载，避免重复执行。
 func AutoSeed(db *gorm.DB) error {
 	var count int64

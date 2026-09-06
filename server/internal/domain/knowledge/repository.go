@@ -188,6 +188,31 @@ func (r *KnowledgeRepo) UpdateArticleProcessStatus(ctx context.Context, id int64
 	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(updates).Error
 }
 
+// UpdateArticleProcessStatusCAS 原子声明任务归属（CAS from→to），成功时清 next_retry_at。
+// 用于重试扫描器/手动重试：仅首个声明者通过（rowsAffected==1），其余跳过，避免并发双写。
+func (r *KnowledgeRepo) UpdateArticleProcessStatusCAS(ctx context.Context, id int64, fromStatus, toStatus, processError string) (int64, error) {
+	updates := map[string]interface{}{
+		"process_status": toStatus,
+		"next_retry_at":  nil,
+	}
+	if processError != "" {
+		updates["process_error"] = processError
+	}
+	res := r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).
+		Where("id = ? AND process_status = ?", id, fromStatus).Updates(updates)
+	return res.RowsAffected, res.Error
+}
+
+// CompleteArticleProcessing 置 process_status='completed' 并清 process_error/next_retry_at。
+// 在 GORM 事务内与 ReplaceVectorsWithTx 同提交，保证向量与终态原子一致。
+func (r *KnowledgeRepo) CompleteArticleProcessing(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"process_status": "completed",
+		"process_error":  "",
+		"next_retry_at":  nil,
+	}).Error
+}
+
 // ScheduleArticleRetry 递增重试计数,保持 failed 状态,设下次重试时间。
 func (r *KnowledgeRepo) ScheduleArticleRetry(ctx context.Context, id int64, errMsg string, nextRetryAt time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
@@ -207,12 +232,15 @@ func (r *KnowledgeRepo) MarkArticleFailedTerminal(ctx context.Context, id int64,
 	}).Error
 }
 
-// ListArticlesForRetry 返回到期需重试的失败文章。
-func (r *KnowledgeRepo) ListArticlesForRetry(ctx context.Context, limit int) ([]model.KnowledgeArticle, error) {
+// ListArticlesForRetry 返回需重试的文章：到期失败文章 + 停滞超过阈值的处理中文章（worker 崩溃/重启恢复）。
+// stuckBefore 为阈值截止时刻（NOW - stuckThreshold），由调用方计算后传入，避免 PG timestamp-interval 参数类型问题。
+func (r *KnowledgeRepo) ListArticlesForRetry(ctx context.Context, limit int, stuckBefore time.Time) ([]model.KnowledgeArticle, error) {
 	var articles []model.KnowledgeArticle
 	err := r.db.WithContext(ctx).Preload("KnowledgeBase").
-		Where("process_status = ? AND next_retry_at IS NOT NULL AND next_retry_at <= NOW()", "failed").
-		Order("next_retry_at ASC").
+		Where(`(process_status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= NOW())
+			OR (process_status IN ('processing','parsing','chunking','embedding','indexing')
+				AND updated_at < ?)`, stuckBefore).
+		Order("updated_at ASC").
 		Limit(limit).
 		Find(&articles).Error
 	return articles, err

@@ -38,6 +38,10 @@ type ProcessTask struct {
 	EmbeddingModel string                                           `json:"embedding_model"` // KB 绑定模型，空则回退全局默认
 	OnStatusChange func(articleID int64, status, errMsg string)     `json:"-"`
 	OnMetrics      func(articleID int64, wordCount, chunkCount int) `json:"-"`
+	// Finalize 原子提交向量+终态（事务内）。非 nil 时替换默认 ReplaceVectors，
+	// 保证向量写入与 process_status='completed' 同一事务（避免孤儿向量 + 状态不一致）。
+	// 为 nil 时走无事务路径：ReplaceVectors+completed 独立提交（benchmark 等无事务场景）。
+	Finalize func(ctx context.Context, articleID int64, chunks []adapter.VectorChunk) error `json:"-"`
 }
 
 // =============================================================================
@@ -325,11 +329,31 @@ func (p *Processor) processTask(ctx context.Context, task ProcessTask) {
 			VectorDimension: len(emb), ChunkHash: ch.hash,
 		}
 	}
-	if err := p.store.ReplaceVectors(ctx, articleID, vc); err != nil {
-		p.updateStatus(task, "failed", fmt.Sprintf("写入向量失败: %v", err))
-		return
+	if task.Finalize != nil {
+		// 原子提交：向量写入 + process_status='completed' 在调用方事务内一起提交或回滚。
+		if err := task.Finalize(ctx, articleID, vc); err != nil {
+			p.updateStatus(task, "failed", fmt.Sprintf("写入向量失败: %v", err))
+			return
+		}
+		// post-commit 副作用（MinIO 文件移动/BM25 重建）非 DB 操作，不参与事务。
+		// 向量+终态已 durable，此处 panic 不得改写为 failed——内层 recover 吞掉仅记日志。
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("post-commit 副作用 panic（终态已提交，保持 completed）",
+						"article_id", articleID, "panic", r)
+				}
+			}()
+			p.updateStatus(task, "completed", "")
+		}()
+	} else {
+		// 无事务路径：向量与状态独立提交（benchmark 等无事务场景）。
+		if err := p.store.ReplaceVectors(ctx, articleID, vc); err != nil {
+			p.updateStatus(task, "failed", fmt.Sprintf("写入向量失败: %v", err))
+			return
+		}
+		p.updateStatus(task, "completed", "")
 	}
-	p.updateStatus(task, "completed", "")
 }
 
 // updateStatus 更新处理状态（通过回调）。

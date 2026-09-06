@@ -87,7 +87,7 @@ function useIsClient(): boolean {
 export function AppShell({ nav, crossLink, hideSidebar = false, subbar, padded = true, children }: AppShellProps) {
   const t = useTranslations();
   const { theme, toggleTheme } = useTheme();
-  const { value: appName } = useConfigValue('app_name');
+  const { value: appName } = useConfigValue('COGNIK_APP_NAME');
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useSidebarCollapsed();

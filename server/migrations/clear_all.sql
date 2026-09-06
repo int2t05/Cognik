@@ -21,13 +21,11 @@ DELETE FROM tickets;
 DELETE FROM knowledge_chunks;
 DELETE FROM knowledge_articles;
 DELETE FROM knowledge_bases;
-DELETE FROM llm_configs;
 DELETE FROM role_menus;
 DELETE FROM user_roles;
 DELETE FROM menus;
 DELETE FROM users;
 DELETE FROM roles;
-DELETE FROM system_configs;
 
 -- 重置所有自增序列（使下次 INSERT 从 1 开始）
 -- 动态收集并重置：遍历所有序列，统一重置到 1

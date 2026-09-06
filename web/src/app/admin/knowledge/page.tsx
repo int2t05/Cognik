@@ -113,9 +113,9 @@ export default function KnowledgeListPage() {
           </DialogHeader>
           <Field label={t('kb.fieldName')} required><Input value={kbName} onChange={(e) => setKbName(e.target.value)} /></Field>
           <Field label={t('kb.fieldDesc')}><Input value={kbDesc} onChange={(e) => setKbDesc(e.target.value)} /></Field>
-          <Field label={t('config.fieldEmbeddingModel')}>
+          <Field label={t('config.field.embedding_model')}>
             <Select value={kbEmbeddingModel} onValueChange={setKbEmbeddingModel}>
-              <SelectTrigger aria-label={t('config.fieldEmbeddingModel')} className="w-full h-9 rounded-[var(--radius-pill)]">
+              <SelectTrigger aria-label={t('config.field.embedding_model')} className="w-full h-9 rounded-[var(--radius-pill)]">
                 <SelectValue placeholder={t('kb.defaultEmbedding')} />
               </SelectTrigger>
               <SelectContent>

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cognik/internal/infra/adapter"
@@ -80,9 +81,11 @@ func (c *queryEmbedCache) put(key string, vec []float32, dim int) {
 }
 
 // Embedder 批量文本向量化器，封装 EmbeddingClient 的自动分批与部分失败处理。
+// client 用 atomic.Pointer 持有，支持 SetClient 热替换（配置变更时由 ConfigReloader 调用），
+// 与并发读 Embed/embedBatch 无数据竞争。
 type Embedder struct {
-	client    adapter.EmbeddingClient
-	batchSize int
+	client     atomic.Pointer[adapter.EmbeddingClient]
+	batchSize  int
 	queryCache *queryEmbedCache // 查询侧缓存（nil 时禁用）
 }
 
@@ -92,10 +95,9 @@ func NewEmbedder(client adapter.EmbeddingClient, batchSize int) *Embedder {
 	if batchSize <= 0 {
 		batchSize = 20
 	}
-	return &Embedder{
-		client:    client,
-		batchSize: batchSize,
-	}
+	e := &Embedder{batchSize: batchSize}
+	e.SetClient(client)
+	return e
 }
 
 // SetQueryCache 启用查询侧 embedding 缓存（仅单文本路径生效，批量旁路）。
@@ -103,9 +105,19 @@ func (e *Embedder) SetQueryCache(ttl time.Duration, max int) {
 	e.queryCache = newQueryEmbedCache(ttl, max)
 }
 
-// SetClient 替换内部 Embedding 客户端（默认配置变更时由回调调用）。
+// SetClient 原子替换内部 Embedding 客户端（配置变更时由 ConfigReloader 调用）。
+// client 为 nil 时清空（后续 Embed 调用返回未初始化错误）。
 func (e *Embedder) SetClient(client adapter.EmbeddingClient) {
-	e.client = client
+	e.client.Store(&client)
+}
+
+// loadClient 零锁返回当前客户端指针，未初始化返回 nil。
+func (e *Embedder) loadClient() adapter.EmbeddingClient {
+	p := e.client.Load()
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 // embedSingle 向量化单文本（查询路径），命中缓存则直接返回。
@@ -131,7 +143,7 @@ func (e *Embedder) Embed(ctx context.Context, texts []string, model string) ([][
 	if len(texts) == 0 {
 		return nil, 0, nil
 	}
-	if e.client == nil {
+	if e.loadClient() == nil {
 		return nil, 0, fmt.Errorf("embedder 未初始化: EmbeddingClient 为 nil")
 	}
 	// 单文本走缓存路径
@@ -143,7 +155,8 @@ func (e *Embedder) Embed(ctx context.Context, texts []string, model string) ([][
 
 // embedBatch 批量向量化（自动分页 + 维度校验），不经缓存。
 func (e *Embedder) embedBatch(ctx context.Context, texts []string, model string) ([][]float32, int, error) {
-	if e.client == nil {
+	client := e.loadClient()
+	if client == nil {
 		return nil, 0, fmt.Errorf("embedder 未初始化: EmbeddingClient 为 nil")
 	}
 
@@ -160,7 +173,7 @@ func (e *Embedder) embedBatch(ctx context.Context, texts []string, model string)
 		batch := texts[i:end]
 		batchIdx := i / e.batchSize
 
-		resp, err := e.client.CreateEmbeddings(ctx, adapter.EmbeddingRequest{
+		resp, err := client.CreateEmbeddings(ctx, adapter.EmbeddingRequest{
 			Model: model,
 			Input: batch,
 		})

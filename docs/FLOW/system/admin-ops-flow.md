@@ -1,6 +1,6 @@
 # 管理后台数据流 — 每个 API 端点
 
-> 涉及文件: `domain/system/dashboard/handler.go`, `domain/system/audit/handler.go`, `domain/system/config/handler.go`, `domain/system/message/handler.go`, `domain/system/dashboard/service.go`, `domain/system/audit/service.go`, `domain/system/config/service.go`, `domain/system/message/service.go`, `domain/system/audit/repository.go`, `domain/system/config/repository.go`, `domain/system/message/repository.go`, `shared/model/audit.go`, `shared/model/system.go`, `shared/model/message.go`
+> 涉及文件: `domain/system/dashboard/handler.go`, `domain/system/audit/handler.go`, `domain/system/config/handler.go`, `domain/system/message/handler.go`, `domain/system/dashboard/service.go`, `domain/system/audit/service.go`, `domain/system/message/service.go`, `domain/system/audit/repository.go`, `domain/system/message/repository.go`, `shared/model/audit.go`, `shared/model/message.go`, `infra/config/config.go`
 
 ---
 
@@ -62,29 +62,43 @@ AuditHandler.List (domain/system/audit/handler.go:30)
 
 ## 系统配置
 
-### GET /api/v1/admin/configs/:key &emsp; 获取配置 &emsp; [PermSystemConfig]
+> 所有配置从 `.env` 读取，不入库。写入 `.env` 后触发热重建（LLM/Embedding 客户端原子替换）。
+
+### GET /api/v1/admin/configs/llm-info &emsp; LLM/Embedding 信息（只读） &emsp; [PermSystemConfig]
 
 ```
-ConfigHandler.Get (domain/system/config/handler.go:29)
-  → ConfigService.GetConfig (domain/system/config/service.go:55)
-    ├─ validConfigKeys[key] → 白名单校验 (app_name / ai.top_k / ai.confidence_threshold_low / ai.confidence_threshold_high)
-    └─ ConfigRepo.GetByKey (domain/system/config/repository.go:27)
-        → SELECT * FROM system_configs WHERE config_key=?
+ConfigHandler.GetLLMInfo (domain/system/config/handler.go:50)
+  → 返回 h.llmInfo（.env 派生的 baseURL/model/dimension，不含 API key）
 ```
 
-### PUT /api/v1/admin/configs/:key &emsp; 更新配置 &emsp; [PermSystemConfig]
-
-**输入** `{"value":"Cognik 知识管理系统"}`
+### GET /api/v1/admin/configs/env &emsp; 全部配置项（脱敏） &emsp; [PermSystemConfig]
 
 ```
-ConfigHandler.Update (domain/system/config/handler.go:51)
-  → ConfigService.UpdateConfig (domain/system/config/service.go:80)
-    ├─ validConfigKeys[key] → 白名单校验 (app_name: string / ai.top_k: number / ai.confidence_threshold_low: number / ai.confidence_threshold_high: number)
-    ├─ configKeyMeta.ValueType → 值类型校验（string/number）
-    ├─ ConfigRepo.Upsert (domain/system/config/repository.go:37)
-    │   → INSERT INTO system_configs (...) ON CONFLICT(config_key) DO UPDATE ...
-    └─ AuditRepo.Create → "config.update"
+ConfigHandler.GetEnvConfigs (domain/system/config/handler.go:57)
+  → config.GetEnvConfigs(h.cfg) (infra/config/config.go:237)
+    → 返回 18 项 .env 配置，key 即真实环境变量名（COGNIK_*），API key 脱敏前 8 位
 ```
+
+### PUT /api/v1/admin/configs/env &emsp; 更新配置 &emsp; [PermSystemConfig]
+
+**输入** `{"key":"COGNIK_LLM_MODEL","value":"qwen3-4b"}`
+
+```
+ConfigHandler.UpdateEnvConfig (domain/system/config/handler.go:65)
+  → config.UpdateEnvConfig(key, value) (infra/config/config.go:284)
+    ├─ findEnvFile → ../.env
+    ├─ readEnvLines → 替换/追加 key=value
+    └─ Load("") → 重新解析 .env，返回新 AppConfig
+  → h.onReload(newCfg) → 热重建客户端
+    ├─ ChatModelFactory.BuildFromEnv → atomic.Store 新 ChatModel
+    └─ Embedder.SetClient → atomic.Pointer 替换 Embedding 客户端
+```
+
+无需重启即生效；未注入 onReload 时仅更新展示用 cfg（不重建客户端）。
+
+### GET /api/v1/public/configs/:key &emsp; 公开配置（无需认证）
+
+仅 `app_name` 可读，返回裸字符串 `data:"Cognik"`。
 
 ---
 

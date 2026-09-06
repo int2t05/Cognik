@@ -126,6 +126,6 @@ Authorization: Bearer <access_token>
 
 | 文档 | 说明 |
 |------|------|
-| [llm-config.md](system/llm-config.md) | LLM 配置接口（热替换 + 连接测试） |
+| [config.md](system/config.md) | 系统配置接口（.env 读写 + 热重建） |
 | [dashboard.md](system/dashboard.md) | 数据看板接口（统计 + 趋势） |
 | [audit-log.md](system/audit-log.md) | 审计日志 + 系统配置 + 站内消息 |

@@ -114,95 +114,20 @@ Authorization: Bearer <token>
 
 ## 系统配置管理
 
-> 基础路径：`/api/v1/admin/configs` | 认证：JWT + RBAC（权限：`system:config`）
+> 完整接口见 [config.md](config.md)。基础路径：`/api/v1/admin/configs` | 认证：JWT + RBAC（权限：`system:config`）
 
-### 获取配置
+所有配置从 `.env` 读取，不入库（不再有 `system_configs` 表）。管理端点：
 
-```http
-GET /api/v1/admin/configs/:key
-Authorization: Bearer <token>
-```
+- `GET /api/v1/admin/configs/llm-info` — LLM/Embedding 信息（只读，不含 API key）
+- `GET /api/v1/admin/configs/env` — 全部配置项（key 即真实 `.env` 变量名，API key 脱敏）
+- `PUT /api/v1/admin/configs/env` — 更新配置项，写入 `.env` 后触发热重建（LLM/Embedding 客户端原子替换，无需重启）
 
-**URL 参数：**
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| key | string | 是 | 配置键名 |
-
-**响应示例：**
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": "0.6"
-}
-```
-
-> `data` 字段返回配置值的原始 JSON 解析结果（string、number、boolean、object 等类型取决于配置项）。
-
-**可用配置键：**
-
-| key | 类型 | 说明 |
-|-----|------|------|
-| `app_name` | string | 应用名称，显示在页面标题和系统通知中 |
-| `ai.top_k` | number | RAG 默认检索 Top K |
-| `ai.confidence_threshold_low` | number | 低置信阈值 |
-| `ai.confidence_threshold_high` | number | 高置信阈值 |
-
-**错误码：**
-
-| 错误码 | HTTP 状态 | 说明 |
-|--------|-------------|------|
-| 10003 | 400 | 参数校验失败（key 为空） |
-| 10004 | 404 | 配置项不存在 |
-| 99999 | 500 | 服务器内部错误 |
-
-### 更新配置
-
-```http
-PUT /api/v1/admin/configs/:key
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**URL 参数：**
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| key | string | 是 | 配置键名 |
-
-**请求体：**
+**请求体（PUT）：**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| value | any | 是 | 配置值（会被序列化为 JSONB 存储；不能为 null） |
-
-**请求示例：**
-
-```json
-{
-  "value": "Cognik"
-}
-```
-
-**响应示例：**
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": null
-}
-```
-
-**错误码：**
-
-| 错误码 | HTTP 状态 | 说明 |
-|--------|-------------|------|
-| 10003 | 400 | 参数校验失败（key 为空、value 为 null 或格式错误） |
-| 10004 | 404 | 配置项不存在（更新不存在配置时创建新配置，通常不会返回此错误） |
-| 99999 | 500 | 服务器内部错误 |
+| key | string | 是 | 真实环境变量名，如 `COGNIK_LLM_MODEL` |
+| value | string | 是 | 新值 |
 
 ### 公开配置
 
@@ -210,12 +135,12 @@ Content-Type: application/json
 GET /api/v1/public/configs/:key
 ```
 
-> 无需认证，供登录页等公开页面读取系统级配置（如应用名称）。
+> 无需认证，供登录页等公开页面读取系统级配置。仅 `app_name` 可读，返回裸字符串。
 
 **响应示例：**
 
 ```json
-{ "code": 0, "message": "success", "data": { "value": "Cognik" } }
+{ "code": 0, "message": "success", "data": "Cognik" }
 ```
 
 **错误码：**

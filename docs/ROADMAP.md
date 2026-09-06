@@ -210,7 +210,7 @@ flowchart TB
 | SQLite 隔离 | 单库 `data/agent.db`，thread 级逻辑隔离（表内 thread_id 区分，非物理分文件） |
 | threads API | 对话线程管理 |
 | parts 数组模型 | 前端渲染并行工具调用 + SubAgent + TaskCard |
-| Provider 热切换 | `LLMConfigManager.OnChange` → 替换 agent/llm.ChatModel |
+| Provider 热切换 | `ConfigReloader.Reload` → `ChatModelFactory.BuildFromEnv` + `Embedder.SetClient` |
 
 ### 6.3 工具集成
 
@@ -521,7 +521,7 @@ gantt
 | 知识库组织 | 文件式 Markdown，索引是派生 | 文件即真相，可重建 |
 | RAG 检索 | BM25 为主，向量为补充 | BEIR 基准 + Claude Code 实证 |
 | Agent 模式 | ReAct + Corrective RAG | 知识问答需要多步推理 + 检索质量保证 |
-| LLM Provider 热切换 | `LLMConfigManager.OnChange` | `atomic.Value` 存储 ChatModel |
+| LLM Provider 热切换 | `ConfigReloader.Reload`（onReload 回调） | `atomic.Value`/`atomic.Pointer` 原子替换 LLM/Embedding 客户端 |
 | 前端 SSE | 保留现有 `ChatStreamProvider` | rAF 批处理 + 纯函数 reducer + 单测 |
 | 版本规划 | V1.x 已交付，V2.0 智能化增强 | V1.6 交付自迭代闭环；V2.0 聚焦多模态/知识图谱/企业特性 |
 

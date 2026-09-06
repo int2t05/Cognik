@@ -234,33 +234,35 @@ type EnvConfigEntry struct {
 }
 
 // GetEnvConfigs 返回 .env 派生的全部配置项(API key 脱敏)。
+// Key 即真实 .env 变量名（如 COGNIK_LLM_MODEL），保证读写同一键空间——
+// UpdateEnvConfig 写回同 key，config.Load 重载即可命中，无映射表漂移风险。
 func GetEnvConfigs(cfg *AppConfig) []EnvConfigEntry {
 	return []EnvConfigEntry{
 		// 通用
-		{Key: "app_name", Value: cfg.AppName},
+		{Key: "COGNIK_APP_NAME", Value: cfg.AppName},
 		// LLM
-		{Key: "llm_base_url", Value: cfg.LLM.BaseURL},
-		{Key: "llm_api_key", Value: maskEnvKey(cfg.LLM.APIKey)},
-		{Key: "llm_model", Value: cfg.LLM.Model},
-		{Key: "llm_max_tokens", Value: fmt.Sprintf("%d", cfg.LLM.MaxTokens)},
+		{Key: "COGNIK_LLM_BASE_URL", Value: cfg.LLM.BaseURL},
+		{Key: "COGNIK_LLM_API_KEY", Value: maskEnvKey(cfg.LLM.APIKey)},
+		{Key: "COGNIK_LLM_MODEL", Value: cfg.LLM.Model},
+		{Key: "COGNIK_LLM_MAX_TOKENS", Value: fmt.Sprintf("%d", cfg.LLM.MaxTokens)},
 		// Embedding
-		{Key: "embedding_base_url", Value: cfg.Embedding.BaseURL},
-		{Key: "embedding_api_key", Value: maskEnvKey(cfg.Embedding.APIKey)},
-		{Key: "embedding_model", Value: cfg.Embedding.Model},
-		{Key: "embedding_dimension", Value: fmt.Sprintf("%d", cfg.Embedding.Dimension)},
+		{Key: "COGNIK_EMBEDDING_BASE_URL", Value: cfg.Embedding.BaseURL},
+		{Key: "COGNIK_EMBEDDING_API_KEY", Value: maskEnvKey(cfg.Embedding.APIKey)},
+		{Key: "COGNIK_EMBEDDING_MODEL", Value: cfg.Embedding.Model},
+		{Key: "COGNIK_EMBEDDING_DIMENSION", Value: fmt.Sprintf("%d", cfg.Embedding.Dimension)},
 		// RAG
-		{Key: "ai.rag_enabled", Value: boolStr(cfg.AI.RAGEnabled)},
-		{Key: "ai.top_k", Value: fmt.Sprintf("%d", cfg.AI.TopK)},
-		{Key: "ai.confidence_threshold", Value: fmt.Sprintf("%f", cfg.AI.ConfidenceThreshold)},
-		{Key: "ai.max_history_messages", Value: fmt.Sprintf("%d", cfg.AI.MaxHistoryMessages)},
+		{Key: "COGNIK_AI_RAG_ENABLED", Value: boolStr(cfg.AI.RAGEnabled)},
+		{Key: "COGNIK_AI_TOP_K", Value: fmt.Sprintf("%d", cfg.AI.TopK)},
+		{Key: "COGNIK_AI_CONFIDENCE_THRESHOLD", Value: fmt.Sprintf("%f", cfg.AI.ConfidenceThreshold)},
+		{Key: "COGNIK_AI_MAX_HISTORY_MESSAGES", Value: fmt.Sprintf("%d", cfg.AI.MaxHistoryMessages)},
 		// Search
-		{Key: "search.exa_api_key", Value: maskEnvKey(cfg.Search.Exa.APIKey)},
-		{Key: "search.tavily_api_key", Value: maskEnvKey(cfg.Search.Tavily.APIKey)},
-		{Key: "search.firecrawl_api_key", Value: maskEnvKey(cfg.Search.Firecrawl.APIKey)},
+		{Key: "COGNIK_SEARCH_EXA_API_KEY", Value: maskEnvKey(cfg.Search.Exa.APIKey)},
+		{Key: "COGNIK_SEARCH_TAVILY_API_KEY", Value: maskEnvKey(cfg.Search.Tavily.APIKey)},
+		{Key: "COGNIK_SEARCH_FIRECRAWL_API_KEY", Value: maskEnvKey(cfg.Search.Firecrawl.APIKey)},
 		// Upload
-		{Key: "kb.max_upload_size", Value: fmt.Sprintf("%d", cfg.Knowledge.MaxUploadSizeKB)},
+		{Key: "COGNIK_KB_MAX_UPLOAD_SIZE", Value: fmt.Sprintf("%d", cfg.Knowledge.MaxUploadSizeKB)},
 		// Rerank
-		{Key: "rerank.enabled", Value: boolStr(cfg.Rerank.Enabled)},
+		{Key: "COGNIK_RERANK_ENABLED", Value: boolStr(cfg.Rerank.Enabled)},
 	}
 }
 

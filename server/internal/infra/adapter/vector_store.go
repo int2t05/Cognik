@@ -40,6 +40,10 @@ type VectorStore interface {
 	// ReplaceVectors 原子替换文章向量（事务内先删旧后写新）。
 	ReplaceVectors(ctx context.Context, articleID int64, chunks []VectorChunk) error
 
+	// ReplaceVectorsWithTx 在调用方提供的 GORM 事务内替换向量（不自管 Begin/Commit）。
+	// 用于发布终态原子提交：向量写入与 process_status='completed' 同一事务，避免孤儿向量。
+	ReplaceVectorsWithTx(ctx context.Context, tx *gorm.DB, articleID int64, chunks []VectorChunk) error
+
 	// GetChunksByArticle 获取指定文章的所有分块内容（不含向量）。
 	GetChunksByArticle(ctx context.Context, articleID int64) ([]ChunkContent, error)
 
@@ -310,6 +314,29 @@ func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chu
 		return fmt.Errorf("ReplaceVectors 删除旧向量失败: %w", err)
 	}
 
+	query, args := buildInsertChunksSQL(chunks)
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("ReplaceVectors 写入新向量失败 (count=%d): %w", len(chunks), err)
+	}
+
+	return tx.Commit()
+}
+
+// ReplaceVectorsWithTx 在调用方提供的 GORM 事务内替换向量（不自管 Begin/Commit）。
+// 用于发布终态原子提交：向量写入与 process_status='completed' 同一事务，避免孤儿向量。
+func (s *PgvectorStore) ReplaceVectorsWithTx(ctx context.Context, tx *gorm.DB, articleID int64, chunks []VectorChunk) error {
+	if err := tx.WithContext(ctx).Exec("DELETE FROM knowledge_chunks WHERE article_id = ?", articleID).Error; err != nil {
+		return fmt.Errorf("ReplaceVectorsWithTx 删除旧向量失败: %w", err)
+	}
+	query, args := buildInsertChunksSQL(chunks)
+	if err := tx.WithContext(ctx).Exec(query, args...).Error; err != nil {
+		return fmt.Errorf("ReplaceVectorsWithTx 写入新向量失败 (count=%d): %w", len(chunks), err)
+	}
+	return nil
+}
+
+// buildInsertChunksSQL 构造批量 INSERT 语句与参数（halfvec 半精度向量）。
+func buildInsertChunksSQL(chunks []VectorChunk) (string, []interface{}) {
 	query := "INSERT INTO knowledge_chunks (article_id, kb_id, content, chunk_index, embedding, embedding_model, vector_dimension, chunk_hash, created_at) VALUES "
 	var placeholders []string
 	var args []interface{}
@@ -322,11 +349,7 @@ func (s *PgvectorStore) ReplaceVectors(ctx context.Context, articleID int64, chu
 			float32ToPgVector(ch.Embedding), ch.EmbeddingModel, ch.VectorDimension, ch.ChunkHash)
 	}
 	query += strings.Join(placeholders, ", ")
-	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-		return fmt.Errorf("ReplaceVectors 写入新向量失败 (count=%d): %w", len(chunks), err)
-	}
-
-	return tx.Commit()
+	return query, args
 }
 
 // CountByKB 统计知识库的分块总数。

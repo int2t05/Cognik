@@ -23,13 +23,14 @@ type LLMInfo struct {
 
 // ConfigHandler 系统配置管理接口（.env 驱动）。
 type ConfigHandler struct {
-	llmInfo LLMInfo
-	cfg     *config.AppConfig
+	llmInfo  LLMInfo
+	cfg      *config.AppConfig
+	onReload func(*config.AppConfig) // 配置变更后重建 LLM/Embedding 客户端（由 main 注入）
 }
 
-// NewConfigHandler 创建 ConfigHandler 实例。
-func NewConfigHandler(cfg *config.AppConfig, llmInfo LLMInfo) *ConfigHandler {
-	return &ConfigHandler{cfg: cfg, llmInfo: llmInfo}
+// NewConfigHandler 创建 ConfigHandler 实例。onReload 在 .env 写入并重载后调用，用于热重建客户端。
+func NewConfigHandler(cfg *config.AppConfig, llmInfo LLMInfo, onReload func(*config.AppConfig)) *ConfigHandler {
+	return &ConfigHandler{cfg: cfg, llmInfo: llmInfo, onReload: onReload}
 }
 
 // GetPublic 获取公开配置值（无需认证,仅 app_name）。
@@ -75,6 +76,10 @@ func (h *ConfigHandler) UpdateEnvConfig(c *gin.Context) {
 	if err != nil {
 		resp.Error(c, errcode.ErrUnknown, "更新 .env 失败: "+err.Error())
 		return
+	}
+	// 热重建 LLM/Embedding 客户端（原子替换，零锁读）
+	if h.onReload != nil {
+		h.onReload(newCfg)
 	}
 	h.cfg = newCfg
 	h.llmInfo = LLMInfo{

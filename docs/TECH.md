@@ -10,7 +10,7 @@
 flowchart TB
     subgraph Client["客户端"]
         Portal["门户端 /portal/*<br/>ChatPage / TicketSubmitPage / MessagesPage"]
-        Admin["管理后台 /admin/*<br/>DashboardPage / KnowledgeListPage / LLMConfigPage"]
+        Admin["管理后台 /admin/*<br/>DashboardPage / KnowledgeListPage / SystemConfigPage"]
     end
 
     subgraph Router["Gin Router :8080"]
@@ -26,13 +26,13 @@ flowchart TB
 
     subgraph Handler["Handler 层"]
         AH["AuthHandler"] --- CH["ChatHandler"] --- KH["KnowledgeHandler"] --- TH["TicketHandler"]
-        UH["UserHandler"] --- RH["RoleHandler"] --- LH["LLMConfigHandler"] --- DH["DashboardHandler"]
+        UH["UserHandler"] --- RH["RoleHandler"] --- CfgH["ConfigHandler"] --- DH["DashboardHandler"]
     end
 
     subgraph Service["Service 层"]
         AuthSvc["AuthService"] --- AgentSvc["AgentRunner — ReAct 循环 + 工具编排"]
         ChatSvc["ChatService — 会话生命周期 + SSE"] --- KnowledgeSvc["KnowledgeService — 发布管道 + SetMetadataCompleter/SetTicketCreator"]
-        TicketSvc["TicketService — 状态机 + TxManager + CreateSystemTicket"] --- LLMCfgSvc["LLMConfigService — atomic.Value 热替换"]
+        TicketSvc["TicketService — 状态机 + TxManager + CreateSystemTicket"] --- ConfigSvc["ConfigReloader — onReload 热重建 LLM/Embedding"]
     end
 
     subgraph RAG["RAG 引擎 rag/"]
@@ -97,7 +97,7 @@ flowchart TB
     Repos --> Services["初始化 Service 层"]
     Services --> Handlers["初始化 Handler 层"]
     Handlers --> Router["router.Setup → 注册 60+ 路由"]
-    Router --> Warmup["LLMConfigService.LoadDefaults() → atomic.Value.Store"]
+    Router --> Warmup["ChatModelFactory.BuildFromEnv → atomic.Store + Embedder.SetClient"]
     Warmup --> Scheduler["Scheduler.Start — autoClose 每小时"]
     Scheduler --> Listen["srv.ListenAndServe(:8080)"]
 ```
@@ -264,11 +264,11 @@ flowchart TD
 | `lib/api/ticket.ts` | createTicket / getMyTickets / supplementTicket / updateTicketStatus | `/api/v1/portal/tickets/*` `/api/v1/admin/tickets/*` |
 | `lib/api/user.ts` | getUserList / createUser / freezeUser | `/api/v1/admin/users/*` |
 | `lib/api/role.ts` | getRoleList / createRole / updateRoleMenus / getMenus | `/api/v1/admin/roles/*` `/api/v1/admin/menus` |
-| `lib/api/llm_config.ts` | getLLMConfigs / createLLMConfig / testLLMConnection | `/api/v1/admin/llm-configs/*` |
+| `lib/api/llm_config.ts` | getLLMInfo | `/api/v1/admin/configs/llm-info` |
 | `lib/api/dashboard.ts` | getStats / getTrends | `/api/v1/admin/dashboard/*` |
 | `lib/api/audit.ts` | getAuditLogs | `/api/v1/admin/audit-logs` |
 | `lib/api/message.ts` | getMessages / markAsRead / getUnreadCount | `/api/v1/portal/messages/*` |
-| `lib/api/config.ts` | getConfig / setConfig / getAllConfigs | `/api/v1/admin/configs/*` |
+| `lib/api/config.ts` | getEnvConfigs / updateEnvConfig | `/api/v1/admin/configs/env` |
 
 ### 3.5 关键 Hooks
 
@@ -354,7 +354,7 @@ flowchart LR
         T["tickets"] --> TR["ticket_records"]
     end
     subgraph System["系统域"]
-        AL["audit_logs"] --- MSG["messages"] --- SC["system_configs"] --- LC["llm_configs"]
+        AL["audit_logs"] --- MSG["messages"]
     end
 
     style Knowledge fill:#5e6ad215,stroke:#5e6ad2
@@ -467,19 +467,26 @@ flowchart TD
 | `COGNIK_PARSER_ENGINE` | 文档解析引擎（mineru / local） | mineru |
 | `MINERU_API_KEY` | MinerU 云端解析 API Key（空值降级到本地） | — |
 
-> 完整环境变量见 `.env.example` 和 `docker-compose.yml`。
+> 环境变量清单见 `.env.example`（可配置项全集），部署变量见 `docker-compose.yml`。
 
-### 6.2 LLM 配置热替换
+### 6.2 配置热重建
+
+配置页（`PUT /api/v1/admin/configs/env`）写入 `.env` 后，`ConfigReloader.Reload` 原子重建两个客户端，无需重启：
 
 ```mermaid
 flowchart LR
     subgraph Write["写入"]
-        W1["CreateConfig / UpdateConfig<br/>isDefault=true"] --> W2["Transaction: ClearDefault + Save"] --> W3["cfg.Store(newConfig)<br/>atomic.Value 即时可见"]
+        W1["UpdateEnvConfig<br/>key=COGNIK_LLM_MODEL"] --> W2["写 .env + Load() 重载"] --> W3["onReload(newCfg)"]
     end
-    subgraph Read["读取（每次请求）"]
-        R1["getModelConfig()"] --> R2["cfg.Load().(*LlmConfig)<br/>无锁读取"] --> R3["返回 model + client"]
+    subgraph Rebuild["热重建（原子替换）"]
+        R1["ChatModelFactory.BuildFromEnv<br/>atomic.Store"] & R2["Embedder.SetClient<br/>atomic.Pointer"]
     end
-    W3 -.->|即时生效| R2
+    subgraph Read["读取（每次请求，零锁）"]
+        Q1["factory.GetModel()<br/>atomic.Value.Load"] & Q2["embedder.loadClient()<br/>atomic.Pointer.Load"]
+    end
+    W3 --> R1 & R2
+    R1 -.->|即时生效| Q1
+    R2 -.->|即时生效| Q2
 ```
 
 ## 7. 设计系统
@@ -524,7 +531,7 @@ server/
 ├── cmd/main.go              # entry: config → DB → RAG → domain → router → runtime
 ├── internal/
 │   ├── domain/              # 业务领域（每领域 handler + service + repository 三文件）
-│   │   ├── chat/           # 聊天/AI 问答（session + llm_config）
+│   │   ├── chat/           # 聊天/AI 问答（session + llm）
 │   │   ├── knowledge/      # 知识库
 │   │   ├── system/         # 系统管理（audit + config + dashboard + message）
 │   │   ├── ticket/         # 工单
