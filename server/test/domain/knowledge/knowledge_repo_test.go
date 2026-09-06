@@ -3,7 +3,6 @@
 // Package repository_test 验证 KnowledgeRepo 数据访问层。
 //
 // 测试覆盖 KnowledgeBase、KnowledgeArticle、KnowledgeChunk 的全部数据访问方法。
-// EmbeddingConfig 见 llm_configs 表（chat/llm_config 领域）。
 // 使用独立的 cognik_test 数据库，每个测试用例通过清理保证隔离性。
 package knowledge_test
 

@@ -7,7 +7,6 @@ type CreateKBRequest struct {
 	Description     string `json:"description"`
 	EmbeddingModel  string `json:"embedding_model"`
 	VectorDimension int    `json:"vector_dimension"`
-	LlmConfigID     int64  `json:"llm_config_id"`
 }
 
 // UpdateKBRequest 更新知识库请求。

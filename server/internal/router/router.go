@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	llmconfig "cognik/internal/domain/chat/llm_config"
 	"cognik/internal/domain/chat/session"
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
@@ -37,7 +36,6 @@ type Handlers struct {
 	Dashboard *dashboard.DashboardHandler
 	Audit     *audit.AuditHandler
 	Config    *sysconfig.ConfigHandler
-	LLMConfig *llmconfig.LLMConfigHandler
 }
 
 // Setup 初始化 Gin 引擎并注册所有路由。
@@ -151,9 +149,6 @@ func assertHandlers(h *Handlers) {
 	}
 	if h.Config == nil {
 		panic("cognik: ConfigHandler 未初始化")
-	}
-	if h.LLMConfig == nil {
-		panic("cognik: LLMConfigHandler 未初始化")
 	}
 	if h.Message == nil {
 		panic("cognik: MessageHandler 未初始化")

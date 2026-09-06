@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"context"
+	"time"
 
 	"cognik/internal/shared/model"
 	"cognik/internal/shared/pkg/dbutil"
@@ -185,6 +186,36 @@ func (r *KnowledgeRepo) UpdateArticleProcessStatus(ctx context.Context, id int64
 		updates["process_error"] = processError
 	}
 	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(updates).Error
+}
+
+// ScheduleArticleRetry 递增重试计数,保持 failed 状态,设下次重试时间。
+func (r *KnowledgeRepo) ScheduleArticleRetry(ctx context.Context, id int64, errMsg string, nextRetryAt time.Time) error {
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"process_status":    "failed",
+		"process_error":     errMsg,
+		"process_retry_count": gorm.Expr("process_retry_count + 1"),
+		"next_retry_at":     nextRetryAt,
+	}).Error
+}
+
+// MarkArticleFailedTerminal 写终态失败(清除 next_retry_at,扫描器不再拾取)。
+func (r *KnowledgeRepo) MarkArticleFailedTerminal(ctx context.Context, id int64, errMsg string) error {
+	return r.db.WithContext(ctx).Model(&model.KnowledgeArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"process_status": "failed",
+		"process_error":  errMsg,
+		"next_retry_at": nil,
+	}).Error
+}
+
+// ListArticlesForRetry 返回到期需重试的失败文章。
+func (r *KnowledgeRepo) ListArticlesForRetry(ctx context.Context, limit int) ([]model.KnowledgeArticle, error) {
+	var articles []model.KnowledgeArticle
+	err := r.db.WithContext(ctx).Preload("KnowledgeBase").
+		Where("process_status = ? AND next_retry_at IS NOT NULL AND next_retry_at <= NOW()", "failed").
+		Order("next_retry_at ASC").
+		Limit(limit).
+		Find(&articles).Error
+	return articles, err
 }
 
 func (r *KnowledgeRepo) UpdateArticleMetrics(ctx context.Context, id int64, wordCount, chunkCount int) error {

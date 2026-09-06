@@ -172,7 +172,7 @@ func TestConfigHandler_Get(t *testing.T) {
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognik"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognik"', updated_at = NOW()`)
 
 	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
-	h := sysconfig.NewConfigHandler(configSvc)
+	h := sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{})
 
 	r.GET("/configs/:key", h.Get)
 
@@ -192,7 +192,7 @@ func TestConfigHandler_Update(t *testing.T) {
 	db.Exec(`INSERT INTO system_configs (key, value, updated_by, updated_at) VALUES ('app_name', '"Cognik"', 1, NOW()) ON CONFLICT (key) DO UPDATE SET value = '"Cognik"', updated_at = NOW()`)
 
 	configSvc := sysconfig.NewConfigService(sysconfig.NewConfigRepo(db), audit.NewAuditService(audit.NewAuditRepo(db)))
-	h := sysconfig.NewConfigHandler(configSvc)
+	h := sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{})
 
 	r.PUT("/configs/:key", h.Update)
 

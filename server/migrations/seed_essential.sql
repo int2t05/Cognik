@@ -19,7 +19,6 @@ DELETE FROM tickets;
 DELETE FROM knowledge_chunks;
 DELETE FROM knowledge_articles;
 DELETE FROM knowledge_bases;
-DELETE FROM llm_configs;
 DELETE FROM role_menus;
 DELETE FROM user_roles;
 DELETE FROM menus;
@@ -92,12 +91,9 @@ INSERT INTO system_configs (key, value, description, updated_by, updated_at) VAL
 -- =============================================================================
 -- LLM 配置
 -- =============================================================================
-
-INSERT INTO llm_configs (id, name, llm_base_url, llm_api_key, embedding_base_url, embedding_api_key, llm_model, embedding_model, system_prompt, max_tokens, vector_dimension, is_default, created_at, updated_at) VALUES
-(1, 'GLM + DashScope',        'https://st8tp3ajl0df3n8b8l8qu.apigateway-cn-beijing.volceapi.com/v1', 'YOUR_GLM_API_KEY', 'https://llm-okvb99vfel2z5w65.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'sk-ws-placeholder', 'glm-5.2', 'text-embedding-v2', NULL, 1000000, 1536, false, NOW(), NOW()),
-(2, 'OpenAI GPT-4o-mini',    'https://api.openai.com/v1', 'sk-your-openai-api-key', '',   'sk-your-openai-api-key', 'gpt-4o-mini',           'text-embedding-3-small',      NULL, 16384, 1536, false, NOW(), NOW()),
-(3, '本地 llama.cpp',        'http://llama-cpp:8081/v1',  '',  'http://llama-cpp-emb:8082/v1', '',                     'Qwen3-4B-Q4_K_M',            'Qwen3-Embedding-0.6B-Q8_0', NULL, 8192,  1024, true, NOW(), NOW());
-
-SELECT setval('llm_configs_id_seq', (SELECT MAX(id) FROM llm_configs));
+-- LLM/Embedding 配置不存 DB，由 .env 提供唯一配置源：
+--   COGNIK_LLM_BASE_URL / COGNIK_LLM_API_KEY / COGNIK_LLM_MODEL
+--   COGNIK_EMBEDDING_BASE_URL / COGNIK_EMBEDDING_API_KEY / COGNIK_EMBEDDING_MODEL
+-- 用户可通过管理端 API 按需配置（POST /api/v1/admin/llm-configs）。
 
 COMMIT;

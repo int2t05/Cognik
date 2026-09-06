@@ -48,14 +48,24 @@ func handleServiceError(c *gin.Context, err error) {
 	resp.Error(c, errcode.ErrUnknown, "服务器内部错误")
 }
 
+// LLMInfo 从 .env 派生的 LLM/Embedding 配置(只读,不含 API key)。
+type LLMInfo struct {
+	LLMBaseURL       string `json:"llm_base_url"`
+	LLMModel         string `json:"llm_model"`
+	EmbeddingBaseURL string `json:"embedding_base_url"`
+	EmbeddingModel  string `json:"embedding_model"`
+	EmbeddingDimension int `json:"embedding_dimension"`
+}
+
 // ConfigHandler 系统配置管理接口。
 type ConfigHandler struct {
-	svc *ConfigService
+	svc     *ConfigService
+	llmInfo LLMInfo
 }
 
 // NewConfigHandler 创建 ConfigHandler 实例。
-func NewConfigHandler(svc *ConfigService) *ConfigHandler {
-	return &ConfigHandler{svc: svc}
+func NewConfigHandler(svc *ConfigService, llmInfo LLMInfo) *ConfigHandler {
+	return &ConfigHandler{svc: svc, llmInfo: llmInfo}
 }
 
 // GetPublic 获取公开配置值（无需认证）。
@@ -157,4 +167,11 @@ func (h *ConfigHandler) ComputeThresholds(c *gin.Context) {
 	}
 
 	resp.Success(c, result)
+}
+
+// GetLLMInfo 返回 .env 派生的 LLM/Embedding 配置(只读,不含 API key)。
+//
+// GET /api/v1/admin/configs/llm-info
+func (h *ConfigHandler) GetLLMInfo(c *gin.Context) {
+	resp.Success(c, h.llmInfo)
 }

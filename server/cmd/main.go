@@ -17,7 +17,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"cognik/internal/agent/llm"
 
-	"cognik/internal/domain/chat/llm_config"
 	"cognik/internal/domain/chat/session"
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
@@ -142,7 +141,9 @@ func wireApp() (*app, error) {
 		"llm_base_url", cfg.LLM.BaseURL,
 		"embedding_base_url", embedBaseURL,
 		"llm_model", cfg.LLM.Model,
-		"embedding_model", cfg.Embedding.Model)
+		"embedding_model", cfg.Embedding.Model,
+		"embed_key_len", len(embedAPIKey),
+		"embed_key_prefix", maskKey(embedAPIKey))
 
 	// Cross-encoder 重排序
 	if cfg.Rerank.Enabled && cfg.Rerank.PythonPath != "" && cfg.Rerank.ScriptPath != "" {
@@ -217,13 +218,6 @@ func wireApp() (*app, error) {
 	messageService := message.NewMessageService(messageRepo)
 	dashboardService := dashboard.NewDashboardService(dashboardRepo)
 	configService := sysconfig.NewConfigService(configRepo, auditService)
-
-	llmConfigRepo := llmconfig.NewLlmConfigRepo(db)
-	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, auditService)
-	if err != nil {
-		return nil, fmt.Errorf("创建 LLM 配置服务失败: %w", err)
-	}
-	slog.Info("LLM 配置服务已初始化")
 
 	// RAG 引擎组件
 	// batchSize 仅影响索引侧吞吐（单 query 文本与 batch 无关）；查询侧走单文本缓存路径。
@@ -309,14 +303,15 @@ func wireApp() (*app, error) {
 		knowledge.WithMessageNotifier(messageService),
 		knowledge.WithMaxUploadSize(int64(cfg.Knowledge.MaxUploadSizeKB)*1024),
 		knowledge.WithEmbeddingDimension(cfg.Embedding.Dimension),
+		knowledge.WithMaxRetries(envInt("COGNOS_AI_MAX_RETRIES", 3)),
+		knowledge.WithRetryBaseDelay(envDuration("COGNOS_AI_RETRY_BASE_DELAY", 30*time.Second)),
 	)
 	slog.Info("KnowledgeService 已初始化")
 
-	// Agent 基座（事件生产者）。ChatModel + ReactAgent + 工具集。LLM 调用走 agent 域 ChatModel。
-	agentModelFactory := agent.NewChatModelFactory(llmConfigSvc.GetManager())
-	if err := agentModelFactory.BuildInitial(context.Background()); err != nil {
-		slog.Warn("Agent ChatModel 初始化失败，Agent 功能降级", "error", err)
-	}
+	// Agent 基座（事件生产者）。ChatModel + ReAct 循环 + 工具集。
+	// LLM 配置从 .env 直接构造(env 是唯一配置源,不入库)。
+	agentModelFactory := agent.NewChatModelFactory()
+	agentModelFactory.BuildFromEnv(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model)
 
 	// Contextual Retrieval：索引时为 chunk 生成 LLM 上下文摘要 prepend，提升检索召回率。
 	// 成本特性，默认关闭；启用后由 Processor 复用 agent ChatModel 生成摘要。
@@ -445,8 +440,9 @@ func wireApp() (*app, error) {
 	agentRunner := agent.NewAgentRunner(loop)
 	slog.Info("Agent 基座已初始化（自建 Loop + 统一工具接口 + SubAgent 异步派发 + 六级上下文压缩 + 记忆提取）")
 
-	// LLM 配置变更回调：热重建 Agent ChatModel + Embedding 客户端
-	setupLLMHotSwap(llmConfigSvc, embedTimeout, embedder, knowledgeService, agentModelFactory)
+	// 文档处理重试扫描器：轮询失败文档自动重试（最多 3 次,指数退避）。
+	go knowledgeService.StartRetryScanner(context.Background(), cfg.Memory.IngestPollInterval)
+	slog.Info("文档处理重试扫描器已启动", "poll_interval", cfg.Memory.IngestPollInterval)
 
 	genHub := runtime.NewGateway[session.StreamEvent](func(e session.StreamEvent, seq int) session.StreamEvent {
 		e.Seq = seq
@@ -519,8 +515,13 @@ func wireApp() (*app, error) {
 		Message:   message.NewMessageHandler(messageService),
 		Dashboard: dashboard.NewDashboardHandler(dashboardService),
 		Audit:     audit.NewAuditHandler(auditService),
-		Config:    sysconfig.NewConfigHandler(configService),
-		LLMConfig: llmconfig.NewLLMConfigHandler(llmConfigSvc),
+		Config:    sysconfig.NewConfigHandler(configService, sysconfig.LLMInfo{
+			LLMBaseURL:       cfg.LLM.BaseURL,
+			LLMModel:        cfg.LLM.Model,
+			EmbeddingBaseURL: embedBaseURL,
+			EmbeddingModel:  cfg.Embedding.Model,
+			EmbeddingDimension: cfg.Embedding.Dimension,
+		}),
 	}
 
 	// 7. 调度器
@@ -616,31 +617,12 @@ func (a *app) run() error {
 	return nil
 }
 
-// setupLLMHotSwap 注册 LLM 配置变更回调，热重建 Agent ChatModel + Embedding 客户端。
-// 重建 ChatModel（agentModelFactory.OnConfigChange）。
-func setupLLMHotSwap(llmConfigSvc *llmconfig.LLMConfigService, embedTimeout time.Duration, embedder *rag.Embedder, knowledgeService *knowledge.KnowledgeService, agentModelFactory *agent.ChatModelFactory) {
-	llmConfigSvc.GetManager().OnChange(func() {
-		newCfg := llmConfigSvc.GetManager().GetConfig()
-		if newCfg == nil {
-			return
-		}
-		// 重建 Agent ChatModel
-		agentModelFactory.OnConfigChange()
-
-		// 重建 Embedding 客户端（文档处理管道仍需）
-		embedBase := newCfg.GetEmbeddingBaseURL()
-		embedKey := newCfg.GetEmbeddingAPIKey()
-		newEmbed := adapter.NewOpenAIEmbeddingClient(embedBase, embedKey, newCfg.EmbeddingModel, embedTimeout)
-		embedder.SetClient(newEmbed)
-		knowledgeService.SetDefaultEmbeddingConfig(newCfg.EmbeddingModel)
-
-		slog.Info("Agent ChatModel / Embedding 已按新默认配置重建",
-			"llm_base_url", newCfg.LLMBaseURL,
-			"embedding_base_url", embedBase,
-			"llm_model", newCfg.LLMModel,
-			"embedding_model", newCfg.EmbeddingModel,
-		)
-	})
+// maskKey 脱敏 API key 前缀。
+func maskKey(k string) string {
+	if len(k) <= 8 {
+		return "***"
+	}
+	return k[:8] + "..."
 }
 
 // envStr 读取环境变量字符串，空则用默认值。

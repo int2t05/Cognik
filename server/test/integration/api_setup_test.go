@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	llmconfig "cognik/internal/domain/chat/llm_config"
 	"cognik/internal/domain/knowledge"
 	"cognik/internal/domain/system/audit"
 	sysconfig "cognik/internal/domain/system/config"
@@ -100,7 +99,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	knowledgeRepo := knowledge.NewKnowledgeRepo(db)
 	messageRepo := message.NewMessageRepo(db)
 	auditRepo, dashboardRepo := audit.NewAuditRepo(db), dashboard.NewDashboardRepo(db)
-	configRepo, llmConfigRepo := sysconfig.NewConfigRepo(db), llmconfig.NewLlmConfigRepo(db)
+	configRepo := sysconfig.NewConfigRepo(db)
 
 	// 缓存
 	userCache := cache.NewUserStatusCache(db, 30*time.Second)
@@ -111,9 +110,6 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 	roleSvc := role.NewRoleService(roleRepo, menuRepo, audit.NewAuditService(auditRepo), db)
 	messageSvc := message.NewMessageService(messageRepo)
 	auditSvc := audit.NewAuditService(auditRepo)
-
-	llmConfigSvc, err := llmconfig.NewLLMConfigService(llmConfigRepo, db, auditSvc)
-	require.NoError(t, err)
 
 	knowledgeSvc := knowledge.NewKnowledgeService(knowledgeRepo,
 		knowledge.WithUserNames(userRepo), knowledge.WithAuditWriter(auditSvc))
@@ -129,8 +125,7 @@ func startAPITestServer(t *testing.T) *apiTestServer {
 		Role: role.NewRoleHandler(roleSvc), Ticket: ticket.NewTicketHandler(ticketSvc),
 		Knowledge: knowledge.NewKnowledgeHandler(knowledgeSvc),
 		Message: message.NewMessageHandler(messageSvc), Dashboard: dashboard.NewDashboardHandler(dashboardSvc),
-		Audit: audit.NewAuditHandler(auditSvc), Config: sysconfig.NewConfigHandler(configSvc),
-		LLMConfig: llmconfig.NewLLMConfigHandler(llmConfigSvc),
+		Audit: audit.NewAuditHandler(auditSvc), Config: sysconfig.NewConfigHandler(configSvc, sysconfig.LLMInfo{}),
 	}
 
 	r := router.Setup(&config.AppConfig{

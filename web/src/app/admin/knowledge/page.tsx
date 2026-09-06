@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageTitle } from '@/components/shared/PageTitle';
 import { getKBList, createKB, updateKB, deleteKB } from '@/lib/api/knowledge';
-import { getLLMConfigs } from '@/lib/api/llm_config';
+import { getLLMInfo } from '@/lib/api/llm_config';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,12 +24,12 @@ export default function KnowledgeListPage() {
   const t = useTranslations();
   const [keyword, setKeyword] = useState('');
   const { data: kbs, error, mutate } = useSWR(`kb-list-${keyword}`, () => getKBList(keyword), { keepPreviousData: true });
-  const { data: llmConfigs } = useSWR('llm-configs', getLLMConfigs);
-  // 从 LLM 配置中提取去重后的 embedding 模型列表，供下拉选择
+  const { data: llmInfo } = useSWR('llm-info', getLLMInfo);
+  // .env 的 embedding 模型(唯一配置源,单选)
   const embeddingOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return (llmConfigs || []).filter(c => { if (seen.has(c.embedding_model)) return false; seen.add(c.embedding_model); return true; });
-  }, [llmConfigs]);
+    if (llmInfo?.embedding_model) return [llmInfo.embedding_model];
+    return [];
+  }, [llmInfo]);
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [kbName, setKbName] = useState('');
@@ -120,8 +120,8 @@ export default function KnowledgeListPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">{t('kb.defaultEmbedding')}</SelectItem>
-                {embeddingOptions.map((c) => (
-                  <SelectItem key={c.embedding_model} value={c.embedding_model}>{t('kb.embeddingOption', { model: c.embedding_model, name: c.name })}</SelectItem>
+                {embeddingOptions.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

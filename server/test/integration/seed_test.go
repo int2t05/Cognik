@@ -113,39 +113,6 @@ func TestSeedData_UserRoles(t *testing.T) {
 	t.Logf("✅ admin 用户-角色关联: %d 条", count)
 }
 
-// TestSeedData_LLMConfig 验证 LLM 配置数据。
-func TestSeedData_LLMConfig(t *testing.T) {
-	db := setupSeedDB(t)
-
-	var configs []model.LlmConfig
-	db.Find(&configs)
-	if len(configs) == 0 {
-		t.Skip("本测试依赖种子数据，请先执行 make db-seed")
-	}
-
-	assert.GreaterOrEqual(t, len(configs), 2, "至少应有 2 条 LLM 配置")
-
-	// 验证存在默认配置
-	hasDefault := false
-	for _, c := range configs {
-		if c.IsDefault {
-			hasDefault = true
-			t.Logf("✅ 默认配置: name=%s, llm=%s, embedding=%s",
-				c.Name, c.LLMModel, c.EmbeddingModel)
-			break
-		}
-	}
-	assert.True(t, hasDefault, "应存在一条 is_default=true 的配置")
-
-	// 验证 llama.cpp 本地配置存在
-	var localCfg model.LlmConfig
-	err := db.Where("provider_type = ?", 1).First(&localCfg).Error
-	require.NoError(t, err, "应有 llama.cpp 本地配置 (provider_type=1)")
-	assert.NotEmpty(t, localCfg.LLMModel, "llm_model 不应为空")
-	assert.NotEmpty(t, localCfg.EmbeddingModel, "embedding_model 不应为空")
-	t.Logf("✅ llama.cpp 配置: llm=%s, embedding=%s", localCfg.LLMModel, localCfg.EmbeddingModel)
-}
-
 // TestSeedData_Menus 验证菜单数据。
 func TestSeedData_Menus(t *testing.T) {
 	db := setupSeedDB(t)

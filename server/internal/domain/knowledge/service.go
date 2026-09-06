@@ -91,6 +91,9 @@ type knowledgeRepo interface {
 	UpdateArticleMinioPath(ctx context.Context, id int64, path string) error
 	UpdateArticleStatusCAS(ctx context.Context, id int64, expectedOld, newStatus int) (int64, error)
 	UpdateArticleProcessStatus(ctx context.Context, id int64, processStatus, processError string) error
+	ScheduleArticleRetry(ctx context.Context, id int64, errMsg string, nextRetryAt time.Time) error
+	MarkArticleFailedTerminal(ctx context.Context, id int64, errMsg string) error
+	ListArticlesForRetry(ctx context.Context, limit int) ([]model.KnowledgeArticle, error)
 	UpdateArticleMetrics(ctx context.Context, id int64, wordCount, chunkCount int) error
 	CreateKB(ctx context.Context, kb *model.KnowledgeBase) error
 	UpdateKB(ctx context.Context, kb *model.KnowledgeBase) error
@@ -139,6 +142,8 @@ type KnowledgeService struct {
 	metaCompleter         MetadataCompleter // 发布时 LLM 补全 type/tags（nil 时降级 guide）
 	embeddingDimension    int              // 向量维度，创建 KB 时写入（由 config 注入）
 	ticketCreator         ticketCreator    // 上传/补全时提工单（nil-safe，setter 注入）
+	maxRetries           int              // 文档处理最大重试次数（默认 3）
+	retryBaseDelay       time.Duration   // 重试退避基数（默认 30s，实际 30s * 2^count）
 }
 
 // KnowledgeServiceOption 函数选项模式——仅设置非零值，其余保持 nil。
@@ -214,14 +219,19 @@ func WithEmbeddingDimension(dim int) KnowledgeServiceOption {
 	return func(s *KnowledgeService) { s.embeddingDimension = dim }
 }
 
+// WithMaxRetries 设置文档处理最大重试次数。
+func WithMaxRetries(n int) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.maxRetries = n }
+}
+
+// WithRetryBaseDelay 设置重试退避基数。
+func WithRetryBaseDelay(d time.Duration) KnowledgeServiceOption {
+	return func(s *KnowledgeService) { s.retryBaseDelay = d }
+}
+
 // SetTicketCreator 注入工单创建器（setter 注入，解决初始化顺序：ticketService 晚于 knowledgeService 创建）。
 func (s *KnowledgeService) SetTicketCreator(tc ticketCreator) {
 	s.ticketCreator = tc
-}
-
-// SetDefaultEmbeddingConfig 热更新全局默认 embedding 模型名（OnChange 回调调用）。
-func (s *KnowledgeService) SetDefaultEmbeddingConfig(model string) {
-	s.defaultEmbeddingModel = model
 }
 
 // validateKBEmbeddingConfig 校验当前默认嵌入模型与 KB 绑定的模型是否一致。
@@ -281,7 +291,6 @@ func (s *KnowledgeService) CreateKB(ctx context.Context, req request.CreateKBReq
 		RAGWorkspaceSlug: slug,
 		EmbeddingModel:   embModel,
 		VectorDimension:  s.embeddingDimension,
-		LlmConfigID:      req.LlmConfigID,
 		CreatedBy:        userID,
 	}
 	if err := s.repo.CreateKB(ctx, kb); err != nil {
@@ -365,7 +374,6 @@ func (s *KnowledgeService) ListKBs(ctx context.Context, keyword string) ([]respo
 			Description:     kb.Description,
 			EmbeddingModel:  kb.EmbeddingModel,
 			VectorDimension: kb.VectorDimension,
-			LlmConfigID:     kb.LlmConfigID,
 			ArticleCount:    counts[kb.ID],
 			CreatedBy:       kb.CreatedBy,
 			CreatedAt:       kb.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -1105,20 +1113,98 @@ func (s *KnowledgeService) RetryDocument(ctx context.Context, kbID int64, articl
 // 辅助函数
 // =============================================================================
 
-// onProcessStatusChange 更新文档处理状态，失败时记录日志但不阻塞流程。
+// onProcessStatusChange 更新文档处理状态，失败时调度重试。
 func (s *KnowledgeService) onProcessStatusChange(ctx context.Context, aID int64, status, errMsg string) {
+	if status == "failed" {
+		s.handleProcessFailure(ctx, aID, errMsg)
+		return
+	}
 	if err := s.repo.UpdateArticleProcessStatus(ctx, aID, status, errMsg); err != nil {
 		slog.Warn("更新文档处理状态失败", "article_id", aID, "status", status, "error", err)
 	}
 }
 
-// onPublishComplete 发布完成回调（仅终态写入 process_status）。
+// onPublishComplete 发布完成回调（失败时调度重试）。
 func (s *KnowledgeService) onPublishComplete(ctx context.Context, aID int64, status, errMsg string) {
 	switch status {
 	case "completed":
 		_ = s.repo.UpdateArticleProcessStatus(ctx, aID, "completed", "")
 	case "failed":
+		s.handleProcessFailure(ctx, aID, errMsg)
+	}
+}
+
+// handleProcessFailure 记录失败并调度重试(最多 maxRetries 次,指数退避)。
+func (s *KnowledgeService) handleProcessFailure(ctx context.Context, aID int64, errMsg string) {
+	article, err := s.repo.FindArticleByID(ctx, aID)
+	if err != nil {
+		slog.Warn("查询失败文章重试状态失败", "article_id", aID, "error", err)
 		_ = s.repo.UpdateArticleProcessStatus(ctx, aID, "failed", errMsg)
+		return
+	}
+	if article.ProcessRetryCount >= s.maxRetries {
+		_ = s.repo.MarkArticleFailedTerminal(ctx, aID, errMsg)
+		slog.Warn("文档处理失败，已达最大重试次数", "article_id", aID, "retries", article.ProcessRetryCount)
+		return
+	}
+	backoff := s.retryBaseDelay << article.ProcessRetryCount // 30s * 2^count
+	nextRetryAt := time.Now().Add(backoff)
+	if err := s.repo.ScheduleArticleRetry(ctx, aID, errMsg, nextRetryAt); err != nil {
+		slog.Warn("调度文章重试失败", "article_id", aID, "error", err)
+	} else {
+		slog.Info("文档处理失败，已调度重试", "article_id", aID, "retry_count", article.ProcessRetryCount+1, "next_retry_at", nextRetryAt)
+	}
+}
+
+// StartRetryScanner 轮询到期失败的文档并重新提交处理。阻塞,应在 goroutine 中调用。
+func (s *KnowledgeService) StartRetryScanner(ctx context.Context, interval time.Duration) {
+	if s.processor == nil {
+		slog.Info("处理器未初始化，重试扫描器不启动")
+		return
+	}
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.scanAndRetry(ctx)
+		}
+	}
+}
+
+// scanAndRetry 拾取到期失败文章并重新提交。
+func (s *KnowledgeService) scanAndRetry(ctx context.Context) {
+	articles, err := s.repo.ListArticlesForRetry(ctx, 10)
+	if err != nil {
+		slog.Warn("查询待重试文章失败", "error", err)
+		return
+	}
+	for _, article := range articles {
+		if err := s.repo.UpdateArticleProcessStatus(ctx, article.ID, "processing", ""); err != nil {
+			slog.Warn("重置文章处理状态失败", "article_id", article.ID, "error", err)
+			continue
+		}
+		task := rag.ProcessTask{
+			ArticleID:      article.ID,
+			KBID:           article.KBID,
+			Content:        article.Content,
+			EmbeddingModel: s.effectiveEmbeddingModel(article.KnowledgeBase.EmbeddingModel),
+			OnStatusChange: func(aID int64, status, errMsg string) {
+				s.onProcessStatusChange(context.Background(), aID, status, errMsg)
+			},
+			OnMetrics: func(aID int64, wordCount, chunkCount int) {
+				s.onProcessMetrics(context.Background(), aID, wordCount, chunkCount)
+			},
+		}
+		if err := s.processor.Submit(task); err != nil {
+			slog.Warn("重试提交处理任务失败", "article_id", article.ID, "error", err)
+			_ = s.repo.UpdateArticleProcessStatus(ctx, article.ID, "failed", err.Error())
+		}
 	}
 }
 

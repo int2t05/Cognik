@@ -286,45 +286,6 @@ func TestE2E_UserRole(t *testing.T) {
 	assertNoRecentDBErrors(t)
 }
 
-// ── LLM Config ──────────────────────────────────────────
-
-func TestE2E_LLMConfig(t *testing.T) {
-	// Create
-	r1 := e2e.doAuth(t, http.MethodPost, "/api/v1/admin/llm-configs", map[string]interface{}{
-		"name": "e2e-cfg", "provider_type": 2, "base_url": "https://api.openai.com/v1",
-		"llm_model": "gpt-4o-mini", "embedding_model": "text-embedding-3-small",
-		"max_tokens": 16384, "vector_dimension": 1536, "is_default": true,
-	})
-	cfg := assertOK(t, r1)["data"].(map[string]interface{})
-	cfgID := int64(cfg["id"].(float64))
-
-	// List — 验证 API key 脱敏
-	r2 := e2e.doAuth(t, http.MethodGet, "/api/v1/admin/llm-configs", nil)
-	cfgs := assertOK(t, r2)["data"].([]interface{})
-	assertField(t, len(cfgs) >= 1, "配置列表非空")
-
-	// Detail
-	r3 := e2e.doAuth(t, http.MethodGet, fmt.Sprintf("/api/v1/admin/llm-configs/%d", cfgID), nil)
-	assertOK(t, r3)
-
-	// Update
-	e2e.doAuth(t, http.MethodPut, fmt.Sprintf("/api/v1/admin/llm-configs/%d", cfgID), map[string]interface{}{
-		"name": "e2e-cfg-v2", "provider_type": 2, "base_url": "https://api.openai.com/v1",
-		"llm_model": "gpt-4o", "embedding_model": "text-embedding-3-large",
-		"max_tokens": 32768, "vector_dimension": 3072, "is_default": true,
-	})
-
-	// Test connection
-	e2e.doAuth(t, http.MethodPost, fmt.Sprintf("/api/v1/admin/llm-configs/%d/test", cfgID), nil)
-
-	// Delete default — 拒绝
-	r4 := e2e.doAuth(t, http.MethodDelete, fmt.Sprintf("/api/v1/admin/llm-configs/%d", cfgID), nil)
-	assertAPIError(t, r4)
-
-	e2e.assertLogContains(t, "/api/v1/admin/llm-configs", "LLM配置日志")
-	assertNoRecentDBErrors(t)
-}
-
 // ── Dashboard & Audit ───────────────────────────────────
 
 func TestE2E_DashboardAudit(t *testing.T) {
@@ -419,6 +380,5 @@ func TestE2E_Cleanup(t *testing.T) {
 	e2e.DB.Exec("DELETE FROM role_menus WHERE role_id IN (SELECT id FROM roles WHERE name LIKE 'e2e%')")
 	e2e.DB.Exec("DELETE FROM users WHERE username LIKE 'e2e%'")
 	e2e.DB.Exec("DELETE FROM roles WHERE name LIKE 'e2e%'")
-	e2e.DB.Exec("DELETE FROM llm_configs WHERE name LIKE 'e2e%'")
 	t.Logf("✅ 测试数据已清理")
 }

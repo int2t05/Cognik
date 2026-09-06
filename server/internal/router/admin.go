@@ -73,15 +73,8 @@ func registerAdminRoutes(rg *gin.RouterGroup, h *Handlers) {
 	rg.GET("/audit-logs", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.List }))
 	rg.POST("/audit-logs/batch-delete", middleware.RequirePermission(PermAuditRead), safeHandler(h, func() bool { return h.Audit != nil }, func() gin.HandlerFunc { return h.Audit.BatchDelete }))
 
-	// LLM 配置
-	rg.GET("/llm-configs", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.ListConfigs }))
-	rg.POST("/llm-configs", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.CreateConfig }))
-	rg.GET("/llm-configs/:id", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.GetConfig }))
-	rg.PUT("/llm-configs/:id", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.UpdateConfig }))
-	rg.DELETE("/llm-configs/:id", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.DeleteConfig }))
-	rg.POST("/llm-configs/:id/test", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.LLMConfig != nil }, func() gin.HandlerFunc { return h.LLMConfig.TestConnection }))
-
 	// 系统配置
+	rg.GET("/configs/llm-info", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.GetLLMInfo }))
 	rg.GET("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Get }))
 	rg.PUT("/configs/:key", middleware.RequirePermission(PermSystemConfig), safeHandler(h, func() bool { return h.Config != nil }, func() gin.HandlerFunc { return h.Config.Update }))
 

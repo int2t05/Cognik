@@ -10,7 +10,6 @@ type KBResponse struct {
 	Description     string `json:"description"`
 	EmbeddingModel  string `json:"embedding_model"`
 	VectorDimension int    `json:"vector_dimension"`
-	LlmConfigID     int64  `json:"llm_config_id"`
 	ArticleCount    int    `json:"article_count"`
 	CreatedBy       int64  `json:"created_by"`
 	CreatedAt       string `json:"created_at"`

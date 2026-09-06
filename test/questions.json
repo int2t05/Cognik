@@ -1,0 +1,110 @@
+[
+  {
+    "id": 1,
+    "difficulty": "simple",
+    "question": "How to configure shared_buffers and work_mem in PostgreSQL?",
+    "relevant_docs": ["postgresql-tuning.md"]
+  },
+  {
+    "id": 2,
+    "difficulty": "simple",
+    "question": "What to check when a Docker container is stuck in a restart loop?",
+    "relevant_docs": ["docker-troubleshooting.md"]
+  },
+  {
+    "id": 3,
+    "difficulty": "simple",
+    "question": "How to debug a Kubernetes pod in CrashLoopBackOff state?",
+    "relevant_docs": ["kubernetes-debugging.md"]
+  },
+  {
+    "id": 4,
+    "difficulty": "simple",
+    "question": "Which tools to use for disk I/O performance analysis on Linux?",
+    "relevant_docs": ["linux-performance.md"]
+  },
+  {
+    "id": 5,
+    "difficulty": "simple",
+    "question": "How to diagnose DNS resolution problems in production?",
+    "relevant_docs": ["network-diagnosis.md"]
+  },
+  {
+    "id": 6,
+    "difficulty": "simple",
+    "question": "How to disable SSH password authentication and enforce key-based login?",
+    "relevant_docs": ["security-hardening.md"]
+  },
+  {
+    "id": 7,
+    "difficulty": "multihop",
+    "question": "A PostgreSQL container in Kubernetes keeps getting OOMKilled, how to diagnose?",
+    "relevant_docs": ["postgresql-tuning.md", "docker-troubleshooting.md", "kubernetes-debugging.md"]
+  },
+  {
+    "id": 8,
+    "difficulty": "multihop",
+    "question": "How to trace network connections of a specific Docker container?",
+    "relevant_docs": ["docker-troubleshooting.md", "network-diagnosis.md"]
+  },
+  {
+    "id": 9,
+    "difficulty": "multihop",
+    "question": "A Kubernetes pod has high disk I/O causing node pressure, how to profile?",
+    "relevant_docs": ["kubernetes-debugging.md", "linux-performance.md"]
+  },
+  {
+    "id": 10,
+    "difficulty": "multihop",
+    "question": "How to harden a Docker container for production deployment?",
+    "relevant_docs": ["docker-troubleshooting.md", "security-hardening.md"]
+  },
+  {
+    "id": 11,
+    "difficulty": "multihop",
+    "question": "PostgreSQL slow queries are suspected, how to use EXPLAIN ANALYZE and pg_stat_statements?",
+    "relevant_docs": ["postgresql-tuning.md"]
+  },
+  {
+    "id": 12,
+    "difficulty": "multihop",
+    "question": "Kubernetes node is running out of memory, how to identify the consuming pods?",
+    "relevant_docs": ["kubernetes-debugging.md", "linux-performance.md"]
+  },
+  {
+    "id": 13,
+    "difficulty": "multihop",
+    "question": "DNS resolution is slow for Kubernetes pods, how to debug CoreDNS?",
+    "relevant_docs": ["kubernetes-debugging.md", "network-diagnosis.md"]
+  },
+  {
+    "id": 14,
+    "difficulty": "multihop",
+    "question": "How to configure TLS certificates for a service running in Kubernetes?",
+    "relevant_docs": ["kubernetes-debugging.md", "network-diagnosis.md", "security-hardening.md"]
+  },
+  {
+    "id": 15,
+    "difficulty": "paraphrased",
+    "question": "Database performance degraded after migrating to new hardware",
+    "relevant_docs": ["postgresql-tuning.md", "linux-performance.md"]
+  },
+  {
+    "id": 16,
+    "difficulty": "paraphrased",
+    "question": "Container cannot reach external API endpoint",
+    "relevant_docs": ["docker-troubleshooting.md", "network-diagnosis.md"]
+  },
+  {
+    "id": 17,
+    "difficulty": "paraphrased",
+    "question": "Pods are being evicted from the cluster repeatedly",
+    "relevant_docs": ["kubernetes-debugging.md", "linux-performance.md"]
+  },
+  {
+    "id": 18,
+    "difficulty": "paraphrased",
+    "question": "Application latency increased after the last deployment",
+    "relevant_docs": ["linux-performance.md", "network-diagnosis.md"]
+  }
+]

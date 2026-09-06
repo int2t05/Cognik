@@ -22,7 +22,7 @@ func AutoMigrate(db *gorm.DB, dim int) error {
 		&model.User{}, &model.Role{}, &model.UserRole{}, &model.Menu{}, &model.RoleMenu{},
 		&model.Ticket{}, &model.TicketRecord{},
 		&model.KnowledgeBase{}, &model.KnowledgeArticle{}, &model.KnowledgeChunk{},
-		&model.LlmConfig{}, &model.ChatSession{}, &model.ChatMessage{},
+		&model.ChatSession{}, &model.ChatMessage{},
 		&model.AuditLog{}, &model.SystemConfig{}, &model.Message{},
 	); err != nil {
 		return err
@@ -32,7 +32,6 @@ func AutoMigrate(db *gorm.DB, dim int) error {
 		"CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_chat_created_at ON chat_sessions(created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at DESC)",
-		"CREATE UNIQUE INDEX IF NOT EXISTS idx_llm_configs_default ON llm_configs(is_default) WHERE is_default = true",
 	} {
 		if err := db.Exec(sql).Error; err != nil {
 			return err

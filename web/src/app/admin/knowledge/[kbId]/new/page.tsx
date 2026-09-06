@@ -3,7 +3,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createArticle, getKBList, type KB } from '@/lib/api/knowledge';
-import { getLLMConfigs, type LLMConfig } from '@/lib/api/llm_config';
+import { getLLMInfo } from '@/lib/api/llm_config';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,16 +30,15 @@ export default function NewArticlePage() {
   useEffect(() => {
     (async () => {
       try {
-        const [kbs, cfgs] = await Promise.all([getKBList(), getLLMConfigs()]);
+        const [kbs, info] = await Promise.all([getKBList(), getLLMInfo()]);
         const kb = kbs.find((k: KB) => k.id === Number(kbId));
-        const def = cfgs.find((c: LLMConfig) => c.is_default);
-        if (!kb || !def) return;
+        if (!kb) return;
         const issues: string[] = [];
-        if (kb.embedding_model && kb.embedding_model !== def.embedding_model) {
-          issues.push(t('kb.mismatchModel', { kbModel: kb.embedding_model, defaultModel: def.embedding_model }));
+        if (kb.embedding_model && kb.embedding_model !== info.embedding_model) {
+          issues.push(t('kb.mismatchModel', { kbModel: kb.embedding_model, defaultModel: info.embedding_model }));
         }
-        if (kb.vector_dimension > 0 && kb.vector_dimension !== def.vector_dimension) {
-          issues.push(t('kb.mismatchDim', { kbDim: kb.vector_dimension, defaultDim: def.vector_dimension }));
+        if (kb.vector_dimension > 0 && kb.vector_dimension !== info.embedding_dimension) {
+          issues.push(t('kb.mismatchDim', { kbDim: kb.vector_dimension, defaultDim: info.embedding_dimension }));
         }
         if (issues.length) setConfigMismatch(issues.join('; '));
       } catch { /* 静默降级——不影响创建流程 */ }

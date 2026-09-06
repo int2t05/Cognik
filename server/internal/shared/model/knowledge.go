@@ -14,7 +14,6 @@ type KnowledgeBase struct {
 	RAGWorkspaceSlug string    `gorm:"type:varchar(128);uniqueIndex;column:rag_workspace_slug" json:"rag_workspace_slug"`
 	EmbeddingModel   string    `gorm:"type:varchar(128);not null;column:embedding_model" json:"embedding_model"`
 	VectorDimension  int       `gorm:"not null;column:vector_dimension" json:"vector_dimension"`
-	LlmConfigID      int64     `gorm:"not null;default:0;column:llm_config_id" json:"llm_config_id"`
 	CreatedBy        int64     `gorm:"column:created_by" json:"created_by"`
 	CreatedAt        time.Time `gorm:"not null" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"not null" json:"updated_at"`
@@ -39,6 +38,8 @@ type KnowledgeArticle struct {
 	MinioPath     string         `gorm:"type:varchar(512);column:minio_path" json:"minio_path"`
 	ProcessStatus string         `gorm:"type:varchar(16);not null;default:pending;column:process_status;index:idx_articles_process_status" json:"process_status"`
 	ProcessError  string         `gorm:"type:text;column:process_error" json:"process_error"`
+	ProcessRetryCount int       `gorm:"not null;default:0;column:process_retry_count" json:"process_retry_count"`
+	NextRetryAt   *time.Time    `gorm:"column:next_retry_at;index:idx_articles_next_retry" json:"next_retry,omitempty"`
 	CreatedBy     int64          `gorm:"column:created_by" json:"created_by"`
 	ReviewedBy    *int64         `gorm:"column:reviewed_by" json:"reviewed_by"`
 	PublishedBy   *int64         `gorm:"column:published_by" json:"published_by"`
